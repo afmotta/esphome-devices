@@ -1,29 +1,11 @@
 esphome:
   name: kincony-a6-gruppo-miscelazione
-  friendly_name: gruppo-miscelazione
+  friendly_name: "Gruppo Miscelazione"
 
 esp32:
   board: esp32dev
   framework:
     type: esp-idf
-
-globals:
-  - id: fallback_estate_piano_terra
-    type: float
-    restore_value: yes
-    initial_value: "22.0"
-  - id: fallback_inverno_piano_terra
-    type: float
-    restore_value: yes
-    initial_value: "22.0"
-  - id: fallback_estate_primo_piano
-    type: float
-    restore_value: yes
-    initial_value: "22.0"
-  - id: fallback_inverno_primo_piano
-    type: float
-    restore_value: yes
-    initial_value: "22.0"
 
 packages:
   pid_terra: !include
@@ -31,19 +13,23 @@ packages:
     vars:
       circuit_name: "Piano Terra"
       circuit_slug: piano_terra
-      temp_sensor: temperatura_circuito_piano_terra
-      summer_default: fallback_estate_piano_terra
-      winter_default: fallback_inverno_piano_terra
+      summer_default: 22.0
+      winter_default: 22.0
+      sensor_address: 0x81000000b3e6f628
       is_summer: id(summer_mode).state
+      relay_number: 0
+      dac: dac1
   pid_primo: !include
     file: ./miscelatrice.yaml
     vars:
       circuit_name: "Primo Piano"
       circuit_slug: primo_piano
-      temp_sensor: temperatura_circuito_primo_piano
-      summer_default: fallback_estate_primo_piano
-      winter_default: fallback_inverno_primo_piano
+      summer_default: 22.0
+      winter_default: 22.0
+      sensor_address: 0xe9000000b366ed28
       is_summer: id(summer_mode).state
+      relay_number: 1
+      dac: dac2
 
 wifi:
   ssid: !secret wifi_ssid
@@ -95,16 +81,8 @@ pcf8574:
 one_wire:
   - platform: gpio
     pin: GPIO32
-
-sensor:
-  - platform: dallas_temp
-    address: 0x1234567812345628
-    name: "Temperatura Circuito Piano Terra"
-    id: temperatura_circuito_piano_terra
-  - platform: dallas_temp
-    address: 0x1234567812345629
-    name: "Temperatura Circuito Primo Piano"
-    id: temperatura_circuito_primo_piano
+  # - platform: gpio
+  #   pin: GPIO33
 
 binary_sensor:
   - platform: homeassistant
@@ -158,55 +136,55 @@ binary_sensor:
       mode: INPUT
       inverted: true
 
-switch:
-  - platform: gpio
-    name: "Pompa Miscelatrice radiante piano terra"
-    id: relay_1
-    pin:
-      pcf8574: outputs
-      number: 0
-      mode: OUTPUT
-      inverted: true
-  - platform: gpio
-    name: "Pompa Miscelatrice radiante primo piano"
-    id: relay_2
-    pin:
-      pcf8574: outputs
-      number: 1
-      mode: OUTPUT
-      inverted: true
-  - platform: gpio
-    name: "KC868-A6-RELAY-3"
-    id: relay_3
-    pin:
-      pcf8574: outputs
-      number: 2
-      mode: OUTPUT
-      inverted: true
-  - platform: gpio
-    name: "KC868-A6-RELAY-4"
-    id: relay_4
-    pin:
-      pcf8574: outputs
-      number: 3
-      mode: OUTPUT
-      inverted: true
-  - platform: gpio
-    name: "KC868-A6-RELAY-5"
-    id: relay_5
-    pin:
-      pcf8574: outputs
-      number: 4
-      mode: OUTPUT
-      inverted: true
-  - platform: gpio
-    name: "KC868-A6-RELAY-6"
-    id: relay_6
-    pin:
-      pcf8574: outputs
-      number: 5
-      mode: OUTPUT
-      inverted: true
+# switch:
+#   - platform: gpio
+#     name: "Relay 1"
+#     id: relay_1
+#     pin:
+#       pcf8574: outputs
+#       number: 0
+#       mode: OUTPUT
+#       inverted: true
+# - platform: gpio
+#   name: "Pompa Miscelatrice radiante primo piano"
+#   id: relay_2
+#   pin:
+#     pcf8574: outputs
+#     number: 1
+#     mode: OUTPUT
+#     inverted: true
+# - platform: gpio
+#   name: "Relay 3"
+#   id: relay_3
+#   pin:
+#     pcf8574: outputs
+#     number: 2
+#     mode: OUTPUT
+#     inverted: true
+# - platform: gpio
+#   name: "Relay 4"
+#   id: relay_4
+#   pin:
+#     pcf8574: outputs
+#     number: 3
+#     mode: OUTPUT
+#     inverted: true
+# - platform: gpio
+#   name: "Relay 5"
+#   id: relay_5
+#   pin:
+#     pcf8574: outputs
+#     number: 4
+#     mode: OUTPUT
+#     inverted: true
+# - platform: gpio
+#   name: "Relay 6"
+#   id: relay_6
+#   pin:
+#     pcf8574: outputs
+#     number: 5
+#     mode: OUTPUT
+#     inverted: true
 
 # === Uscite DAC 0–10V ===
 output:

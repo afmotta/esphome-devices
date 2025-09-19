@@ -4,13 +4,23 @@ output:
     type: float
     write_action:
       lambda: |-
-        id(${dac}).write(state);
+        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_COOL) {
+          id(${dac}).set_level(state);
+        }
+        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_HEAT) {
+          id(${dac}).set_level(1 - state);
+        }
   - platform: template
     id: proxy_${circuit_slug}_heat
     type: float
     write_action:
       lambda: |-
-        id(${dac}).write(state);
+        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_HEAT) {
+          id(${dac}).set_level(state);
+        }
+        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_COOL) {
+          id(${dac}).set_level(1 - state);
+        }
 
 number:
   - platform: template
@@ -26,17 +36,32 @@ number:
     on_value:
       then:
         - climate.control:
-            id: pid_${circuit_slug}
+            id: "pid_${circuit_slug}"
             target_temperature: !lambda "return id(setpoint_${circuit_slug}).state;"
 
+switch:
+  - platform: gpio
+    name: "Pompa Miscelatrice ${circuit_name}"
+    id: pompa_miscelatrice_${circuit_slug}
+    pin:
+      pcf8574: outputs
+      number: ${relay_number}
+      mode: OUTPUT
+      inverted: true
+
 sensor:
+  - platform: dallas_temp
+    address: ${sensor_address}
+    name: "Temperatura Mandata ${circuit_name}"
+    id: temperatura_mandata_${circuit_slug}
+    unit_of_measurement: "°C"
   - platform: template
     name: "Fallback Miscelatrice Circuito ${circuit_name} (read-only)"
     id: fallback_${circuit_slug}
     icon: "mdi:thermometer"
     unit_of_measurement: "°C"
     lambda: |-
-      return ${is_summer} ? id(${summer_default}).state : id(${winter_default}).state;
+      return ${is_summer} ? ${summer_default} : ${winter_default};
     update_interval: 60s
   - platform: pid
     name: "PID ${circuit_name} Result"
@@ -93,7 +118,7 @@ climate:
   - platform: pid
     id: pid_${circuit_slug}
     name: "Miscelatrice ${circuit_name}"
-    sensor: ${temp_sensor}
+    sensor: temperatura_mandata_${circuit_slug}
     heat_output: proxy_${circuit_slug}_heat
     cool_output: proxy_${circuit_slug}_cool
     default_target_temperature: 20.0
@@ -105,21 +130,20 @@ climate:
       min_temperature: 7
       max_temperature: 40
       temperature_step: 0.5
-
-script:
-  - id: fallback_targets_${circuit_slug}
-    then:
-      - if:
-          condition:
-            lambda: !lambda return is_summer;
-          then:
-            - logger.log: "[Miscelatrice Circuito ${circuit_name}] HA offline → uso fallback"
-            - climate.control:
-                id: pid_${circuit_slug}
-                target_temperature: !lambda "return id(${summer_default}).value;"
-          else: # Inverno
-            - logger.log: "HA offline → uso fallback inverno"
-            - climate.control:
-                id: pid_${circuit_slug}
-                mode: HEAT
-                target_temperature: !lambda "return id(${winter_default}).value;"
+# script:
+#   - id: fallback_targets_${circuit_slug}
+#     then:
+#       - if:
+#           condition:
+#             lambda: !lambda "return is_summer";
+#           then:
+#             - logger.log: "[Miscelatrice Circuito ${circuit_name}] HA offline → uso fallback"
+#             - climate.control:
+#                 id: pid_${circuit_slug}
+#                 target_temperature: !lambda "return summer_default"
+#           else: # Inverno
+#             - logger.log: "HA offline → uso fallback inverno"
+#             - climate.control:
+#                 id: pid_${circuit_slug}
+#                 mode: HEAT
+#                 target_temperature: !lambda "return winter_default"
