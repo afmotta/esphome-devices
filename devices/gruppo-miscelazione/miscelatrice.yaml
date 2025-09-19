@@ -1,0 +1,125 @@
+output:
+  - platform: template
+    id: proxy_${circuit_slug}_cool
+    type: float
+    write_action:
+      lambda: |-
+        id(${dac}).write(state);
+  - platform: template
+    id: proxy_${circuit_slug}_heat
+    type: float
+    write_action:
+      lambda: |-
+        id(${dac}).write(state);
+
+number:
+  - platform: template
+    name: "Setpoint Miscelatrice ${circuit_name}"
+    id: setpoint_${circuit_slug}
+    icon: "mdi:thermometer"
+    unit_of_measurement: "°C"
+    min_value: 7.0
+    max_value: 40.0
+    step: 0.5
+    optimistic: true
+    initial_value: 20.0
+    on_value:
+      then:
+        - climate.control:
+            id: pid_${circuit_slug}
+            target_temperature: !lambda "return id(setpoint_${circuit_slug}).state;"
+
+sensor:
+  - platform: template
+    name: "Fallback Miscelatrice Circuito ${circuit_name} (read-only)"
+    id: fallback_${circuit_slug}
+    icon: "mdi:thermometer"
+    unit_of_measurement: "°C"
+    lambda: |-
+      return ${is_summer} ? id(${summer_default}).state : id(${winter_default}).state;
+    update_interval: 60s
+  - platform: pid
+    name: "PID ${circuit_name} Result"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_result
+    type: RESULT
+  - platform: pid
+    name: "PID ${circuit_name} Error"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_error
+    type: ERROR
+  - platform: pid
+    name: "PID ${circuit_name} Heat"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_heat
+    type: HEAT
+  - platform: pid
+    name: "PID ${circuit_name} Cool"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_cool
+    type: COOL
+  - platform: pid
+    name: "PID ${circuit_name} Proportional"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_proportional
+    type: PROPORTIONAL
+  - platform: pid
+    name: "PID ${circuit_name} Integral"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_integral
+    type: INTEGRAL
+  - platform: pid
+    name: "PID ${circuit_name} Derivative"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_derivative
+    type: DERIVATIVE
+  - platform: pid
+    name: "PID ${circuit_name} KP"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_kp
+    type: KP
+  - platform: pid
+    name: "PID ${circuit_name} KI"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_ki
+    type: KI
+  - platform: pid
+    name: "PID ${circuit_name} KD"
+    climate_id: pid_${circuit_slug}
+    id: pid_sensor_${circuit_slug}_kd
+    type: KD
+
+climate:
+  - platform: pid
+    id: pid_${circuit_slug}
+    name: "Miscelatrice ${circuit_name}"
+    sensor: ${temp_sensor}
+    heat_output: proxy_${circuit_slug}_heat
+    cool_output: proxy_${circuit_slug}_cool
+    default_target_temperature: 20.0
+    control_parameters:
+      kp: 0.2
+      ki: 0.01
+      kd: 0.0
+    visual:
+      min_temperature: 7
+      max_temperature: 40
+      temperature_step: 0.5
+
+script:
+  - id: fallback_targets_${circuit_slug}
+    then:
+      - if:
+          condition:
+            lambda: !lambda return is_summer;
+          then:
+            - logger.log: "[Miscelatrice Circuito ${circuit_name}] HA offline → uso fallback"
+            - climate.control:
+                id: pid_${circuit_slug}
+                target_temperature: !lambda "return id(${summer_default}).value;"
+          else: # Inverno
+            - logger.log: "HA offline → uso fallback inverno"
+            - climate.control:
+                id: pid_${circuit_slug}
+                mode: HEAT
+                target_temperature: !lambda "return id(${winter_default}).value;"

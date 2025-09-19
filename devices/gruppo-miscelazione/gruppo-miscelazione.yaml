@@ -1,0 +1,238 @@
+esphome:
+  name: kincony-a6-gruppo-miscelazione
+  friendly_name: gruppo-miscelazione
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+globals:
+  - id: fallback_estate_piano_terra
+    type: float
+    restore_value: yes
+    initial_value: "22.0"
+  - id: fallback_inverno_piano_terra
+    type: float
+    restore_value: yes
+    initial_value: "22.0"
+  - id: fallback_estate_primo_piano
+    type: float
+    restore_value: yes
+    initial_value: "22.0"
+  - id: fallback_inverno_primo_piano
+    type: float
+    restore_value: yes
+    initial_value: "22.0"
+
+packages:
+  pid_terra: !include
+    file: ./miscelatrice.yaml
+    vars:
+      circuit_name: "Piano Terra"
+      circuit_slug: piano_terra
+      temp_sensor: temperatura_circuito_piano_terra
+      summer_default: fallback_estate_piano_terra
+      winter_default: fallback_inverno_piano_terra
+      is_summer: id(summer_mode).state
+  pid_primo: !include
+    file: ./miscelatrice.yaml
+    vars:
+      circuit_name: "Primo Piano"
+      circuit_slug: primo_piano
+      temp_sensor: temperatura_circuito_primo_piano
+      summer_default: fallback_estate_primo_piano
+      winter_default: fallback_inverno_primo_piano
+      is_summer: id(summer_mode).state
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+logger:
+
+api:
+  encryption:
+    key: !secret encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+uart:
+  - id: rs485
+    tx_pin: GPIO27
+    rx_pin: GPIO14
+    baud_rate: 9600
+  - id: rs232
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+
+# ethernet:
+#   type: W5500
+#   clk_pin: GPIO18
+#   mosi_pin: GPIO23
+#   miso_pin: GPIO19
+#   cs_pin: GPIO5
+
+i2c:
+  sda: GPIO4
+  scl:
+    number: GPIO15
+    ignore_strapping_warning: true
+
+pcf8574:
+  - id: inputs
+    address: 0x22
+  - id: outputs
+    address: 0x24
+
+# time:
+#   - platform: ds1307
+#     id: rtc_time
+
+one_wire:
+  - platform: gpio
+    pin: GPIO32
+
+sensor:
+  - platform: dallas_temp
+    address: 0x1234567812345628
+    name: "Temperatura Circuito Piano Terra"
+    id: temperatura_circuito_piano_terra
+  - platform: dallas_temp
+    address: 0x1234567812345629
+    name: "Temperatura Circuito Primo Piano"
+    id: temperatura_circuito_primo_piano
+
+binary_sensor:
+  - platform: homeassistant
+    id: summer_mode
+    entity_id: input_boolean.summer_mode
+    internal: false
+  - platform: homeassistant
+    id: ha_status
+    entity_id: binary_sensor.ha_online
+    internal: true
+  - platform: gpio
+    name: "KC868-A6-IN-1"
+    pin:
+      pcf8574: inputs
+      number: 0
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-2"
+    pin:
+      pcf8574: inputs
+      number: 1
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-3"
+    pin:
+      pcf8574: inputs
+      number: 2
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-4"
+    pin:
+      pcf8574: inputs
+      number: 3
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-5"
+    pin:
+      pcf8574: inputs
+      number: 4
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-IN-6"
+    pin:
+      pcf8574: inputs
+      number: 5
+      mode: INPUT
+      inverted: true
+
+switch:
+  - platform: gpio
+    name: "Pompa Miscelatrice radiante piano terra"
+    id: relay_1
+    pin:
+      pcf8574: outputs
+      number: 0
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Pompa Miscelatrice radiante primo piano"
+    id: relay_2
+    pin:
+      pcf8574: outputs
+      number: 1
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-3"
+    id: relay_3
+    pin:
+      pcf8574: outputs
+      number: 2
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-4"
+    id: relay_4
+    pin:
+      pcf8574: outputs
+      number: 3
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-5"
+    id: relay_5
+    pin:
+      pcf8574: outputs
+      number: 4
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "KC868-A6-RELAY-6"
+    id: relay_6
+    pin:
+      pcf8574: outputs
+      number: 5
+      mode: OUTPUT
+      inverted: true
+
+# === Uscite DAC 0–10V ===
+output:
+  - platform: esp32_dac
+    pin: GPIO26
+    id: dac1
+  - platform: esp32_dac
+    pin: GPIO25
+    id: dac2
+
+# === Target configurabili da HA ===
+number:
+  - platform: template
+    id: target_c1
+    name: "Target Circuito 1"
+    optimistic: true
+    min_value: 18
+    max_value: 30
+    step: 0.5
+    initial_value: 22
+
+  - platform: template
+    id: target_c2
+    name: "Target Circuito 2"
+    optimistic: true
+    min_value: 18
+    max_value: 30
+    step: 0.5
+    initial_value: 22
