@@ -1,48 +1,7 @@
-output:
-  - platform: template
-    id: proxy_${circuit_slug}_cool
-    type: float
-    write_action:
-      lambda: |-
-        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_COOL) {
-          id(${dac}).set_level(state);
-        }
-        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_HEAT) {
-          id(${dac}).set_level(1 - state);
-        }
-  - platform: template
-    id: proxy_${circuit_slug}_heat
-    type: float
-    write_action:
-      lambda: |-
-        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_HEAT) {
-          id(${dac}).set_level(state);
-        }
-        if (id(pid_${circuit_slug}).mode == CLIMATE_MODE_COOL) {
-          id(${dac}).set_level(1 - state);
-        }
-
-number:
-  - platform: template
-    name: "Setpoint Miscelatrice ${circuit_name}"
-    id: setpoint_${circuit_slug}
-    icon: "mdi:thermometer"
-    unit_of_measurement: "°C"
-    min_value: 7.0
-    max_value: 40.0
-    step: 0.5
-    optimistic: true
-    initial_value: 20.0
-    on_value:
-      then:
-        - climate.control:
-            id: "pid_${circuit_slug}"
-            target_temperature: !lambda "return id(setpoint_${circuit_slug}).state;"
-
 switch:
   - platform: gpio
     name: "Pompa Miscelatrice ${circuit_name}"
-    id: pompa_miscelatrice_${circuit_slug}
+    id: pump_${circuit_slug}
     pin:
       pcf8574: outputs
       number: ${relay_number}
@@ -55,72 +14,13 @@ sensor:
     name: "Temperatura Mandata ${circuit_name}"
     id: temperatura_mandata_${circuit_slug}
     unit_of_measurement: "°C"
-  - platform: template
-    name: "Fallback Miscelatrice Circuito ${circuit_name} (read-only)"
-    id: fallback_${circuit_slug}
-    icon: "mdi:thermometer"
-    unit_of_measurement: "°C"
-    lambda: |-
-      return ${is_summer} ? ${summer_default} : ${winter_default};
-    update_interval: 60s
-  - platform: pid
-    name: "PID ${circuit_name} Result"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_result
-    type: RESULT
-  - platform: pid
-    name: "PID ${circuit_name} Error"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_error
-    type: ERROR
-  - platform: pid
-    name: "PID ${circuit_name} Heat"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_heat
-    type: HEAT
-  - platform: pid
-    name: "PID ${circuit_name} Cool"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_cool
-    type: COOL
-  - platform: pid
-    name: "PID ${circuit_name} Proportional"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_proportional
-    type: PROPORTIONAL
-  - platform: pid
-    name: "PID ${circuit_name} Integral"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_integral
-    type: INTEGRAL
-  - platform: pid
-    name: "PID ${circuit_name} Derivative"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_derivative
-    type: DERIVATIVE
-  - platform: pid
-    name: "PID ${circuit_name} KP"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_kp
-    type: KP
-  - platform: pid
-    name: "PID ${circuit_name} KI"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_ki
-    type: KI
-  - platform: pid
-    name: "PID ${circuit_name} KD"
-    climate_id: pid_${circuit_slug}
-    id: pid_sensor_${circuit_slug}_kd
-    type: KD
 
 climate:
   - platform: pid
-    id: pid_${circuit_slug}
-    name: "Miscelatrice ${circuit_name}"
+    id: pid_heat_${circuit_slug}
+    name: "Miscelatrice ${circuit_name} Riscaldamento"
     sensor: temperatura_mandata_${circuit_slug}
-    heat_output: proxy_${circuit_slug}_heat
-    cool_output: proxy_${circuit_slug}_cool
+    heat_output: ${dac}
     default_target_temperature: 20.0
     control_parameters:
       kp: 0.2
@@ -130,20 +30,60 @@ climate:
       min_temperature: 7
       max_temperature: 40
       temperature_step: 0.5
-# script:
-#   - id: fallback_targets_${circuit_slug}
+    on_state:
+      lambda: |-
+        if (x.mode == CLIMATE_MODE_OFF && id(pid_cool_${circuit_slug}).mode == CLIMATE_MODE_OFF) {
+          id(pump_${circuit_slug}).turn_off();
+        } else if (x.mode != CLIMATE_MODE_OFF) {
+          id(pump_${circuit_slug}).turn_on();
+          auto call = id(pid_cool_${circuit_slug}).make_call();
+          call.set_mode("OFF");
+          call.perform();
+        }
+
+  - platform: pid
+    id: pid_cool_${circuit_slug}
+    name: "Miscelatrice ${circuit_name} Raffrescamento"
+    sensor: temperatura_mandata_${circuit_slug}
+    cool_output: ${dac}
+    default_target_temperature: 20.0
+    control_parameters:
+      kp: 0.2
+      ki: 0.01
+      kd: 0.0
+    visual:
+      min_temperature: 7
+      max_temperature: 40
+      temperature_step: 0.5
+    on_state:
+      lambda: |-
+        if (x.mode == CLIMATE_MODE_OFF && id(pid_heat_${circuit_slug}).mode == CLIMATE_MODE_OFF) {
+          id(pump_${circuit_slug}).turn_off();
+        } else if (x.mode != CLIMATE_MODE_OFF) {
+          id(pump_${circuit_slug}).turn_on();
+          auto call = id(pid_heat_${circuit_slug}).make_call();
+          call.set_mode("OFF");
+          call.perform();
+        }
+
+packages:
+  sensori_pid_heat: !include
+    file: sensori_pid.yaml
+    vars:
+      pid_id: pid_heat_${circuit_slug}
+      pid_name: "PID Caldo ${circuit_name} "
+  sensori_pid_cool: !include
+    file: sensori_pid.yaml
+    vars:
+      pid_id: pid_cool_${circuit_slug}
+      pid_name: "PID Freddo ${circuit_name}"
+# esphome:
+#   on_boot:
+#     priority: -100.0
 #     then:
-#       - if:
-#           condition:
-#             lambda: !lambda "return is_summer";
-#           then:
-#             - logger.log: "[Miscelatrice Circuito ${circuit_name}] HA offline → uso fallback"
-#             - climate.control:
-#                 id: pid_${circuit_slug}
-#                 target_temperature: !lambda "return summer_default"
-#           else: # Inverno
-#             - logger.log: "HA offline → uso fallback inverno"
-#             - climate.control:
-#                 id: pid_${circuit_slug}
-#                 mode: HEAT
-#                 target_temperature: !lambda "return winter_default"
+#       - climate.control:
+#           id: pid_heat_${circuit_slug}
+#           mode: "OFF"
+#       - climate.control:
+#           id: pid_cool_${circuit_slug}
+#           mode: "OFF"
