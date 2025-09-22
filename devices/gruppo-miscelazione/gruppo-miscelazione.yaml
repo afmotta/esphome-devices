@@ -13,27 +13,39 @@ packages:
     vars:
       circuit_name: "Piano Terra"
       circuit_slug: piano_terra
-      summer_default: 22.0
-      winter_default: 22.0
       sensor_address: 0x81000000b3e6f628
       is_summer: id(summer_mode).state
       relay_number: 0
       dac: dac1
+      heat_default: 28.0
+      heat_kp: 0.2
+      heat_ki: 0.01
+      heat_kd: 0.0
+      cool_default: 22.0
+      cool_kp: 0.2
+      cool_ki: 0.01
+      cool_kd: 0.0
   pid_primo: !include
     file: ./miscelatrice.yaml
     vars:
       circuit_name: "Primo Piano"
       circuit_slug: primo_piano
-      summer_default: 22.0
-      winter_default: 22.0
+      heat_default: 28.0
+      cool_default: 22.0
       sensor_address: 0xe9000000b366ed28
       is_summer: id(summer_mode).state
       relay_number: 1
       dac: dac2
+      heat_kp: 0.2
+      heat_ki: 0.01
+      heat_kd: 0.0
+      cool_kp: 0.2
+      cool_ki: 0.01
+      cool_kd: 0.0
 
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+# wifi:
+#   ssid: !secret wifi_ssid
+#   password: !secret wifi_password
 
 logger:
 
@@ -55,12 +67,12 @@ uart:
     rx_pin: GPIO16
     baud_rate: 9600
 
-# ethernet:
-#   type: W5500
-#   clk_pin: GPIO18
-#   mosi_pin: GPIO23
-#   miso_pin: GPIO19
-#   cs_pin: GPIO5
+ethernet:
+  type: W5500
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  miso_pin: GPIO19
+  cs_pin: GPIO5
 
 i2c:
   sda: GPIO4
@@ -194,23 +206,3 @@ output:
   - platform: esp32_dac
     pin: GPIO25
     id: dac2
-
-# === Target configurabili da HA ===
-number:
-  - platform: template
-    id: target_c1
-    name: "Target Circuito 1"
-    optimistic: true
-    min_value: 18
-    max_value: 30
-    step: 0.5
-    initial_value: 22
-
-  - platform: template
-    id: target_c2
-    name: "Target Circuito 2"
-    optimistic: true
-    min_value: 18
-    max_value: 30
-    step: 0.5
-    initial_value: 22

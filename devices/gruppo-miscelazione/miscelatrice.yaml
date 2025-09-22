@@ -1,14 +1,24 @@
 packages:
-  sensori_pid_heat: !include
-    file: sensori_pid.yaml
+  pid_heat: !include
+    file: pid.yaml
     vars:
-      pid_id: pid_heat_${circuit_slug}
-      pid_name: "PID Heat ${circuit_name} "
-  sensori_pid_cool: !include
-    file: sensori_pid.yaml
+      mode: "heat"
+      circuit_name: ${circuit_name}
+      circuit_slug: ${circuit_slug}
+      default_temperature: ${heat_default}
+      kp: ${heat_kp}
+      ki: ${heat_ki}
+      kd: ${heat_kd}
+  pid_cool: !include
+    file: pid.yaml
     vars:
-      pid_id: pid_cool_${circuit_slug}
-      pid_name: "PID Cool ${circuit_name}"
+      mode: "cool"
+      circuit_name: ${circuit_name}
+      circuit_slug: ${circuit_slug}
+      default_temperature: ${cool_default}
+      kp: ${cool_kp}
+      ki: ${cool_ki}
+      kd: ${cool_kd}
 
 switch:
   - platform: gpio
@@ -28,52 +38,8 @@ sensor:
     unit_of_measurement: "°C"
 
 climate:
-  - platform: pid
-    id: pid_heat_${circuit_slug}
-    name: "Miscelatrice ${circuit_name} Riscaldamento"
-    sensor: temperatura_mandata_${circuit_slug}
+  - id: !extend pid_heat_${circuit_slug}
     heat_output: ${dac}
-    default_target_temperature: 20.0
-    control_parameters:
-      kp: 0.2
-      ki: 0.01
-      kd: 0.0
-    visual:
-      min_temperature: 7
-      max_temperature: 40
-      temperature_step: 0.5
-    on_state:
-      lambda: |-
-        if (x.mode == CLIMATE_MODE_OFF && id(pid_cool_${circuit_slug}).mode == CLIMATE_MODE_OFF) {
-          id(pump_${circuit_slug}).turn_off();
-        } else if (x.mode != CLIMATE_MODE_OFF) {
-          id(pump_${circuit_slug}).turn_on();
-          auto call = id(pid_cool_${circuit_slug}).make_call();
-          call.set_mode("OFF");
-          call.perform();
-        }
 
-  - platform: pid
-    id: pid_cool_${circuit_slug}
-    name: "Miscelatrice ${circuit_name} Raffrescamento"
-    sensor: temperatura_mandata_${circuit_slug}
+  - id: !extend pid_cool_${circuit_slug}
     cool_output: ${dac}
-    default_target_temperature: 20.0
-    control_parameters:
-      kp: 0.2
-      ki: 0.01
-      kd: 0.0
-    visual:
-      min_temperature: 7
-      max_temperature: 40
-      temperature_step: 0.5
-    on_state:
-      lambda: |-
-        if (x.mode == CLIMATE_MODE_OFF && id(pid_heat_${circuit_slug}).mode == CLIMATE_MODE_OFF) {
-          id(pump_${circuit_slug}).turn_off();
-        } else if (x.mode != CLIMATE_MODE_OFF) {
-          id(pump_${circuit_slug}).turn_on();
-          auto call = id(pid_heat_${circuit_slug}).make_call();
-          call.set_mode("OFF");
-          call.perform();
-        }
