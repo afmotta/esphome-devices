@@ -1,3 +1,15 @@
+packages:
+  sensori_pid_heat: !include
+    file: sensori_pid.yaml
+    vars:
+      pid_id: pid_heat_${circuit_slug}
+      pid_name: "PID Heat ${circuit_name} "
+  sensori_pid_cool: !include
+    file: sensori_pid.yaml
+    vars:
+      pid_id: pid_cool_${circuit_slug}
+      pid_name: "PID Cool ${circuit_name}"
+
 switch:
   - platform: gpio
     name: "Pompa Miscelatrice ${circuit_name}"
@@ -65,25 +77,3 @@ climate:
           call.set_mode("OFF");
           call.perform();
         }
-
-packages:
-  sensori_pid_heat: !include
-    file: sensori_pid.yaml
-    vars:
-      pid_id: pid_heat_${circuit_slug}
-      pid_name: "PID Caldo ${circuit_name} "
-  sensori_pid_cool: !include
-    file: sensori_pid.yaml
-    vars:
-      pid_id: pid_cool_${circuit_slug}
-      pid_name: "PID Freddo ${circuit_name}"
-# esphome:
-#   on_boot:
-#     priority: -100.0
-#     then:
-#       - climate.control:
-#           id: pid_heat_${circuit_slug}
-#           mode: "OFF"
-#       - climate.control:
-#           id: pid_cool_${circuit_slug}
-#           mode: "OFF"
