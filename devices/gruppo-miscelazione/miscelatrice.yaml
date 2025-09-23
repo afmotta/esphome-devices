@@ -20,13 +20,18 @@ packages:
       ki: ${cool_ki}
       kd: ${cool_kd}
 
+output:
+  - platform: esp32_dac
+    pin: ${dac_pin}
+    id: dac_${circuit_slug}
+
 switch:
   - platform: gpio
     name: "Pompa Miscelatrice ${circuit_name}"
     id: pump_${circuit_slug}
     pin:
       pcf8574: outputs
-      number: ${relay_number}
+      number: ${relay_id}
       mode: OUTPUT
       inverted: true
 
@@ -39,7 +44,7 @@ sensor:
 
 climate:
   - id: !extend pid_heat_${circuit_slug}
-    heat_output: ${dac}
+    heat_output: dac_${circuit_slug}
 
   - id: !extend pid_cool_${circuit_slug}
-    cool_output: ${dac}
+    cool_output: dac_${circuit_slug}
