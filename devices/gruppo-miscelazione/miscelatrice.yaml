@@ -5,20 +5,20 @@ packages:
       mode: "heat"
       circuit_name: ${circuit_name}
       circuit_slug: ${circuit_slug}
-      default_temperature: ${heat_default}
-      kp: ${heat_kp}
-      ki: ${heat_ki}
-      kd: ${heat_kd}
+      default_temperature: ${heat.default_temperature}
+      kp: ${heat.kp}
+      ki: ${heat.ki}
+      kd: ${heat.kd}
   pid_cool: !include
     file: pid.yaml
     vars:
       mode: "cool"
       circuit_name: ${circuit_name}
       circuit_slug: ${circuit_slug}
-      default_temperature: ${cool_default}
-      kp: ${cool_kp}
-      ki: ${cool_ki}
-      kd: ${cool_kd}
+      default_temperature: ${cool.default_temperature}
+      kp: ${cool.kp}
+      ki: ${cool.ki}
+      kd: ${cool.kd}
 
 output:
   - platform: esp32_dac
@@ -45,6 +45,5 @@ sensor:
 climate:
   - id: !extend pid_heat_${circuit_slug}
     heat_output: dac_${circuit_slug}
-
   - id: !extend pid_cool_${circuit_slug}
     cool_output: dac_${circuit_slug}
