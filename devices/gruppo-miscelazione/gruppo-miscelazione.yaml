@@ -35,6 +35,7 @@ packages:
       circuit_name: "Piano Terra"
       circuit_slug: piano_terra
       sensor_address: 0x81000000b3e6f628
+      sensor_bus: one_wire_01
       relay_id: 0
       dac_pin: GPIO26
       heat:
@@ -53,6 +54,7 @@ packages:
       circuit_name: "Primo Piano"
       circuit_slug: primo_piano
       sensor_address: 0xe9000000b366ed28
+      sensor_bus: one_wire_01
       relay_id: 1
       dac_pin: GPIO25
       heat:
@@ -91,5 +93,22 @@ pcf8574:
 one_wire:
   - platform: gpio
     pin: GPIO32
+    id: one_wire_01
   # - platform: gpio
   #   pin: GPIO33
+
+sensor:
+  - platform: dallas_temp
+    address: 0x81000000b3e6f628
+    name: "Dallas 0x81000000b3e6f628"
+    id: temperatura_0x81000000b3e6f628
+    unit_of_measurement: "°C"
+    internal: true
+    one_wire_id: one_wire_01
+  - platform: dallas_temp
+    address: 0xe9000000b366ed28
+    name: "Temperatura Mandata 0xe9000000b366ed28"
+    id: temperatura_0xe9000000b366ed28
+    unit_of_measurement: "°C"
+    internal: true
+    one_wire_id: one_wire_01

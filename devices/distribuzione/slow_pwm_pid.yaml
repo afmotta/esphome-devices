@@ -1,0 +1,10 @@
+output:
+  - platform: slow_pwm
+    id: slow_pwm_${circuit_slug}
+    period: 30s
+    turn_on_action:
+      - output.turn_on: ${output}
+    turn_off_action:
+      - output.turn_off: ${output}
+
+packages:

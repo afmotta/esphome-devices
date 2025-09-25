@@ -1,6 +1,11 @@
 packages:
+  dallas: !include
+    file: ../../components/dallas.yaml
+    vars:
+      bus: ${sensor_bus}
+      address: ${sensor_address}
   pid_heat: !include
-    file: pid.yaml
+    file: ../../components/pid.yaml
     vars:
       mode: "heat"
       circuit_name: ${circuit_name}
@@ -9,8 +14,10 @@ packages:
       kp: ${heat.kp}
       ki: ${heat.ki}
       kd: ${heat.kd}
+      sensor: dallas_${sensor_address}
+      switch: pump_${circuit_slug}
   pid_cool: !include
-    file: pid.yaml
+    file: ../../components/pid.yaml
     vars:
       mode: "cool"
       circuit_name: ${circuit_name}
@@ -19,6 +26,8 @@ packages:
       kp: ${cool.kp}
       ki: ${cool.ki}
       kd: ${cool.kd}
+      sensor: dallas_${sensor_address}
+      switch: pump_${circuit_slug}
 
 output:
   - platform: esp32_dac
@@ -35,15 +44,8 @@ switch:
       mode: OUTPUT
       inverted: true
 
-sensor:
-  - platform: dallas_temp
-    address: ${sensor_address}
-    name: "Temperatura Mandata ${circuit_name}"
-    id: temperatura_mandata_${circuit_slug}
-    unit_of_measurement: "°C"
-
 climate:
-  - id: !extend pid_heat_${circuit_slug}
+  - id: !extend pid_${circuit_slug}_heat
     heat_output: dac_${circuit_slug}
-  - id: !extend pid_cool_${circuit_slug}
+  - id: !extend pid_${circuit_slug}_cool
     cool_output: dac_${circuit_slug}
