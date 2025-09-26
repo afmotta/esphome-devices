@@ -6,8 +6,8 @@
 #   cs_pin: GPIO5
 
 packages:
-  base: !include ../../components/base.yaml
-  wifi: !include ../../components/wifi.yaml
+  base: !include ../../boards/base.yaml
+  wifi: !include ../../boards/wifi.yaml
   pid_terra: !include
     file: ./miscelatrice.yaml
     vars:
