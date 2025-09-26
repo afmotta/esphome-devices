@@ -1,37 +1,31 @@
-output:
-  - platform: esp32_dac
-    pin: ${dac_pin}
-    id: dac_${circuit_slug}
-
-switch:
-  - platform: gpio
-    name: "Pump ${circuit_name}"
-    id: pump_${circuit_slug}
-    pin:
-      pcf8574: outputs
-      number: ${relay_id}
-      mode: OUTPUT
-      inverted: true
-
 packages:
-  dallas: !include
-    file: ../../components/dallas.yaml
+  pid_heat: !include
+    file: pid.yaml
     vars:
-      bus: ${sensor_bus}
-      address: ${sensor_address}
-  dual_pid: !include
-    file: ../../components/dual_pid.yaml
-    vars:
+      mode: "heat"
       circuit_name: ${circuit_name}
       circuit_slug: ${circuit_slug}
-      sensor: dallas_${sensor_address}
-      switch: pump_${circuit_slug}
-      output: dac_${circuit_slug}
-      heat_default_temperature: ${heat_default_temperature}
-      heat_kp: ${heat_kp}
-      heat_ki: ${heat_ki}
-      heat_kd: ${heat_kd}
-      cool_default_temperature: ${cool_default_temperature}
-      cool_kp: ${cool_kp}
-      cool_ki: ${cool_ki}
-      cool_kd: ${cool_kd}
+      default_temperature: ${heat_default_temperature}
+      kp: ${heat_kp}
+      ki: ${heat_ki}
+      kd: ${heat_kd}
+      sensor: ${sensor}
+      switch: ${switch}
+  pid_cool: !include
+    file: pid.yaml
+    vars:
+      mode: "cool"
+      circuit_name: ${circuit_name}
+      circuit_slug: ${circuit_slug}
+      default_temperature: ${cool_default_temperature}
+      kp: ${cool_kp}
+      ki: ${cool_ki}
+      kd: ${cool_kd}
+      sensor: ${sensor}
+      switch: ${switch}
+
+climate:
+  - id: !extend pid_${circuit_slug}_heat
+    heat_output: ${output}
+  - id: !extend pid_${circuit_slug}_cool
+    cool_output: ${output}

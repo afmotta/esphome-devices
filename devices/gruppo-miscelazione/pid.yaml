@@ -1,0 +1,37 @@
+defaults:
+  mode: "heat"
+  mode_mapping:
+    heat: "cool"
+    cool: "heat"
+
+packages:
+  sensori_pid_cool: !include
+    file: ../../components/pid_sensors.yaml
+    vars:
+      pid_id: pid_${circuit_slug}_${mode}
+      pid_name: "PID ${circuit_name} ${mode}"
+
+climate:
+  - platform: pid
+    id: pid_${circuit_slug}_${mode}
+    name: "PID ${circuit_name} ${mode}"
+    sensor: ${sensor}
+    default_target_temperature: ${default_temperature}
+    control_parameters:
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
+    visual:
+      min_temperature: 0
+      max_temperature: 40
+      temperature_step: 0.5
+    on_state:
+      lambda: |-
+        if (x.mode == CLIMATE_MODE_OFF && id(pid_${circuit_slug}_${mode_mapping[mode]}).mode == CLIMATE_MODE_OFF) {
+          id(${switch}).turn_off();
+        } else if (x.mode != CLIMATE_MODE_OFF) {
+          id(${switch}).turn_on();
+          auto call = id(pid_${circuit_slug}_${mode_mapping[mode]}).make_call();
+          call.set_mode("OFF");
+          call.perform();
+        }

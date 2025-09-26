@@ -13,10 +13,9 @@ packages:
     vars:
       circuit_name: "Piano Terra"
       circuit_slug: piano_terra
-      sensor_address: 0x81000000b3e6f628
-      sensor_bus: one_wire_01
-      relay_id: 0
-      dac_pin: GPIO26
+      sensor: dallas_0x81000000b3e6f628
+      switch: relay_1
+      output: dac_1
       heat_default_temperature: 28.0
       heat_kp: 0.2
       heat_ki: 0.01
@@ -30,10 +29,9 @@ packages:
     vars:
       circuit_name: "Primo Piano"
       circuit_slug: primo_piano
-      sensor_address: 0xe9000000b366ed28
-      sensor_bus: one_wire_01
-      relay_id: 1
-      dac_pin: GPIO25
+      sensor: dallas_0xe9000000b366ed28
+      switch: relay_2
+      output: dac_2
       heat_default_temperature: 28.0
       heat_kp: 0.2
       heat_ki: 0.01
@@ -87,3 +85,43 @@ sensor:
     unit_of_measurement: "°C"
     internal: true
     one_wire_id: one_wire_01
+  - platform: dallas_temp
+    address: 0x81000000b3e6f628
+    name: "Dallas 0x81000000b3e6f628"
+    id: dallas_0x81000000b3e6f628
+    unit_of_measurement: "°C"
+    internal: true
+    one_wire_id: one_wire_01
+  - platform: dallas_temp
+    address: 0xe9000000b366ed28
+    name: "Dallas 0xe9000000b366ed28"
+    id: dallas_0xe9000000b366ed28
+    unit_of_measurement: "°C"
+    internal: true
+    one_wire_id: one_wire_01
+
+output:
+  - platform: esp32_dac
+    pin: GPIO26
+    id: dac_1
+  - platform: esp32_dac
+    pin: GPIO25
+    id: dac_2
+
+switch:
+  - platform: gpio
+    name: "Relay 1"
+    id: relay_1
+    pin:
+      pcf8574: outputs
+      number: 1
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Relay 2"
+    id: relay_2
+    pin:
+      pcf8574: outputs
+      number: 2
+      mode: OUTPUT
+      inverted: true
