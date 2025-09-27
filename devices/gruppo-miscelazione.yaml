@@ -18,7 +18,7 @@ packages:
       cool_ki: 0.01
       cool_kd: 0.0
   pid_primo: !include
-    file: ../../components/dual_pid.yaml
+    file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Primo Piano"
       circuit_slug: primo_piano
