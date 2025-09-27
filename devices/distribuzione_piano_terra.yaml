@@ -18,7 +18,7 @@ packages:
       cool_kd: 0.0
       switch: fake_switch
   slow_pwm_cucina: !include
-    file: ../../components/dual_pid.yaml
+    file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Cucina"
       circuit_slug: "cucina"
@@ -34,7 +34,7 @@ packages:
       cool_kd: 0.0
       switch: fake_switch
   slow_pwm_bagno: !include
-    file: ../../components/dual_pid.yaml
+    file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Bagno"
       circuit_slug: "bagno"
@@ -50,7 +50,7 @@ packages:
       cool_kd: 0.0
       switch: fake_switch
   slow_pwm_anticamera: !include
-    file: ../../components/dual_pid.yaml
+    file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Anticamera"
       circuit_slug: "anticamera"
@@ -85,30 +85,57 @@ output:
       - switch.turn_on: relay_07
       - switch.turn_on: relay_06
       - switch.turn_on: relay_05
+      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_07
       - switch.turn_off: relay_06
       - switch.turn_off: relay_05
+      - script.execute: switch_management
   - platform: slow_pwm
     id: slow_pwm_cucina
     period: 30s
     turn_on_action:
       - switch.turn_on: relay_01
       - switch.turn_on: relay_02
+      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_01
       - switch.turn_off: relay_02
+      - script.execute: switch_management
   - platform: slow_pwm
     id: slow_pwm_bagno
     period: 30s
     turn_on_action:
       - switch.turn_on: relay_03
+      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_03
+      - script.execute: switch_management
   - platform: slow_pwm
     id: slow_pwm_anticamera
     period: 30s
     turn_on_action:
       - switch.turn_on: relay_04
+      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_04
+      - script.execute: switch_management
+
+script:
+  - id: switch_management
+    mode: queued
+    then:
+      - if:
+          condition:
+            any:
+              - switch.is_on: relay_01
+              - switch.is_on: relay_02
+              - switch.is_on: relay_03
+              - switch.is_on: relay_04
+              - switch.is_on: relay_05
+              - switch.is_on: relay_06
+              - switch.is_on: relay_07
+          then:
+            - switch.turn_on: relay_16
+          else:
+            - switch.turn_off: relay_16
