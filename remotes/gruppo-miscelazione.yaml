@@ -7,7 +7,7 @@ substitutions:
 packages:
   config:
     url: https://github.com/afmotta/esphome-devices
-    files: [devices/gruppo-miscelazione/gruppo-miscelazione.yaml]
+    files: [devices/gruppo-miscelazione.yaml]
     ref: main
     username: !secret github_username
     password: !secret github_pat

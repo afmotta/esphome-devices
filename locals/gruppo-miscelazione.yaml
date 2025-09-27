@@ -6,4 +6,4 @@ substitutions:
   ota_password: !secret ota_password
 
 packages:
-  - !include "../devices/gruppo-miscelazione/gruppo-miscelazione.yaml"
+  - !include "../devices/gruppo-miscelazione.yaml"

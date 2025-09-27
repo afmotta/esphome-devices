@@ -1,9 +1,0 @@
-switch:
-  - platform: gpio
-    name: "Pompa Diretta ${circuit_name}"
-    id: pump_${circuit_slug}
-    pin:
-      pcf8574: outputs
-      number: ${relay_id}
-      mode: OUTPUT
-      inverted: true

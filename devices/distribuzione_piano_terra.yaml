@@ -1,9 +1,8 @@
 packages:
-  # board: !include "../distribuzione/a16.yaml"
-  board: !include ../../boards/a16.yaml
-  wifi: !include ../../boards/wifi.yaml
+  board: !include ../boards/a16.yaml
+  wifi: !include ../boards/wifi.yaml
   slow_pwm_soggiorno: !include
-    file: ../../components/dual_pid.yaml
+    file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Soggiorno"
       circuit_slug: "soggiorno"
