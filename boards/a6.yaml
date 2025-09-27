@@ -1,0 +1,144 @@
+packages:
+  base: !include base.yaml
+
+uart:
+  - id: rs485
+    tx_pin: GPIO27
+    rx_pin: GPIO14
+    baud_rate: 9600
+  # - id: rs232
+  #   tx_pin: GPIO17
+  #   rx_pin: GPIO16
+  #   baud_rate: 9600
+
+i2c:
+  sda: GPIO4
+  scl:
+    number: GPIO15
+    ignore_strapping_warning: true
+
+one_wire:
+  - platform: gpio
+    pin: GPIO32
+    id: one_wire_01
+  - platform: gpio
+    pin: GPIO33
+    id: one_wire_02
+
+pcf8574:
+  - id: inputs
+    address: 0x22
+  - id: outputs
+    address: 0x24
+
+time:
+  - platform: ds1307
+    id: rtc_time
+
+binary_sensor:
+  - platform: gpio
+    name: "Input 1"
+    id: "input_1"
+    pin:
+      pcf8574: inputs
+      number: 0
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "Input 2"
+    id: "input_2"
+    pin:
+      pcf8574: inputs
+      number: 1
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "Input 3"
+    id: "input_3"
+    pin:
+      pcf8574: inputs
+      number: 2
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "Input 4"
+    id: "input_4"
+    pin:
+      pcf8574: inputs
+      number: 3
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "Input 5"
+    id: "input_5"
+    pin:
+      pcf8574: inputs
+      number: 4
+      mode: INPUT
+      inverted: true
+  - platform: gpio
+    name: "Input 6"
+    id: "input_6"
+    pin:
+      pcf8574: inputs
+      number: 5
+      mode: INPUT
+      inverted: true
+
+switch:
+  - platform: gpio
+    name: "Relay 1"
+    id: relay_1
+    pin:
+      pcf8574: outputs
+      number: 0
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Relay 2"
+    id: relay_2
+    pin:
+      pcf8574: outputs
+      number: 1
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Relay 3"
+    id: relay_3
+    pin:
+      pcf8574: outputs
+      number: 2
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Relay 4"
+    id: relay_4
+    pin:
+      pcf8574: outputs
+      number: 3
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Relay 5"
+    id: relay_5
+    pin:
+      pcf8574: outputs
+      number: 4
+      mode: OUTPUT
+      inverted: true
+  - platform: gpio
+    name: "Relay 6"
+    id: relay_6
+    pin:
+      pcf8574: outputs
+      number: 5
+      mode: OUTPUT
+      inverted: true
+
+output:
+  - platform: esp32_dac
+    pin: GPIO26
+    id: dac_1
+  - platform: esp32_dac
+    pin: GPIO25
+    id: dac_2

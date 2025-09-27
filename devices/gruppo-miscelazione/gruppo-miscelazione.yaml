@@ -1,12 +1,5 @@
-# ethernet:
-#   type: W5500
-#   clk_pin: GPIO18
-#   mosi_pin: GPIO23
-#   miso_pin: GPIO19
-#   cs_pin: GPIO5
-
 packages:
-  base: !include ../../boards/base.yaml
+  base: !include ../../boards/a6.yaml
   wifi: !include ../../boards/wifi.yaml
   pid_terra: !include
     file: ./miscelatrice.yaml
@@ -41,50 +34,7 @@ packages:
       cool_ki: 0.01
       cool_kd: 0.0
 
-uart:
-  - id: rs485
-    tx_pin: GPIO27
-    rx_pin: GPIO14
-    baud_rate: 9600
-  - id: rs232
-    tx_pin: GPIO17
-    rx_pin: GPIO16
-    baud_rate: 9600
-
-i2c:
-  sda: GPIO4
-  scl:
-    number: GPIO15
-    ignore_strapping_warning: true
-
-pcf8574:
-  - id: inputs
-    address: 0x22
-  - id: outputs
-    address: 0x24
-
-one_wire:
-  - platform: gpio
-    pin: GPIO32
-    id: one_wire_01
-  # - platform: gpio
-  #   pin: GPIO33
-
 sensor:
-  - platform: dallas_temp
-    address: 0x81000000b3e6f628
-    name: "Dallas 0x81000000b3e6f628"
-    id: temperatura_0x81000000b3e6f628
-    unit_of_measurement: "°C"
-    internal: true
-    one_wire_id: one_wire_01
-  - platform: dallas_temp
-    address: 0xe9000000b366ed28
-    name: "Temperatura Mandata 0xe9000000b366ed28"
-    id: temperatura_0xe9000000b366ed28
-    unit_of_measurement: "°C"
-    internal: true
-    one_wire_id: one_wire_01
   - platform: dallas_temp
     address: 0x81000000b3e6f628
     name: "Dallas 0x81000000b3e6f628"
@@ -94,34 +44,8 @@ sensor:
     one_wire_id: one_wire_01
   - platform: dallas_temp
     address: 0xe9000000b366ed28
-    name: "Dallas 0xe9000000b366ed28"
+    name: "Temperatura Mandata 0xe9000000b366ed28"
     id: dallas_0xe9000000b366ed28
     unit_of_measurement: "°C"
     internal: true
     one_wire_id: one_wire_01
-
-output:
-  - platform: esp32_dac
-    pin: GPIO26
-    id: dac_1
-  - platform: esp32_dac
-    pin: GPIO25
-    id: dac_2
-
-switch:
-  - platform: gpio
-    name: "Relay 1"
-    id: relay_1
-    pin:
-      pcf8574: outputs
-      number: 1
-      mode: OUTPUT
-      inverted: true
-  - platform: gpio
-    name: "Relay 2"
-    id: relay_2
-    pin:
-      pcf8574: outputs
-      number: 2
-      mode: OUTPUT
-      inverted: true
