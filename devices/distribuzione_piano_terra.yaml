@@ -16,7 +16,7 @@ packages:
       cool_kp: 0.2
       cool_ki: 0.01
       cool_kd: 0.0
-      switch: fake_switch
+      switch: remote_switch
   slow_pwm_cucina: !include
     file: ../components/dual_pid.yaml
     vars:
@@ -32,7 +32,7 @@ packages:
       cool_kp: 0.2
       cool_ki: 0.01
       cool_kd: 0.0
-      switch: fake_switch
+      switch: remote_switch
   slow_pwm_bagno: !include
     file: ../components/dual_pid.yaml
     vars:
@@ -48,7 +48,7 @@ packages:
       cool_kp: 0.2
       cool_ki: 0.01
       cool_kd: 0.0
-      switch: fake_switch
+      switch: remote_switch
   slow_pwm_anticamera: !include
     file: ../components/dual_pid.yaml
     vars:
@@ -64,12 +64,18 @@ packages:
       cool_kp: 0.2
       cool_ki: 0.01
       cool_kd: 0.0
-      switch: fake_switch
+      switch: remote_switch
 
 switch:
   - platform: template
-    id: fake_switch
+    id: remote_switch
     optimistic: true
+    on_turn_on:
+      then:
+        - script.execute: switch_management
+    on_turn_off:
+      then:
+        - script.execute: switch_management
 
 sensor:
   - platform: homeassistant
@@ -85,41 +91,33 @@ output:
       - switch.turn_on: relay_07
       - switch.turn_on: relay_06
       - switch.turn_on: relay_05
-      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_07
       - switch.turn_off: relay_06
       - switch.turn_off: relay_05
-      - script.execute: switch_management
   - platform: slow_pwm
     id: slow_pwm_cucina
     period: 30s
     turn_on_action:
       - switch.turn_on: relay_01
       - switch.turn_on: relay_02
-      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_01
       - switch.turn_off: relay_02
-      - script.execute: switch_management
   - platform: slow_pwm
     id: slow_pwm_bagno
     period: 30s
     turn_on_action:
       - switch.turn_on: relay_03
-      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_03
-      - script.execute: switch_management
   - platform: slow_pwm
     id: slow_pwm_anticamera
     period: 30s
     turn_on_action:
       - switch.turn_on: relay_04
-      - script.execute: switch_management
     turn_off_action:
       - switch.turn_off: relay_04
-      - script.execute: switch_management
 
 script:
   - id: switch_management
