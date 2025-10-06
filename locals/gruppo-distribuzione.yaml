@@ -6,4 +6,4 @@ substitutions:
   ota_password: !secret ota_password
 
 packages:
-  - !include "../devices/distribuzione_piano_terra.yaml"
+  - !include "../devices/distribuzione-piano-terra.yaml"
