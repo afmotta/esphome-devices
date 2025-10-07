@@ -1,8 +1,8 @@
 packages:
   base: !include ../boards/a6.yaml
   wifi: !include ../boards/wifi.yaml
-  pid_terra: !include
-    file: ../components/dual_pid.yaml
+  mixing_valve_terra: !include
+    file: ../components/mixing_valve.yaml
     vars:
       circuit_name: "Piano Terra"
       circuit_slug: piano_terra
@@ -17,8 +17,9 @@ packages:
       cool_kp: 0.2
       cool_ki: 0.01
       cool_kd: 0.0
-  pid_primo: !include
-    file: ../components/dual_pid.yaml
+      trigger: input_1
+  mixing_valve_primo: !include
+    file: ../components/mixing_valve.yaml
     vars:
       circuit_name: "Primo Piano"
       circuit_slug: primo_piano
@@ -33,6 +34,7 @@ packages:
       cool_kp: 0.2
       cool_ki: 0.01
       cool_kd: 0.0
+      trigger: input_2
 
 sensor:
   - platform: dallas_temp
@@ -49,3 +51,8 @@ sensor:
     unit_of_measurement: "°C"
     internal: true
     one_wire_id: one_wire_01
+  - platform: homeassistant
+    id: climate_mode
+    name: "Climate Mode"
+    entity_id: sensor.thermostat_mode
+    internal: true

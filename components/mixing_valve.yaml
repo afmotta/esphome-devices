@@ -1,0 +1,30 @@
+binary_sensor:
+  - platform: template
+    name: "Trigger Miscelatrice ${circuit_name}"
+    id: pump_trigger_${circuit_slug}
+    device_class: running
+    trigger_on_initial_state: true
+    lambda: |-
+      return id(${trigger}).state
+    on_state:
+      lambda: |-
+        if (x && id(climate_mode).state == "HEAT") {
+          auto call = id(pid_${circuit_slug}_heat).make_call();
+          call.set_mode("HEAT");
+          call.perform();
+        } else if (x && id(climate_mode).state == "COOL") {
+          auto call = id(pid_${circuit_slug}_cool).make_call();
+          call.set_mode("COOL");
+          call.perform();
+        } else {
+          auto call_heat = id(pid_${circuit_slug}_heat).make_call();
+          call_heat.set_mode("OFF");
+          call_heat.perform();
+          auto call_cool = id(pid_${circuit_slug}_cool).make_call();
+          call_cool.set_mode("OFF");
+          call_cool.perform();
+        }
+
+packages:
+  dual_pid: !include
+    file: ../components/dual_pid.yaml
