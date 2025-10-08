@@ -51,6 +51,8 @@ sensor:
     unit_of_measurement: "°C"
     internal: true
     one_wire_id: one_wire_01
+
+text_sensor:
   - platform: homeassistant
     id: climate_mode
     name: "Climate Mode"

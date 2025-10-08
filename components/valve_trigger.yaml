@@ -10,12 +10,12 @@ binary_sensor:
     device_class: running
     trigger_on_initial_state: true
     lambda: |-
-      return id(${trigger}).state
+      return id(${trigger}).state;
     on_state:
       lambda: |-
         auto call = id(pid_${circuit_slug}_${mode_mapping[mode]}).make_call();
-        if (x && id(climate_mode).state == ${mode}) {
-          call.set_mode(${mode});
+        if (x && id(climate_mode).state == "${mode}") {
+          call.set_mode("${mode}");
         } else {
           call.set_mode("OFF");
         }
