@@ -12,18 +12,9 @@
 
 ### Change Log
 
-| Date       | Version | Description                                                                                      | Author                                                                                |
-| ---------- | ------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| 2025-10-09 | 1.0     | Initial brownfield PRD for RS485 Modbus board-to-board communication and automation enhancements | Mary (Business An3. `distribuzione-piano-terra` (slave) reads from master via Modbus: |
-   - Reads register 200 from master → `modbus_climate_mode` (heat/cool/off)
-   - Reads register 300 from master → `modbus_master_heartbeat`
-4. Slave configuration supports room sensor integration (technology TBD):
-   - Can read- **24-hour stability test**: No Modbus errors or unexpected failovers
-- Full cooling test: Ground floor fancoil/floor cooling automation working correctly
-- Room sensor validation: All zones reporting accurate temperature/humidity dataocal 1-Wire temperature/humidity sensors
-   - Can poll Modbus temperature/humidity sensors (if used)
-   - Exposes room sensor data as ESPHome sensors for PID use
-5. Slave attempts to read master registers every 10 seconds when Modbus enabledt) |
+| Date       | Version | Description                                                                                      | Author                  |
+| ---------- | ------- | ------------------------------------------------------------------------------------------------ | ----------------------- |
+| 2025-10-09 | 1.0     | Initial brownfield PRD for RS485 Modbus board-to-board communication and automation enhancements | Mary (Business Analyst) |
 
 ---
 
@@ -42,17 +33,21 @@ This is an **active production ESPHome-based home climate control system** manag
 
 **Current Coverage:**
 - **Ground Floor (Piano Terra)**: Floor heating + 4 fancoils (primary cooling) + floor cooling (optional, needs automation)
-- **First Floor (Primo Piano)**: Floor heating + floor cooling (NOT YET IMPLEMENTED - needs new board)
-- **Second Floor (Secondo Piano)**: Single fancoil (NOT YET IMPLEMENTED - needs new board)
+- **First Floor (Primo Piano)**: Floor heating + floor cooling (NOT YET IMPLEMENTED - needs new A16 board)
+- **Second Floor (Secondo Piano)**: Single fancoil (NOT YET IMPLEMENTED - needs 0-10V Modbus adapter on ground floor A16)
 
 **Current Hardware:**
-- **A6 Board** (6 relays, 6 inputs): Used in `gruppo-miscelazione` device for mixing valve control
+- **Kincony KC868-A6 Board** (6 relays, 6 inputs): Used in `gruppo-miscelazione` device for mixing valve control
+  - Off-the-shelf board from Kincony (https://devices.esphome.io/devices/KinCony-KC868-A6)
+  - Ethernet connectivity added via W5500 adapter connected to free GPIOs
   - Controls 1 mixing valve (Ground Floor circuit only)
   - Has RS485 UART configured but not actively used
   - Uses Dallas temperature sensors for supply temperature monitoring
-- **A16 Board** (16 relays, 16 inputs): Used in `distribuzione-piano-terra` device for ground floor zone distribution
+- **Kincony KC868-A16 Board** (16 relays, 16 inputs): Used in `distribuzione-piano-terra` device for ground floor zone distribution
+  - Off-the-shelf board from Kincony (https://devices.esphome.io/devices/KinCony-KC868-A16)
   - Controls 4 zone circuits via slow PWM (Soggiorno, Cucina, Bagno, Anticamera)
   - Controls 4 fancoils for primary cooling
+  - Has 0-10V Modbus adapter capability for remote fancoil control (second floor)
   - Currently relies on Home Assistant for temperature sensor data
   - No RS485 communication configured
 
@@ -114,7 +109,8 @@ This enhancement aims to **transform the system from Home Assistant-dependent to
 #### Goals
 - Eliminate Home Assistant as a single point of failure for climate control operations
 - Enable master/slave board communication using RS485 Modbus RTU protocol with `gruppo-miscelazione` as master
-- Add two new boards to complete three-floor coverage (First Floor mixing valve + Second Floor fancoil control)
+- Add one new A16 board to complete three-floor coverage (First Floor zone distribution)
+- Implement 0-10V Modbus adapter control for second floor fancoil via first floor A16
 - Implement autonomous temperature sensor data sharing from master to slave boards
 - Maintain full Home Assistant integration for monitoring, overrides, and advanced automation
 - Improve ground floor cooling automation by coordinating fancoils (primary) with floor cooling (optional)
@@ -125,7 +121,7 @@ This enhancement aims to **transform the system from Home Assistant-dependent to
 
 The current system has proven effective for climate control but suffers from critical weaknesses:
 1. **Single Point of Failure**: Complete dependency on Home Assistant for sensor data and mode coordination
-2. **Incomplete Coverage**: First floor mixing valve and second floor fancoil not yet implemented
+2. **Incomplete Coverage**: First floor distribution and second floor fancoil not yet implemented
 3. **Suboptimal Ground Floor Cooling**: Fancoils are primary cooling but lack proper coordination with optional floor cooling
 
 When Home Assistant experiences downtime (updates, crashes, network issues), the entire climate control system becomes non-functional, potentially leading to uncomfortable conditions or system damage.
@@ -133,7 +129,7 @@ When Home Assistant experiences downtime (updates, crashes, network issues), the
 The existing A6 and A16 boards already have RS485 UART hardware configured but unused. By implementing Modbus RTU master/slave protocol with `gruppo-miscelazione` as the master controller, slave boards can receive temperature sensor data and coordination signals autonomously. This architecture change will allow the system to:
 1. Continue operating during HA outages using master-coordinated sensor data and control signals
 2. Respond faster to temperature changes without HA round-trip delays
-3. Complete the three-floor system with two additional slave boards
+3. Complete the three-floor system with one additional A16 board (first floor) and 0-10V Modbus adapter (second floor fancoil)
 4. Implement proper ground floor cooling automation (fancoils primary, floor cooling optional/supplemental)
 5. Maintain the proven PID control algorithms that have been tuned for the specific heating/cooling zones
 
@@ -158,9 +154,9 @@ The enhancement must be implemented carefully to preserve the existing working c
 
 **FR5**: The `distribuzione-piano-terra` device (slave) SHALL read temperature and coordination data via Modbus from the master instead of relying solely on Home Assistant's `sensor.termometro_soggiorno_temperature`.
 
-**FR6**: TWO new boards SHALL be added to complete the system:
-   - **First Floor Board** (A6): Mixing valve control for Primo Piano heating/cooling with local Dallas sensors
-   - **Second Floor Board** (A6 or smaller): Fancoil control for Secondo Piano with local temperature sensor
+**FR6**: ONE new board SHALL be added to complete the system:
+   - **First Floor Board** (Kincony KC868-A16): Zone distribution for Primo Piano heating/cooling with local Dallas sensors
+   - **Second Floor Fancoil**: Controlled via 0-10V Modbus adapter connected to first floor A16 board
 
 **FR7**: The ground floor `distribuzione-piano-terra` device SHALL implement intelligent cooling automation:
    - Fancoils as PRIMARY cooling method (fast response, humidity control)
@@ -215,7 +211,7 @@ The enhancement must be implemented carefully to preserve the existing working c
 
 **CR3 - PID Tuning Preservation**: Current PID tuning parameters (heat_kp, heat_ki, heat_kd, cool_kp, cool_ki, cool_kd) SHALL be preserved exactly as configured, ensuring no disruption to tuned control loops.
 
-**CR4 - Hardware Pin Compatibility**: RS485 UART pin assignments SHALL remain as currently configured (A6: TX=GPIO27, RX=GPIO14; A16: TX=GPIO13, RX=GPIO16).
+**CR4 - Hardware Pin Compatibility**: RS485 UART pin assignments SHALL remain as currently configured (KC868-A6: TX=GPIO27, RX=GPIO14; KC868-A16: TX=GPIO13, RX=GPIO16). W5500 Ethernet adapter GPIO assignments on A6 SHALL be preserved.
 
 **CR5 - Deployment Process Compatibility**: The existing locals/remotes deployment model SHALL be preserved, with remotes referencing GitHub packages via `!include` statements.
 
@@ -236,11 +232,15 @@ The enhancement must be implemented carefully to preserve the existing working c
 - ESP-IDF framework (configured via `esp32.framework.type: esp-idf`)
 
 **Hardware**:
-- ESP32-DevKit boards
-- A6 custom board: 6 relays, 6 inputs, RS485, I2C (PCF8574), Dallas 1-Wire, RTC
-- A16 custom board: 16 relays, 16 inputs, RS485, I2C (2x PCF8574), 3x 1-Wire buses
+- ESP32-DevKit boards (Kincony KC868 series)
+- Kincony KC868-A6: 6 relays, 6 inputs, RS485, I2C (PCF8574), Dallas 1-Wire, RTC
+  - Ethernet via W5500 adapter on free GPIOs (not native)
+- Kincony KC868-A16: 16 relays, 16 inputs, RS485, I2C (2x PCF8574), 3x 1-Wire buses
+  - Native Ethernet support
+  - 0-10V Modbus adapter capability for remote device control
 - Dallas DS18B20 temperature sensors (supply temperature monitoring)
 - PCF8574 I2C GPIO expanders
+- 0-10V Modbus adapter (for second floor fancoil control from first floor A16)
 - Room sensors (TBD): Either Modbus temperature/humidity sensors OR 1-Wire temperature + I2C/1-Wire humidity sensors
 
 **Communication Protocols**:
@@ -263,10 +263,10 @@ The enhancement must be implemented carefully to preserve the existing working c
 **Modbus Integration Strategy**:
 - Use ESPHome's native `modbus_controller` platform (available in recent ESPHome versions)
 - **Master/Slave Architecture**: 
-  - `gruppo-miscelazione` (A6) = Modbus Master (address 1) - polls slaves, coordinates system
-  - `distribuzione-piano-terra` (A16) = Modbus Slave (address 2) - ground floor distribution
-  - First floor board (A6) = Modbus Slave (address 3) - first floor mixing valve
-  - Second floor board (A6) = Modbus Slave (address 4) - second floor fancoil
+  - `gruppo-miscelazione` (KC868-A6) = Modbus Master (address 1) - polls slaves, coordinates system
+  - `distribuzione-piano-terra` (KC868-A16) = Modbus Slave (address 2) - ground floor distribution
+  - First floor board (KC868-A16) = Modbus Slave (address 3) - first floor m zone distribution + second floor fancoil via 0-10V adapter
+  - 0-10V Modbus adapter = Controlled by first floor A16 for second floor fancoil
 - Master polls each slave every 10 seconds for status, slaves respond to master requests only
 - Register map design: Standard 16-bit holding registers for temperature values (scaled by 100 for 0.01°C precision)
 - Baud rate: 9600 (already configured), 8N1 format, Modbus RTU framing
@@ -287,17 +287,18 @@ The enhancement must be implemented carefully to preserve the existing working c
 - Create new component: `components/modbus_master.yaml` - master controller functionality
 - Create new component: `components/modbus_slave.yaml` - slave device functionality
 - Update `boards/a6.yaml` to support both master and slave roles (via vars)
-- Create new board: `boards/a6_first_floor.yaml` for first floor mixing valve control
-- Create new board: `boards/a6_second_floor.yaml` for second floor fancoil control
+- Create new board: `boards/a16_first_floor.yaml` for first floor zone distribution
 - Create new component: `components/cooling_automation.yaml` - ground floor fancoil/floor cooling coordination
+- Create new component: `components/modbus_0_10v.yaml` - 0-10V Modbus adapter control
 - Maintain separation: locals/ = absolute paths, remotes/ = GitHub package references
 
 **Testing Integration Strategy**:
 - Phase 1: Master functionality testing on `gruppo-miscelazione` (expose registers, handle slave requests)
 - Phase 2: Two-board master/slave testing (Master A6 ↔ Slave A16)
-- Phase 3: Four-board master/slave testing (1 master + 3 slaves)
-- Phase 4: Failover testing (intentional Modbus/HA outages, slave fallback behavior)
-- Phase 5: Ground floor cooling automation testing (fancoil primary, floor cooling coordination)
+- Phase 3: Three-board master/slave testing (1 master + 2 A16 slaves)
+- Phase 4: 0-10V Modbus adapter testing for second floor fancoil control
+- Phase 5: Failover testing (intentional Modbus/HA outages, slave fallback behavior)
+- Phase 6: Ground floor cooling automation testing (fancoil primary, floor cooling coordination)
 - Use `locals/` directory for all testing before promoting to `remotes/`
 
 ### 3.3 Code Organization and Standards
@@ -309,8 +310,7 @@ esphome-devices/
 │   ├── base.yaml             # Common ESP32 + logger + API + OTA
 │   ├── a6.yaml               # A6 hardware base
 │   ├── a16.yaml              # A16 hardware base
-│   ├── a6_first_floor.yaml   # NEW: First floor mixing valve board
-│   ├── a6_second_floor.yaml  # NEW: Second floor fancoil board
+│   ├── a16_first_floor.yaml  # NEW: First floor distribution board
 │   └── wifi.yaml             # WiFi configuration
 ├── components/               # Reusable functional packages
 │   ├── dual_pid.yaml         # Existing PID control
@@ -318,13 +318,13 @@ esphome-devices/
 │   ├── modbus_master.yaml    # NEW: Modbus master controller
 │   ├── modbus_slave.yaml     # NEW: Modbus slave device
 │   ├── modbus_sensor.yaml    # NEW: Modbus-based sensor wrapper
+│   ├── modbus_0_10v.yaml     # NEW: 0-10V Modbus adapter control
 │   ├── cooling_automation.yaml  # NEW: Ground floor fancoil/floor cooling coordination
 │   └── room_sensors.yaml     # NEW: Room temp/humidity sensors (flexible tech)
 ├── devices/                  # Device-specific assemblies
 │   ├── gruppo-miscelazione.yaml          # Master controller
 │   ├── distribuzione-piano-terra.yaml    # Ground floor slave
-│   ├── mixing-valve-primo-piano.yaml     # NEW: First floor slave
-│   └── fancoil-secondo-piano.yaml        # NEW: Second floor slave
+│   └── distribuzione-primo-piano.yaml    # NEW: First floor slave
 ├── locals/                   # Development configs (absolute paths)
 │   ├── gruppo-distribuzione.yaml  # Local variant
 │   ├── gruppo-miscelazione.yaml
@@ -456,7 +456,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 ## 5. Epic 1: Autonomous Multi-Board Climate Control via RS485 Modbus
 
-**Epic Goal**: Transform the ESPHome climate control system from Home Assistant-dependent to autonomous by implementing master/slave RS485 Modbus communication, eliminating single-point-of-failure while maintaining full HA integration, completing three-floor coverage with two new boards, and improving ground floor cooling automation.
+**Epic Goal**: Transform the ESPHome climate control system from Home Assistant-dependent to autonomous by implementing master/slave RS485 Modbus communication, eliminating single-point-of-failure while maintaining full HA integration, completing three-floor coverage with one new A16 board and 0-10V Modbus adapter, and improving ground floor cooling automation.
 
 **Integration Requirements**: 
 - Preserve all existing PID control logic, tuning parameters, and relay control patterns
@@ -472,11 +472,11 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 #### Acceptance Criteria
 
-1. A6 board (`gruppo-miscelazione`) configured as **Modbus Master** (address 1):
+1. KC868-A6 board (`gruppo-miscelazione`) configured as **Modbus Master** (address 1):
    - UART configured (TX=GPIO27, RX=GPIO14, 9600 baud, 8N1)
    - Can initiate read/write operations to slave addresses
    - Master polling logic framework in place
-2. A16 board (`distribuzione-piano-terra`) configured as **Modbus Slave** (address 2):
+2. KC868-A16 board (`distribuzione-piano-terra`) configured as **Modbus Slave** (address 2):
    - UART configured (TX=GPIO13, RX=GPIO16, 9600 baud, 8N1)
    - Responds to master requests on address 2
    - Does not initiate communication (slave-only mode)
@@ -684,67 +684,75 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 ---
 
-### Story 1.6: Two New Boards - First Floor Mixing Valve + Second Floor Fancoil
+### Story 1.6: First Floor A16 Board + Second Floor 0-10V Fancoil Control
 
 **As a** system administrator,  
-**I want** to add two new A6 boards to complete three-floor coverage,  
-**so that** first floor heating/cooling and second floor fancoil are fully automated and integrated into the Modbus network.
+**I want** to add a new A16 board for first floor distribution and configure 0-10V Modbus adapter for second floor fancoil,  
+**so that** all three floors are fully automated and integrated into the Modbus network.
 
 #### Acceptance Criteria - First Floor Board (Slave Address 3)
 
-1. Create new board configuration: `boards/a6_first_floor.yaml`
-   - Based on `boards/a6.yaml` configured as Modbus slave (address 3)
+1. Create new board configuration: `boards/a16_first_floor.yaml`
+   - Based on `boards/a16.yaml` configured as Modbus slave (address 3)
+   - Kincony KC868-A16 hardware base
    - Includes Dallas sensors for first floor supply temperature monitoring
-2. Create new device configuration: `devices/mixing-valve-primo-piano.yaml`
+2. Create new device configuration: `devices/distribuzione-primo-piano.yaml`
    - Mixing valve control for Primo Piano heating/cooling
+   - Zone distribution control (similar to ground floor pattern)
    - Dual PID controllers (heat/cool modes)
    - Reads climate mode from master via Modbus
    - Local Dallas sensor for supply temperature control
-3. Hardware installation documented: RS485 connection, mixing valve wiring, Dallas sensor placement
+3. Hardware installation documented: RS485 connection, mixing valve wiring, Dallas sensor placement, zone valve connections
 4. Board joins Modbus network as slave successfully
 5. First floor mixing valve responds to master climate mode commands
 6. First floor supply temperature monitored and controlled via PID
+7. First floor zone distribution operational
 
-#### Acceptance Criteria - Second Floor Board (Slave Address 4)
+#### Acceptance Criteria - Second Floor 0-10V Fancoil (via Ground Floor A16)
 
-1. Create new board configuration: `boards/a6_second_floor.yaml`
-   - Based on `boards/a6.yaml` configured as Modbus slave (address 4)
-   - Includes local temperature sensor (Dallas or alternative)
-2. Create new device configuration: `devices/fancoil-secondo-piano.yaml`
-   - Single fancoil control (relays for fan speed switching if multi-speed)
-   - PID controller for temperature regulation
-   - Reads climate mode from master via Modbus
-3. Hardware installation documented: RS485 connection, fancoil relay wiring
-4. Board joins Modbus network as slave successfully
-5. Second floor fancoil responds to master climate mode commands
+1. Configure 0-10V Modbus adapter on ground floor A16 (`distribuzione-piano-terra`)
+   - Create component `components/modbus_0_10v.yaml` for adapter control
+   - 0-10V output control for fancoil speed/capacity
+   - Temperature-based control logic
+2. Second floor fancoil control implementation:
+   - PID controller for temperature regulation using 0-10V output
+   - Reads climate mode from master via Modbus (through ground floor A16)
+   - Room temperature sensor integration (Modbus or 1-Wire)
+3. Hardware installation documented: 0-10V wiring from ground floor A16 to second floor fancoil
+4. Second floor fancoil responds to temperature setpoint changes
+5. 0-10V signal properly controls fancoil capacity (0V = off, 10V = full capacity)
 
 #### Acceptance Criteria - System Integration
 
-1. Master polls both new slaves (addresses 3 and 4) successfully
-2. All FOUR boards (1 master + 3 slaves) communicate on shared RS485 bus without conflicts
-3. RS485 bus properly terminated at master and last slave
-4. Home Assistant discovers all new entities from both boards
-5. Full system test: All three floors respond correctly to heat/cool mode changes
+1. Master polls both A16 slaves (addresses 2 and 3) successfully
+2. All THREE boards (1 master + 2 A16 slaves) communicate on shared RS485 bus without conflicts
+3. First floor A16 successfully controls second floor fancoil via 0-10V adapter
+4. RS485 bus properly terminated at master and last slave
+5. Home Assistant discovers all new entities from first floor board and second floor fancoil
+6. Full system test: All three floors respond correctly to heat/cool mode changes
 
 #### Integration Verification
 
 **IV1 - Existing Functionality Preserved**:
-- Gruppo-miscelazione (master, address 1) operation unaffected by new slaves
+- Gruppo-miscelazione (master, address 1) operation unaffected by new slave
 - Distribuzione-piano-terra (slave, address 2) operation unaffected
 - Existing Modbus communication continues without interruption
 - Ground floor cooling automation (fancoils + floor cooling) continues to work
+- Ground floor local fancoil control unaffected by 0-10V adapter addition
 
 **IV2 - Integration Point Verification**:
-- Test master polling all slaves: Master successfully reads status from addresses 2, 3, and 4
-- Test slave reads from master: All three slaves successfully read mode/coordination data
+- Test master polling both A16 slaves: Master successfully reads status from addresses 2 and 3
+- Test slave reads from master: Both A16 slaves successfully read mode/coordination data
 - Verify RS485 bus termination at both physical ends
 - Confirm Modbus addressing: No address conflicts
-- Test climate mode propagation: Mode change on master → all slaves reflect change within 10s
+- Test climate mode propagation: Mode change on master → all floors reflect change within 10s
+- Test 0-10V fancoil control: Temperature setpoint changes → fancoil capacity adjusts appropriately
 
 **IV3 - Performance Impact Verification**:
-- Master polling cycle completes within 500ms for all three slaves
-- No increase in communication errors with additional slaves
-- Network traffic to Home Assistant scales linearly with new boards
+- Master polling cycle completes within 500ms for both A16 slaves
+- No increase in communication errors with additional slave
+- 0-10V control responds within 2 seconds of temperature changes
+- Network traffic to Home Assistant scales linearly with new board
 - Temperature control accuracy maintained across all three floors (±0.5°C)
 
 ---
@@ -854,13 +862,14 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 **IV2 - Integration Point Verification**:
 - Deploy via `remotes/` configuration from GitHub
-- OTA update all FOUR devices successfully (1 master + 3 slaves)
+- OTA update all THREE devices successfully (1 master + 2 A16 slaves)
 - Home Assistant restart: All entities rediscovered correctly
 - 24-hour stability test: No Modbus errors or unexpected failovers
 - Full cooling test: Ground floor fancoil/floor cooling automation working correctly
+- 0-10V fancoil test: Second floor fancoil responds properly to temperature changes
 
 **IV3 - Performance Impact Verification**:
-- Document final firmware sizes (A6, A16 boards)
+- Document final firmware sizes (KC868-A6, KC868-A16 boards)
 - Document CPU usage under normal operation
 - Document Modbus message rate and bandwidth usage
 - Verify system meets all NFRs (response time ≤500ms, temperature control ±0.5°C)
@@ -876,12 +885,13 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 - **Failover Speed**: Automatic sensor failover within 30 seconds of communication loss
 
 **Secondary Metrics**:
-- **Response Time**: Master polling cycle completes within 500ms for all slaves (including room sensors if Modbus)
-- **Deployment Success**: All four boards (1 master + 3 slaves) upgraded via OTA without requiring physical access
+- **Response Time**: Master polling cycle completes within 500ms for both A16 slaves (including room sensors if Modbus)
+- **Deployment Success**: All three boards (1 master + 2 A16 slaves) upgraded via OTA without requiring physical access
 - **Ground Floor Cooling Efficiency**: Fancoils activate within 30 seconds of cooling demand, floor cooling coordination smooth
+- **0-10V Control Accuracy**: Second floor fancoil responds within 2 seconds to setpoint changes
 - **Room Sensor Accuracy**: All room sensors report within ±0.3°C of reference sensors, humidity within ±5%
 - **Maintainability**: Future board or sensor additions require <2 hours configuration time
-- **Documentation Completeness**: Experienced ESPHome user can add fifth slave board or additional room sensors using only provided documentation
+- **Documentation Completeness**: Experienced ESPHome user can add additional slave boards, 0-10V devices, or room sensors using only provided documentation
 
 ---
 
@@ -913,10 +923,11 @@ The following items are explicitly **out of scope** for this enhancement:
 7. Second floor fancoil wiring and control capabilities are available or can be installed
 8. Room temperature/humidity sensors (either Modbus or 1-Wire) can be installed in each controlled zone
 9. Room sensor technology selection (Modbus vs 1-Wire) will be finalized during Story 1.7 implementation based on cost, availability, and technical considerations
+10. Two additional Kincony KC868-A6 boards (or compatible) are available for first and second floor installations
 
 ### Dependencies
 1. **ESPHome Version**: Requires ESPHome ≥2023.x with `modbus_controller` platform support
-2. **Hardware**: A6 boards must have functional RS485 transceivers and proper GPIO routing
+2. **Hardware**: Kincony KC868-A6 and KC868-A16 boards must have functional RS485 transceivers and proper GPIO routing
 3. **Testing Environment**: Ability to test Modbus communication during moderate weather (not extreme heating/cooling demand)
 4. **Documentation Task**: Project architecture documentation should be created via `*document-project` task to support development
 5. **GitHub Access**: `remotes/` deployment requires stable GitHub connectivity for package inclusion
@@ -936,7 +947,7 @@ Upon PRD approval:
 
 4. **Development Environment Setup**: Developer to prepare `locals/` test configurations with Modbus components for iterative testing.
 
-5. **Hardware Preparation**: Procure two A6 boards for first and second floor installations; prepare RS485 cables and termination resistors for master/slave bus topology.
+5. **Hardware Preparation**: Procure one Kincony KC868-A16 board for first floor installation; prepare RS485 cables and termination resistors for master/slave bus topology. Ensure 0-10V Modbus adapter is available for second floor fancoil control.
 
 6. **Stakeholder Review**: Present PRD to end users for feedback on failover behavior and monitoring requirements.
 
@@ -944,7 +955,7 @@ Upon PRD approval:
 
 ## Appendix A: Glossary
 
-- **A6/A16 Board**: Custom ESP32-based control boards with 6 or 16 relay outputs
+- **A6/A16 Board**: Kincony KC868 series ESP32-based control boards (KC868-A6 with 6 relays/inputs, KC868-A16 with 16 relays/inputs)
 - **Modbus RTU**: Serial communication protocol (binary format) for industrial automation
 - **RS485**: Differential serial communication hardware layer, suitable for long distances and noisy environments
 - **PID Controller**: Proportional-Integral-Derivative control algorithm for precise temperature regulation
