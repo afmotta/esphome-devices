@@ -1,0 +1,171 @@
+# Component: modbus_slave_registers.yaml
+# Purpose: Read master Modbus registers and expose as sensors with timeout handling
+# Dependencies: Requires modbus_slave.yaml (infrastructure from Story 1.1)
+# Required vars:
+#   - master_address: Modbus address of master controller (e.g., 0x01)
+# Optional vars:
+#   - None (uses fixed register addresses from architecture spec)
+# Feature flag: use_modbus (substitution) - defaults to "false" for safety
+
+# Global variables for error tracking
+globals:
+  - id: modbus_read_error_count
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+# Sensors reading master registers
+sensor:
+  # Register 200 (0x00C8): Climate Mode from Master
+  # Values: 0=off, 1=heat, 2=cool
+  - platform: modbus_controller
+    modbus_controller_id: modbus_slave
+    id: modbus_climate_mode
+    name: "Modbus Climate Mode"
+    address: 0x00C8
+    register_type: holding
+    value_type: U_WORD
+    icon: "mdi:thermostat"
+    state_class: measurement
+    filters:
+      - timeout: 30s # Mark unavailable after 3 missed reads
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: "return std::isnan(x);"
+            then:
+              - lambda: "id(modbus_read_error_count) += 1;"
+              - text_sensor.template.publish:
+                  id: last_modbus_error
+                  state: "Climate mode read failed"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      return x;
+
+  # Register 300 (0x012C): Master Heartbeat
+  # Increments every 10 seconds, wraps at 65535
+  - platform: modbus_controller
+    modbus_controller_id: modbus_slave
+    id: modbus_master_heartbeat
+    name: "Master Heartbeat"
+    address: 0x012C
+    register_type: holding
+    value_type: U_WORD
+    icon: "mdi:heart-pulse"
+    state_class: measurement
+    filters:
+      - timeout: 30s # Detect master failure after 30s
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: "return std::isnan(x);"
+            then:
+              - lambda: "id(modbus_read_error_count) += 1;"
+              - text_sensor.template.publish:
+                  id: last_modbus_error
+                  state: "Heartbeat read failed"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      return x;
+
+  # Template sensor for error count monitoring
+  - platform: template
+    name: "Modbus Read Error Count"
+    id: modbus_error_count_sensor
+    icon: "mdi:alert-circle"
+    unit_of_measurement: "errors"
+    accuracy_decimals: 0
+    state_class: total_increasing
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      return id(modbus_read_error_count);
+    update_interval: 10s
+
+# Text sensors for error tracking
+text_sensor:
+  - platform: template
+    name: "Last Modbus Error"
+    id: last_modbus_error
+    icon: "mdi:alert"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return {"Modbus Disabled"};
+      }
+      return {"No errors"};
+    update_interval: 10s
+
+# Slave status register for master polling
+number:
+  # Register 1000 (0x03E8): Slave Health Status
+  # Values: 0=offline, 1=online, 2=degraded, 3=emergency
+  - platform: modbus_controller
+    modbus_controller_id: modbus_slave
+    id: slave_health_status
+    name: "Slave Health Status"
+    address: 0x03E8
+    value_type: U_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 3
+    step: 1
+    mode: box
+    internal: true
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return 0;  // Offline when Modbus disabled
+      }
+      return x;
+
+# Binary sensor showing if slave is successfully reading master
+binary_sensor:
+  - platform: template
+    name: "Modbus Slave Reading Master"
+    id: modbus_slave_reading
+    icon: "mdi:download-network"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return false;
+      }
+      // Check if heartbeat sensor has valid state
+      return id(modbus_master_heartbeat).has_state();
+
+# Interval script to update slave health status
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            lambda: 'return (id(use_modbus) == "true");'
+          then:
+            - lambda: |-
+                int status = 1;  // Default: healthy
+
+                // Check for errors (degraded mode)
+                if (id(modbus_read_error_count) > 0) {
+                  status = 2;
+                }
+
+                // Check if we're actually receiving data
+                if (!id(modbus_master_heartbeat).has_state()) {
+                  status = 0;  // Offline - no heartbeat
+                }
+
+                // Publish status to register 1000 for master to read
+                id(slave_health_status).publish_state(status);
+
+                ESP_LOGD("modbus_slave_health", "Health status updated: %d (errors: %d)", 
+                         status, id(modbus_read_error_count));
