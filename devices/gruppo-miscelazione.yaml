@@ -1,6 +1,16 @@
+substitutions:
+  use_modbus: "false" # Feature flag: set to "true" to enable Modbus master
+
 packages:
   base: !include ../boards/a6.yaml
   wifi: !include ../boards/wifi.yaml
+  modbus_master: !include ../components/modbus_master.yaml
+  modbus_test: !include ../components/modbus_test.yaml
+  modbus_master_registers: !include
+    file: ../components/modbus_master_registers.yaml
+    vars:
+      dallas_sensor_id: dallas_0x81000000b3e6f628
+      climate_mode_sensor_id: climate_mode
   mixing_valve_terra: !include
     file: ../components/mixing_valve.yaml
     vars:

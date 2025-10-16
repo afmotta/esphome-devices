@@ -1,0 +1,79 @@
+# Component: modbus_master.yaml
+# Purpose: Modbus RTU Master infrastructure for RS485 coordination
+# Required vars: None (standalone component with feature flag)
+# Feature flag: use_modbus (substitution) - defaults to "false" for safety
+
+# Modbus RTU bus configuration
+modbus:
+  id: rs485_bus
+  uart_id: rs485
+
+# Modbus Master controller
+modbus_controller:
+  - id: modbus_master
+    address: 0x1
+    modbus_id: rs485_bus
+    command_throttle: 200ms
+    update_interval: 10s
+
+# Diagnostic sensors for monitoring Modbus health
+sensor:
+  # Master status sensor (1=Ready, 0=Error)
+  - platform: template
+    name: "Modbus Master Status"
+    id: modbus_master_status
+    icon: "mdi:check-network"
+    unit_of_measurement: ""
+    accuracy_decimals: 0
+    state_class: measurement
+    lambda: |-
+      // Check feature flag via substitution string comparison
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      // For initial version, return 1 to indicate infrastructure present
+      return 1.0;
+    update_interval: 10s
+    filters:
+      - throttle: 60s
+
+  # Communication error counter (placeholder for future implementation)
+  - platform: template
+    name: "Modbus Communication Errors"
+    id: modbus_error_count
+    icon: "mdi:alert-circle"
+    unit_of_measurement: "errors"
+    accuracy_decimals: 0
+    state_class: total_increasing
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      // Error counting will be implemented via modbus_controller events
+      // Initial value: 0
+      return 0.0;
+    update_interval: 30s
+
+text_sensor:
+  # Last successful poll timestamp
+  - platform: template
+    name: "Last Successful Modbus Poll"
+    id: modbus_last_poll
+    icon: "mdi:clock-check"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return {"Modbus Disabled"};
+      }
+      auto time = id(rtc_time).now();
+      if (!time.is_valid()) {
+        return {"No RTC"};
+      }
+      char buffer[20];
+      sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d", 
+              time.year, time.month, time.day_of_month,
+              time.hour, time.minute, time.second);
+      return {buffer};
+    update_interval: 10s

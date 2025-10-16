@@ -1,6 +1,11 @@
+substitutions:
+  use_modbus: "false" # Feature flag: set to "true" to enable Modbus slave
+  slave_address: "0x2" # Modbus slave address
+
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
+  modbus_slave: !include ../components/modbus_slave.yaml
   slow_pwm_soggiorno: !include
     file: ../components/dual_pid.yaml
     vars:

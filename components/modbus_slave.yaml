@@ -1,0 +1,52 @@
+# Component: modbus_slave.yaml
+# Purpose: Modbus RTU Slave infrastructure for RS485 coordination
+# Required vars:
+#   - slave_address: Modbus slave address (e.g., 0x2 for ground floor)
+# Feature flag: use_modbus (substitution) - defaults to "false" for safety
+
+# Modbus RTU bus configuration
+modbus:
+  id: rs485_bus
+  uart_id: rs485
+
+# Modbus Slave controller
+modbus_controller:
+  - id: modbus_slave
+    address: ${slave_address}
+    modbus_id: rs485_bus
+
+# Test holding register at address 0x0001
+# This number entity can be set and read by the master for testing
+number:
+  - platform: modbus_controller
+    modbus_controller_id: modbus_slave
+    name: "Modbus Test Register"
+    id: modbus_test_register
+    address: 0x0001
+    value_type: U_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 65535
+    step: 1
+    mode: box
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      return x;
+    write_lambda: |-
+      return x;
+
+# Slave status indicator
+binary_sensor:
+  - platform: template
+    name: "Modbus Slave Active"
+    id: modbus_slave_active
+    icon: "mdi:server-network"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return false;
+      }
+      return true;
