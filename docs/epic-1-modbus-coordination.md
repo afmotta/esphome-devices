@@ -5,7 +5,7 @@
 | Field             | Value                                          |
 | ----------------- | ---------------------------------------------- |
 | **Epic**          | Epic 1: Autonomous Multi-Board Climate Control |
-| **Version**       | 1.1                                            |
+| **Version**       | 1.2                                            |
 | **Date**          | October 17, 2025                               |
 | **Status**        | In Progress                                    |
 | **Story Manager** | Bob (Scrum Master)                             |
@@ -99,7 +99,7 @@ Transform the ESPHome climate control system from Home Assistant-dependent to au
 
 ## Stories
 
-This epic consists of **7 focused stories** that build the system incrementally:
+This epic consists of **8 focused stories** that build the system incrementally:
 
 ### 1. **Story 1.1: Modbus Master/Slave Infrastructure Foundation**
    - Configure A6 board as Modbus master (address 1)
@@ -130,15 +130,23 @@ This epic consists of **7 focused stories** that build the system incrementally:
    - Add new A16 board for first floor (slave address 3)
    - Configure 0-10V Modbus adapter for second floor fancoil
    - Complete three-floor system integration
-   - **Status**: ⏳ Not Started
+   - **Status**: 📝 Draft
 
-### 6. **Story 1.6: Room Temperature and Humidity Sensor Integration**
+### 6. **Story 1.6: Ground Floor Fancoil 0-10V Control via Modbus Adapter**
+   - Control 4 ground floor fancoils via 4-channel Modbus 0-10V adapter
+   - Implement PID-based fancoil control with dual-staging for Soggiorno
+   - **Extend dual_pid component** for mode-specific outputs (floor radiators for heat, fancoils for cool)
+   - Integrate climate mode awareness and failover logic
+   - Complete proportional cooling control for all ground floor zones
+   - **Status**: 📝 Draft
+
+### 7. **Story 1.7: Room Temperature and Humidity Sensor Integration**
    - Select sensor technology (Modbus vs 1-Wire/I2C)
    - Implement room sensors for all ground floor zones
    - Update PID controllers to use room temperature
    - **Status**: ⏳ Not Started
 
-### 7. **Story 1.7: Documentation, Deployment, and Production Readiness**
+### 8. **Story 1.8: Documentation, Deployment, and Production Readiness**
    - Complete Modbus register map documentation
    - Create RS485 wiring and troubleshooting guides
    - Update `remotes/` configuration for production
@@ -218,7 +226,7 @@ This epic consists of **7 focused stories** that build the system incrementally:
 
 This epic is complete when:
 
-- [x] **All 7 stories completed** with acceptance criteria met and integration verification passed
+- [x] **All 8 stories completed** with acceptance criteria met and integration verification passed
 - [ ] **Existing functionality verified through testing**:
   - All PID controllers operate with identical behavior
   - All relay outputs function correctly
@@ -266,10 +274,14 @@ This epic is complete when:
 1.4 (Failover Logic) ──────────────────> 1.5 (Three-Floor Completion)
 
 
-1.5 (Three-Floor) ─────────────────────> 1.6 (Room Sensors)
+1.5 (Three-Floor) ─────────────────────┬──> 1.6 (Ground Floor Fancoils)
+                                        │
+                                        └──> 1.7 (Room Sensors)
 
 
-1.6 (Room Sensors) ─────────────────────> 1.7 (Documentation & Production)
+1.6 (Ground Floor Fancoils) ────────────┐
+                                         ├──> 1.8 (Documentation & Production)
+1.7 (Room Sensors) ─────────────────────┘
 ```
 
 ### Critical Path
@@ -277,8 +289,9 @@ This epic is complete when:
 1. **Foundation** (Stories 1.1 → 1.2 → 1.3): Must be completed sequentially
 2. **Failover** (Story 1.4): Depends on 1.2 and 1.3; enables actual Modbus usage
 3. **Three-Floor Expansion** (Story 1.5): Depends on 1.4; adds first floor and second floor control
-4. **Room Sensors** (Story 1.6): Depends on three-floor completion
-5. **Finalization** (Story 1.7): Depends on all previous stories
+4. **Ground Floor Fancoils** (Story 1.6): Depends on 1.5; adds precise 0-10V cooling control
+5. **Room Sensors** (Story 1.7): Depends on 1.5; can proceed in parallel with 1.6
+6. **Finalization** (Story 1.8): Depends on all previous stories
 
 ---
 
@@ -311,10 +324,11 @@ This epic is complete when:
 
 ## Change Log
 
-| Date       | Version | Description                                                                     | Author                |
-| ---------- | ------- | ------------------------------------------------------------------------------- | --------------------- |
-| 2025-10-15 | 1.0     | Epic documentation created from PRD                                             | Sarah (Product Owner) |
-| 2025-10-17 | 1.1     | Removed Story 1.5 (Ground Floor Cooling) - deferred to future phase; renumbered | Sarah (Product Owner) |
+| Date       | Version | Description                                                                                                                                      | Author                  |
+| ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| 2025-10-15 | 1.0     | Epic documentation created from PRD                                                                                                              | Sarah (Product Owner)   |
+| 2025-10-17 | 1.1     | Removed Story 1.5 (Ground Floor Cooling) - deferred to future phase; renumbered                                                                  | Sarah (Product Owner)   |
+| 2025-10-17 | 1.2     | Added Story 1.6 (Ground Floor Fancoil Control); updated Story 1.5 status to Draft; renumbered room sensors (1.6→1.7) and documentation (1.7→1.8) | Mary (Business Analyst) |
 
 ---
 
@@ -352,7 +366,7 @@ After Epic 1 completion, the system will support:
 
 ## Story Manager Handoff
 
-**This epic has been decomposed into 7 detailed user stories by Bob (Scrum Master).**
+**This epic has been decomposed into 8 detailed user stories by Bob (Scrum Master).**
 
 All stories follow the brownfield enhancement pattern with:
 - Clear acceptance criteria
@@ -362,12 +376,15 @@ All stories follow the brownfield enhancement pattern with:
 - File location guidance
 - Critical success factors
 
-**Current Status**: Story 1.3 is **In Progress**.
+**Current Status**: Story 1.3 is **In Progress**. Stories 1.5 and 1.6 are **Draft** (awaiting implementation).
 
-**Scope Change (October 17, 2025)**: Ground Floor Cooling Automation removed from Epic 1 scope and deferred to future phase. Story numbers 1.6→1.5, 1.7→1.6, 1.8→1.7 to reflect this change.
+**Recent Changes (October 17, 2025)**:
+1. **v1.1**: Ground Floor Cooling Automation removed from Epic 1 scope and deferred to future phase
+2. **v1.2**: Added Story 1.6 (Ground Floor Fancoil 0-10V Control) to address missing requirement for 4 ground floor fancoils. Story 1.5 status updated to Draft. Room sensors renumbered 1.6→1.7, Documentation renumbered 1.7→1.8.
 
 **Next Actions**:
 1. Complete Story 1.3 implementation and validation
 2. Run PO checklist validation before moving to Story 1.4
 3. Ensure integration verification passes before starting failover logic
-4. Maintain documentation updates as implementation proceeds
+4. After Story 1.4, implement Stories 1.5-1.6 (three-floor completion + ground floor fancoils)
+5. Maintain documentation updates as implementation proceeds
