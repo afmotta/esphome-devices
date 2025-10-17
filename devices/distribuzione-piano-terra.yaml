@@ -11,13 +11,23 @@ packages:
     file: ../components/modbus_slave_registers.yaml
     vars:
       master_address: ${master_address}
+  temperature_failover: !include
+    file: ../components/sensor_failover.yaml
+    vars:
+      sensor_id: "termometro_soggiorno_temperature"
+      modbus_sensor_id: "modbus_piano_terra_temperature"
+      ha_sensor_id: "ha_termometro_soggiorno_temperature"
+      device_class: "temperature"
+      unit_of_measurement: "°C"
+      accuracy_decimals: 1
+  emergency_shutdown: !include ../components/emergency_shutdown.yaml
   slow_pwm_soggiorno: !include
     file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Soggiorno"
       circuit_slug: "soggiorno"
       output: slow_pwm_soggiorno
-      sensor: termometro_soggiorno_temperature
+      sensor: termometro_soggiorno_temperature_abstracted
       heat_default_temperature: 28.0
       heat_kp: 0.2
       heat_ki: 0.01
@@ -33,7 +43,7 @@ packages:
       circuit_name: "Cucina"
       circuit_slug: "cucina"
       output: slow_pwm_cucina
-      sensor: termometro_soggiorno_temperature
+      sensor: termometro_soggiorno_temperature_abstracted
       heat_default_temperature: 28.0
       heat_kp: 0.2
       heat_ki: 0.01
@@ -49,7 +59,7 @@ packages:
       circuit_name: "Bagno"
       circuit_slug: "bagno"
       output: slow_pwm_bagno
-      sensor: termometro_soggiorno_temperature
+      sensor: termometro_soggiorno_temperature_abstracted
       heat_default_temperature: 28.0
       heat_kp: 0.2
       heat_ki: 0.01
@@ -65,7 +75,7 @@ packages:
       circuit_name: "Anticamera"
       circuit_slug: "anticamera"
       output: slow_pwm_anticamera
-      sensor: termometro_soggiorno_temperature
+      sensor: termometro_soggiorno_temperature_abstracted
       heat_default_temperature: 28.0
       heat_kp: 0.2
       heat_ki: 0.01
@@ -88,10 +98,12 @@ switch:
         - script.execute: switch_management
 
 sensor:
+  # Home Assistant temperature sensor (failover source)
   - platform: homeassistant
     name: "Temperature Sensor From Home Assistant"
     entity_id: sensor.termometro_soggiorno_temperature
-    id: termometro_soggiorno_temperature
+    id: ha_termometro_soggiorno_temperature
+    internal: true # Hidden - used by failover component only
 
 output:
   - platform: slow_pwm

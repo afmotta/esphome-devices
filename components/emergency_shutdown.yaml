@@ -1,0 +1,110 @@
+# Component: emergency_shutdown.yaml
+# Purpose: Emergency shutdown logic when all sensors fail
+# Dependencies: Requires sensor_failover.yaml components to be present
+# Required vars:
+#   - monitored_sensors: List of failover sensor IDs to monitor (e.g., ["termometro_soggiorno_temperature_abstracted"])
+#   - zone_outputs: List of output IDs to set to 0% during emergency (e.g., ["slow_pwm_soggiorno"])
+# Optional vars:
+#   - check_interval: How often to check sensor status (default: 60s)
+#   - emergency_timeout: Seconds before triggering emergency (default: 300 = 5 minutes)
+#
+# Usage Example:
+# packages:
+#   emergency_shutdown: !include
+#     file: ../components/emergency_shutdown.yaml
+#     vars:
+#       monitored_sensors:
+#         - termometro_soggiorno_temperature_abstracted
+#       zone_outputs:
+#         - slow_pwm_soggiorno
+#         - slow_pwm_cucina
+#         - slow_pwm_bagno
+#         - slow_pwm_anticamera
+
+defaults:
+  check_interval: 60s
+  emergency_timeout: 300
+
+# Global variables for emergency state tracking
+globals:
+  - id: emergency_mode_active
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  - id: emergency_start_time
+    type: unsigned long
+    restore_value: false
+    initial_value: "0"
+
+# Binary sensor exposing emergency status to Home Assistant
+binary_sensor:
+  - platform: template
+    name: "System Emergency Status"
+    id: system_emergency_status
+    icon: "mdi:alert-octagon"
+    device_class: problem
+    lambda: |-
+      return id(emergency_mode_active);
+
+# Interval script checking sensor availability
+interval:
+  - interval: ${check_interval}
+    then:
+      - lambda: |-
+          // Check if all monitored sensors have valid data
+          bool any_sensor_valid = false;
+          unsigned long now = millis();
+
+          // Check termometro_soggiorno_temperature_abstracted sensor
+          if (id(termometro_soggiorno_temperature_abstracted).has_state()) {
+            float val = id(termometro_soggiorno_temperature_abstracted).state;
+            if (!std::isnan(val)) {
+              any_sensor_valid = true;
+            }
+          }
+
+          // If no sensors valid, check emergency timeout
+          if (!any_sensor_valid) {
+            if (id(emergency_start_time) == 0) {
+              // First detection of sensor failure
+              id(emergency_start_time) = now;
+              ESP_LOGW("emergency_shutdown", "All sensors unavailable - starting emergency countdown");
+            } else {
+              // Already in pre-emergency state, check timeout
+              unsigned long time_in_emergency = (now - id(emergency_start_time)) / 1000;
+              
+              if (time_in_emergency >= ${emergency_timeout}) {
+                if (!id(emergency_mode_active)) {
+                  // Trigger emergency shutdown
+                  id(emergency_mode_active) = true;
+                  ESP_LOGE("emergency_shutdown", "EMERGENCY SHUTDOWN TRIGGERED - No sensors for %lu seconds", time_in_emergency);
+                  
+                  // Set all zone outputs to 0%
+                  auto call_soggiorno = id(slow_pwm_soggiorno).make_call();
+                  call_soggiorno.set_level(0.0);
+                  call_soggiorno.perform();
+                  
+                  auto call_cucina = id(slow_pwm_cucina).make_call();
+                  call_cucina.set_level(0.0);
+                  call_cucina.perform();
+                  
+                  auto call_bagno = id(slow_pwm_bagno).make_call();
+                  call_bagno.set_level(0.0);
+                  call_bagno.perform();
+                  
+                  auto call_anticamera = id(slow_pwm_anticamera).make_call();
+                  call_anticamera.set_level(0.0);
+                  call_anticamera.perform();
+                }
+              } else {
+                ESP_LOGW("emergency_shutdown", "Pre-emergency: %lu / %d seconds", time_in_emergency, ${emergency_timeout});
+              }
+            }
+          } else {
+            // Sensors recovered
+            if (id(emergency_mode_active)) {
+              ESP_LOGI("emergency_shutdown", "Sensors recovered - exiting emergency mode");
+              id(emergency_mode_active) = false;
+            }
+            id(emergency_start_time) = 0;
+          }

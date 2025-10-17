@@ -76,6 +76,39 @@ sensor:
       }
       return x;
 
+  # Register 100 (0x0064): Ground Floor Supply Temperature from Master
+  # Data type: INT16, scaled by 100 (e.g., 2345 = 23.45°C)
+  - platform: modbus_controller
+    modbus_controller_id: modbus_slave
+    id: modbus_piano_terra_temperature
+    name: "Modbus Ground Floor Temperature"
+    address: 0x0064
+    register_type: holding
+    value_type: S_WORD
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.01 # Convert from scaled integer (x100) to °C
+      - timeout: 30s # Mark unavailable after 3 missed reads (30s)
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: "return std::isnan(x);"
+            then:
+              - lambda: "id(modbus_read_error_count) += 1;"
+              - text_sensor.template.publish:
+                  id: last_modbus_error
+                  state: "Temperature read failed"
+    lambda: |-
+      std::string flag = "${use_modbus}";
+      if (flag == "false") {
+        return NAN;
+      }
+      return x;
+
   # Template sensor for error count monitoring
   - platform: template
     name: "Modbus Read Error Count"
@@ -149,7 +182,9 @@ interval:
     then:
       - if:
           condition:
-            lambda: 'return (id(use_modbus) == "true");'
+            lambda: |-
+              std::string flag = "${use_modbus}";
+              return (flag == "true");
           then:
             - lambda: |-
                 int status = 1;  // Default: healthy
