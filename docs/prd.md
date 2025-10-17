@@ -5,8 +5,8 @@
 | Field               | Value                                      |
 | ------------------- | ------------------------------------------ |
 | **Project**         | ESPHome Multi-Floor Climate Control System |
-| **PRD Version**     | 1.0                                        |
-| **Date**            | October 9, 2025                            |
+| **PRD Version**     | 1.1                                        |
+| **Date**            | October 17, 2025                           |
 | **Status**          | Draft                                      |
 | **Target Audience** | Experienced ESPHome Users                  |
 
@@ -15,6 +15,7 @@
 | Date       | Version | Description                                                                                      | Author                  |
 | ---------- | ------- | ------------------------------------------------------------------------------------------------ | ----------------------- |
 | 2025-10-09 | 1.0     | Initial brownfield PRD for RS485 Modbus board-to-board communication and automation enhancements | Mary (Business Analyst) |
+| 2025-10-17 | 1.1     | Removed ground floor cooling automation from Epic 1 - deferred to future phase                   | Mary (Business Analyst) |
 
 ---
 
@@ -32,7 +33,7 @@
 This is an **active production ESPHome-based home climate control system** managing a three-floor residential HVAC installation with the following characteristics:
 
 **Current Coverage:**
-- **Ground Floor (Piano Terra)**: Floor heating + 4 fancoils (primary cooling) + floor cooling (optional, needs automation)
+- **Ground Floor (Piano Terra)**: Floor heating + 4 fancoils (primary cooling) + floor cooling (optional)
 - **First Floor (Primo Piano)**: Floor heating + floor cooling (NOT YET IMPLEMENTED - needs new A16 board)
 - **Second Floor (Secondo Piano)**: Single fancoil (NOT YET IMPLEMENTED - needs 0-10V Modbus adapter on ground floor A16)
 
@@ -90,7 +91,7 @@ This is an **active production ESPHome-based home climate control system** manag
 
 #### Enhancement Description
 
-This enhancement aims to **transform the system from Home Assistant-dependent to autonomous** by implementing master/slave board communication via RS485 Modbus RTU protocol. The system will gain the ability to operate independently during Home Assistant outages while maintaining full integration when HA is available. Two additional boards will be added to complete the system coverage of all three floors, and ground floor fancoil/floor cooling automation will be improved.
+This enhancement aims to **transform the system from Home Assistant-dependent to autonomous** by implementing master/slave board communication via RS485 Modbus RTU protocol. The system will gain the ability to operate independently during Home Assistant outages while maintaining full integration when HA is available. One additional board will be added to complete the system coverage of all three floors.
 
 #### Impact Assessment
 - ☐ Minimal Impact (isolated additions)
@@ -113,7 +114,6 @@ This enhancement aims to **transform the system from Home Assistant-dependent to
 - Implement 0-10V Modbus adapter control for second floor fancoil via first floor A16
 - Implement autonomous temperature sensor data sharing from master to slave boards
 - Maintain full Home Assistant integration for monitoring, overrides, and advanced automation
-- Improve ground floor cooling automation by coordinating fancoils (primary) with floor cooling (optional)
 - Improve system resilience and response time through local decision-making
 - Preserve existing PID control algorithms and tuning parameters
 
@@ -122,7 +122,6 @@ This enhancement aims to **transform the system from Home Assistant-dependent to
 The current system has proven effective for climate control but suffers from critical weaknesses:
 1. **Single Point of Failure**: Complete dependency on Home Assistant for sensor data and mode coordination
 2. **Incomplete Coverage**: First floor distribution and second floor fancoil not yet implemented
-3. **Suboptimal Ground Floor Cooling**: Fancoils are primary cooling but lack proper coordination with optional floor cooling
 
 When Home Assistant experiences downtime (updates, crashes, network issues), the entire climate control system becomes non-functional, potentially leading to uncomfortable conditions or system damage.
 
@@ -130,8 +129,7 @@ The existing A6 and A16 boards already have RS485 UART hardware configured but u
 1. Continue operating during HA outages using master-coordinated sensor data and control signals
 2. Respond faster to temperature changes without HA round-trip delays
 3. Complete the three-floor system with one additional A16 board (first floor) and 0-10V Modbus adapter (second floor fancoil)
-4. Implement proper ground floor cooling automation (fancoils primary, floor cooling optional/supplemental)
-5. Maintain the proven PID control algorithms that have been tuned for the specific heating/cooling zones
+4. Maintain the proven PID control algorithms that have been tuned for the specific heating/cooling zones
 
 The enhancement must be implemented carefully to preserve the existing working configuration while adding the new communication layer, ensuring a safe rollback path if issues arise.
 
@@ -158,12 +156,7 @@ The enhancement must be implemented carefully to preserve the existing working c
    - **First Floor Board** (Kincony KC868-A16): Zone distribution for Primo Piano heating/cooling with local Dallas sensors
    - **Second Floor Fancoil**: Controlled via 0-10V Modbus adapter connected to first floor A16 board
 
-**FR7**: The ground floor `distribuzione-piano-terra` device SHALL implement intelligent cooling automation:
-   - Fancoils as PRIMARY cooling method (fast response, humidity control)
-   - Floor cooling as OPTIONAL/SUPPLEMENTAL (slower, energy-efficient)
-   - Automatic coordination between fancoils and floor cooling based on cooling demand
-
-**FR8**: The system SHALL implement automatic failover: if Modbus communication fails, slave boards SHALL fall back to Home Assistant sensor data (if available) or safe default behavior.
+**FR7**: The system SHALL implement automatic failover: if Modbus communication fails, slave boards SHALL fall back to Home Assistant sensor data (if available) or safe default behavior.
 
 **FR9**: Slave boards SHALL implement autonomous mode switching between heat/cool based on Modbus-received climate mode state from master, reducing dependency on Home Assistant's `sensor.thermostat_mode`.
 
@@ -288,7 +281,6 @@ The enhancement must be implemented carefully to preserve the existing working c
 - Create new component: `components/modbus_slave.yaml` - slave device functionality
 - Update `boards/a6.yaml` to support both master and slave roles (via vars)
 - Create new board: `boards/a16_first_floor.yaml` for first floor zone distribution
-- Create new component: `components/cooling_automation.yaml` - ground floor fancoil/floor cooling coordination
 - Create new component: `components/modbus_0_10v.yaml` - 0-10V Modbus adapter control
 - Maintain separation: locals/ = absolute paths, remotes/ = GitHub package references
 
@@ -298,7 +290,6 @@ The enhancement must be implemented carefully to preserve the existing working c
 - Phase 3: Three-board master/slave testing (1 master + 2 A16 slaves)
 - Phase 4: 0-10V Modbus adapter testing for second floor fancoil control
 - Phase 5: Failover testing (intentional Modbus/HA outages, slave fallback behavior)
-- Phase 6: Ground floor cooling automation testing (fancoil primary, floor cooling coordination)
 - Use `locals/` directory for all testing before promoting to `remotes/`
 
 ### 3.3 Code Organization and Standards
@@ -319,7 +310,6 @@ esphome-devices/
 │   ├── modbus_slave.yaml     # NEW: Modbus slave device
 │   ├── modbus_sensor.yaml    # NEW: Modbus-based sensor wrapper
 │   ├── modbus_0_10v.yaml     # NEW: 0-10V Modbus adapter control
-│   ├── cooling_automation.yaml  # NEW: Ground floor fancoil/floor cooling coordination
 │   └── room_sensors.yaml     # NEW: Room temp/humidity sensors (flexible tech)
 ├── devices/                  # Device-specific assemblies
 │   ├── gruppo-miscelazione.yaml          # Master controller
@@ -456,7 +446,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 ## 5. Epic 1: Autonomous Multi-Board Climate Control via RS485 Modbus
 
-**Epic Goal**: Transform the ESPHome climate control system from Home Assistant-dependent to autonomous by implementing master/slave RS485 Modbus communication, eliminating single-point-of-failure while maintaining full HA integration, completing three-floor coverage with one new A16 board and 0-10V Modbus adapter, and improving ground floor cooling automation.
+**Epic Goal**: Transform the ESPHome climate control system from Home Assistant-dependent to autonomous by implementing master/slave RS485 Modbus communication, eliminating single-point-of-failure while maintaining full HA integration, and completing three-floor coverage with one new A16 board and 0-10V Modbus adapter.
 
 **Integration Requirements**: 
 - Preserve all existing PID control logic, tuning parameters, and relay control patterns
@@ -574,7 +564,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 4. Timeout handling: If Modbus read fails for >30 seconds, sensor reports "unavailable"
 5. Diagnostic sensor shows Modbus read error count and last error timestamp
 6. Slave exposes own status registers for master polling (e.g., register 1000: slave health status)
-7. Room sensor integration framework in place (temperature/humidity reading support), with technology selection deferred to Story 1.8
+7. Room sensor integration framework in place (temperature/humidity reading support), with technology selection deferred to Story 1.6
 
 #### Integration Verification
 
@@ -639,52 +629,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 ---
 
-### Story 1.5: Ground Floor Cooling Automation - Fancoils Primary, Floor Cooling Optional
-
-**As a** ground floor climate controller,  
-**I want** intelligent coordination between fancoils (primary cooling) and floor cooling (optional/supplemental),  
-**so that** cooling demand is met efficiently with proper humidity control.
-
-#### Acceptance Criteria
-
-1. Create component `components/cooling_automation.yaml` that:
-   - Implements cooling demand assessment logic
-   - Prioritizes fancoils as PRIMARY cooling (fast response, humidity control)
-   - Activates floor cooling as OPTIONAL/SUPPLEMENTAL based on conditions
-   - Supports parameterization via `vars:`
-2. Cooling automation logic for `distribuzione-piano-terra`:
-   - **Low cooling demand** (ΔT < 1°C): Fancoils only, floor cooling OFF
-   - **Medium cooling demand** (1°C ≤ ΔT < 2°C): Fancoils ON, floor cooling optional (user configurable)
-   - **High cooling demand** (ΔT ≥ 2°C): Fancoils ON, floor cooling ON (if enabled)
-   - **Humidity consideration**: If humidity >60%, prefer fancoils over floor cooling
-3. Configuration flags exposed to Home Assistant:
-   - `enable_floor_cooling`: true/false (default: false - fancoils only)
-   - `floor_cooling_threshold`: temperature delta to activate floor cooling
-4. Automation state exposed to HA as text sensor showing current cooling strategy
-5. Manual override available: User can force floor cooling on/off via HA
-6. Smooth transitions: Avoid rapid switching between modes (minimum 5-minute stability)
-
-#### Integration Verification
-
-**IV1 - Existing Functionality Preserved**:
-- When floor cooling automation disabled, existing fancoil control works as before
-- Manual control via Home Assistant continues to work
-- PID controllers continue to use existing tuning parameters
-
-**IV2 - Integration Point Verification**:
-- Test fancoil-only cooling (floor cooling disabled) → verify proper operation
-- Test coordinated cooling (fancoils + floor cooling) → verify smooth transitions
-- Test humidity-based priority → verify fancoils preferred at high humidity
-- Test HA override → verify manual floor cooling control works
-
-**IV3 - Performance Impact Verification**:
-- Cooling demand assessment runs without noticeable CPU impact
-- No rapid cycling between cooling modes (5-minute minimum stability)
-- Temperature control accuracy maintained (±0.5°C setpoint)
-
----
-
-### Story 1.6: First Floor A16 Board + Second Floor 0-10V Fancoil Control
+### Story 1.5: First Floor A16 Board + Second Floor 0-10V Fancoil Control
 
 **As a** system administrator,  
 **I want** to add a new A16 board for first floor distribution and configure 0-10V Modbus adapter for second floor fancoil,  
@@ -757,7 +702,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 ---
 
-### Story 1.7: Room Temperature and Humidity Sensor Integration
+### Story 1.6: Room Temperature and Humidity Sensor Integration
 
 **As a** zone control system,  
 **I want** room-level temperature and humidity measurement for each zone,  
@@ -787,7 +732,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 5. PID controllers updated to use room temperature (not just supply temperature) for control:
    - Setpoint based on room temperature
    - Supply temperature managed by mixing valve based on room demand
-6. Humidity data used for ground floor cooling automation (prefer fancoils when humidity >60%)
+6. Humidity data exposed to Home Assistant for monitoring and future automation
 
 #### Integration Verification
 
@@ -801,7 +746,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 - Test 1-Wire sensor integration (if selected): All 4 zones report temperature/humidity without conflicts
 - Verify room sensor data accuracy (compare with known-good reference sensors)
 - Test PID control using room sensors: Verify setpoint tracking within ±0.5°C
-- Test humidity-based cooling logic: Fancoils activate when humidity >60%
+- Verify humidity data exposed to Home Assistant for monitoring
 
 **IV3 - Performance Impact Verification**:
 - If Modbus sensors: Polling cycle completes within 500ms budget (master polls slaves + room sensors)
@@ -811,7 +756,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 ---
 
-### Story 1.8: Documentation, Deployment, and Production Readiness
+### Story 1.7: Documentation, Deployment, and Production Readiness
 
 **As a** system maintainer,  
 **I want** comprehensive documentation and production-ready configuration,  
@@ -899,6 +844,7 @@ This approach also aligns with the brownfield context: we're enhancing a single 
 
 The following items are explicitly **out of scope** for this enhancement:
 
+- **Ground Floor Cooling Automation**: Intelligent coordination between fancoils (primary cooling) and floor cooling (optional/supplemental) with humidity-aware logic — deferred to future phase (potential Epic 2)
 - **Advanced Scheduling/Automation**: Complex time-based or occupancy-based automation remains Home Assistant's responsibility
 - **Web UI on ESP32**: No local web interface for configuration (ESPHome/HA remains management interface)
 - **PID Auto-Tuning**: Current PID parameters are manually tuned and frozen; auto-tuning not implemented
@@ -906,7 +852,7 @@ The following items are explicitly **out of scope** for this enhancement:
 - **Modbus TCP**: Only Modbus RTU over RS485 with master/slave architecture is supported (no TCP/IP Modbus, no mesh)
 - **Non-ESPHome Modbus Devices**: System is not designed to integrate with third-party Modbus devices (e.g., commercial HVAC controllers)
 - **Historical Data Logging**: Local logging on ESP32 is not implemented (Home Assistant provides this)
-- **Advanced Humidity Control**: Basic humidity measurement implemented for monitoring and fancoil prioritization, but advanced dehumidification control algorithms (e.g., dew point calculations, humidity PID) are not implemented in this phase
+- **Advanced Humidity Control**: Basic humidity measurement implemented for monitoring, but advanced dehumidification control algorithms (e.g., dew point calculations, humidity PID) are not implemented in this phase
 - **Multi-Technology Sensor Mix**: System will standardize on ONE room sensor technology (Modbus OR 1-Wire), not a mix of both in production
 
 ---
@@ -922,7 +868,7 @@ The following items are explicitly **out of scope** for this enhancement:
 6. First floor mixing valve hardware (relays, Dallas sensors, mixing valve actuator) is available or can be procured
 7. Second floor fancoil wiring and control capabilities are available or can be installed
 8. Room temperature/humidity sensors (either Modbus or 1-Wire) can be installed in each controlled zone
-9. Room sensor technology selection (Modbus vs 1-Wire) will be finalized during Story 1.7 implementation based on cost, availability, and technical considerations
+9. Room sensor technology selection (Modbus vs 1-Wire) will be finalized during Story 1.6 implementation based on cost, availability, and technical considerations
 10. Two additional Kincony KC868-A6 boards (or compatible) are available for first and second floor installations
 
 ### Dependencies

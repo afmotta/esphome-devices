@@ -5,8 +5,8 @@
 | Field             | Value                                          |
 | ----------------- | ---------------------------------------------- |
 | **Epic**          | Epic 1: Autonomous Multi-Board Climate Control |
-| **Version**       | 1.0                                            |
-| **Date**          | October 15, 2025                               |
+| **Version**       | 1.1                                            |
+| **Date**          | October 17, 2025                               |
 | **Status**        | In Progress                                    |
 | **Story Manager** | Bob (Scrum Master)                             |
 | **Product Owner** | Sarah (Product Owner)                          |
@@ -21,7 +21,7 @@
 
 ## Epic Goal
 
-Transform the ESPHome climate control system from Home Assistant-dependent to autonomous by implementing master/slave RS485 Modbus communication, eliminating single-point-of-failure while maintaining full HA integration, completing three-floor coverage, and improving ground floor cooling automation.
+Transform the ESPHome climate control system from Home Assistant-dependent to autonomous by implementing master/slave RS485 Modbus communication, eliminating single-point-of-failure while maintaining full HA integration and completing three-floor coverage.
 
 ---
 
@@ -62,22 +62,17 @@ Transform the ESPHome climate control system from Home Assistant-dependent to au
    - Implement data exchange: temperature sensors, climate mode, heartbeat monitoring
    - Add automatic failover logic: Modbus (primary) → Home Assistant (fallback) → Safe shutdown (emergency)
 
-2. **Ground Floor Cooling Automation** (Story 1.5):
-   - Intelligent coordination between fancoils (primary) and floor cooling (optional/supplemental)
-   - Humidity-aware logic (prefer fancoils when humidity >60%)
-   - User-configurable floor cooling enablement
-
-3. **Three-Floor System Completion** (Story 1.6):
+2. **Three-Floor System Completion** (Story 1.5):
    - Add new A16 board for first floor distribution (Modbus slave address 3)
    - Configure 0-10V Modbus adapter on ground floor A16 for second floor fancoil control
    - Complete RS485 Modbus network with proper bus termination
 
-4. **Room Sensor Integration** (Story 1.7):
+3. **Room Sensor Integration** (Story 1.6):
    - Add room-level temperature/humidity sensors for all zones
    - Technology selection: Modbus sensors OR 1-Wire/I2C sensors
    - Integrate room sensors into PID control logic for improved accuracy
 
-5. **Documentation & Production Deployment** (Story 1.8):
+4. **Documentation & Production Deployment** (Story 1.7):
    - Modbus register map documentation
    - Sensor technology selection documentation
    - RS485 wiring and troubleshooting guides
@@ -89,7 +84,7 @@ Transform the ESPHome climate control system from Home Assistant-dependent to au
 - **Feature Flag Control**: `use_modbus: true/false` substitution enables gradual rollout
 - **Failover Architecture**: Three-tier sensor selection (Modbus → HA → Emergency)
 - **Backward Compatibility**: All existing entity IDs, PID tuning, and control patterns preserved
-- **Reusable Components**: `components/modbus_master.yaml`, `components/modbus_slave.yaml`, `components/cooling_automation.yaml`, `components/room_sensors.yaml`
+- **Reusable Components**: `components/modbus_master.yaml`, `components/modbus_slave.yaml`, `components/room_sensors.yaml`
 
 **Success Criteria:**
 
@@ -97,14 +92,14 @@ Transform the ESPHome climate control system from Home Assistant-dependent to au
 2. **Performance**: Modbus communication completes within 500ms; failover transitions within 30s
 3. **Compatibility**: All existing Home Assistant entities and automations continue to work unchanged
 4. **Reliability**: Automatic recovery when Modbus or HA communication restored; no manual intervention required
-5. **Completeness**: All three floors operational with proper cooling automation
+5. **Completeness**: All three floors operational with Modbus coordination
 6. **Documentation**: Comprehensive guides for maintenance, troubleshooting, and future expansion
 
 ---
 
 ## Stories
 
-This epic consists of **8 focused stories** that build the system incrementally:
+This epic consists of **7 focused stories** that build the system incrementally:
 
 ### 1. **Story 1.1: Modbus Master/Slave Infrastructure Foundation**
    - Configure A6 board as Modbus master (address 1)
@@ -131,25 +126,19 @@ This epic consists of **8 focused stories** that build the system incrementally:
    - Test all failover scenarios and recovery paths
    - **Status**: ⏳ Not Started
 
-### 5. **Story 1.5: Ground Floor Cooling Automation**
-   - Coordinate fancoils (primary) with floor cooling (optional)
-   - Humidity-aware cooling strategy
-   - User-configurable enablement flags
-   - **Status**: ⏳ Not Started
-
-### 6. **Story 1.6: First Floor A16 Board + Second Floor 0-10V Fancoil**
+### 5. **Story 1.5: First Floor A16 Board + Second Floor 0-10V Fancoil**
    - Add new A16 board for first floor (slave address 3)
    - Configure 0-10V Modbus adapter for second floor fancoil
    - Complete three-floor system integration
    - **Status**: ⏳ Not Started
 
-### 7. **Story 1.7: Room Temperature and Humidity Sensor Integration**
+### 6. **Story 1.6: Room Temperature and Humidity Sensor Integration**
    - Select sensor technology (Modbus vs 1-Wire/I2C)
    - Implement room sensors for all ground floor zones
    - Update PID controllers to use room temperature
    - **Status**: ⏳ Not Started
 
-### 8. **Story 1.8: Documentation, Deployment, and Production Readiness**
+### 7. **Story 1.7: Documentation, Deployment, and Production Readiness**
    - Complete Modbus register map documentation
    - Create RS485 wiring and troubleshooting guides
    - Update `remotes/` configuration for production
@@ -229,7 +218,7 @@ This epic consists of **8 focused stories** that build the system incrementally:
 
 This epic is complete when:
 
-- [x] **All 8 stories completed** with acceptance criteria met and integration verification passed
+- [x] **All 7 stories completed** with acceptance criteria met and integration verification passed
 - [ ] **Existing functionality verified through testing**:
   - All PID controllers operate with identical behavior
   - All relay outputs function correctly
@@ -274,26 +263,22 @@ This epic is complete when:
 1.3 (Slave Data Reading) ──────────┘
 
 
-1.4 (Failover Logic) ──────────┬──> 1.5 (Cooling Automation)
-                                │
-                                └──> 1.6 (Three-Floor Completion)
+1.4 (Failover Logic) ──────────────────> 1.5 (Three-Floor Completion)
 
 
-1.5 (Cooling Automation) ──┐
-                            ├──> 1.7 (Room Sensors)
-1.6 (Three-Floor) ─────────┘
+1.5 (Three-Floor) ─────────────────────> 1.6 (Room Sensors)
 
 
-1.7 (Room Sensors) ────────────> 1.8 (Documentation & Production)
+1.6 (Room Sensors) ─────────────────────> 1.7 (Documentation & Production)
 ```
 
 ### Critical Path
 
 1. **Foundation** (Stories 1.1 → 1.2 → 1.3): Must be completed sequentially
 2. **Failover** (Story 1.4): Depends on 1.2 and 1.3; enables actual Modbus usage
-3. **Expansion** (Stories 1.5, 1.6): Can proceed in parallel after 1.4
-4. **Integration** (Story 1.7): Depends on cooling automation and three-floor completion
-5. **Finalization** (Story 1.8): Depends on all previous stories
+3. **Three-Floor Expansion** (Story 1.5): Depends on 1.4; adds first floor and second floor control
+4. **Room Sensors** (Story 1.6): Depends on three-floor completion
+5. **Finalization** (Story 1.7): Depends on all previous stories
 
 ---
 
@@ -326,9 +311,10 @@ This epic is complete when:
 
 ## Change Log
 
-| Date       | Version | Description                         | Author                |
-| ---------- | ------- | ----------------------------------- | --------------------- |
-| 2025-10-15 | 1.0     | Epic documentation created from PRD | Sarah (Product Owner) |
+| Date       | Version | Description                                                                     | Author                |
+| ---------- | ------- | ------------------------------------------------------------------------------- | --------------------- |
+| 2025-10-15 | 1.0     | Epic documentation created from PRD                                             | Sarah (Product Owner) |
+| 2025-10-17 | 1.1     | Removed Story 1.5 (Ground Floor Cooling) - deferred to future phase; renumbered | Sarah (Product Owner) |
 
 ---
 
@@ -348,6 +334,7 @@ This epic follows a **safe, incremental brownfield enhancement pattern**:
 
 After Epic 1 completion, the system will support:
 
+- **Ground Floor Cooling Automation**: Intelligent coordination between fancoils and floor cooling with humidity-aware logic (deferred from Epic 1)
 - **Additional Floors**: Add more A16 slaves (up to address 247)
 - **Additional Sensors**: Expand Modbus register map for more room sensors
 - **Advanced Coordination**: Master can coordinate supply temperatures across multiple mixing valves
@@ -365,7 +352,7 @@ After Epic 1 completion, the system will support:
 
 ## Story Manager Handoff
 
-**This epic has already been decomposed into 8 detailed user stories by Bob (Scrum Master).**
+**This epic has been decomposed into 7 detailed user stories by Bob (Scrum Master).**
 
 All stories follow the brownfield enhancement pattern with:
 - Clear acceptance criteria
@@ -375,7 +362,9 @@ All stories follow the brownfield enhancement pattern with:
 - File location guidance
 - Critical success factors
 
-**Current Status**: Story 1.3 is **In Progress** (this document created as part of PO validation workflow).
+**Current Status**: Story 1.3 is **In Progress**.
+
+**Scope Change (October 17, 2025)**: Ground Floor Cooling Automation removed from Epic 1 scope and deferred to future phase. Story numbers 1.6→1.5, 1.7→1.6, 1.8→1.7 to reflect this change.
 
 **Next Actions**:
 1. Complete Story 1.3 implementation and validation
