@@ -118,35 +118,28 @@ This epic consists of **8 focused stories** that build the system incrementally:
    - Create reusable `components/modbus_slave.yaml`
    - Implement timeout handling and error tracking
    - Slave exposes health status registers for master polling
-   - **Status**: 🔄 In Progress (Current Story)
+   - **Status**: ✅ Complete
 
 ### 4. **Story 1.4: Sensor Failover Logic Implementation**
    - Implement three-tier failover: Modbus → HA → Emergency
    - Add `template` sensor wrappers for source selection
    - Test all failover scenarios and recovery paths
-   - **Status**: ⏳ Not Started
+   - **Status**: ✅ Complete
 
-### 5. **Story 1.5: First Floor A16 Board + Second Floor 0-10V Fancoil**
+### 5. **Story 1.5: First Floor A16 Board + Ground Floor 0-10V Fancoil + Second Floor 0-10V Fancoil**
    - Add new A16 board for first floor (slave address 3)
    - Configure 0-10V Modbus adapter for second floor fancoil
    - Complete three-floor system integration
-   - **Status**: 📝 Draft
-
-### 6. **Story 1.6: Ground Floor Fancoil 0-10V Control via Modbus Adapter**
    - Control 4 ground floor fancoils via 4-channel Modbus 0-10V adapter
-   - Implement PID-based fancoil control with dual-staging for Soggiorno
-   - **Extend dual_pid component** for mode-specific outputs (floor radiators for heat, fancoils for cool)
-   - Integrate climate mode awareness and failover logic
-   - Complete proportional cooling control for all ground floor zones
-   - **Status**: 📝 Draft
+   - **Status**: 🔄 In Progress (Current Story)
 
-### 7. **Story 1.7: Room Temperature and Humidity Sensor Integration**
+### 6. **Story 1.6: Room Temperature and Humidity Sensor Integration**
    - Select sensor technology (Modbus vs 1-Wire/I2C)
    - Implement room sensors for all ground floor zones
    - Update PID controllers to use room temperature
    - **Status**: ⏳ Not Started
 
-### 8. **Story 1.8: Documentation, Deployment, and Production Readiness**
+### 7. **Story 1.7: Documentation, Deployment, and Production Readiness**
    - Complete Modbus register map documentation
    - Create RS485 wiring and troubleshooting guides
    - Update `remotes/` configuration for production
