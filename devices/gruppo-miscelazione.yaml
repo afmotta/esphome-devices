@@ -45,6 +45,12 @@ packages:
       cool_ki: 0.01
       cool_kd: 0.0
       trigger: input_2
+  # Ground floor fancoils via 0-10V Modbus adapter (address 0x2)
+  ground_floor_fancoils: !include
+    file: ../components/ground_floor_fancoils.yaml
+  # Second floor fancoil via 0-10V Modbus adapter (address 0x3)
+  second_floor_fancoils: !include
+    file: ../components/second_floor_fancoils.yaml
 
 sensor:
   - platform: dallas_temp
@@ -61,6 +67,32 @@ sensor:
     unit_of_measurement: "°C"
     internal: true
     one_wire_id: one_wire_01
+  # Temperature sensors from Home Assistant for fancoil control
+  - platform: homeassistant
+    name: "Termometro Soggiorno Temperature"
+    entity_id: sensor.termometro_soggiorno_temperature
+    id: ha_soggiorno_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Termometro Pranzo Temperature"
+    entity_id: sensor.termometro_soggiorno_temperature
+    id: ha_pranzo_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Termometro Cucina Temperature"
+    entity_id: sensor.termometro_soggiorno_temperature
+    id: ha_cucina_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Termometro Tecnico Temperature"
+    entity_id: sensor.termometro_soggiorno_temperature
+    id: ha_tecnico_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Termometro Sottotetto Temperature"
+    entity_id: sensor.termometro_soggiorno_temperature
+    id: ha_sottotetto_temperature
+    internal: true
 
 text_sensor:
   - platform: homeassistant

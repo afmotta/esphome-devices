@@ -1,32 +1,28 @@
-# Component: modbus_0_10v.yaml
-# Purpose: Control single-channel 0-10V Modbus adapter for remote fancoil capacity control
+# Component: modbus_0_10v_output.yaml
+# Purpose: Control single-channel output from 0-10V Modbus adapter
 # Required vars:
-#   - adapter_address: Modbus device address (e.g., 0x4 for second floor adapter)
-#   - output_id: Unique ID for the template output (e.g., "second_floor_fancoil")
-# Optional vars:
+#   - adapter_id: Modbus device id (e.g., modbus_0_10v_adapter_0x4)
 #   - register_address: Modbus register address (default: 0x0001)
+#
+# Optional vars:
 #   - friendly_name: Display name for sensors (default: device friendly_name)
 #
 # Usage Example:
 # packages:
-#   second_floor_fancoil_0_10v: !include
-#     file: ../components/modbus_0_10v.yaml
+#   second_floor_fancoil_0_10v_output_1: !include
+#     file: ../components/modbus_0_10v_output.yaml
 #     vars:
-#       adapter_address: 0x4
-#       output_id: "second_floor_fancoil"
+#       adapter_id: modbus_0_10v_adapter_0x4
+#       register_address: 0x0001
 #
 # The component creates:
-# - modbus_controller for the 0-10V adapter (master role)
 # - number platform for register writes (0-10000 = 0-10V)
 # - template output for PID controller connection (0.0-1.0 → 0-10000)
 # - diagnostic sensors for adapter status
 
-defaults:
-  register_address: 0x0001
-
 # Modbus controller for 0-10V adapter (Ground floor A16 acts as master to adapter)
 modbus_controller:
-  - id: modbus_0_10v_adapter_${adapter_address}
+  - id: ${adapter_id}
     address: ${adapter_address}
     modbus_id: rs485_bus # Shared RS485 bus with master/slave
     update_interval: 5s # Update 0-10V output every 5 seconds
@@ -34,9 +30,8 @@ modbus_controller:
 # Number platform for direct register control (used by template output)
 number:
   - platform: modbus_controller
-    modbus_controller_id: modbus_0_10v_adapter_${adapter_address}
-    id: ${output_id}_register
-    name: "${output_id} 0-10V Register"
+    modbus_controller_id: ${adapter_id}
+    id: ${adapter_id}_register_${register_address}
     address: ${register_address}
     value_type: U_WORD
     min_value: 0
@@ -56,21 +51,20 @@ output:
           // 0.0 → 0 (0V, fancoil off)
           // 1.0 → 10000 (10V, fancoil full capacity)
           uint16_t register_value = static_cast<uint16_t>(x * 10000.0);
-          id(${output_id}_register).set_value(register_value);
+          id(${adapter_id}_register_${register_address}).set_value(register_value);
           ESP_LOGD("modbus_0_10v", "PID output %.2f → register %d", x, register_value);
 
 # Diagnostic sensor: Current fancoil capacity percentage
 sensor:
   - platform: template
-    name: "${output_id} Capacity"
     id: ${output_id}_capacity
     unit_of_measurement: "%"
     accuracy_decimals: 0
     icon: "mdi:fan"
     lambda: |-
       // Convert register value (0-10000) to percentage (0-100%)
-      if (id(${output_id}_register).has_state()) {
-        return id(${output_id}_register).state / 100.0;
+      if (id(${adapter_id}_register_${register_address}).has_state()) {
+        return id(${adapter_id}_register_${register_address}).state / 100.0;
       }
       return NAN;
     update_interval: 10s
@@ -78,10 +72,9 @@ sensor:
 # Diagnostic sensor: Adapter communication status
 binary_sensor:
   - platform: template
-    name: "${output_id} Adapter Status"
-    id: ${output_id}_adapter_status
+    id: ${output_id}_status
     device_class: connectivity
     lambda: |-
       // Check if we can communicate with the 0-10V adapter
       // If register has a state, adapter is responding
-      return id(${output_id}_register).has_state();
+      return id(${adapter_id}_register_${register_address}).has_state();

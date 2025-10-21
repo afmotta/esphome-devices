@@ -1,0 +1,60 @@
+# Ground floor fancoils via 4-channel 0-10V Modbus adapter (address 0x2)
+modbus_controller:
+  - id: modbus_0_10v_adapter_fancoils_ground_floor
+    address: 0x2
+    modbus_id: rs485_bus # Shared RS485 bus with master/slave
+    update_interval: 5s
+
+packages:
+  ground_floor_fancoil_soggiorno: !include
+    file: ../components/fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42049
+      area_slug: "soggiorno"
+      area_name: "Soggiorno"
+      sensor: ha_soggiorno_temperature
+      switch_management_script: ground_floor_fancoils_switch_management
+  ground_floor_fancoil_pranzo: !include
+    file: ../components/fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42050
+      area_slug: "pranzo"
+      area_name: "Pranzo"
+      sensor: ha_pranzo_temperature
+      switch_management_script: ground_floor_fancoils_switch_management
+  ground_floor_fancoil_cucina: !include
+    file: ../components/fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42051
+      area_slug: "cucina"
+      area_name: "Cucina"
+      sensor: ha_cucina_temperature
+      switch_management_script: ground_floor_fancoils_switch_management
+  ground_floor_fancoil_tecnico: !include
+    file: ../components/fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42052
+      area_slug: "tecnico"
+      area_name: "Tecnico"
+      sensor: ha_tecnico_temperature
+      switch_management_script: ground_floor_fancoils_switch_management
+
+script:
+  - id: ground_floor_fancoils_switch_management
+    mode: queued
+    then:
+      - if:
+          condition:
+            any:
+              - binary_sensor.is_on: fancoil_soggiorno_pid_active
+              - binary_sensor.is_on: fancoil_pranzo_pid_active
+              - binary_sensor.is_on: fancoil_cucina_pid_active
+              - binary_sensor.is_on: fancoil_tecnico_pid_active
+          then:
+            - switch.turn_on: relay_3
+          else:
+            - switch.turn_off: relay_3

@@ -75,20 +75,18 @@ sensor:
 output:
   - platform: slow_pwm
     id: slow_pwm_zona_1
-    period: 900s
-    pin:
-      pcf8574: outputs_1_8
-      number: 0
-      mode: OUTPUT
-      inverted: false
+    period: 30s
+    turn_on_action:
+      - switch.turn_on: relay_01
+    turn_off_action:
+      - switch.turn_off: relay_01
   - platform: slow_pwm
     id: slow_pwm_zona_2
-    period: 900s
-    pin:
-      pcf8574: outputs_1_8
-      number: 1
-      mode: OUTPUT
-      inverted: false
+    period: 30s
+    turn_on_action:
+      - switch.turn_on: relay_02
+    turn_off_action:
+      - switch.turn_off: relay_02
 
 script:
   - id: switch_management

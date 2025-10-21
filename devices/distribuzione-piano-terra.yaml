@@ -85,28 +85,6 @@ packages:
       cool_ki: 0.01
       cool_kd: 0.0
       switch: remote_switch
-  # Second floor fancoil via 0-10V Modbus adapter (address 4)
-  second_floor_fancoil_0_10v: !include
-    file: ../components/modbus_0_10v.yaml
-    vars:
-      adapter_address: 0x4
-      output_id: "second_floor_fancoil"
-  second_floor_fancoil_pid: !include
-    file: ../components/dual_pid.yaml
-    vars:
-      circuit_name: "Secondo Piano Fancoil"
-      circuit_slug: "secondo_piano_fancoil"
-      output: second_floor_fancoil
-      sensor: ha_secondo_piano_temperature
-      heat_default_temperature: 20.0
-      heat_kp: 0.5
-      heat_ki: 0.01
-      heat_kd: 0.05
-      cool_default_temperature: 24.0
-      cool_kp: 0.5
-      cool_ki: 0.01
-      cool_kd: 0.05
-      switch: remote_switch
 
 switch:
   - platform: template
@@ -126,25 +104,8 @@ sensor:
     entity_id: sensor.termometro_soggiorno_temperature
     id: ha_termometro_soggiorno_temperature
     internal: true # Hidden - used by failover component only
-  # Second floor temperature sensor for fancoil control
-  - platform: homeassistant
-    name: "Secondo Piano Temperature Sensor"
-    entity_id: sensor.termometro_secondo_piano_temperature
-    id: ha_secondo_piano_temperature
-    internal: true
 
 output:
-  - platform: slow_pwm
-    id: slow_pwm_soggiorno
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_07
-      - switch.turn_on: relay_06
-      - switch.turn_on: relay_05
-    turn_off_action:
-      - switch.turn_off: relay_07
-      - switch.turn_off: relay_06
-      - switch.turn_off: relay_05
   - platform: slow_pwm
     id: slow_pwm_cucina
     period: 30s
@@ -168,6 +129,17 @@ output:
       - switch.turn_on: relay_04
     turn_off_action:
       - switch.turn_off: relay_04
+  - platform: slow_pwm
+    id: slow_pwm_soggiorno
+    period: 30s
+    turn_on_action:
+      - switch.turn_on: relay_05
+      - switch.turn_on: relay_06
+      - switch.turn_on: relay_07
+    turn_off_action:
+      - switch.turn_off: relay_05
+      - switch.turn_off: relay_06
+      - switch.turn_off: relay_07
 
 script:
   - id: switch_management
