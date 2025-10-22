@@ -250,23 +250,23 @@ Existing PID Controllers (unchanged, consume abstracted sensors)
 
 **Master (A6, Address 1) — Holding Registers (Read by Slaves):**
 
-| Register | Name | Type | Description | Scaling |
-|----------|------|------|-------------|---------|
-| 0x0001 | `dallas_piano_terra_temp` | INT16 | Ground floor supply temperature | ×100 (0.01°C) |
-| 0x0002 | `dallas_primo_piano_temp` | INT16 | First floor supply temperature | ×100 (0.01°C) |
-| 0x0003 | `climate_mode` | ENUM | Heat=1, Cool=2, Off=0 | Direct value |
-| 0x0004 | `fancoil_enable_ground` | BOOL | Ground floor fancoils enabled | 0=off, 1=on |
-| 0x0005 | `fancoil_enable_first` | BOOL | First floor fancoils enabled | 0=off, 1=on |
-| 0x0006-0x0011 | Reserved | — | Future expansion | — |
+| Register      | Name                      | Type  | Description                     | Scaling       |
+| ------------- | ------------------------- | ----- | ------------------------------- | ------------- |
+| 0x0001        | `dallas_piano_terra_temp` | INT16 | Ground floor supply temperature | ×100 (0.01°C) |
+| 0x0002        | `dallas_primo_piano_temp` | INT16 | First floor supply temperature  | ×100 (0.01°C) |
+| 0x0003        | `climate_mode`            | ENUM  | Heat=1, Cool=2, Off=0           | Direct value  |
+| 0x0004        | `fancoil_enable_ground`   | BOOL  | Ground floor fancoils enabled   | 0=off, 1=on   |
+| 0x0005        | `fancoil_enable_first`    | BOOL  | First floor fancoils enabled    | 0=off, 1=on   |
+| 0x0006-0x0011 | Reserved                  | —     | Future expansion                | —             |
 
 **Slave (A16, Addresses 2-3) — No Exposed Registers:**
 Slaves are read-only consumers of master registers. They do not expose Modbus registers themselves.
 
 **0-10V Adapter (Address 4) — Holding Registers (Written by Ground A16):**
 
-| Register | Name | Type | Description | Scaling |
-|----------|------|------|-------------|---------|
-| 0x0001 | `fancoil_output` | UINT16 | 0-10V output (0-100%) | 0-10000 range |
+| Register | Name             | Type   | Description           | Scaling       |
+| -------- | ---------------- | ------ | --------------------- | ------------- |
+| 0x0001   | `fancoil_output` | UINT16 | 0-10V output (0-100%) | 0-10000 range |
 
 ### 5.2 Three-Tier Failover Data Flow
 
@@ -798,13 +798,13 @@ text_sensor:
 
 ### 10.4 Timeline and Milestones
 
-| Milestone | Target Date | Deliverables |
-|-----------|-------------|--------------|
-| Phase 1 Complete | October 20, 2025 | Master Modbus operational |
-| Phase 2 Complete | October 27, 2025 | Ground floor autonomous |
-| Phase 3 Complete | November 10, 2025 | First floor operational |
-| Phase 4 Complete | November 17, 2025 | Full three-floor coverage |
-| System Validation | November 24, 2025 | 7-day burn-in successful |
+| Milestone         | Target Date       | Deliverables              |
+| ----------------- | ----------------- | ------------------------- |
+| Phase 1 Complete  | October 20, 2025  | Master Modbus operational |
+| Phase 2 Complete  | October 27, 2025  | Ground floor autonomous   |
+| Phase 3 Complete  | November 10, 2025 | First floor operational   |
+| Phase 4 Complete  | November 17, 2025 | Full three-floor coverage |
+| System Validation | November 24, 2025 | 7-day burn-in successful  |
 
 **Critical Path Items:**
 - RS485 cable installation (must complete before November 1)

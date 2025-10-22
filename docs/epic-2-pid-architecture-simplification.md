@@ -2,15 +2,15 @@
 
 ## Document Information
 
-| Field             | Value                                          |
-| ----------------- | ---------------------------------------------- |
-| **Epic**          | Epic 2: PID Architecture Simplification        |
-| **Version**       | 1.1                                            |
-| **Date**          | October 22, 2025 (Last Updated)                |
-| **Status**        | In Progress                                    |
-| **Story Manager** | Bob (Scrum Master)                             |
-| **Product Owner** | Sarah (Product Owner)                          |
-| **Progress**      | Story 2.1 Complete ✅ / Story 2.2 & 2.3 Pending |
+| Field             | Value                                   |
+| ----------------- | --------------------------------------- |
+| **Epic**          | Epic 2: PID Architecture Simplification |
+| **Version**       | 2.0 (Epic Complete)                     |
+| **Date**          | October 22, 2025 (Last Updated)         |
+| **Status**        | Complete ✅                              |
+| **Story Manager** | Bob (Scrum Master)                      |
+| **Product Owner** | Sarah (Product Owner)                   |
+| **Progress**      | All Stories Complete ✅✅✅                |
 
 ---
 
@@ -139,14 +139,16 @@ This epic consists of **3 focused stories** for incremental refactoring:
    - Update distribuzione-primo-piano.yaml zones
    - Maintain existing PID tuning parameters
    - Verify failover logic still works correctly
-   - **Status**: ⏳ Not Started
+   - **Status**: ✅ Complete (Oct 22, 2025)
+   - **Details**: See `docs/stories/2.2.distribution-zone-simplification.md`
 
 ### 3. **Story 2.3: Component Cleanup and Documentation**
    - Remove unused components (dual_pid.yaml, valve_trigger.yaml, mixing_valve.yaml)
    - Update architecture documentation
    - Update copilot instructions
    - Create migration guide for future component authors
-   - **Status**: ⏳ Not Started
+   - **Status**: ✅ Complete (Oct 22, 2025)
+   - **Details**: See `docs/stories/2.3.component-cleanup-documentation.md`
 
 ---
 
@@ -264,7 +266,7 @@ Epic 1 (Modbus Coordination)
 
 ```
 Story 2.1 (Mixing Valves) ──────────┐
-                                     ├──> Story 2.3 (Cleanup)
+                                    ├──> Story 2.3 (Cleanup)
 Story 2.2 (Distribution Zones) ─────┘
 ```
 
@@ -354,6 +356,142 @@ Story 2.2 (Distribution Zones) ─────┘
 - Component dependencies removed: 3 files (dual_pid, valve_trigger, mixing_valve)
 - Code complexity: Significantly reduced (no mutual exclusion logic)
 
+### Story 2.2: Distribution Zone PID Simplification ✅ COMPLETE
+
+**Completed**: October 22, 2025  
+**Branch**: `bmad-epic-2`
+
+**Implementation Summary:**
+- ✅ Replaced `dual_pid.yaml` pattern in both distribution zone devices
+- ✅ Removed dual_pid pattern for all 6 zones (4 Piano Terra + 2 Primo Piano)
+- ✅ Implemented mode coordination via `climate_mode` sensor
+- ✅ Added PID output sensors for all zones
+- ✅ Configuration validates successfully for both devices
+- ✅ Firmware compiles successfully for both devices
+
+**Files Modified:**
+1. `devices/distribuzione-piano-terra.yaml` - 4 zones refactored
+   - Removed 4x dual_pid package references (Soggiorno, Cucina, Bagno, Anticamera)
+   - Added 4x simplified PID climate definitions
+   - Added mode coordination automation
+   - Added 4x PID output sensors
+
+2. `devices/distribuzione-primo-piano.yaml` - 2 zones refactored
+   - Removed 2x dual_pid package references (Zona 1, Zona 2)
+   - Added 2x simplified PID climate definitions
+   - Added mode coordination automation
+   - Added 2x PID output sensors
+
+**Entity ID Changes (6 zones total):**
+
+*Piano Terra:*
+| Old                                                            | New                      |
+| -------------------------------------------------------------- | ------------------------ |
+| `climate.pid_soggiorno_heat`<br>`climate.pid_soggiorno_cool`   | `climate.pid_soggiorno`  |
+| `climate.pid_cucina_heat`<br>`climate.pid_cucina_cool`         | `climate.pid_cucina`     |
+| `climate.pid_bagno_heat`<br>`climate.pid_bagno_cool`           | `climate.pid_bagno`      |
+| `climate.pid_anticamera_heat`<br>`climate.pid_anticamera_cool` | `climate.pid_anticamera` |
+
+*Primo Piano:*
+| Old                                                                            | New                              |
+| ------------------------------------------------------------------------------ | -------------------------------- |
+| `climate.pid_primo_piano_zona_1_heat`<br>`climate.pid_primo_piano_zona_1_cool` | `climate.pid_primo_piano_zona_1` |
+| `climate.pid_primo_piano_zona_2_heat`<br>`climate.pid_primo_piano_zona_2_cool` | `climate.pid_primo_piano_zona_2` |
+
+**Next Steps:**
+- ⚠️ Update Home Assistant automations for all 6 zones before deployment
+- ⚠️ Update HA dashboards to use new entity IDs
+- Ready for Story 2.3 (Component Cleanup and Documentation)
+
+**Metrics:**
+- Climate entities reduced: 12 → 6 (50% reduction for distribution zones)
+- Total Epic 2 reduction: 16 climate entities → 8 (50% overall)
+- dual_pid.yaml no longer referenced in any device file
+
+### Story 2.3: Component Cleanup and Documentation ✅ COMPLETE
+
+**Completed**: October 22, 2025  
+**Branch**: `bmad-epic-2`
+
+**Implementation Summary:**
+- ✅ Verified no active references to deprecated components
+- ✅ Created `components/deprecated/` directory with deprecation README
+- ✅ Moved dual_pid.yaml, valve_trigger.yaml, mixing_valve.yaml to deprecated/
+- ✅ Added deprecation notice headers to all moved files
+- ✅ Updated `docs/architecture.md` to reflect single PID pattern
+- ✅ Updated `.github/copilot-instructions.md` with new patterns
+- ✅ Created comprehensive `docs/epic-2-migration-guide.md`
+- ✅ Marked Epic 2 as Complete with final metrics
+
+**Files Modified:**
+1. `docs/architecture.md` - Updated PID patterns and component inventory
+2. `.github/copilot-instructions.md` - Updated agent instructions
+3. `docs/epic-2-pid-architecture-simplification.md` - Marked complete
+
+**Files Created:**
+1. `components/deprecated/README.md` - Deprecation rationale
+2. `components/deprecated/dual_pid.yaml` - Moved with notice
+3. `components/deprecated/valve_trigger.yaml` - Moved with notice
+4. `components/deprecated/mixing_valve.yaml` - Moved with notice
+5. `docs/epic-2-migration-guide.md` - Comprehensive migration guide
+
+**Next Steps:**
+- Ready for branch merge to main
+- Update Home Assistant dashboards before deployment
+- Monitor first deployment for any issues
+
+### Epic 2 Final Metrics
+
+**Code Reduction:**
+- Components deprecated: 3 files
+- Lines of YAML removed: ~350 lines (dual_pid, valve_trigger, mixing_valve)
+- Climate entities reduced: 16 → 8 (50% reduction)
+
+**Architecture Improvement:**
+- Simpler pattern using native ESPHome features
+- Eliminated mutual exclusion coordination complexity
+- Clearer device configurations (less indirection)
+- Better alignment with ESPHome best practices
+
+**Documentation Enhancement:**
+- Comprehensive migration guide created
+- Architecture documentation updated
+- Agent instructions modernized
+- Deprecation clearly documented
+
+**Home Assistant Impact:**
+- Entity count reduced by 50%
+- Cleaner dashboards (one climate card per zone)
+- Simpler automations (single entity target)
+- Entity ID changes require HA automation updates
+
+---
+
+## Epic 2 Completion Summary
+
+**Epic Status**: ✅ COMPLETE  
+**Completion Date**: October 22, 2025  
+**Branch**: bmad-epic-2
+
+**Key Achievements:**
+1. ✅ Eliminated dual PID pattern across all devices (Stories 2.1 & 2.2)
+2. ✅ Reduced climate entity count by 50% (16 → 8)
+3. ✅ Deprecated 3 obsolete components with clear documentation (Story 2.3)
+4. ✅ Updated all architecture and development documentation
+5. ✅ Created comprehensive migration guide for future reference
+
+**Lessons Learned:**
+- ESPHome native features often sufficient, no custom patterns needed
+- Early technical debt cleanup prevents future maintenance burden
+- Documentation critical for understanding architecture evolution
+- Incremental migration (story-by-story) reduced risk
+
+**Recommendations for Future Work:**
+- Apply similar simplification patterns to other components
+- Question complexity before building custom solutions
+- Maintain deprecated/ directory for historical reference
+- Update agent instructions immediately when architecture changes
+
 ---
 
 ## Change Log
@@ -362,6 +500,8 @@ Story 2.2 (Distribution Zones) ─────┘
 | ---------- | ------- | ------------------------------------- | ----------------------- |
 | 2025-10-21 | 1.0     | Epic created from architecture review | Mary (Business Analyst) |
 | 2025-10-22 | 1.1     | Story 2.1 completed                   | Claude 3.5 Sonnet       |
+| 2025-10-22 | 1.2     | Story 2.2 completed                   | Claude 3.5 Sonnet       |
+| 2025-10-22 | 2.0     | Story 2.3 completed - Epic Complete ✅ | James (Dev Agent)       |
 
 ---
 
