@@ -1,7 +1,8 @@
 # Component: modbus_0_10v_output.yaml
 # Purpose: Control single-channel output from 0-10V Modbus adapter
 # Required vars:
-#   - adapter_id: Modbus device id (e.g., modbus_0_10v_adapter_0x4)
+#   - adapter_id: Modbus device id (e.g., modbus_0_10v_adapter_fancoils_ground_floor)
+#   - output_id: Output ID for PID controller (e.g., fancoil_soggiorno_output)
 #   - register_address: Modbus register address (default: 0x0001)
 #
 # Optional vars:
@@ -12,20 +13,16 @@
 #   second_floor_fancoil_0_10v_output_1: !include
 #     file: ../components/modbus_0_10v_output.yaml
 #     vars:
-#       adapter_id: modbus_0_10v_adapter_0x4
-#       register_address: 0x0001
+#       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+#       output_id: fancoil_soggiorno_output
+#       register_address: 0x42049
 #
 # The component creates:
 # - number platform for register writes (0-10000 = 0-10V)
 # - template output for PID controller connection (0.0-1.0 → 0-10000)
 # - diagnostic sensors for adapter status
-
-# Modbus controller for 0-10V adapter (Ground floor A16 acts as master to adapter)
-modbus_controller:
-  - id: ${adapter_id}
-    address: ${adapter_address}
-    modbus_id: rs485_bus # Shared RS485 bus with master/slave
-    update_interval: 5s # Update 0-10V output every 5 seconds
+#
+# NOTE: modbus_controller must be defined separately at device level
 
 # Number platform for direct register control (used by template output)
 number:
@@ -46,13 +43,12 @@ output:
     id: ${output_id}
     type: float
     write_action:
-      - lambda: |-
-          // Convert PID output (0.0-1.0) to adapter register (0-10000)
-          // 0.0 → 0 (0V, fancoil off)
-          // 1.0 → 10000 (10V, fancoil full capacity)
-          uint16_t register_value = static_cast<uint16_t>(x * 10000.0);
-          id(${adapter_id}_register_${register_address}).set_value(register_value);
-          ESP_LOGD("modbus_0_10v", "PID output %.2f → register %d", x, register_value);
+      - number.set:
+          id: ${adapter_id}_register_${register_address}
+          value: !lambda "return state * 10000.0;"
+      - logger.log:
+          format: "PID output %.2f → register %.0f"
+          args: ["state", "state * 10000.0"]
 
 # Diagnostic sensor: Current fancoil capacity percentage
 sensor:
