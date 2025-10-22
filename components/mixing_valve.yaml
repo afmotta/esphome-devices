@@ -1,3 +1,94 @@
+# Component: mixing_valve.yaml
+# Purpose: Complete mixing valve control with dual PID and valve triggers
+# Required vars:
+#   - trigger: Slug for trigger identification (e.g., "piano_terra", "primo_piano")
+# Feature flag: None (always active)
+#
+# USAGE EXAMPLE:
+# Include this component to add a mixing valve circuit with heating and cooling PIDs.
+#
+# packages:
+#   mixing_valve_piano_terra: !include
+#     file: ../components/mixing_valve.yaml
+#     vars:
+#       trigger: "piano_terra"
+#
+# PREREQUISITES:
+# 1. dual_pid.yaml vars must be defined:
+#    - circuit_name, circuit_slug, sensor, heat_pid_*, cool_pid_* parameters
+#
+# 2. valve_trigger.yaml infrastructure (relays) must be available
+#
+# 3. Temperature sensor must be available in ESPHome config
+#
+# VARS CONTRACT:
+# - trigger: REQUIRED - Slug for trigger identification
+#   - Used to identify valve_trigger instances for heat/cool modes
+#   - Example: "piano_terra", "primo_piano"
+#   - Must match circuit_slug pattern
+#
+# WHAT THIS COMPONENT DOES:
+# 1. Creates dual PID controllers (heat + cool) via dual_pid.yaml
+# 2. Creates heat trigger via valve_trigger.yaml (mode: HEAT)
+# 3. Creates cool trigger via valve_trigger.yaml (mode: COOL)
+# 4. Coordinates all three for complete mixing valve control
+#
+# COMMON CONFIGURATIONS:
+#
+# Ground Floor Mixing Valve:
+#   packages:
+#     mixing_valve_piano_terra: !include
+#       file: ../components/mixing_valve.yaml
+#       vars:
+#         trigger: "piano_terra"
+#     # Also requires dual_pid vars:
+#     # circuit_name: "Piano Terra"
+#     # circuit_slug: "piano_terra"
+#     # sensor: dallas_0x81000000b3e6f628
+#     # heat_pid_kp: 0.8, etc.
+#
+# First Floor Mixing Valve:
+#   packages:
+#     mixing_valve_primo_piano: !include
+#       file: ../components/mixing_valve.yaml
+#       vars:
+#         trigger: "primo_piano"
+#     # Also requires dual_pid vars:
+#     # circuit_name: "Primo Piano"
+#     # circuit_slug: "primo_piano"
+#     # sensor: dallas_0x2a000000b3aae928
+#     # heat_pid_kp: 0.8, etc.
+#
+# Adding New Mixing Valve:
+#   packages:
+#     mixing_valve_new: !include
+#       file: ../components/mixing_valve.yaml
+#       vars:
+#         trigger: "new_circuit"
+#     # Define dual_pid vars and valve hardware
+#
+# EXPOSED ENTITIES:
+# Inherited from dual_pid.yaml:
+# - climate.{circuit_slug}_heat: Heating PID controller
+# - climate.{circuit_slug}_cool: Cooling PID controller
+# - sensor.{circuit_slug}_temperature: Current temperature
+# - switch.{circuit_slug}_heat_enabled: Enable/disable heat PID
+# - switch.{circuit_slug}_cool_enabled: Enable/disable cool PID
+#
+# TUNING:
+# See dual_pid.yaml for PID tuning parameters and procedures.
+#
+# TROUBLESHOOTING:
+# - If valve doesn't open: Check relay wiring and valve_trigger configuration
+# - If temperature oscillates: Tune PID parameters (reduce kp, increase ki)
+# - If slow response: Increase kp or reduce integral time
+# - See docs/architecture.md for PID tuning guidelines
+#
+# RELATED COMPONENTS:
+# - dual_pid.yaml: PID controller logic
+# - valve_trigger.yaml: Relay trigger for valve open/close
+# - dallas.yaml: Temperature sensor infrastructure
+
 packages:
   dual_pid: !include
     file: ../components/dual_pid.yaml

@@ -1,0 +1,473 @@
+# Home Assistant Monitoring Dashboard for ESPHome Climate Control
+# Purpose: Real-time visibility into Modbus system health, sensor failover, and climate control
+# Installation: Copy this YAML into Home Assistant → Settings → Dashboards → Raw Configuration Editor
+# Version: 1.0
+# Date: October 22, 2025
+
+title: ESPHome Climate Control - System Monitor
+path: esphome-climate-monitor
+icon: mdi:thermometer-lines
+views:
+  - title: System Overview
+    path: system-overview
+    icon: mdi:view-dashboard
+    badges: []
+    cards:
+      # ============================================================================
+      # SYSTEM HEALTH OVERVIEW
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ## 🏠 System Health Overview
+              Real-time status of all ESPHome climate control devices
+
+          - type: entities
+            title: Device Status
+            show_header_toggle: false
+            entities:
+              # Master Controller
+              - entity: binary_sensor.gruppo_miscelazione_status
+                name: "Master Controller (gruppo-miscelazione)"
+                icon: mdi:server
+              - entity: sensor.gruppo_miscelazione_uptime
+                name: "  ↳ Uptime"
+              - entity: sensor.gruppo_miscelazione_wifi_signal
+                name: "  ↳ WiFi Signal"
+
+              # Ground Floor Slave
+              - entity: binary_sensor.distribuzione_piano_terra_status
+                name: "Ground Floor Slave (piano-terra)"
+                icon: mdi:server-network
+              - entity: sensor.distribuzione_piano_terra_uptime
+                name: "  ↳ Uptime"
+              - entity: sensor.distribuzione_piano_terra_wifi_signal
+                name: "  ↳ WiFi Signal"
+
+              # First Floor Slave
+              - entity: binary_sensor.distribuzione_primo_piano_status
+                name: "First Floor Slave (primo-piano)"
+                icon: mdi:server-network
+              - entity: sensor.distribuzione_primo_piano_uptime
+                name: "  ↳ Uptime"
+              - entity: sensor.distribuzione_primo_piano_wifi_signal
+                name: "  ↳ WiFi Signal"
+
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: sensor.gruppo_miscelazione_modbus_master_status
+                name: Master Modbus
+                min: 0
+                max: 1
+                severity:
+                  green: 1
+                  yellow: 0
+                  red: 0
+
+              - type: gauge
+                entity: sensor.distribuzione_piano_terra_modbus_slave_active
+                name: Ground Floor Modbus
+                min: 0
+                max: 1
+                severity:
+                  green: 1
+                  yellow: 0
+                  red: 0
+
+              - type: gauge
+                entity: sensor.distribuzione_primo_piano_modbus_slave_active
+                name: First Floor Modbus
+                min: 0
+                max: 1
+                severity:
+                  green: 1
+                  yellow: 0
+                  red: 0
+
+      # ============================================================================
+      # MODBUS COMMUNICATION HEALTH
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ## 📡 RS485 Modbus Communication
+              Monitor Modbus RTU bus health and error rates
+
+          - type: entities
+            title: Modbus Metrics
+            show_header_toggle: false
+            entities:
+              - entity: sensor.gruppo_miscelazione_modbus_communication_errors
+                name: "Master Communication Errors"
+                icon: mdi:alert-circle
+
+              - entity: text_sensor.gruppo_miscelazione_last_successful_modbus_poll
+                name: "Last Successful Poll"
+                icon: mdi:clock-check
+
+              - entity: sensor.gruppo_miscelazione_register_100
+                name: "Register 100 (Supply Temp)"
+                icon: mdi:thermometer
+
+              - entity: sensor.gruppo_miscelazione_register_200
+                name: "Register 200 (Climate Mode)"
+                icon: mdi:hvac
+
+              - entity: sensor.gruppo_miscelazione_register_300
+                name: "Register 300 (Master Heartbeat)"
+                icon: mdi:heart-pulse
+
+          - type: history-graph
+            title: Master Heartbeat (Should Increment)
+            entities:
+              - entity: sensor.gruppo_miscelazione_register_300
+            hours_to_show: 1
+            refresh_interval: 10
+
+      # ============================================================================
+      # ROOM SENSOR STATUS (Ground Floor)
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ## 🌡️ Room Sensors (Ground Floor)
+              Modbus temperature and humidity sensors
+
+          - type: entities
+            title: Room Sensor Online Status
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.soggiorno_room_sensor_online
+                name: "Soggiorno (Living Room)"
+                icon: mdi:sofa
+
+              - entity: binary_sensor.cucina_room_sensor_online
+                name: "Cucina (Kitchen)"
+                icon: mdi:silverware-fork-knife
+
+              - entity: binary_sensor.bagno_room_sensor_online
+                name: "Bagno (Bathroom)"
+                icon: mdi:shower
+
+              - entity: binary_sensor.anticamera_room_sensor_online
+                name: "Anticamera (Entryway)"
+                icon: mdi:door
+
+          - type: horizontal-stack
+            cards:
+              - type: sensor
+                entity: sensor.soggiorno_room_temperature
+                name: Soggiorno
+                graph: line
+
+              - type: sensor
+                entity: sensor.cucina_room_temperature
+                name: Cucina
+                graph: line
+
+              - type: sensor
+                entity: sensor.bagno_room_temperature
+                name: Bagno
+                graph: line
+
+              - type: sensor
+                entity: sensor.anticamera_room_temperature
+                name: Anticamera
+                graph: line
+
+          - type: horizontal-stack
+            cards:
+              - type: sensor
+                entity: sensor.soggiorno_room_humidity
+                name: Soggiorno %RH
+                graph: line
+
+              - type: sensor
+                entity: sensor.cucina_room_humidity
+                name: Cucina %RH
+                graph: line
+
+              - type: sensor
+                entity: sensor.bagno_room_humidity
+                name: Bagno %RH
+                graph: line
+
+              - type: sensor
+                entity: sensor.anticamera_room_humidity
+                name: Anticamera %RH
+                graph: line
+
+  # ==============================================================================
+  # SENSOR FAILOVER STATUS TAB
+  # ==============================================================================
+  - title: Sensor Failover
+    path: sensor-failover
+    icon: mdi:swap-horizontal
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## 🔄 Sensor Failover Status
+          Three-tier failover: Modbus → Home Assistant → Supply Temp Proxy
+
+      - type: entities
+        title: Ground Floor - Sensor Sources
+        show_header_toggle: false
+        entities:
+          - entity: text_sensor.soggiorno_temp_source
+            name: "Soggiorno Temperature Source"
+            icon: mdi:source-branch
+
+          - entity: text_sensor.cucina_temp_source
+            name: "Cucina Temperature Source"
+            icon: mdi:source-branch
+
+          - entity: text_sensor.bagno_temp_source
+            name: "Bagno Temperature Source"
+            icon: mdi:source-branch
+
+          - entity: text_sensor.anticamera_temp_source
+            name: "Anticamera Temperature Source"
+            icon: mdi:source-branch
+
+      - type: entities
+        title: Last Sensor Update Times
+        show_header_toggle: false
+        entities:
+          - entity: sensor.soggiorno_room_sensor_last_update
+            name: "Soggiorno Last Update"
+            icon: mdi:clock-outline
+
+          - entity: sensor.cucina_room_sensor_last_update
+            name: "Cucina Last Update"
+            icon: mdi:clock-outline
+
+          - entity: sensor.bagno_room_sensor_last_update
+            name: "Bagno Last Update"
+            icon: mdi:clock-outline
+
+          - entity: sensor.anticamera_room_sensor_last_update
+            name: "Anticamera Last Update"
+            icon: mdi:clock-outline
+
+      - type: markdown
+        content: |
+          ### Sensor Source Legend:
+          - **Modbus Sensor** (🟢 Best): Direct Modbus RS485 room sensor
+          - **Home Assistant Fallback** (🟡 Good): HA temperature sensor (proven)
+          - **Supply Temp Proxy** (🟠 Degraded): Using supply line temperature as proxy
+          - **No Sensor** (🔴 Error): All sensors failed, emergency mode
+
+      - type: history-graph
+        title: Temperature Source History (24 Hours)
+        entities:
+          - entity: text_sensor.soggiorno_temp_source
+          - entity: text_sensor.cucina_temp_source
+          - entity: text_sensor.bagno_temp_source
+          - entity: text_sensor.anticamera_temp_source
+        hours_to_show: 24
+        refresh_interval: 60
+
+  # ==============================================================================
+  # CLIMATE CONTROL STATUS TAB
+  # ==============================================================================
+  - title: Climate Control
+    path: climate-control
+    icon: mdi:thermostat
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## 🌡️ Climate Control Status
+          Current temperatures, setpoints, and mode synchronization
+
+      - type: entities
+        title: System Climate Mode
+        show_header_toggle: false
+        entities:
+          - entity: sensor.thermostat_mode
+            name: "Current Climate Mode"
+            icon: mdi:hvac
+
+      - type: entities
+        title: Ground Floor Zones
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Soggiorno (Living Room)
+          - entity: climate.soggiorno_heat
+            name: "  ↳ Heating PID"
+          - entity: climate.soggiorno_cool
+            name: "  ↳ Cooling PID"
+          - entity: sensor.soggiorno_room_temperature
+            name: "  ↳ Current Temperature"
+
+          - type: section
+            label: Cucina (Kitchen)
+          - entity: climate.cucina_heat
+            name: "  ↳ Heating PID"
+          - entity: climate.cucina_cool
+            name: "  ↳ Cooling PID"
+          - entity: sensor.cucina_room_temperature
+            name: "  ↳ Current Temperature"
+
+          - type: section
+            label: Bagno (Bathroom)
+          - entity: climate.bagno_heat
+            name: "  ↳ Heating PID"
+          - entity: climate.bagno_cool
+            name: "  ↳ Cooling PID"
+          - entity: sensor.bagno_room_temperature
+            name: "  ↳ Current Temperature"
+
+          - type: section
+            label: Anticamera (Entryway)
+          - entity: climate.anticamera_heat
+            name: "  ↳ Heating PID"
+          - entity: climate.anticamera_cool
+            name: "  ↳ Cooling PID"
+          - entity: sensor.anticamera_room_temperature
+            name: "  ↳ Current Temperature"
+
+      - type: thermostat
+        entity: climate.soggiorno_heat
+        name: Soggiorno Heating
+
+      - type: thermostat
+        entity: climate.soggiorno_cool
+        name: Soggiorno Cooling
+
+      - type: history-graph
+        title: Room Temperatures (24 Hours)
+        entities:
+          - entity: sensor.soggiorno_room_temperature
+          - entity: sensor.cucina_room_temperature
+          - entity: sensor.bagno_room_temperature
+          - entity: sensor.anticamera_room_temperature
+        hours_to_show: 24
+        refresh_interval: 60
+
+  # ==============================================================================
+  # DIAGNOSTIC METRICS TAB
+  # ==============================================================================
+  - title: Diagnostics
+    path: diagnostics
+    icon: mdi:chart-line
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## 📊 System Diagnostics
+          Performance metrics, memory usage, and system health
+
+      - type: entities
+        title: Master Controller (gruppo-miscelazione)
+        show_header_toggle: false
+        entities:
+          - entity: sensor.gruppo_miscelazione_cpu_usage
+            name: "CPU Usage"
+            icon: mdi:cpu-64-bit
+
+          - entity: sensor.gruppo_miscelazione_memory_free
+            name: "Free Memory"
+            icon: mdi:memory
+
+          - entity: sensor.gruppo_miscelazione_uptime
+            name: "Uptime"
+            icon: mdi:clock-outline
+
+          - entity: sensor.gruppo_miscelazione_wifi_signal
+            name: "WiFi RSSI"
+            icon: mdi:wifi
+
+      - type: entities
+        title: Ground Floor Slave (distribuzione-piano-terra)
+        show_header_toggle: false
+        entities:
+          - entity: sensor.distribuzione_piano_terra_cpu_usage
+            name: "CPU Usage"
+            icon: mdi:cpu-64-bit
+
+          - entity: sensor.distribuzione_piano_terra_memory_free
+            name: "Free Memory"
+            icon: mdi:memory
+
+          - entity: sensor.distribuzione_piano_terra_uptime
+            name: "Uptime"
+            icon: mdi:clock-outline
+
+          - entity: sensor.distribuzione_piano_terra_wifi_signal
+            name: "WiFi RSSI"
+            icon: mdi:wifi
+
+      - type: entities
+        title: First Floor Slave (distribuzione-primo-piano)
+        show_header_toggle: false
+        entities:
+          - entity: sensor.distribuzione_primo_piano_cpu_usage
+            name: "CPU Usage"
+            icon: mdi:cpu-64-bit
+
+          - entity: sensor.distribuzione_primo_piano_memory_free
+            name: "Free Memory"
+            icon: mdi:memory
+
+          - entity: sensor.distribuzione_primo_piano_uptime
+            name: "Uptime"
+            icon: mdi:clock-outline
+
+          - entity: sensor.distribuzione_primo_piano_wifi_signal
+            name: "WiFi RSSI"
+            icon: mdi:wifi
+
+      - type: history-graph
+        title: Memory Usage Trend (24 Hours)
+        entities:
+          - entity: sensor.gruppo_miscelazione_memory_free
+          - entity: sensor.distribuzione_piano_terra_memory_free
+          - entity: sensor.distribuzione_primo_piano_memory_free
+        hours_to_show: 24
+        refresh_interval: 300
+
+      - type: history-graph
+        title: WiFi Signal Strength (24 Hours)
+        entities:
+          - entity: sensor.gruppo_miscelazione_wifi_signal
+          - entity: sensor.distribuzione_piano_terra_wifi_signal
+          - entity: sensor.distribuzione_primo_piano_wifi_signal
+        hours_to_show: 24
+        refresh_interval: 300
+# ==============================================================================
+# NOTES FOR CUSTOMIZATION
+# ==============================================================================
+#
+# Entity Name Adjustments:
+# - Replace entity names based on your actual ESPHome device names
+# - Entity IDs follow pattern: {device_name}_{sensor_name}
+# - Example: binary_sensor.gruppo_miscelazione_status
+#
+# Adding More Zones:
+# - Copy zone card structure (Soggiorno, Cucina, etc.)
+# - Update entity references to match new zone slug
+# - Add to history graphs for trend visualization
+#
+# Custom Alerts:
+# - Add conditional cards for alerts (e.g., sensor offline >5 min)
+# - Use state-based color coding
+# - Add notification automations in Home Assistant
+#
+# Performance Thresholds:
+# - CPU usage: Alert if >50% sustained
+# - Memory free: Alert if <50KB
+# - WiFi RSSI: Alert if <-80 dBm
+# - Modbus errors: Alert if >10 errors/hour
+#
+# Related Documentation:
+# - docs/modbus-register-map.md: Register definitions
+# - docs/deployment-guide.md: Deployment procedures
+# - docs/architecture-diagram.md: System architecture
+# - docs/sensor-technology-selection.md: Sensor failover strategy

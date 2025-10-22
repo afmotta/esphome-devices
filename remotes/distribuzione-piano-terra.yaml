@@ -1,0 +1,13 @@
+substitutions:
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  encryption_key: !secret encryption_key
+  ota_password: !secret ota_password
+
+packages:
+  config:
+    url: https://github.com/afmotta/esphome-devices
+    files: [devices/distribuzione-piano-terra.yaml]
+    ref: main
+    username: !secret github_username
+    password: !secret github_pat

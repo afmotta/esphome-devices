@@ -1,3 +1,100 @@
+# Component: dual_pid.yaml
+# Purpose: Dual PID controller (heating + cooling) for mixing valve circuits
+# Required vars:
+#   - circuit_name: Display name (e.g., "Piano Terra")
+#   - circuit_slug: ID slug (e.g., "piano_terra")
+#   - sensor: Temperature sensor ID
+#   - output: DAC output ID for valve control
+#   - switch: Relay switch ID for valve on/off
+#   - heat_default_temperature: Default heating setpoint (e.g., 20)
+#   - cool_default_temperature: Default cooling setpoint (e.g., 24)
+#   - heat_kp, heat_ki, heat_kd: Heating PID tuning parameters
+#   - cool_kp, cool_ki, cool_kd: Cooling PID tuning parameters
+#
+# USAGE EXAMPLE:
+# Include this component to add dual PID control to a mixing valve circuit.
+#
+# packages:
+#   dual_pid: !include
+#     file: ../components/dual_pid.yaml
+#     vars:
+#       circuit_name: "Piano Terra"
+#       circuit_slug: "piano_terra"
+#       sensor: dallas_0x81000000b3e6f628
+#       output: dac_1
+#       switch: output_1
+#       heat_default_temperature: 20
+#       cool_default_temperature: 24
+#       heat_kp: 0.8
+#       heat_ki: 0.005
+#       heat_kd: 0.05
+#       cool_kp: 0.6
+#       cool_ki: 0.004
+#       cool_kd: 0.04
+#
+# VARS CONTRACT:
+# All vars are REQUIRED:
+# - circuit_name: Human-readable name for Home Assistant
+# - circuit_slug: Lowercase slug for entity IDs
+# - sensor: ID of temperature sensor to use for control
+# - output: ID of DAC output (0-10V) for valve position control
+# - switch: ID of relay switch for valve power on/off
+# - heat_default_temperature: Initial heating setpoint (°C)
+# - cool_default_temperature: Initial cooling setpoint (°C)
+# - heat_kp: Heating proportional gain (typical: 0.5-1.5)
+# - heat_ki: Heating integral gain (typical: 0.001-0.01)
+# - heat_kd: Heating derivative gain (typical: 0.01-0.1)
+# - cool_kp: Cooling proportional gain (typically lower than heat)
+# - cool_ki: Cooling integral gain
+# - cool_kd: Cooling derivative gain
+#
+# EXPOSED ENTITIES:
+# - climate.{circuit_slug}_heat: Heating PID controller
+# - climate.{circuit_slug}_cool: Cooling PID controller
+# - sensor.{circuit_slug}_temperature: Current temperature
+# - sensor.{circuit_slug}_pid_output_heat: Heating PID output value
+# - sensor.{circuit_slug}_pid_output_cool: Cooling PID output value
+#
+# PID TUNING GUIDELINES:
+#
+# Starting values (conservative):
+#   heat_kp: 0.8, heat_ki: 0.005, heat_kd: 0.05
+#   cool_kp: 0.6, cool_ki: 0.004, cool_kd: 0.04
+#
+# If temperature oscillates:
+#   - Reduce kp (proportional gain)
+#   - Reduce kd (derivative gain)
+#
+# If temperature responds slowly:
+#   - Increase kp (more aggressive)
+#   - Increase ki (faster integral correction)
+#
+# If temperature overshoots:
+#   - Reduce kp
+#   - Increase kd (more damping)
+#
+# If temperature has steady-state error:
+#   - Increase ki (stronger integral action)
+#
+# Ziegler-Nichols tuning method:
+# 1. Set ki=0, kd=0
+# 2. Increase kp until sustained oscillation
+# 3. Note kp_critical and oscillation period T
+# 4. Set: kp = 0.6*kp_critical
+#         ki = 2*kp/T
+#         kd = kp*T/8
+#
+# TROUBLESHOOTING:
+# - If valve doesn't respond: Check output and switch IDs are correct
+# - If temperature unstable: Reduce kp, increase kd
+# - If temperature stuck at error: Increase ki
+# - If switching between heat/cool rapidly: Increase deadband in climate mode
+#
+# RELATED COMPONENTS:
+# - pid.yaml: Single PID controller (used internally by this component)
+# - mixing_valve.yaml: Complete mixing valve with triggers
+# - valve_trigger.yaml: Relay trigger logic
+
 packages:
   pid_heat: !include
     file: pid.yaml

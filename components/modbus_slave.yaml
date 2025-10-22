@@ -1,8 +1,83 @@
 # Component: modbus_slave.yaml
 # Purpose: Modbus RTU Slave infrastructure for RS485 coordination
 # Required vars:
-#   - slave_address: Modbus slave address (e.g., 0x2 for ground floor)
+#   - slave_address: Modbus slave address (e.g., 0x2 for ground floor, 0x3 for first floor)
 # Feature flag: use_modbus (substitution) - defaults to "false" for safety
+#
+# USAGE EXAMPLE:
+# Include this component in your slave device YAML to enable reading from master.
+#
+# packages:
+#   modbus_slave: !include
+#     file: ../components/modbus_slave.yaml
+#     vars:
+#       slave_address: 0x2  # Unique address for this slave
+#
+# substitutions:
+#   use_modbus: "true"  # Enable Modbus (set to "false" to disable)
+#
+# PREREQUISITES:
+# 1. UART component configured with id: rs485
+#    uart:
+#      - id: rs485
+#        tx_pin: GPIO13
+#        rx_pin: GPIO16
+#        baud_rate: 9600
+#
+# 2. Board must have RS485 hardware (KC868-A16 or compatible)
+#
+# 3. RS485 bus properly wired:
+#    - Connected to master controller in daisy-chain topology
+#    - No termination resistors on slave (only on master and last device)
+#    - See docs/rs485-wiring-guide.md for details
+#
+# VARS CONTRACT:
+# - slave_address: REQUIRED - Unique Modbus address for this slave
+#   - 0x2 (2): Ground floor slave (distribuzione-piano-terra)
+#   - 0x3 (3): First floor slave (distribuzione-primo-piano)
+#   - 0x4-0x9: Reserved for future slaves
+#
+# EXPOSED ENTITIES:
+# - number.modbus_test_register: Test register for Modbus communication
+# - binary_sensor.modbus_slave_active: Modbus enabled status
+#
+# CONFIGURATION:
+# - Polls master every 10 seconds (configured in modbus_slave_registers.yaml)
+# - Reads registers 100 (temp), 200 (mode), 300 (heartbeat), 400-407 (room sensors)
+#
+# COMMON CONFIGURATIONS:
+#
+# Ground Floor Slave (distribuzione-piano-terra):
+#   packages:
+#     modbus_slave: !include
+#       file: ../components/modbus_slave.yaml
+#       vars:
+#         slave_address: 0x2
+#
+# First Floor Slave (distribuzione-primo-piano):
+#   packages:
+#     modbus_slave: !include
+#       file: ../components/modbus_slave.yaml
+#       vars:
+#         slave_address: 0x3
+#
+# Adding New Slave:
+#   packages:
+#     modbus_slave: !include
+#       file: ../components/modbus_slave.yaml
+#       vars:
+#         slave_address: 0x4  # Next available address
+#
+# TROUBLESHOOTING:
+# - If slave cannot read from master: Check RS485 wiring (A-to-A, B-to-B)
+# - If all register values are 0: Master may not be writing registers (check master logs)
+# - If CRC errors: Check termination resistors (should be ~60Ω between A and B)
+# - See docs/deployment-guide.md for phased deployment procedure
+#
+# RELATED COMPONENTS:
+# - modbus_slave_registers.yaml: Register read definitions for master data
+# - modbus_master.yaml: Master component
+# - sensor_failover.yaml: Uses Modbus sensor data with HA failover
 
 # Modbus RTU bus configuration
 modbus:
