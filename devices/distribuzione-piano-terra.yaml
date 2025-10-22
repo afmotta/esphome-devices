@@ -11,6 +11,45 @@ packages:
     file: ../components/modbus_slave_registers.yaml
     vars:
       master_address: ${master_address}
+
+  # Room sensors for all 4 ground floor zones
+  room_sensor_soggiorno: !include
+    file: ../components/room_sensors.yaml
+    vars:
+      zone_name: "Soggiorno"
+      zone_slug: "soggiorno"
+      sensor_register_temp: 0x0190 # Register 400
+      sensor_register_humidity: 0x0191 # Register 401
+      modbus_controller_id: modbus_slave
+
+  room_sensor_cucina: !include
+    file: ../components/room_sensors.yaml
+    vars:
+      zone_name: "Cucina"
+      zone_slug: "cucina"
+      sensor_register_temp: 0x0192 # Register 402
+      sensor_register_humidity: 0x0193 # Register 403
+      modbus_controller_id: modbus_slave
+
+  room_sensor_bagno: !include
+    file: ../components/room_sensors.yaml
+    vars:
+      zone_name: "Bagno"
+      zone_slug: "bagno"
+      sensor_register_temp: 0x0194 # Register 404
+      sensor_register_humidity: 0x0195 # Register 405
+      modbus_controller_id: modbus_slave
+
+  room_sensor_anticamera: !include
+    file: ../components/room_sensors.yaml
+    vars:
+      zone_name: "Anticamera"
+      zone_slug: "anticamera"
+      sensor_register_temp: 0x0196 # Register 406
+      sensor_register_humidity: 0x0197 # Register 407
+      modbus_controller_id: modbus_slave
+
+  # Legacy failover (keeping for backwards compatibility during transition)
   temperature_failover: !include
     file: ../components/sensor_failover.yaml
     vars:
@@ -20,70 +59,76 @@ packages:
       device_class: "temperature"
       unit_of_measurement: "°C"
       accuracy_decimals: 1
+
   emergency_shutdown: !include ../components/emergency_shutdown.yaml
+
+  # PID controllers now use room temperature sensors (via room_temp_abstracted)
   slow_pwm_soggiorno: !include
     file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Soggiorno"
       circuit_slug: "soggiorno"
       output: slow_pwm_soggiorno
-      sensor: termometro_soggiorno_temperature_abstracted
-      heat_default_temperature: 28.0
-      heat_kp: 0.2
-      heat_ki: 0.01
-      heat_kd: 0.0
+      sensor: soggiorno_room_temp_abstracted # Changed from termometro_soggiorno_temperature_abstracted
+      heat_default_temperature: 22.0 # Changed from 28.0 (room temp target, not supply temp)
+      heat_kp: 0.8 # Increased from 0.2 (room temp responds slower)
+      heat_ki: 0.005 # Increased from 0.01
+      heat_kd: 0.05 # Increased from 0.0
       cool_default_temperature: 22.0
-      cool_kp: 0.2
-      cool_ki: 0.01
-      cool_kd: 0.0
+      cool_kp: 0.8 # Increased from 0.2
+      cool_ki: 0.005 # Increased from 0.01
+      cool_kd: 0.05 # Increased from 0.0
       switch: remote_switch
+
   slow_pwm_cucina: !include
     file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Cucina"
       circuit_slug: "cucina"
       output: slow_pwm_cucina
-      sensor: termometro_soggiorno_temperature_abstracted
-      heat_default_temperature: 28.0
-      heat_kp: 0.2
-      heat_ki: 0.01
-      heat_kd: 0.0
+      sensor: cucina_room_temp_abstracted # Changed from termometro_soggiorno_temperature_abstracted
+      heat_default_temperature: 22.0 # Changed from 28.0
+      heat_kp: 0.8 # Increased from 0.2
+      heat_ki: 0.005 # Increased from 0.01
+      heat_kd: 0.05 # Increased from 0.0
       cool_default_temperature: 22.0
-      cool_kp: 0.2
-      cool_ki: 0.01
-      cool_kd: 0.0
+      cool_kp: 0.8 # Increased from 0.2
+      cool_ki: 0.005 # Increased from 0.01
+      cool_kd: 0.05 # Increased from 0.0
       switch: remote_switch
+
   slow_pwm_bagno: !include
     file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Bagno"
       circuit_slug: "bagno"
       output: slow_pwm_bagno
-      sensor: termometro_soggiorno_temperature_abstracted
-      heat_default_temperature: 28.0
-      heat_kp: 0.2
-      heat_ki: 0.01
-      heat_kd: 0.0
+      sensor: bagno_room_temp_abstracted # Changed from termometro_soggiorno_temperature_abstracted
+      heat_default_temperature: 23.0 # Slightly higher for bathroom comfort
+      heat_kp: 0.8 # Increased from 0.2
+      heat_ki: 0.005 # Increased from 0.01
+      heat_kd: 0.05 # Increased from 0.0
       cool_default_temperature: 22.0
-      cool_kp: 0.2
-      cool_ki: 0.01
-      cool_kd: 0.0
+      cool_kp: 0.8 # Increased from 0.2
+      cool_ki: 0.005 # Increased from 0.01
+      cool_kd: 0.05 # Increased from 0.0
       switch: remote_switch
+
   slow_pwm_anticamera: !include
     file: ../components/dual_pid.yaml
     vars:
       circuit_name: "Anticamera"
       circuit_slug: "anticamera"
       output: slow_pwm_anticamera
-      sensor: termometro_soggiorno_temperature_abstracted
-      heat_default_temperature: 28.0
-      heat_kp: 0.2
-      heat_ki: 0.01
-      heat_kd: 0.0
+      sensor: anticamera_room_temp_abstracted # Changed from termometro_soggiorno_temperature_abstracted
+      heat_default_temperature: 20.0 # Lower for entryway (buffer zone)
+      heat_kp: 0.8 # Increased from 0.2
+      heat_ki: 0.005 # Increased from 0.01
+      heat_kd: 0.05 # Increased from 0.0
       cool_default_temperature: 22.0
-      cool_kp: 0.2
-      cool_ki: 0.01
-      cool_kd: 0.0
+      cool_kp: 0.8 # Increased from 0.2
+      cool_ki: 0.005 # Increased from 0.01
+      cool_kd: 0.05 # Increased from 0.0
       switch: remote_switch
 
 switch:
