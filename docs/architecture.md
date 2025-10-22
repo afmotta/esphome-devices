@@ -1,9 +1,9 @@
 # ESPHome Multi-Floor Climate Control - Brownfield Architecture
 
 **Project:** ESPHome Multi-Floor Climate Control - Modbus RTU Enhancement  
-**Version:** 1.0  
-**Date:** October 14, 2025  
-**Status:** Architecture Definition Complete
+**Version:** 1.1 (Epic 2 Update)  
+**Date:** October 22, 2025  
+**Status:** Architecture Definition Complete - Epic 2 Simplification Applied
 
 ---
 
@@ -82,31 +82,49 @@ The existing system controls ground floor heating/cooling using:
 **Package Composition Pattern:**
 ```yaml
 packages:
-  mixing_valve_piano_terra: !include
-    file: ../components/mixing_valve.yaml
+  # Epic 2 simplified pattern - direct PID with dual outputs
+  base: !include ../boards/a6.yaml
+  wifi: !include ../boards/wifi.yaml
+  # PID sensors for monitoring
+  pid_sensors_piano_terra: !include
+    file: ../components/pid_sensors.yaml
     vars:
-      circuit_name: "Piano Terra"
-      circuit_slug: "piano_terra"
-      sensor: "dallas_0x81000000b3e6f628"
-      switch: "relay_1"
-      output: "dac_1"
+      pid_id: "pid_piano_terra"
+      pid_name: "PID Piano Terra"
+```
+
+**Modern PID Configuration (Post-Epic 2):**
+```yaml
+climate:
+  - platform: pid
+    id: pid_piano_terra
+    name: "PID Piano Terra"
+    sensor: dallas_0x81000000b3e6f628
+    heat_output: dac_1
+    cool_output: dac_1  # Same output, different action ranges
+    control_parameters:
+      # Single PID handles both modes
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
 ```
 
 **Key Patterns Identified:**
 - **Template-Based Naming:** Component IDs use `${circuit_slug}`, `${mode}` interpolation
-- **Multi-Level Composition:** `mixing_valve.yaml` includes `dual_pid.yaml` + `valve_trigger.yaml`
-- **Dual PID Structure:** Separate heat/cool PIDs with mutual exclusion via `on_state` callbacks
+- **Single PID with Dual Outputs:** PID controllers support both `heat_output` and `cool_output` natively (as of Epic 2, Oct 2025)
 - **Dallas Sensor Addressing:** By ROM address (e.g., `0x81000000b3e6f628`)
 - **Slow PWM Outputs:** Zone control uses slow PWM frequency (10-second periods)
 
 **Repository Structure:**
 ```
 boards/          # Hardware abstraction (a6.yaml, a16.yaml, base.yaml, wifi.yaml)
-components/      # Reusable packages (dual_pid.yaml, mixing_valve.yaml, pid.yaml, etc.)
+components/      # Reusable packages (pid.yaml, pid_sensors.yaml, modbus_*.yaml, etc.)
 devices/         # Device assemblies (gruppo-miscelazione.yaml, distribuzione-piano-terra.yaml)
 locals/          # Development configs (absolute paths, secrets.yaml)
 remotes/         # Production configs (GitHub package references)
 ```
+
+**Note:** As of Epic 2 (October 2025), the PID architecture was simplified. The deprecated `dual_pid.yaml`, `mixing_valve.yaml`, and `valve_trigger.yaml` components have been replaced with direct `climate: platform: pid` configurations that support both heating and cooling modes natively. See `components/deprecated/` and `docs/epic-2-migration-guide.md` for details.
 
 ### 2.4 Current Home Assistant Dependencies
 
@@ -156,8 +174,10 @@ Existing PID Controllers (unchanged, consume abstracted sensors)
 
 **No modifications to:**
 - `boards/a6.yaml`, `boards/a16.yaml`, `boards/base.yaml`
-- `components/dual_pid.yaml`, `components/pid.yaml`, `components/mixing_valve.yaml`
+- `components/pid.yaml`, `components/pid_sensors.yaml` (still actively used)
 - PID tuning parameters (kp, ki, kd values)
+
+**Note:** Epic 2 (Oct 2025) removed `components/dual_pid.yaml`, `components/mixing_valve.yaml`, and `components/valve_trigger.yaml` in favor of simpler direct PID configurations. See `components/deprecated/` for historical reference.
 
 **All changes via:**
 - New component packages: `modbus_master.yaml`, `modbus_slave.yaml`, `modbus_0_10v.yaml`, `cooling_automation.yaml`
@@ -577,14 +597,21 @@ No external APIs or third-party services are integrated. All communication is lo
 │   └── wifi.yaml                  # WiFi configuration
 ├── components/
 │   ├── dallas.yaml                # Dallas DS18B20 sensors
-│   ├── dual_pid.yaml              # Dual heat/cool PID package
-│   ├── mixing_valve.yaml          # Mixing valve control
-│   ├── pid.yaml                   # Single PID controller
+│   ├── pid.yaml                   # Single PID controller (deprecated, kept for reference)
 │   ├── pid_sensors.yaml           # PID diagnostic sensors
-│   └── valve_trigger.yaml         # Valve actuation logic
+│   ├── fancoil.yaml               # Fancoil control
+│   ├── modbus_master.yaml         # Modbus master implementation
+│   ├── modbus_slave.yaml          # Modbus slave implementation
+│   ├── sensor_failover.yaml       # Temperature sensor failover logic
+│   └── deprecated/                # Epic 2: Deprecated components (Oct 2025)
+│       ├── README.md              # Deprecation rationale
+│       ├── dual_pid.yaml          # Replaced by direct PID configuration
+│       ├── mixing_valve.yaml      # Replaced by direct PID configuration
+│       └── valve_trigger.yaml     # Replaced by climate_mode automation
 ├── devices/
 │   ├── gruppo-miscelazione.yaml   # A6 master device
-│   └── distribuzione-piano-terra.yaml  # A16 ground floor
+│   ├── distribuzione-piano-terra.yaml  # A16 ground floor
+│   └── distribuzione-primo-piano.yaml  # A16 first floor
 ├── locals/
 │   ├── secrets.yaml               # Secrets (gitignored)
 │   ├── gruppo-distribuzione.yaml  # Dev config links
