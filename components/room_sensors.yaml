@@ -60,7 +60,7 @@ sensor:
   # Raw temperature reading from master Modbus register
   - platform: modbus_controller
     modbus_controller_id: room_sensor_${zone_slug}_controller
-    id: ${zone_slug}_room_temperature_raw_modbus
+    id: ${zone_slug}_room_temperature_raw
     name: "${zone_name} Room Temperature (Modbus)"
     address: 0x0001
     register_type: holding
@@ -77,7 +77,7 @@ sensor:
   # Raw humidity reading from master Modbus register
   - platform: modbus_controller
     modbus_controller_id: room_sensor_${zone_slug}_controller
-    id: ${zone_slug}_room_humidity_raw_modbus
+    id: ${zone_slug}_room_humidity_raw
     name: "${zone_name} Room Humidity (Modbus)"
     address: 0x0002
     register_type: holding

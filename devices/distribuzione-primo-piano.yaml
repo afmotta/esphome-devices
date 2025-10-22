@@ -22,38 +22,18 @@ packages:
       accuracy_decimals: 1
   # Note: emergency_shutdown component needs refactoring for dynamic zone lists
   # TODO: Re-add emergency_shutdown after component is made generic
-  slow_pwm_zona_1: !include
-    file: ../components/dual_pid.yaml
+
+  # PID sensors for monitoring
+  pid_sensors_zona_1: !include
+    file: ../components/pid_sensors.yaml
     vars:
-      circuit_name: "Primo Piano Zona 1"
-      circuit_slug: "primo_piano_zona_1"
-      output: slow_pwm_zona_1
-      sensor: termometro_primo_piano_temperature_abstracted
-      heat_default_temperature: 28.0
-      heat_kp: 0.2
-      heat_ki: 0.01
-      heat_kd: 0.0
-      cool_default_temperature: 22.0
-      cool_kp: 0.2
-      cool_ki: 0.01
-      cool_kd: 0.0
-      switch: remote_switch
-  slow_pwm_zona_2: !include
-    file: ../components/dual_pid.yaml
+      pid_id: pid_primo_piano_zona_1
+      pid_name: "PID Primo Piano Zona 1"
+  pid_sensors_zona_2: !include
+    file: ../components/pid_sensors.yaml
     vars:
-      circuit_name: "Primo Piano Zona 2"
-      circuit_slug: "primo_piano_zona_2"
-      output: slow_pwm_zona_2
-      sensor: termometro_primo_piano_temperature_abstracted
-      heat_default_temperature: 28.0
-      heat_kp: 0.2
-      heat_ki: 0.01
-      heat_kd: 0.0
-      cool_default_temperature: 22.0
-      cool_kp: 0.2
-      cool_ki: 0.01
-      cool_kd: 0.0
-      switch: remote_switch
+      pid_id: pid_primo_piano_zona_2
+      pid_name: "PID Primo Piano Zona 2"
 
 switch:
   - platform: template
@@ -65,6 +45,66 @@ switch:
     on_turn_off:
       then:
         - script.execute: switch_management
+
+text_sensor:
+  - platform: homeassistant
+    id: climate_mode
+    name: "Climate Mode"
+    entity_id: sensor.thermostat_mode
+    internal: true
+    on_value:
+      # Mode coordination: update all zone PID climate modes based on global climate_mode
+      - lambda: |-
+          auto mode = CLIMATE_MODE_OFF;
+          if (id(climate_mode).state == "HEAT") {
+            mode = CLIMATE_MODE_HEAT;
+          } else if (id(climate_mode).state == "COOL") {
+            mode = CLIMATE_MODE_COOL;
+          }
+
+          // Update all zone PIDs
+          auto call_zona_1 = id(pid_primo_piano_zona_1).make_call();
+          call_zona_1.set_mode(mode);
+          call_zona_1.perform();
+
+          auto call_zona_2 = id(pid_primo_piano_zona_2).make_call();
+          call_zona_2.set_mode(mode);
+          call_zona_2.perform();
+
+# Simplified PID Climate Controllers (Epic 2 Story 2.2)
+# Replaces dual_pid.yaml pattern with single PID per zone
+climate:
+  - platform: pid
+    id: pid_primo_piano_zona_1
+    name: "PID Primo Piano Zona 1"
+    sensor: termometro_primo_piano_temperature_abstracted
+    default_target_temperature: 28.0
+    heat_output: slow_pwm_zona_1
+    cool_output: slow_pwm_zona_1
+    control_parameters:
+      kp: 0.2
+      ki: 0.01
+      kd: 0.0
+    visual:
+      min_temperature: 15
+      max_temperature: 40
+      temperature_step: 0.5
+
+  - platform: pid
+    id: pid_primo_piano_zona_2
+    name: "PID Primo Piano Zona 2"
+    sensor: termometro_primo_piano_temperature_abstracted
+    default_target_temperature: 28.0
+    heat_output: slow_pwm_zona_2
+    cool_output: slow_pwm_zona_2
+    control_parameters:
+      kp: 0.2
+      ki: 0.01
+      kd: 0.0
+    visual:
+      min_temperature: 15
+      max_temperature: 40
+      temperature_step: 0.5
 
 sensor:
   - platform: homeassistant
