@@ -41,6 +41,16 @@
 #         sensor_register_humidity: 0x0191  # Register 401
 #         modbus_controller_id: modbus_slave
 
+globals:
+  - id: ${zone_slug}_last_valid_time
+    type: unsigned long
+    restore_value: false
+    initial_value: "0"
+  - id: ${zone_slug}_emergency_triggered
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
 # ============================================================================
 # MODBUS SENSOR READING (from Master Registers)
 # ============================================================================
@@ -114,10 +124,13 @@ sensor:
     update_interval: 10s
     internal: true # Used by PID controllers, not exposed to HA directly
     lambda: |-
+      unsigned long now = millis();
       // TIER 1: Local Modbus room sensor (primary)
       if (id(${zone_slug}_room_temperature_modbus).has_state()) {
         auto modbus_temp = id(${zone_slug}_room_temperature_modbus).state;
         if (!isnan(modbus_temp)) {
+          id(${zone_slug}_last_valid_time) = now;
+          id(${zone_slug}_emergency_triggered) = false;
           ESP_LOGW("room_sensors", "${zone_name}: Using Modbus temperature");
           return modbus_temp;
         }
@@ -127,30 +140,33 @@ sensor:
       if (id(${zone_slug}_room_temperature_ha).has_state()) {
         auto ha_temp = id(${zone_slug}_room_temperature_ha).state;
         if (!isnan(ha_temp)) {
+          id(${zone_slug}_last_valid_time) = now;
+          id(${zone_slug}_emergency_triggered) = false;
           ESP_LOGW("room_sensors", "${zone_name}: Using Home Assistant temperature as fallback");
           return ha_temp;
         }
       }
 
       // TIER 3: NAN (triggers emergency if configured)
+      unsigned long time_since_valid = (now - id(${zone_slug}_last_valid_time)); // Convert to seconds
+
+      if (time_since_valid > 300000) {
+        if (!id(${zone_slug}_emergency_triggered)) {
+          ESP_LOGE("sensor_failover", "${zone_name}: EMERGENCY MODE - No valid sensor data for >5 minutes");
+          id(${zone_slug}_emergency_triggered) = true;
+        }
+      }
       ESP_LOGW("room_sensors", "${zone_name}: No room temperature data available");
       return NAN;
 
   # Last successful update timestamp
   - platform: template
     id: ${zone_slug}_room_sensor_modbus_last_update
-    name: "${zone_name} Modbus Room Sensor Last Update"
+    name: "${zone_name} Room Sensor Last Update"
     device_class: timestamp
     update_interval: 10s
     lambda: |-
-      if (id(${zone_slug}_room_temperature_modbus).has_state()) {
-        auto last_update = id(${zone_slug}_room_temperature_modbus).get_state();
-        if (!isnan(last_update)) {
-          // Return current timestamp in seconds since epoch
-          return (float)millis() / 1000.0;
-        }
-      }
-      return NAN;
+      return id(${zone_slug}_last_valid_time);
 
 # ============================================================================
 # TEXT SENSORS (Status and Diagnostics)
@@ -201,3 +217,9 @@ binary_sensor:
         }
       }
       return false;
+
+  - platform: template
+    id: ${zone_slug}_room_sensor_emergency_triggered
+    name: "${zone_name} Room Sensor Emergency Triggered"
+    lambda: |-
+      return id(${zone_slug}_emergency_triggered);
