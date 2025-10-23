@@ -1,16 +1,6 @@
-substitutions:
-  use_modbus: "false" # Feature flag: set to "true" to enable Modbus master
-
 packages:
   base: !include ../boards/a6.yaml
   wifi: !include ../boards/wifi.yaml
-  modbus_master: !include ../components/modbus_master.yaml
-  modbus_test: !include ../components/modbus_test.yaml
-  modbus_master_registers: !include
-    file: ../components/modbus_master_registers.yaml
-    vars:
-      dallas_sensor_id: dallas_0x81000000b3e6f628
-      climate_mode_sensor_id: climate_mode
   # Ground floor fancoils via 0-10V Modbus adapter (address 0x2)
   ground_floor_fancoils: !include
     file: ../components/ground_floor_fancoils.yaml
@@ -29,20 +19,23 @@ packages:
       pid_id: pid_mixing_first_floor
       pid_name: "PID Miscelatrice Primo Piano"
 
+# Modbus RTU bus for 0-10V adapters
+modbus:
+  id: rs485_bus
+  uart_id: rs485
+
 sensor:
   - platform: dallas_temp
     address: 0x81000000b3e6f628
     name: "Dallas 0x81000000b3e6f628"
     id: dallas_0x81000000b3e6f628
     unit_of_measurement: "°C"
-    internal: true
     one_wire_id: one_wire_01
   - platform: dallas_temp
     address: 0xe9000000b366ed28
     name: "Temperatura Mandata 0xe9000000b366ed28"
     id: dallas_0xe9000000b366ed28
     unit_of_measurement: "°C"
-    internal: true
     one_wire_id: one_wire_01
   # Temperature sensors from Home Assistant for fancoil control
   - platform: homeassistant
@@ -88,12 +81,12 @@ text_sensor:
           }
 
           // Update Piano Terra PID
-          auto call_terra = id(pid_piano_terra).make_call();
+          auto call_terra = id(pid_mixing_ground_floor).make_call();
           call_terra.set_mode(mode);
           call_terra.perform();
 
           // Update Primo Piano PID
-          auto call_primo = id(pid_primo_piano).make_call();
+          auto call_primo = id(pid_mixing_first_floor).make_call();
           call_primo.set_mode(mode);
           call_primo.perform();
 
@@ -125,7 +118,7 @@ climate:
           }
 
   - platform: pid
-    id: pid_mixing_ground_floor
+    id: pid_mixing_first_floor
     name: "PID Miscelatrice Primo Piano"
     sensor: dallas_0xe9000000b366ed28
     default_target_temperature: 28.0
