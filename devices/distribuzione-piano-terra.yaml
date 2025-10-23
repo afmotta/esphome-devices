@@ -1,64 +1,6 @@
-substitutions:
-  use_modbus: "false" # Feature flag: set to "true" to enable Modbus slave
-  slave_address: "0x2" # Modbus slave address
-  master_address: "0x1" # Modbus master address
-
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
-  modbus_slave: !include ../components/modbus_slave.yaml
-  modbus_slave_registers: !include
-    file: ../components/modbus_slave_registers.yaml
-    vars:
-      master_address: ${master_address}
-
-  # Room sensors for all 4 ground floor zones
-  room_sensor_soggiorno: !include
-    file: ../components/room_sensors.yaml
-    vars:
-      zone_name: "Soggiorno"
-      zone_slug: "soggiorno"
-      sensor_register_temp: 0x0190 # Register 400
-      sensor_register_humidity: 0x0191 # Register 401
-      modbus_controller_id: modbus_slave
-
-  room_sensor_cucina: !include
-    file: ../components/room_sensors.yaml
-    vars:
-      zone_name: "Cucina"
-      zone_slug: "cucina"
-      sensor_register_temp: 0x0192 # Register 402
-      sensor_register_humidity: 0x0193 # Register 403
-      modbus_controller_id: modbus_slave
-
-  room_sensor_bagno: !include
-    file: ../components/room_sensors.yaml
-    vars:
-      zone_name: "Bagno"
-      zone_slug: "bagno"
-      sensor_register_temp: 0x0194 # Register 404
-      sensor_register_humidity: 0x0195 # Register 405
-      modbus_controller_id: modbus_slave
-
-  room_sensor_anticamera: !include
-    file: ../components/room_sensors.yaml
-    vars:
-      zone_name: "Anticamera"
-      zone_slug: "anticamera"
-      sensor_register_temp: 0x0196 # Register 406
-      sensor_register_humidity: 0x0197 # Register 407
-      modbus_controller_id: modbus_slave
-
-  # Legacy failover (keeping for backwards compatibility during transition)
-  temperature_failover: !include
-    file: ../components/sensor_failover.yaml
-    vars:
-      sensor_id: "termometro_soggiorno_temperature"
-      modbus_sensor_id: "modbus_piano_terra_temperature"
-      ha_sensor_id: "ha_termometro_soggiorno_temperature"
-      device_class: "temperature"
-      unit_of_measurement: "°C"
-      accuracy_decimals: 1
 
   # Note: emergency_shutdown component temporarily removed - needs refactoring for slow_pwm outputs
   # TODO: Re-add emergency_shutdown after component is updated to work with slow_pwm
@@ -84,6 +26,29 @@ packages:
     vars:
       pid_id: pid_anticamera
       pid_name: "PID Anticamera"
+
+sensor:
+  # Home Assistant temperature sensors for each zone
+  - platform: homeassistant
+    name: "Soggiorno Temperature"
+    entity_id: sensor.room_soggiorno_temperature
+    id: ha_soggiorno_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Cucina Temperature"
+    entity_id: sensor.room_cucina_temperature
+    id: ha_cucina_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Bagno Temperature"
+    entity_id: sensor.room_bagno_temperature
+    id: ha_bagno_temperature
+    internal: true
+  - platform: homeassistant
+    name: "Anticamera Temperature"
+    entity_id: sensor.room_anticamera_temperature
+    id: ha_anticamera_temperature
+    internal: true
 
 switch:
   - platform: template
@@ -136,7 +101,7 @@ climate:
   - platform: pid
     id: pid_soggiorno
     name: "PID Soggiorno"
-    sensor: soggiorno_room_temp_abstracted
+    sensor: ha_soggiorno_temperature
     default_target_temperature: 22.0
     heat_output: slow_pwm_soggiorno
     control_parameters:
@@ -151,7 +116,7 @@ climate:
   - platform: pid
     id: pid_cucina
     name: "PID Cucina"
-    sensor: cucina_room_temp_abstracted
+    sensor: ha_cucina_temperature
     default_target_temperature: 22.0
     heat_output: slow_pwm_cucina
     control_parameters:
@@ -166,7 +131,7 @@ climate:
   - platform: pid
     id: pid_bagno
     name: "PID Bagno"
-    sensor: bagno_room_temp_abstracted
+    sensor: ha_bagno_temperature
     default_target_temperature: 23.0
     heat_output: slow_pwm_bagno
     control_parameters:
@@ -181,7 +146,7 @@ climate:
   - platform: pid
     id: pid_anticamera
     name: "PID Anticamera"
-    sensor: anticamera_room_temp_abstracted
+    sensor: ha_anticamera_temperature
     default_target_temperature: 20.0
     heat_output: slow_pwm_anticamera
     control_parameters:
@@ -192,14 +157,6 @@ climate:
       min_temperature: 15
       max_temperature: 30
       temperature_step: 0.5
-
-sensor:
-  # Home Assistant temperature sensor (failover source)
-  - platform: homeassistant
-    name: "Temperature Sensor From Home Assistant"
-    entity_id: sensor.termometro_soggiorno_temperature
-    id: ha_termometro_soggiorno_temperature
-    internal: true # Hidden - used by failover component only
 
 output:
   - platform: slow_pwm

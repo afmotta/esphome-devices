@@ -1,28 +1,6 @@
-substitutions:
-  use_modbus: "false" # Feature flag: set to "true" to enable Modbus slave
-  slave_address: "0x3" # Modbus slave address (first floor = 3)
-  master_address: "0x1" # Modbus master address
-
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
-  modbus_slave: !include ../components/modbus_slave.yaml
-  modbus_slave_registers: !include
-    file: ../components/modbus_slave_registers.yaml
-    vars:
-      master_address: ${master_address}
-  temperature_failover: !include
-    file: ../components/sensor_failover.yaml
-    vars:
-      sensor_id: "termometro_primo_piano_temperature"
-      modbus_sensor_id: "modbus_piano_terra_temperature"
-      ha_sensor_id: "ha_termometro_primo_piano_temperature"
-      device_class: "temperature"
-      unit_of_measurement: "°C"
-      accuracy_decimals: 1
-  # Note: emergency_shutdown component needs refactoring for dynamic zone lists
-  # TODO: Re-add emergency_shutdown after component is made generic
-
   # PID sensors for monitoring
   pid_sensors_zona_1: !include
     file: ../components/pid_sensors.yaml
