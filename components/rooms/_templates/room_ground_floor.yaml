@@ -1,0 +1,116 @@
+# Component: room_ground_floor.yaml
+# Purpose: Ground floor room heating zone with PID temperature control
+# Dependencies: Requires room_sensors.yaml for temperature/humidity sensing
+# Epic: Epic 4 - Home Assistant coordinated independent boards
+#
+# This component provides a complete heating zone configuration for ground floor rooms,
+# combining room-level temperature sensing with PID-based climate control. Each zone
+# operates independently with its own PID controller that can be tuned via parameters.
+#
+# Required vars:
+#   - room_slug: Lowercase identifier for IDs (e.g., "soggiorno", "cucina")
+#   - room_name: Display name for the room (e.g., "Soggiorno", "Cucina")
+#   - modbus_controller_address: Address of room's Modbus temperature sensor (e.g., 0x0A for addr 10)
+#   - ha_temperature_sensor_id: Home Assistant temperature sensor entity ID for failover
+#   - ha_humidity_sensor_id: Home Assistant humidity sensor entity ID (optional failover)
+#   - kp: Proportional gain for PID controller (typical: 0.8)
+#   - ki: Integral gain for PID controller (typical: 0.005)
+#   - kd: Derivative gain for PID controller (typical: 0.05)
+#
+# Exposes:
+#   - climate.pid_{room_slug}: PID climate controller for the room
+#   - sensor.{room_slug}_room_temperature: Room temperature (from Modbus sensor)
+#   - sensor.{room_slug}_room_humidity: Room humidity (from Modbus sensor)
+#   - sensor.{room_slug}_room_temp_abstracted: Abstracted temperature with failover
+#   - text_sensor.{room_slug}_temp_source: Active temperature source indicator
+#   - binary_sensor.{room_slug}_room_sensor_online: Room sensor connectivity status
+#
+# Integration Pattern:
+#   Each ground floor room includes this component with room-specific parameters.
+#   The room_sensors.yaml component handles the temperature sensing with failover,
+#   while this component adds the PID climate control layer on top.
+#
+# Sensor Failover Logic:
+#   The abstracted temperature sensor uses room_sensors.yaml's failover:
+#   - Primary: Local Modbus room sensor (best accuracy)
+#   - Fallback: Home Assistant room sensor (if Modbus fails)
+#   - Emergency: NAN triggers shutdown if both fail
+#
+# USAGE EXAMPLE:
+# packages:
+#   room_soggiorno: !include
+#     file: ../components/room_ground_floor.yaml
+#     vars:
+#       room_slug: "soggiorno"
+#       room_name: "Soggiorno"
+#       modbus_controller_address: 0x0A  # Address 10
+#       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+#       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
+#       output: "slow_pwm_soggiorno"
+#       kp: 0.8
+#       ki: 0.005
+#       kd: 0.05
+#
+# PID TUNING GUIDELINES:
+#   - kp (Proportional): Response speed. Higher = faster but more overshoot
+#     Ground floor typical: 0.8 (concrete thermal mass requires moderate response)
+#   - ki (Integral): Long-term error correction. Higher = faster but can oscillate
+#     Ground floor typical: 0.005 (slow accumulation for stable temperature)
+#   - kd (Derivative): Dampening. Higher = less overshoot but slower
+#     Ground floor typical: 0.05 (small value for smooth control)
+#
+# TARGET TEMPERATURE DEFAULTS:
+#   - Living areas (soggiorno, cucina): 20-22°C
+#   - Bathrooms: 22-23°C (warmer for comfort)
+#   - Technical/utility rooms: 18-20°C (cooler acceptable)
+#
+# OPERATIONAL NOTES:
+#   - PID operates in heat-only mode (no cooling)
+#   - Output duty cycle is 0-100% via slow PWM (30s period typical)
+#   - Temperature limits: 15°C min, 30°C max (safety bounds)
+#   - Control step: 0.5°C precision for setpoint adjustments
+#
+# RELATED COMPONENTS:
+#   - room_sensors.yaml: Provides temperature sensing with Modbus + HA failover
+#   - pid_sensors.yaml: Exposes PID diagnostic sensors (result, error, P/I/D terms)
+#   - emergency_shutdown.yaml: Safety system when sensors fail (TODO: re-enable)
+#
+# DEVICE USAGE:
+#   - devices/distribuzione-piano-terra.yaml: Uses this for 4 ground floor zones
+#     (soggiorno, cucina, bagno, anticamera)
+#
+# ARCHITECTURE CONTEXT (Epic 3):
+#   Before Epic 4: Room sensors read via Modbus from master board
+#   After Epic 4: Room sensors via HA with local Modbus as primary
+#   Climate coordination: Home Assistant provides global heat/cool mode
+
+packages:
+  room_sensors: !include
+    file: ../components/room_sensors.yaml
+    vars:
+      zone_slug: ${room_slug}
+      zone_name: ${room_name}
+      modbus_controller_address: ${modbus_controller_address}
+      ha_temperature_sensor_id: ${ha_temperature_sensor_id}
+      ha_humidity_sensor_id: ${ha_humidity_sensor_id}
+  pid_sensors: !include
+    file: ../components/pid_sensors.yaml
+    vars:
+      pid_id: "pid_${room_slug}"
+      pid_name: "PID ${room_name}"
+
+climate:
+  - platform: pid
+    id: pid_${room_slug}
+    name: "PID ${room_name}"
+    sensor: ${room_slug}_room_temp_abstracted
+    default_target_temperature: 20.0
+    heat_output: ${output}
+    control_parameters:
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
+    visual:
+      min_temperature: 15
+      max_temperature: 30
+      temperature_step: 0.5
