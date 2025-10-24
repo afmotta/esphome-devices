@@ -24,53 +24,59 @@ text_sensor:
     name: "Climate Mode"
     entity_id: sensor.thermostat_mode
     internal: true
-    on_value:
-      # Mode coordination: update all zone PID climate modes based on global climate_mode
-      - lambda: |-
-          auto mode = CLIMATE_MODE_OFF;
-          if (id(climate_mode).state == "HEAT") {
-            mode = CLIMATE_MODE_HEAT;
-          } 
-          // else if (id(climate_mode).state == "COOL") {
-          //   mode = CLIMATE_MODE_COOL;
-          // }
+    # on_value:
+    # Mode coordination: update all zone PID climate modes based on global climate_mode
+    # - lambda: |-
+    #     auto mode = CLIMATE_MODE_OFF;
+    #     if (id(climate_mode).state == "HEAT") {
+    #       mode = CLIMATE_MODE_HEAT;
+    #     }
+    #     else if (id(climate_mode).state == "COOL") {
+    #       mode = CLIMATE_MODE_COOL;
+    #     }
 
-          // Update all zone PIDs
-          auto call_soggiorno = id(pid_soggiorno).make_call();
-          call_soggiorno.set_mode(mode);
-          call_soggiorno.perform();
+    #     // Update all zone PIDs
+    #     auto call_soggiorno = id(pid_soggiorno).make_call();
+    #     call_soggiorno.set_mode(mode);
+    #     call_soggiorno.perform();
 
-          auto call_cucina = id(pid_cucina).make_call();
-          call_cucina.set_mode(mode);
-          call_cucina.perform();
+    #     auto call_cucina = id(pid_cucina).make_call();
+    #     call_cucina.set_mode(mode);
+    #     call_cucina.perform();
 
-          auto call_bagno = id(pid_bagno).make_call();
-          call_bagno.set_mode(mode);
-          call_bagno.perform();
+    #     auto call_bagno = id(pid_bagno).make_call();
+    #     call_bagno.set_mode(mode);
+    #     call_bagno.perform();
 
-          auto call_anticamera = id(pid_anticamera).make_call();
-          call_anticamera.set_mode(mode);
-          call_anticamera.perform();
+    #     auto call_anticamera = id(pid_anticamera).make_call();
+    #     call_anticamera.set_mode(mode);
+    #     call_anticamera.perform();
 
 script:
-  - id: ground_floor_pump_management
+  - id: ground_floor_radiant_pump_management
     mode: queued
     then:
       - if:
           condition:
             lambda: |-
-              if (id(climate_mode).state == "HEAT") {
-                return id(pid_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_bagno).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_cucina).action == climate::CLIMATE_ACTION_HEATING;
-              } else if (id(climate_mode).state == "COOL") {
-                return id(pid_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
-                       id(pid_soggiorno).action == climate::CLIMATE_ACTION_COOLING ||
-                       id(pid_bagno).action == climate::CLIMATE_ACTION_COOLING ||
-                       id(pid_cucina).action == climate::CLIMATE_ACTION_COOLING;
-              }
+              return id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
+                       id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_COOLING ||
+                       id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_COOLING ||
+                       id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_COOLING;
           then:
-            - switch.turn_on: relay_16
+            - if:
+                condition:
+                  lambda: return id(climate_mode).state == "HEAT";
+                then:
+                  - switch.turn_on: relay_16
+                  - switch.turn_off: relay_15
+                else:
+                  - switch.turn_on: relay_15
+                  - switch.turn_off: relay_16
           else:
             - switch.turn_off: relay_16
+            - switch.turn_off: relay_15

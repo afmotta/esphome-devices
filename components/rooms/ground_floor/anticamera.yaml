@@ -6,18 +6,25 @@
 # Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
 
 packages:
-  room_anticamera: !include
-    file: ../_templates/room_ground_floor.yaml
+  room_sensors: !include
+    file: ../../room_sensors.yaml
     vars:
-      room_slug: "anticamera"
-      room_name: "Anticamera"
+      zone_slug: "anticamera"
+      zone_name: "Anticamera"
       modbus_controller_address: 0x0C
       ha_temperature_sensor_id: "sensor.room_anticamera_temperature"
       ha_humidity_sensor_id: "sensor.room_anticamera_humidity"
-      output: "slow_pwm_anticamera"
+  pid_radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_anticamera"
+      circuit_name: "Radiant Anticamera"
+      output: slow_pwm_anticamera
+      sensor: anticamera_room_temp_abstracted
       kp: 0.8
       ki: 0.005
       kd: 0.05
+      pump_management_script: "ground_floor_radiant_pump_management"
 
 output:
   - platform: slow_pwm

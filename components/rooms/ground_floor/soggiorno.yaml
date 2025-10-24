@@ -4,20 +4,26 @@
 #
 # Complete room climate control component for Soggiorno (Living Room)
 # Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
-
 packages:
-  room_soggiorno: !include
-    file: ../_templates/room_ground_floor.yaml
+  room_sensors: !include
+    file: ../../room_sensors.yaml
     vars:
-      room_slug: "soggiorno"
-      room_name: "Soggiorno"
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
       modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
-      output: "slow_pwm_soggiorno"
+  pid_radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_soggiorno"
+      circuit_name: "Radiant Soggiorno"
+      output: slow_pwm_soggiorno
+      sensor: soggiorno_room_temp_abstracted
       kp: 0.8
       ki: 0.005
       kd: 0.05
+      pump_management_script: "ground_floor_radiant_pump_management"
 
 output:
   - platform: slow_pwm
@@ -26,6 +32,8 @@ output:
     turn_on_action:
       - switch.turn_on: relay_05
       - switch.turn_on: relay_06
+      - switch.turn_on: relay_07
     turn_off_action:
       - switch.turn_off: relay_05
       - switch.turn_off: relay_06
+      - switch.turn_off: relay_07

@@ -6,18 +6,25 @@
 # Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
 
 packages:
-  room_bagno: !include
-    file: ../_templates/room_ground_floor.yaml
+  room_sensors: !include
+    file: ../../room_sensors.yaml
     vars:
-      room_slug: "bagno"
-      room_name: "Bagno"
+      zone_slug: "bagno"
+      zone_name: "Bagno"
       modbus_controller_address: 0x0C
       ha_temperature_sensor_id: "sensor.room_bagno_temperature"
       ha_humidity_sensor_id: "sensor.room_bagno_humidity"
-      output: "slow_pwm_bagno"
+  pid_radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_bagno"
+      circuit_name: "Radiant Bagno"
+      output: slow_pwm_bagno
+      sensor: bagno_room_temp_abstracted
       kp: 0.8
       ki: 0.005
       kd: 0.05
+      pump_management_script: "ground_floor_radiant_pump_management"
 
 output:
   - platform: slow_pwm
