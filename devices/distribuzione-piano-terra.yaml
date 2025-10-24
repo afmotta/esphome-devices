@@ -9,33 +9,14 @@ packages:
     file: ../components/rooms/ground_floor/soggiorno.yaml
   room_cucina: !include
     file: ../components/rooms/ground_floor/cucina.yaml
-  pid_sensors_bagno: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_bagno
-      pid_name: "PID Bagno"
-  pid_sensors_anticamera: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_anticamera
-      pid_name: "PID Anticamera"
+  room_bagno: !include
+    file: ../components/rooms/ground_floor/bagno.yaml
+  room_anticamera: !include
+    file: ../components/rooms/ground_floor/anticamera.yaml
 
 modbus:
   id: rs485_bus
   uart_id: rs485
-
-sensor:
-  # Home Assistant temperature sensors for each zone
-  - platform: homeassistant
-    name: "Bagno Temperature"
-    entity_id: sensor.room_bagno_temperature
-    id: ha_bagno_temperature
-    internal: true
-  - platform: homeassistant
-    name: "Anticamera Temperature"
-    entity_id: sensor.room_anticamera_temperature
-    id: ha_anticamera_temperature
-    internal: true
 
 switch:
   - platform: template
@@ -81,55 +62,6 @@ text_sensor:
           auto call_anticamera = id(pid_anticamera).make_call();
           call_anticamera.set_mode(mode);
           call_anticamera.perform();
-
-# Simplified PID Climate Controllers (Epic 2 Story 2.2)
-# Replaces dual_pid.yaml pattern with single PID per zone
-climate:
-  - platform: pid
-    id: pid_bagno
-    name: "PID Bagno"
-    sensor: ha_bagno_temperature
-    default_target_temperature: 23.0
-    heat_output: slow_pwm_bagno
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-  - platform: pid
-    id: pid_anticamera
-    name: "PID Anticamera"
-    sensor: ha_anticamera_temperature
-    default_target_temperature: 20.0
-    heat_output: slow_pwm_anticamera
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_bagno
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_03
-    turn_off_action:
-      - switch.turn_off: relay_03
-  - platform: slow_pwm
-    id: slow_pwm_anticamera
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_04
-    turn_off_action:
-      - switch.turn_off: relay_04
 
 script:
   - id: switch_management

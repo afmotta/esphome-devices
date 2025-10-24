@@ -1,0 +1,29 @@
+# ============================================================================
+# Anticamera Room Component - Ground Floor
+# ============================================================================
+#
+# Complete room climate control component for Anticamera (Kitchen)
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+
+packages:
+  room_anticamera: !include
+    file: ../_templates/room_ground_floor.yaml
+    vars:
+      room_slug: "anticamera"
+      room_name: "Anticamera"
+      modbus_controller_address: 0x0C
+      ha_temperature_sensor_id: "sensor.room_anticamera_temperature"
+      ha_humidity_sensor_id: "sensor.room_anticamera_humidity"
+      output: "slow_pwm_anticamera"
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
+
+output:
+  - platform: slow_pwm
+    id: slow_pwm_anticamera
+    period: 60s
+    turn_on_action:
+      - switch.turn_on: relay_03
+    turn_off_action:
+      - switch.turn_off: relay_03
