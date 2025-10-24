@@ -5,14 +5,10 @@ packages:
   # Note: emergency_shutdown component temporarily removed - needs refactoring for slow_pwm outputs
   # TODO: Re-add emergency_shutdown after component is updated to work with slow_pwm
 
-  # PID sensors for monitoring
   room_soggiorno: !include
     file: ../components/rooms/ground_floor/soggiorno.yaml
-  pid_sensors_cucina: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_cucina
-      pid_name: "PID Cucina"
+  room_cucina: !include
+    file: ../components/rooms/ground_floor/cucina.yaml
   pid_sensors_bagno: !include
     file: ../components/pid_sensors.yaml
     vars:
@@ -24,13 +20,12 @@ packages:
       pid_id: pid_anticamera
       pid_name: "PID Anticamera"
 
+modbus:
+  id: rs485_bus
+  uart_id: rs485
+
 sensor:
   # Home Assistant temperature sensors for each zone
-  - platform: homeassistant
-    name: "Cucina Temperature"
-    entity_id: sensor.room_cucina_temperature
-    id: ha_cucina_temperature
-    internal: true
   - platform: homeassistant
     name: "Bagno Temperature"
     entity_id: sensor.room_bagno_temperature
@@ -91,21 +86,6 @@ text_sensor:
 # Replaces dual_pid.yaml pattern with single PID per zone
 climate:
   - platform: pid
-    id: pid_cucina
-    name: "PID Cucina"
-    sensor: ha_cucina_temperature
-    default_target_temperature: 22.0
-    heat_output: slow_pwm_cucina
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-  - platform: pid
     id: pid_bagno
     name: "PID Bagno"
     sensor: ha_bagno_temperature
@@ -136,15 +116,6 @@ climate:
       temperature_step: 0.5
 
 output:
-  - platform: slow_pwm
-    id: slow_pwm_cucina
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_01
-      - switch.turn_on: relay_02
-    turn_off_action:
-      - switch.turn_off: relay_01
-      - switch.turn_off: relay_02
   - platform: slow_pwm
     id: slow_pwm_bagno
     period: 30s

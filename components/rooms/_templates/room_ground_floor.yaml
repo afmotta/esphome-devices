@@ -80,13 +80,13 @@
 #     (soggiorno, cucina, bagno, anticamera)
 #
 # ARCHITECTURE CONTEXT (Epic 3):
-#   Before Epic 4: Room sensors read via Modbus from master board
-#   After Epic 4: Room sensors via HA with local Modbus as primary
+#   Before Epic 3: Room sensors read via Modbus from master board
+#   After Epic 3: Room sensors via HA with local Modbus as primary
 #   Climate coordination: Home Assistant provides global heat/cool mode
 
 packages:
   room_sensors: !include
-    file: ../components/room_sensors.yaml
+    file: ../../room_sensors.yaml
     vars:
       zone_slug: ${room_slug}
       zone_name: ${room_name}
@@ -94,7 +94,7 @@ packages:
       ha_temperature_sensor_id: ${ha_temperature_sensor_id}
       ha_humidity_sensor_id: ${ha_humidity_sensor_id}
   pid_sensors: !include
-    file: ../components/pid_sensors.yaml
+    file: ../../pid_sensors.yaml
     vars:
       pid_id: "pid_${room_slug}"
       pid_name: "PID ${room_name}"
