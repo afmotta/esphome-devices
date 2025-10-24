@@ -6,11 +6,8 @@ packages:
   # TODO: Re-add emergency_shutdown after component is updated to work with slow_pwm
 
   # PID sensors for monitoring
-  pid_sensors_soggiorno: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_soggiorno
-      pid_name: "PID Soggiorno"
+  room_soggiorno: !include
+    file: ../components/rooms/ground_floor/soggiorno.yaml
   pid_sensors_cucina: !include
     file: ../components/pid_sensors.yaml
     vars:
@@ -29,11 +26,6 @@ packages:
 
 sensor:
   # Home Assistant temperature sensors for each zone
-  - platform: homeassistant
-    name: "Soggiorno Temperature"
-    entity_id: sensor.room_soggiorno_temperature
-    id: ha_soggiorno_temperature
-    internal: true
   - platform: homeassistant
     name: "Cucina Temperature"
     entity_id: sensor.room_cucina_temperature
@@ -98,21 +90,6 @@ text_sensor:
 # Simplified PID Climate Controllers (Epic 2 Story 2.2)
 # Replaces dual_pid.yaml pattern with single PID per zone
 climate:
-  - platform: pid
-    id: pid_soggiorno
-    name: "PID Soggiorno"
-    sensor: ha_soggiorno_temperature
-    default_target_temperature: 22.0
-    heat_output: slow_pwm_soggiorno
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
   - platform: pid
     id: pid_cucina
     name: "PID Cucina"
@@ -182,17 +159,6 @@ output:
       - switch.turn_on: relay_04
     turn_off_action:
       - switch.turn_off: relay_04
-  - platform: slow_pwm
-    id: slow_pwm_soggiorno
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_05
-      - switch.turn_on: relay_06
-      - switch.turn_on: relay_07
-    turn_off_action:
-      - switch.turn_off: relay_05
-      - switch.turn_off: relay_06
-      - switch.turn_off: relay_07
 
 script:
   - id: switch_management
@@ -200,14 +166,15 @@ script:
     then:
       - if:
           condition:
-            any:
-              - switch.is_on: relay_01
-              - switch.is_on: relay_02
-              - switch.is_on: relay_03
-              - switch.is_on: relay_04
-              - switch.is_on: relay_05
-              - switch.is_on: relay_06
-              - switch.is_on: relay_07
+            lambda: |-
+              return id(pid_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_soggiorno).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_bagno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_bagno).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_cucina).action == climate::CLIMATE_ACTION_COOLING;
           then:
             - switch.turn_on: relay_16
           else:

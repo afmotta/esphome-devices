@@ -1,0 +1,34 @@
+# ============================================================================
+# Soggiorno Room Component - Ground Floor
+# ============================================================================
+#
+# Complete room climate control component for Soggiorno (Living Room)
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+##
+
+packages:
+  room_soggiorno: !include
+    file: ../_templates/room_ground_floor.yaml
+    vars:
+      room_slug: "soggiorno"
+      room_name: "Soggiorno"
+      modbus_controller_address: 0x0A # Address 10
+      ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+      ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
+      output: "slow_pwm_soggiorno"
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
+
+output:
+  - platform: slow_pwm
+    id: slow_pwm_soggiorno
+    period: 30s
+    turn_on_action:
+      - switch.turn_on: relay_05
+      - switch.turn_on: relay_06
+      - switch.turn_on: relay_07
+    turn_off_action:
+      - switch.turn_off: relay_05
+      - switch.turn_off: relay_06
+      - switch.turn_off: relay_07
