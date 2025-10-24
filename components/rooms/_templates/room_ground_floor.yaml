@@ -114,3 +114,6 @@ climate:
       min_temperature: 15
       max_temperature: 30
       temperature_step: 0.5
+    on_state:
+      then:
+        - script.execute: ground_floor_pump_management

@@ -18,17 +18,6 @@ modbus:
   id: rs485_bus
   uart_id: rs485
 
-switch:
-  - platform: template
-    id: remote_switch
-    optimistic: true
-    on_turn_on:
-      then:
-        - script.execute: switch_management
-    on_turn_off:
-      then:
-        - script.execute: switch_management
-
 text_sensor:
   - platform: homeassistant
     id: climate_mode
@@ -64,20 +53,23 @@ text_sensor:
           call_anticamera.perform();
 
 script:
-  - id: switch_management
+  - id: ground_floor_pump_management
     mode: queued
     then:
       - if:
           condition:
             lambda: |-
-              return id(pid_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_soggiorno).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_bagno).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_bagno).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_cucina).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_cucina).action == climate::CLIMATE_ACTION_COOLING;
+              if (id(climate_mode).state == "HEAT") {
+                return id(pid_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_bagno).action == climate::CLIMATE_ACTION_HEATING ||
+                       id(pid_cucina).action == climate::CLIMATE_ACTION_HEATING;
+              } else if (id(climate_mode).state == "COOL") {
+                return id(pid_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
+                       id(pid_soggiorno).action == climate::CLIMATE_ACTION_COOLING ||
+                       id(pid_bagno).action == climate::CLIMATE_ACTION_COOLING ||
+                       id(pid_cucina).action == climate::CLIMATE_ACTION_COOLING;
+              }
           then:
             - switch.turn_on: relay_16
           else:
