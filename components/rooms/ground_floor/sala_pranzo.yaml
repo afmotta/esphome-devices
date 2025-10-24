@@ -6,24 +6,12 @@
 # Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
 
 packages:
-  room_sala_pranzo: !include
-    file: ../_templates/room_ground_floor.yaml
+  fancoil: !include
+    file: ../components/fancoil.yaml
     vars:
-      room_slug: "sala_pranzo"
-      room_name: "Sala da pranzo"
-      modbus_controller_address: 0x0A
-      ha_temperature_sensor_id: "sensor.room_sala_pranzo_temperature"
-      ha_humidity_sensor_id: "sensor.room_sala_pranzo_humidity"
-      output: "slow_pwm_sala_pranzo"
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_sala_pranzo
-    period: 60s
-    turn_on_action:
-      - switch.turn_on: relay_07
-    turn_off_action:
-      - switch.turn_off: relay_07
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42049
+      area_slug: "sala_pranzo"
+      area_name: "Sala da Pranzo"
+      sensor: soggiorno_room_temp_abstracted
+      switch_management_script: ground_floor_fancoils_pump_management

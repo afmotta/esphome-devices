@@ -13,10 +13,18 @@ packages:
     file: ../components/rooms/ground_floor/bagno.yaml
   room_anticamera: !include
     file: ../components/rooms/ground_floor/anticamera.yaml
+  room_sala_pranzo: !include
+    file: ../components/rooms/ground_floor/sala_pranzo.yaml
 
 modbus:
   id: rs485_bus
   uart_id: rs485
+
+modbus_controller:
+  - id: modbus_0_10v_adapter_fancoils_ground_floor
+    address: 0x2
+    modbus_id: rs485_bus
+    update_interval: 5s
 
 text_sensor:
   - platform: homeassistant
@@ -60,23 +68,30 @@ script:
           condition:
             lambda: |-
               return id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_HEATING ||
-                       id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
-                       id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_COOLING ||
-                       id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_COOLING ||
-                       id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_COOLING;
+                     id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
           then:
-            - if:
-                condition:
-                  lambda: return id(climate_mode).state == "HEAT";
-                then:
-                  - switch.turn_on: relay_16
-                  - switch.turn_off: relay_15
-                else:
-                  - switch.turn_on: relay_15
-                  - switch.turn_off: relay_16
+            - switch.turn_on: relay_16
           else:
             - switch.turn_off: relay_16
+  - id: ground_floor_fancoil_pump_management
+    mode: queued
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(pid_fancoil_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_fancoil_cucina).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_fancoil_sala_pranzo).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_fancoil_sala_pranzo).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_fancoil_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_fancoil_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
+          then:
+            - switch.turn_off: relay_15
+          else:
             - switch.turn_off: relay_15

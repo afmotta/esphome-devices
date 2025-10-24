@@ -13,7 +13,7 @@ packages:
       modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
-  pid_radiant: !include
+  radiant: !include
     file: ../../pid.yaml
     vars:
       circuit_slug: "radiant_soggiorno"
@@ -23,7 +23,16 @@ packages:
       kp: 0.8
       ki: 0.005
       kd: 0.05
-      pump_management_script: "ground_floor_radiant_pump_management"
+      pump_management_script: ground_floor_radiant_pump_management
+  fancoil: !include
+    file: ../components/fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42049
+      area_slug: "soggiorno"
+      area_name: "Soggiorno"
+      sensor: soggiorno_room_temp_abstracted
+      switch_management_script: ground_floor_fancoils_pump_management
 
 output:
   - platform: slow_pwm
