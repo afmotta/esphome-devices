@@ -26,8 +26,6 @@ output:
     turn_on_action:
       - switch.turn_on: relay_05
       - switch.turn_on: relay_06
-      - switch.turn_on: relay_07
     turn_off_action:
       - switch.turn_off: relay_05
       - switch.turn_off: relay_06
-      - switch.turn_off: relay_07
