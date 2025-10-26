@@ -24,7 +24,7 @@ packages:
       kp: 0.8
       ki: 0.005
       kd: 0.05
-      pump_management_script: "ground_floor_radiant_pump_management"
+      pump_management_script: ground_floor_radiant_pump_management
 
 output:
   - platform: slow_pwm
