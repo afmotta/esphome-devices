@@ -1,28 +1,32 @@
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
-  # PID sensors for monitoring
-  pid_sensors_zona_1: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_primo_piano_zona_1
-      pid_name: "PID Primo Piano Zona 1"
-  pid_sensors_zona_2: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_primo_piano_zona_2
-      pid_name: "PID Primo Piano Zona 2"
+  room_bagno_grande: !include
+    file: ../components/rooms/first_floor/bagno_grande.yaml
+  room_bagno_ospiti: !include
+    file: ../components/rooms/first_floor/bagno_ospiti.yaml
+  room_bagno_padronale: !include
+    file: ../components/rooms/first_floor/bagno_padronale.yaml
+  room_camera_nord: !include
+    file: ../components/rooms/first_floor/camera_nord.yaml
+  room_camera_sud: !include
+    file: ../components/rooms/first_floor/camera_sud.yaml
+  room_camera_ospiti: !include
+    file: ../components/rooms/first_floor/camera_ospiti.yaml
+  room_camera_padronale: !include
+    file: ../components/rooms/first_floor/camera_padronale.yaml
+  room_lavanderia: !include
+    file: ../components/rooms/first_floor/lavanderia.yaml
 
-switch:
-  - platform: template
-    id: remote_switch
-    optimistic: true
-    on_turn_on:
-      then:
-        - script.execute: switch_management
-    on_turn_off:
-      then:
-        - script.execute: switch_management
+modbus:
+  id: rs485_bus
+  uart_id: rs485
+
+modbus_controller:
+  - id: modbus_0_10v_adapter_fancoils_first_floor
+    address: 0x2
+    modbus_id: rs485_bus
+    update_interval: 5s
 
 text_sensor:
   - platform: homeassistant
@@ -30,83 +34,27 @@ text_sensor:
     name: "Climate Mode"
     entity_id: sensor.thermostat_mode
     internal: true
-    on_value:
-      # Mode coordination: update all zone PID climate modes based on global climate_mode
-      - lambda: |-
-          auto mode = CLIMATE_MODE_OFF;
-          if (id(climate_mode).state == "HEAT") {
-            mode = CLIMATE_MODE_HEAT;
-          } else if (id(climate_mode).state == "COOL") {
-            mode = CLIMATE_MODE_COOL;
-          }
-
-          // Update all zone PIDs
-          auto call_zona_1 = id(pid_primo_piano_zona_1).make_call();
-          call_zona_1.set_mode(mode);
-          call_zona_1.perform();
-
-          auto call_zona_2 = id(pid_primo_piano_zona_2).make_call();
-          call_zona_2.set_mode(mode);
-          call_zona_2.perform();
-
-# Simplified PID Climate Controllers (Epic 2 Story 2.2)
-# Replaces dual_pid.yaml pattern with single PID per zone
-climate:
-  - platform: pid
-    id: pid_primo_piano_zona_1
-    name: "PID Primo Piano Zona 1"
-    sensor: termometro_primo_piano_temperature_abstracted
-    default_target_temperature: 28.0
-    heat_output: slow_pwm_zona_1
-    cool_output: slow_pwm_zona_1
-    control_parameters:
-      kp: 0.2
-      ki: 0.01
-      kd: 0.0
-    visual:
-      min_temperature: 15
-      max_temperature: 40
-      temperature_step: 0.5
-
-  - platform: pid
-    id: pid_primo_piano_zona_2
-    name: "PID Primo Piano Zona 2"
-    sensor: termometro_primo_piano_temperature_abstracted
-    default_target_temperature: 28.0
-    heat_output: slow_pwm_zona_2
-    cool_output: slow_pwm_zona_2
-    control_parameters:
-      kp: 0.2
-      ki: 0.01
-      kd: 0.0
-    visual:
-      min_temperature: 15
-      max_temperature: 40
-      temperature_step: 0.5
-
-sensor:
-  - platform: homeassistant
-    id: ha_termometro_primo_piano_temperature
-    entity_id: sensor.termometro_primo_piano_temperature
-    internal: true
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_zona_1
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_01
-    turn_off_action:
-      - switch.turn_off: relay_01
-  - platform: slow_pwm
-    id: slow_pwm_zona_2
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_02
-    turn_off_action:
-      - switch.turn_off: relay_02
 
 script:
-  - id: switch_management
+  - id: first_floor_radiant_pump_management
+    mode: queued
     then:
-      - logger.log: "Switch state changed"
+      - if:
+          condition:
+            lambda: |-
+              return id(pid_radiant_bagno_padronale).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_bagno_grande).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_bagno_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_lavanderia).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_camera_nord).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_camera_nord).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_camera_sud).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_camera_sud).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_COOLING;
+          then:
+            - switch.turn_on: relay_16
+          else:
+            - switch.turn_off: relay_16
