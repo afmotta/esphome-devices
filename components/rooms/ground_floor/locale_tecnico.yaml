@@ -14,7 +14,7 @@ packages:
       ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
       ha_humidity_sensor_id: "sensor.room_locale_tecnico_humidity"
   fancoil: !include
-    file: ../components/fancoil.yaml
+    file: ../../fancoil.yaml
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42052

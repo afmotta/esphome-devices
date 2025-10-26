@@ -69,8 +69,8 @@ script:
             lambda: |-
               return id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
                      id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_bagno).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_bagno_terra).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_bagno_terra).action == climate::CLIMATE_ACTION_COOLING ||
                      id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_HEATING ||
                      id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_COOLING ||
                      id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
@@ -79,7 +79,7 @@ script:
             - switch.turn_on: relay_16
           else:
             - switch.turn_off: relay_16
-  - id: ground_floor_fancoil_pump_management
+  - id: ground_floor_fancoils_pump_management
     mode: queued
     then:
       - if:
