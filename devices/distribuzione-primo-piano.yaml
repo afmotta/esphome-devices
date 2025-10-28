@@ -28,13 +28,6 @@ modbus_controller:
     modbus_id: rs485_bus
     update_interval: 5s
 
-text_sensor:
-  - platform: homeassistant
-    id: climate_mode
-    name: "Climate Mode"
-    entity_id: sensor.thermostat_mode
-    internal: true
-
 script:
   - id: first_floor_radiant_pump_management
     mode: queued

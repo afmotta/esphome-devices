@@ -26,40 +26,6 @@ modbus_controller:
     modbus_id: rs485_bus
     update_interval: 5s
 
-text_sensor:
-  - platform: homeassistant
-    id: climate_mode
-    name: "Climate Mode"
-    entity_id: sensor.thermostat_mode
-    internal: true
-    # on_value:
-    # Mode coordination: update all zone PID climate modes based on global climate_mode
-    # - lambda: |-
-    #     auto mode = CLIMATE_MODE_OFF;
-    #     if (id(climate_mode).state == "HEAT") {
-    #       mode = CLIMATE_MODE_HEAT;
-    #     }
-    #     else if (id(climate_mode).state == "COOL") {
-    #       mode = CLIMATE_MODE_COOL;
-    #     }
-
-    #     // Update all zone PIDs
-    #     auto call_soggiorno = id(pid_soggiorno).make_call();
-    #     call_soggiorno.set_mode(mode);
-    #     call_soggiorno.perform();
-
-    #     auto call_cucina = id(pid_cucina).make_call();
-    #     call_cucina.set_mode(mode);
-    #     call_cucina.perform();
-
-    #     auto call_bagno = id(pid_bagno).make_call();
-    #     call_bagno.set_mode(mode);
-    #     call_bagno.perform();
-
-    #     auto call_anticamera = id(pid_anticamera).make_call();
-    #     call_anticamera.set_mode(mode);
-    #     call_anticamera.perform();
-
 script:
   - id: ground_floor_radiant_pump_management
     mode: queued

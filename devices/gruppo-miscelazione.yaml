@@ -1,11 +1,7 @@
 packages:
   base: !include ../boards/a6.yaml
   wifi: !include ../boards/wifi.yaml
-  # Second floor fancoil via 0-10V Modbus adapter (address 0x3)
-  second_floor_fancoils: !include
-    file: ../components/second_floor_fancoils.yaml
-  # PID sensors for mixing groups
-  pid_sensors_mixing_ground_floor: !include
+  pid_sensor_mixing_ground_floor: !include
     file: ../components/pid_sensors.yaml
     vars:
       pid_id: pid_mixing_ground_floor
@@ -34,38 +30,6 @@ sensor:
     id: dallas_0xe9000000b366ed28
     unit_of_measurement: "°C"
     one_wire_id: one_wire_01
-  # Temperature sensors from Home Assistant for fancoil control
-  - platform: homeassistant
-    name: "Termometro Sottotetto Temperature"
-    entity_id: sensor.termometro_soggiorno_temperature
-    id: ha_sottotetto_temperature
-    internal: true
-
-text_sensor:
-  - platform: homeassistant
-    id: climate_mode
-    name: "Climate Mode"
-    entity_id: sensor.thermostat_mode
-    internal: true
-    on_value:
-      # Mode coordination: update PID climate modes based on global climate_mode
-      - lambda: |-
-          auto mode = CLIMATE_MODE_OFF;
-          if (id(climate_mode).state == "HEAT") {
-            mode = CLIMATE_MODE_HEAT;
-          } else if (id(climate_mode).state == "COOL") {
-            mode = CLIMATE_MODE_COOL;
-          }
-
-          // Update Piano Terra PID
-          auto call_terra = id(pid_mixing_ground_floor).make_call();
-          call_terra.set_mode(mode);
-          call_terra.perform();
-
-          // Update Primo Piano PID
-          auto call_primo = id(pid_mixing_first_floor).make_call();
-          call_primo.set_mode(mode);
-          call_primo.perform();
 
 # Simplified PID Climate Controllers (Epic 2 Story 2.1)
 # Replaces dual_pid.yaml pattern with single PID per circuit
@@ -88,10 +52,10 @@ climate:
     on_state:
       # Relay control: turn on when PID active, off when idle
       - lambda: |-
-          if (x.mode == CLIMATE_MODE_OFF) {
-            id(relay_1).turn_off();
-          } else {
+          if (x.action == climate::CLIMATE_ACTION_HEATING || x.action == climate::CLIMATE_ACTION_COOLING) {
             id(relay_1).turn_on();
+          } else {
+            id(relay_1).turn_off();
           }
 
   - platform: pid
@@ -112,8 +76,8 @@ climate:
     on_state:
       # Relay control: turn on when PID active, off when idle
       - lambda: |-
-          if (x.mode == CLIMATE_MODE_OFF) {
-            id(relay_2).turn_off();
-          } else {
+          if (x.action == climate::CLIMATE_ACTION_HEATING || x.action == climate::CLIMATE_ACTION_COOLING) {
             id(relay_2).turn_on();
+          } else {
+            id(relay_2).turn_off();
           }
