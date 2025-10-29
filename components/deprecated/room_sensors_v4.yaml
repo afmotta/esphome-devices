@@ -1,0 +1,220 @@
+# Component: room_sensors.yaml
+# Purpose: Room-level temperature and humidity sensing via Modbus RS485 sensors
+#
+# This component implements room temperature and humidity measurement for zone-based
+# climate control. It reads data from Modbus RTU temperature/humidity sensors that
+# are polled by the master (gruppo-miscelazione A6) and exposed via master holding
+# registers for slave boards to consume.
+#
+# Required vars:
+#   - zone_name: Display name for the zone (e.g., "Soggiorno")
+#   - zone_slug: Lowercase identifier for IDs (e.g., "soggiorno")
+#   - modbus_controller_address: Reference to modbus_controller for this slave board
+#   - ha_temperature_sensor_id: Home Assistant sensor ID for temperature fallback
+#   - ha_humidity_sensor_id: Home Assistant sensor ID for humidity fallback
+#
+# Exposes:
+#   - sensor.{zone_slug}_room_temperature_raw: Raw Modbus temperature reading (internal)
+#   - sensor.{zone_slug}_room_humidity_raw: Raw Modbus humidity reading (internal)
+#   - sensor.{zone_slug}_room_temperature: Room temperature (Home Assistant exposed)
+#   - sensor.{zone_slug}_room_humidity: Room humidity (Home Assistant exposed)
+#   - sensor.{zone_slug}_room_temp_abstracted: Failover temperature (for PID controllers)
+#   - text_sensor.{zone_slug}_temp_source: Temperature source indicator
+#   - binary_sensor.{zone_slug}_room_sensor_online: Sensor online status
+#   - sensor.{zone_slug}_room_sensor_last_update: Last successful update timestamp
+#
+# Integration:
+#   Designed for use with distribuzione-piano-terra.yaml (ground floor A16 slave)
+#   Reads room sensor data from master registers (master polls Modbus sensors)
+#   Provides three-tier failover: Modbus → Home Assistant → Supply temp proxy
+#
+# Example usage:
+#   packages:
+#     room_sensor_soggiorno: !include
+#       file: components/room_sensors.yaml
+#       vars:
+#         zone_name: "Soggiorno"
+#         zone_slug: "soggiorno"
+#         modbus_controller_address: modbus_slave
+
+globals:
+  - id: ${zone_slug}_last_valid_time
+    type: unsigned long
+    restore_value: false
+    initial_value: "0"
+  - id: ${zone_slug}_emergency_triggered
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+# ============================================================================
+# MODBUS SENSOR READING
+# ============================================================================
+
+modbus_controller:
+  - id: room_sensor_${zone_slug}_controller
+    address: ${modbus_controller_address}
+    modbus_id: rs485_bus
+    command_throttle: 200ms
+    update_interval: 30s
+
+sensor:
+  # Raw temperature reading from master Modbus register
+  - platform: modbus_controller
+    modbus_controller_id: room_sensor_${zone_slug}_controller
+    id: ${zone_slug}_room_temperature_modbus
+    name: "${zone_name} Room Temperature (Modbus)"
+    address: 0x0001
+    register_type: holding
+    value_type: S_WORD # Signed 16-bit (allows negative temps)
+    accuracy_decimals: 2
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    filters:
+      - multiply: 0.01 # Descale from ×100 (e.g., 2235 → 22.35°C)
+      - timeout: 60s # Mark unavailable after 60s
+
+  # Raw humidity reading from master Modbus register
+  - platform: modbus_controller
+    modbus_controller_id: room_sensor_${zone_slug}_controller
+    id: ${zone_slug}_room_humidity_modbus
+    name: "${zone_name} Room Humidity (Modbus)"
+    address: 0x0002
+    register_type: holding
+    value_type: U_WORD # Unsigned 16-bit (humidity always positive)
+    accuracy_decimals: 1
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    filters:
+      - multiply: 0.1 # Descale from ×10 (e.g., 653 → 65.3%)
+      - timeout: 60s
+
+  - platform: homeassistant
+    entity_id: ${ha_temperature_sensor_id}
+    id: ${zone_slug}_room_temperature_ha
+    internal: true
+
+  - platform: homeassistant
+    entity_id: ${ha_humidity_sensor_id}
+    id: ${zone_slug}_room_humidity_ha
+    internal: true
+
+  # ============================================================================
+  # THREE-TIER FAILOVER SENSOR (for PID Controllers)
+  # ============================================================================
+
+  # Abstracted room temperature with failover
+  # TIER 1: Local Modbus room sensor (best accuracy)
+  # TIER 2: Home Assistant room sensor (if configured - fallback)
+  # TIER 3: NAN (triggers emergency shutdown)
+  - platform: template
+    id: ${zone_slug}_room_temp_abstracted
+    name: "${zone_name} Room Temperature (Abstracted)"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: 10s
+    internal: true # Used by PID controllers, not exposed to HA directly
+    lambda: |-
+      unsigned long now = millis();
+      // TIER 1: Local Modbus room sensor (primary)
+      if (id(${zone_slug}_room_temperature_modbus).has_state()) {
+        auto modbus_temp = id(${zone_slug}_room_temperature_modbus).state;
+        if (!isnan(modbus_temp)) {
+          id(${zone_slug}_last_valid_time) = now;
+          id(${zone_slug}_emergency_triggered) = false;
+          ESP_LOGW("room_sensors", "${zone_name}: Using Modbus temperature");
+          return modbus_temp;
+        }
+      }
+
+      // TIER 2: Home Assistant room sensor (fallback)
+      if (id(${zone_slug}_room_temperature_ha).has_state()) {
+        auto ha_temp = id(${zone_slug}_room_temperature_ha).state;
+        if (!isnan(ha_temp)) {
+          id(${zone_slug}_last_valid_time) = now;
+          id(${zone_slug}_emergency_triggered) = false;
+          ESP_LOGW("room_sensors", "${zone_name}: Using Home Assistant temperature as fallback");
+          return ha_temp;
+        }
+      }
+
+      // TIER 3: NAN (triggers emergency if configured)
+      unsigned long time_since_valid = (now - id(${zone_slug}_last_valid_time)); // Convert to seconds
+
+      if (time_since_valid > 300000) {
+        if (!id(${zone_slug}_emergency_triggered)) {
+          ESP_LOGE("sensor_failover", "${zone_name}: EMERGENCY MODE - No valid sensor data for >5 minutes");
+          id(${zone_slug}_emergency_triggered) = true;
+        }
+      }
+      ESP_LOGW("room_sensors", "${zone_name}: No room temperature data available");
+      return NAN;
+
+  # Last successful update timestamp
+  - platform: template
+    id: ${zone_slug}_room_sensor_modbus_last_update
+    name: "${zone_name} Room Sensor Last Update"
+    device_class: timestamp
+    update_interval: 10s
+    lambda: |-
+      return id(${zone_slug}_last_valid_time);
+
+# ============================================================================
+# TEXT SENSORS (Status and Diagnostics)
+# ============================================================================
+
+text_sensor:
+  # Temperature source indicator (which tier is active)
+  - platform: template
+    id: ${zone_slug}_temp_source
+    name: "${zone_name} Temperature Source"
+    update_interval: 10s
+    lambda: |-
+      // Check TIER 1: Local Modbus sensor
+      if (id(${zone_slug}_room_temperature_modbus).has_state()) {
+        auto temp = id(${zone_slug}_room_temperature_modbus).state;
+        if (!isnan(temp)) {
+          return {"Modbus Room Sensor"};
+        }
+      }
+
+      // Check TIER 2: Home Assistant sensor
+      if (id(${zone_slug}_room_temperature_ha).has_state()) {
+        auto ha_temp = id(${zone_slug}_room_temperature_ha).state;
+        if (!isnan(ha_temp)) {
+          return {"Home Assistant Room Sensor"};
+        }
+      }
+
+      // No data
+      return {"No Sensor Available"};
+
+# ============================================================================
+# BINARY SENSORS (Online Status)
+# ============================================================================
+
+binary_sensor:
+  # Room sensor online status
+  - platform: template
+    id: ${zone_slug}_room_sensor_modbus_online
+    name: "${zone_name} Room Sensor Modbus Online"
+    device_class: connectivity
+    lambda: |-
+      // Sensor is online if we have valid Modbus data
+      if (id(${zone_slug}_room_temperature_modbus).has_state()) {
+        auto temp = id(${zone_slug}_room_temperature_modbus).state;
+        if (!isnan(temp)) {
+          return true;
+        }
+      }
+      return false;
+
+  - platform: template
+    id: ${zone_slug}_room_sensor_emergency_triggered
+    name: "${zone_name} Room Sensor Emergency Triggered"
+    lambda: |-
+      return id(${zone_slug}_emergency_triggered);
