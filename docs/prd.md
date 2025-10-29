@@ -5,8 +5,8 @@
 | Field               | Value                                      |
 | ------------------- | ------------------------------------------ |
 | **Project**         | ESPHome Multi-Floor Climate Control System |
-| **PRD Version**     | 1.1                                        |
-| **Date**            | October 17, 2025                           |
+| **PRD Version**     | 1.2                                        |
+| **Date**            | October 23, 2025                           |
 | **Status**          | Draft                                      |
 | **Target Audience** | Experienced ESPHome Users                  |
 
@@ -16,6 +16,7 @@
 | ---------- | ------- | ------------------------------------------------------------------------------------------------ | ----------------------- |
 | 2025-10-09 | 1.0     | Initial brownfield PRD for RS485 Modbus board-to-board communication and automation enhancements | Mary (Business Analyst) |
 | 2025-10-17 | 1.1     | Removed ground floor cooling automation from Epic 1 - deferred to future phase                   | Mary (Business Analyst) |
+| 2025-10-23 | 1.2     | Added Epic 4: Room-Based Component Architecture refactoring                                      | Mary (Business Analyst) |
 
 ---
 
@@ -921,6 +922,216 @@ _(Note: GitHub authentication was unavailable during PRD creation. Placeholder f
 - Issue #XXX: [To be added - RS485 communication enhancement]
 - Issue #XXX: [To be added - Third board addition]
 - Issue #XXX: [To be added - Home Assistant single point of failure]
+
+---
+
+## 10. Epic 4: Room-Based Component Architecture (Code Organization)
+
+**Epic Goal**: Reorganize ESPHome components from functionality-based structure to room-based structure for improved maintainability, clarity, and easier per-room configuration management.
+
+**Integration Requirements**: 
+- Preserve all existing functionality and entity IDs (no breaking changes)
+- Maintain backward compatibility with existing configurations
+- Zero impact on temperature control behavior
+- Purely organizational refactoring (no logic changes)
+
+### Story 4.1: Create Room Component Template and Ground Floor Prototype
+
+**As a** developer,  
+**I want** a reusable room component template with clear vars interface,  
+**so that** individual rooms can be instantiated as self-contained units.
+
+#### Acceptance Criteria
+
+1. Design room component vars interface:
+   - Required vars: `room_name`, `room_slug`, `ha_temperature`, `default_target`, `relay_ids`, `pid_tuning`
+   - Optional vars: `min_temp`, `max_temp`, `temp_step`, `pwm_period`
+   - Vars documented in component header
+2. Create `components/rooms/_templates/room_with_pid.yaml` template:
+   - HA temperature sensor input
+   - PID climate controller
+   - PID output sensor for monitoring
+   - Slow PWM output with relay control
+   - All IDs parameterized via `${room_slug}`
+3. Create `components/rooms/ground_floor/soggiorno.yaml` as prototype:
+   - Instantiates room template with Soggiorno-specific vars
+   - Tests all var substitutions work correctly
+4. Update `devices/distribuzione-piano-terra.yaml` to use room component for Soggiorno:
+   - Replace inline PID/sensor/output definitions with room package
+   - Verify firmware compiles successfully
+5. Document room component pattern in component file header
+6. Test prototype: Deploy to device, verify Soggiorno functions identically to before
+
+#### Integration Verification
+
+**IV1 - Existing Functionality Preserved**:
+- Soggiorno PID control behavior unchanged
+- Entity ID `climate.pid_soggiorno` unchanged
+- Temperature control accuracy maintained (±0.5°C)
+- Relay control pattern identical
+
+**IV2 - Integration Point Verification**:
+- Soggiorno room component integrates with device-level climate mode coordination
+- PID sensors exposed correctly to Home Assistant
+- Slow PWM output controls correct relays (05, 06, 07)
+
+**IV3 - Code Quality Verification**:
+- Room component vars interface clear and well-documented
+- Component file includes usage examples
+- No code duplication between template and instance
+
+---
+
+### Story 4.2: Refactor Ground Floor Rooms (Cucina, Bagno, Anticamera)
+
+**As a** developer,  
+**I want** all ground floor rooms converted to room components,  
+**so that** the complete ground floor uses consistent room-based architecture.
+
+#### Acceptance Criteria
+
+1. Create `components/rooms/ground_floor/cucina.yaml`:
+   - Based on room template
+   - Cucina-specific vars (relays 01, 02; default temp 22.0)
+2. Create `components/rooms/ground_floor/bagno.yaml`:
+   - Based on room template
+   - Bagno-specific vars (relay 03; default temp 23.0)
+3. Create `components/rooms/ground_floor/anticamera.yaml`:
+   - Based on room template
+   - Anticamera-specific vars (relay 04; default temp 20.0)
+4. Update `devices/distribuzione-piano-terra.yaml`:
+   - Replace all inline room definitions with room component packages
+   - Preserve device-level climate mode coordination
+   - Preserve switch management script
+5. Verify all 4 rooms:
+   - Firmware compiles successfully
+   - All entity IDs unchanged
+   - Temperature control behavior identical
+
+#### Integration Verification
+
+**IV1 - Existing Functionality Preserved**:
+- All 4 ground floor zones control temperature correctly
+- Entity IDs unchanged: `climate.pid_soggiorno`, `climate.pid_cucina`, etc.
+- PID tuning parameters preserved
+- Relay control patterns identical
+
+**IV2 - Integration Point Verification**:
+- Climate mode coordination updates all 4 rooms correctly
+- Switch management script detects all relay states
+- Home Assistant displays all entities correctly
+
+**IV3 - Code Quality Verification**:
+- Device file significantly simplified (room config co-located)
+- Easy to understand which relays control which room
+- Reduced code duplication across rooms
+
+---
+
+### Story 4.3: Refactor First Floor Rooms
+
+**As a** developer,  
+**I want** first floor rooms converted to room components,  
+**so that** the entire system uses consistent room-based architecture.
+
+#### Acceptance Criteria
+
+1. Create `components/rooms/first_floor/zona_1.yaml`:
+   - Based on room template (may need adaptations for first floor)
+   - Zona 1-specific vars
+2. Create `components/rooms/first_floor/zona_2.yaml`:
+   - Based on room template
+   - Zona 2-specific vars
+3. Update `devices/distribuzione-primo-piano.yaml`:
+   - Replace inline room definitions with room component packages
+   - Preserve device-level climate mode coordination
+4. Verify both first floor zones:
+   - Firmware compiles successfully
+   - All entity IDs unchanged
+   - Temperature control behavior identical
+
+#### Integration Verification
+
+**IV1 - Existing Functionality Preserved**:
+- Both first floor zones control temperature correctly
+- Entity IDs unchanged: `climate.pid_primo_piano_zona_1`, `climate.pid_primo_piano_zona_2`
+- PID tuning parameters preserved
+
+**IV2 - Integration Point Verification**:
+- Climate mode coordination updates both zones correctly
+- Room components work correctly on first floor device
+
+**IV3 - Code Quality Verification**:
+- First floor device file simplified
+- Consistent pattern across ground floor and first floor
+
+---
+
+### Story 4.4: Documentation, Cleanup, and Template Refinement
+
+**As a** future developer,  
+**I want** comprehensive documentation and refined templates,  
+**so that** I can easily add new rooms or modify existing ones.
+
+#### Acceptance Criteria
+
+1. Refine room component template based on implementation learnings:
+   - Address any issues found during Stories 4.1-4.3
+   - Add additional parameterization if needed
+   - Ensure template works for both ground floor and first floor
+2. Create `docs/room-component-guide.md`:
+   - How to create a new room component
+   - Vars interface reference
+   - Example: Adding a new room to existing device
+   - Example: Creating room variant (e.g., bathroom with humidistat)
+3. Update `docs/architecture.md`:
+   - Document room-based component organization
+   - Update component inventory
+   - Explain room component pattern and benefits
+4. Update `.github/copilot-instructions.md`:
+   - Add room component patterns
+   - File organization conventions
+   - When to use room components vs inline definitions
+5. Consider deprecating `pid_sensors.yaml`:
+   - If functionality fully absorbed into room components
+   - Move to `components/deprecated/` if no longer needed
+6. Final validation:
+   - All 6 rooms (4 ground floor + 2 first floor) use room components
+   - Device files significantly simplified
+   - Documentation complete
+
+#### Integration Verification
+
+**IV1 - Existing Functionality Preserved**:
+- Complete system validation: All zones function identically to before refactoring
+- No entity ID changes
+- No temperature control regressions
+
+**IV2 - Integration Point Verification**:
+- Documentation accurate and usable
+- Future developers can add rooms using guide
+- Template flexible enough for common room variants
+
+**IV3 - Code Quality Verification**:
+- Code organization significantly improved
+- Device files easier to understand
+- Room components promote consistency and reduce errors
+
+---
+
+## Epic 4 Success Metrics
+
+**Primary Metrics**:
+- **Code Organization**: 6 rooms converted to room-based components (4 ground floor + 2 first floor)
+- **Code Clarity**: Room configuration co-located in single file per room
+- **Maintainability**: Room changes require editing single file (not multiple sections)
+- **No Regressions**: Zero temperature control issues post-refactoring
+
+**Secondary Metrics**:
+- **Documentation Quality**: Complete room component guide enables future room additions
+- **Template Reusability**: Room template successfully instantiates all 6 rooms
+- **Developer Experience**: Device files 30-50% shorter and easier to understand
+- **Consistency**: All rooms follow identical organizational pattern
 
 ---
 

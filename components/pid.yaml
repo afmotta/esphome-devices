@@ -1,0 +1,26 @@
+packages:
+  sensori_pid_cool: !include
+    file: pid_sensors.yaml
+    vars:
+      pid_id: pid_${circuit_slug}
+      pid_name: "PID ${circuit_name}"
+
+climate:
+  - platform: pid
+    id: pid_${circuit_slug}
+    name: "PID ${circuit_name}"
+    sensor: ${sensor}
+    default_target_temperature: 20.00
+    heat_output: ${output}
+    cool_output: ${output}
+    control_parameters:
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
+    visual:
+      min_temperature: 0
+      max_temperature: 40
+      temperature_step: 0.5
+    on_state:
+      then:
+        - script.execute: ${pump_management_script}

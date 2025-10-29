@@ -9,9 +9,7 @@
 # Required vars:
 #   - zone_name: Display name for the zone (e.g., "Soggiorno")
 #   - zone_slug: Lowercase identifier for IDs (e.g., "soggiorno")
-#   - sensor_register_temp: Master holding register for temperature (e.g., 0x0190 for register 400)
-#   - sensor_register_humidity: Master holding register for humidity (e.g., 0x0191 for register 401)
-#   - modbus_controller_id: Reference to modbus_controller for this slave board
+#   - modbus_controller_address: Reference to modbus_controller for this slave board
 #   - ha_temperature_sensor_id: Home Assistant sensor ID for temperature fallback
 #   - ha_humidity_sensor_id: Home Assistant sensor ID for humidity fallback
 #
@@ -37,9 +35,7 @@
 #       vars:
 #         zone_name: "Soggiorno"
 #         zone_slug: "soggiorno"
-#         sensor_register_temp: 0x0190  # Register 400
-#         sensor_register_humidity: 0x0191  # Register 401
-#         modbus_controller_id: modbus_slave
+#         modbus_controller_address: modbus_slave
 
 globals:
   - id: ${zone_slug}_last_valid_time
@@ -52,13 +48,12 @@ globals:
     initial_value: "false"
 
 # ============================================================================
-# MODBUS SENSOR READING (from Master Registers)
+# MODBUS SENSOR READING
 # ============================================================================
 
 modbus_controller:
-  # Room sensor: Soggiorno (Living Room) - Address 10
   - id: room_sensor_${zone_slug}_controller
-    address: 0x0A
+    address: ${modbus_controller_address}
     modbus_id: rs485_bus
     command_throttle: 200ms
     update_interval: 30s

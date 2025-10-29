@@ -5,210 +5,59 @@ packages:
   # Note: emergency_shutdown component temporarily removed - needs refactoring for slow_pwm outputs
   # TODO: Re-add emergency_shutdown after component is updated to work with slow_pwm
 
-  # PID sensors for monitoring
-  pid_sensors_soggiorno: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_soggiorno
-      pid_name: "PID Soggiorno"
-  pid_sensors_cucina: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_cucina
-      pid_name: "PID Cucina"
-  pid_sensors_bagno: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_bagno
-      pid_name: "PID Bagno"
-  pid_sensors_anticamera: !include
-    file: ../components/pid_sensors.yaml
-    vars:
-      pid_id: pid_anticamera
-      pid_name: "PID Anticamera"
+  room_soggiorno: !include
+    file: ../components/rooms/ground_floor/soggiorno.yaml
+  room_cucina: !include
+    file: ../components/rooms/ground_floor/cucina.yaml
+  room_bagno: !include
+    file: ../components/rooms/ground_floor/bagno.yaml
+  room_anticamera: !include
+    file: ../components/rooms/ground_floor/anticamera.yaml
+  room_sala_pranzo: !include
+    file: ../components/rooms/ground_floor/sala_pranzo.yaml
 
-sensor:
-  # Home Assistant temperature sensors for each zone
-  - platform: homeassistant
-    name: "Soggiorno Temperature"
-    entity_id: sensor.room_soggiorno_temperature
-    id: ha_soggiorno_temperature
-    internal: true
-  - platform: homeassistant
-    name: "Cucina Temperature"
-    entity_id: sensor.room_cucina_temperature
-    id: ha_cucina_temperature
-    internal: true
-  - platform: homeassistant
-    name: "Bagno Temperature"
-    entity_id: sensor.room_bagno_temperature
-    id: ha_bagno_temperature
-    internal: true
-  - platform: homeassistant
-    name: "Anticamera Temperature"
-    entity_id: sensor.room_anticamera_temperature
-    id: ha_anticamera_temperature
-    internal: true
+modbus:
+  id: rs485_bus
+  uart_id: rs485
 
-switch:
-  - platform: template
-    id: remote_switch
-    optimistic: true
-    on_turn_on:
-      then:
-        - script.execute: switch_management
-    on_turn_off:
-      then:
-        - script.execute: switch_management
-
-text_sensor:
-  - platform: homeassistant
-    id: climate_mode
-    name: "Climate Mode"
-    entity_id: sensor.thermostat_mode
-    internal: true
-    on_value:
-      # Mode coordination: update all zone PID climate modes based on global climate_mode
-      - lambda: |-
-          auto mode = CLIMATE_MODE_OFF;
-          if (id(climate_mode).state == "HEAT") {
-            mode = CLIMATE_MODE_HEAT;
-          } 
-          // else if (id(climate_mode).state == "COOL") {
-          //   mode = CLIMATE_MODE_COOL;
-          // }
-
-          // Update all zone PIDs
-          auto call_soggiorno = id(pid_soggiorno).make_call();
-          call_soggiorno.set_mode(mode);
-          call_soggiorno.perform();
-
-          auto call_cucina = id(pid_cucina).make_call();
-          call_cucina.set_mode(mode);
-          call_cucina.perform();
-
-          auto call_bagno = id(pid_bagno).make_call();
-          call_bagno.set_mode(mode);
-          call_bagno.perform();
-
-          auto call_anticamera = id(pid_anticamera).make_call();
-          call_anticamera.set_mode(mode);
-          call_anticamera.perform();
-
-# Simplified PID Climate Controllers (Epic 2 Story 2.2)
-# Replaces dual_pid.yaml pattern with single PID per zone
-climate:
-  - platform: pid
-    id: pid_soggiorno
-    name: "PID Soggiorno"
-    sensor: ha_soggiorno_temperature
-    default_target_temperature: 22.0
-    heat_output: slow_pwm_soggiorno
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-  - platform: pid
-    id: pid_cucina
-    name: "PID Cucina"
-    sensor: ha_cucina_temperature
-    default_target_temperature: 22.0
-    heat_output: slow_pwm_cucina
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-  - platform: pid
-    id: pid_bagno
-    name: "PID Bagno"
-    sensor: ha_bagno_temperature
-    default_target_temperature: 23.0
-    heat_output: slow_pwm_bagno
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-  - platform: pid
-    id: pid_anticamera
-    name: "PID Anticamera"
-    sensor: ha_anticamera_temperature
-    default_target_temperature: 20.0
-    heat_output: slow_pwm_anticamera
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-    visual:
-      min_temperature: 15
-      max_temperature: 30
-      temperature_step: 0.5
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_cucina
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_01
-      - switch.turn_on: relay_02
-    turn_off_action:
-      - switch.turn_off: relay_01
-      - switch.turn_off: relay_02
-  - platform: slow_pwm
-    id: slow_pwm_bagno
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_03
-    turn_off_action:
-      - switch.turn_off: relay_03
-  - platform: slow_pwm
-    id: slow_pwm_anticamera
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_04
-    turn_off_action:
-      - switch.turn_off: relay_04
-  - platform: slow_pwm
-    id: slow_pwm_soggiorno
-    period: 30s
-    turn_on_action:
-      - switch.turn_on: relay_05
-      - switch.turn_on: relay_06
-      - switch.turn_on: relay_07
-    turn_off_action:
-      - switch.turn_off: relay_05
-      - switch.turn_off: relay_06
-      - switch.turn_off: relay_07
+modbus_controller:
+  - id: modbus_0_10v_adapter_fancoils_ground_floor
+    address: 0x2
+    modbus_id: rs485_bus
+    update_interval: 5s
 
 script:
-  - id: switch_management
+  - id: ground_floor_radiant_pump_management
     mode: queued
     then:
       - if:
           condition:
-            any:
-              - switch.is_on: relay_01
-              - switch.is_on: relay_02
-              - switch.is_on: relay_03
-              - switch.is_on: relay_04
-              - switch.is_on: relay_05
-              - switch.is_on: relay_06
-              - switch.is_on: relay_07
+            lambda: |-
+              return id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_bagno_terra).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_bagno_terra).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
           then:
             - switch.turn_on: relay_16
           else:
             - switch.turn_off: relay_16
+  - id: ground_floor_fancoils_pump_management
+    mode: queued
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(pid_fancoil_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_fancoil_cucina).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_fancoil_sala_pranzo).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_fancoil_sala_pranzo).action == climate::CLIMATE_ACTION_COOLING ||
+                     id(pid_fancoil_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+                     id(pid_fancoil_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
+          then:
+            - switch.turn_off: relay_15
+          else:
+            - switch.turn_off: relay_15

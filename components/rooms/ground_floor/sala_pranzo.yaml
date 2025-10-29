@@ -1,0 +1,17 @@
+# ============================================================================
+# Sala da pranzo Room Component - Ground Floor
+# ============================================================================
+#
+# Complete room climate control component for Sala da pranzo (Living Room)
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+
+packages:
+  fancoil: !include
+    file: ../../fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42050
+      area_slug: "sala_pranzo"
+      area_name: "Sala da Pranzo"
+      sensor: soggiorno_room_temp_abstracted
+      switch_management_script: ground_floor_fancoils_pump_management

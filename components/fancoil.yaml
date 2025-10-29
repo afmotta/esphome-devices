@@ -30,17 +30,3 @@ climate:
     on_state:
       then:
         - script.execute: ${switch_management_script}
-
-binary_sensor:
-  - platform: template
-    id: fancoil_${area_slug}_pid_active
-    lambda: |-
-      switch (id(pid_fancoil_${area_slug}).action) {
-        case CLIMATE_ACTION_HEATING:
-          return true;
-        case CLIMATE_ACTION_COOLING:
-          return true;
-        default:
-          return false;
-      }
-    internal: true
