@@ -1,0 +1,111 @@
+# MEV Component - Mechanical Extract Ventilation Control
+#
+# Exposes MEV hardware controls as Home Assistant entities following Epic 5 pattern:
+# - Board exposes control entities only
+# - No on-board logic or sensors
+# - HA orchestrates all automation
+#
+# Hardware Interface:
+# - 4 relay switches (power, mode, dehumidifier, cooling)
+# - 1 DAC output for 0-10V fan speed control (uses existing DAC from board config)
+# - 1 binary sensor for alarm monitoring (uses existing input from board config)
+#
+# Required vars:
+#   mev_slug: Device slug for entity IDs (e.g., "mev_primo_piano")
+#   mev_name: Friendly name prefix (e.g., "MEV Primo Piano")
+#   power_relay: Relay ID for main power (e.g., relay_1)
+#   mode_relay: Relay ID for winter/summer mode (e.g., relay_2)
+#   dehumidifier_relay: Relay ID for dehumidifier (e.g., relay_3)
+#   cooling_relay: Relay ID for cooling integration (e.g., relay_4)
+#   fan_speed_output: DAC output ID from board config (e.g., dac_1)
+#   alarm_input: Binary sensor input ID from board config (e.g., input_1)
+
+# Number entity for fan speed percentage control (0-100%)
+# Maps to 0-10V DAC output (linear: 0%=0V, 100%=10V)
+number:
+  - platform: template
+    name: "${mev_name} Fan Speed"
+    id: ${mev_slug}_fan_speed
+    icon: mdi:fan
+    min_value: 0
+    max_value: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    set_action:
+      - output.set_level:
+          id: ${fan_speed_output}
+          level: !lambda "return x / 100.0;"
+
+# Relay switches for MEV control
+# Uses template switches to wrap PCF8574 relay entities with proper state tracking
+switch:
+  # Main power switch
+  - platform: template
+    name: "${mev_name} Power"
+    id: ${mev_slug}_power
+    icon: mdi:power
+    optimistic: false
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on: ${power_relay}
+    turn_off_action:
+      - switch.turn_off: ${power_relay}
+    lambda: |-
+      return id(${power_relay}).state;
+
+  # Winter/Summer mode switch
+  - platform: template
+    name: "${mev_name} Mode"
+    id: ${mev_slug}_mode
+    icon: mdi:thermometer
+    optimistic: false
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on: ${mode_relay}
+    turn_off_action:
+      - switch.turn_off: ${mode_relay}
+    lambda: |-
+      return id(${mode_relay}).state;
+
+  # Dehumidifier switch
+  - platform: template
+    name: "${mev_name} Dehumidifier"
+    id: ${mev_slug}_dehumidifier
+    icon: mdi:water-percent
+    optimistic: false
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on: ${dehumidifier_relay}
+    turn_off_action:
+      - switch.turn_off: ${dehumidifier_relay}
+    lambda: |-
+      return id(${dehumidifier_relay}).state;
+
+  # Cooling integration switch
+  - platform: template
+    name: "${mev_name} Cooling"
+    id: ${mev_slug}_cooling
+    icon: mdi:snowflake
+    optimistic: false
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - switch.turn_on: ${cooling_relay}
+    turn_off_action:
+      - switch.turn_off: ${cooling_relay}
+    lambda: |-
+      return id(${cooling_relay}).state;
+
+# Binary sensor for alarm monitoring
+# Wraps PCF8574 input with proper device class and friendly name
+binary_sensor:
+  - platform: template
+    name: "${mev_name} Alarm"
+    id: ${mev_slug}_alarm
+    device_class: problem
+    lambda: |-
+      // Alarm input is inverted (closed circuit = ON)
+      return id(${alarm_input}).state;
