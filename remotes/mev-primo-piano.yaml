@@ -1,0 +1,21 @@
+# Remote configuration for MEV Primo Piano
+# This file can be used for remote ESPHome dashboard configuration
+
+substitutions:
+  device_name: mev-primo-piano
+
+packages:
+  - !include "github://afmotta/esphome-devices/devices/mev-primo-piano.yaml@main"
+  - !include "github://afmotta/esphome-devices/boards/wifi.yaml@main"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+  encryption:
+    key: !secret encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password

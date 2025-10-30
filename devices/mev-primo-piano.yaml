@@ -1,0 +1,26 @@
+# MEV Primo Piano - First Floor Mechanical Extract Ventilation Control
+# Epic 6: MEV Board Integration
+# Board: KC868-A6
+
+packages:
+  base: !include ../boards/a6.yaml
+  wifi: !include ../boards/wifi.yaml
+  # MEV component will be added in Story 6.2
+  # mev: !include
+  #   file: ../components/mev.yaml
+  #   vars:
+  #     mev_slug: "mev_primo_piano"
+  #     mev_name: "MEV Primo Piano"
+  #     power_relay_id: relay_1
+  #     mode_relay_id: relay_2
+  #     dehumid_relay_id: relay_3
+  #     cooling_relay_id: relay_4
+  #     fan_speed_dac: dac_1
+  #     alarm_input_id: input_1
+
+esphome:
+  name: ${device_name}
+  friendly_name: "MEV Primo Piano"
+  comment: "First Floor Mechanical Extract Ventilation Control - KC868-A6"
+
+# Story 6.1: Foundation only - MEV component integration in Story 6.2
