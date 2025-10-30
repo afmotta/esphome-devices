@@ -10,9 +10,7 @@ packages:
     vars:
       zone_slug: "soggiorno"
       zone_name: "Soggiorno"
-      modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
-      ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
   radiant: !include
     file: ../../pid.yaml
     vars:
@@ -33,6 +31,12 @@ packages:
       area_name: "Soggiorno"
       sensor: soggiorno_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      pid_id: pid_radiant_soggiorno
 
 output:
   - platform: slow_pwm

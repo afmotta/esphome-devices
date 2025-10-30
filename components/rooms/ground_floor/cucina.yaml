@@ -11,9 +11,7 @@ packages:
     vars:
       zone_slug: "cucina"
       zone_name: "Cucina"
-      modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_cucina_temperature"
-      ha_humidity_sensor_id: "sensor.room_cucina_humidity"
   pid_radiant: !include
     file: ../../pid.yaml
     vars:
@@ -34,6 +32,12 @@ packages:
       area_name: "Cucina"
       sensor: cucina_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "cucina"
+      zone_name: "Cucina"
+      pid_id: pid_radiant_cucina
 
 output:
   - platform: slow_pwm

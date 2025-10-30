@@ -1,0 +1,82 @@
+# Component: room_emergency_shutdown.yaml
+# Purpose: Per-room emergency shutdown logic for when HA sensors fail
+# Epic: Epic 5 - HA-Only Sensors with Emergency Shutdown
+#
+# This component implements emergency shutdown actions for a single room:
+# - Monitors the room's emergency_triggered flag from room_sensors.yaml
+# - Turns OFF relays when emergency is active
+# - Sets PID to OFF mode when emergency is active
+# - Automatically recovers when sensor returns to normal
+#
+# Required vars:
+#   - zone_slug: Room identifier (must match room_sensors.yaml)
+#   - zone_name: Display name for logging
+#   - pid_id: ID of the PID climate entity to control
+#
+# Optional vars:
+#   - check_interval: How often to check emergency state (default: 5s)
+#
+# Dependencies:
+#   - room_sensors.yaml must be included in the same device
+#   - Requires ${zone_slug}_emergency_triggered global from room_sensors.yaml
+#   - Requires ${zone_slug}_recovery_start_time global from room_sensors.yaml
+#
+# Integration:
+#   This component should be included in each room component package after
+#   room_sensors.yaml and pid.yaml are included.
+#
+# Usage Example:
+# packages:
+#   room_sensors: !include ...
+#   pid_radiant: !include ...
+#   emergency_shutdown: !include
+#     file: ../../room_emergency_shutdown.yaml
+#     vars:
+#       zone_slug: "bagno_grande"
+#       zone_name: "Bagno Grande"
+#       pid_id: pid_radiant_bagno_grande
+
+defaults:
+  check_interval: 5s
+
+# ============================================================================
+# EMERGENCY SHUTDOWN MONITOR
+# ============================================================================
+# Interval script that monitors emergency state and takes action
+interval:
+  - interval: ${check_interval}
+    then:
+      - lambda: |-
+          // Check if emergency is active
+          if (id(${zone_slug}_emergency_triggered)) {
+            // ====================================================================
+            // EMERGENCY MODE: Ensure PID is OFF
+            // ====================================================================
+            // Note: PID OFF automatically sets slow_pwm to 0%, which triggers
+            // relay turn_off_action. No need to manually control slow_pwm.
+            
+            // Force PID climate to OFF mode
+            auto pid = id(${pid_id});
+            if (pid->mode != climate::CLIMATE_MODE_OFF) {
+              ESP_LOGW("emergency", "${zone_name}: EMERGENCY - Forcing PID OFF");
+              auto pid_call = pid->make_call();
+              pid_call.set_mode(climate::CLIMATE_MODE_OFF);
+              pid_call.perform();
+            }
+            
+          } else {
+            // ====================================================================
+            // NORMAL OR RECOVERING MODE
+            // ====================================================================
+            
+            // Check if we just completed recovery
+            if (id(${zone_slug}_recovery_start_time) == 0) {
+              // Fully recovered - PID will auto-resume based on HA climate entity state
+              // No action needed here; PID controller handles its own mode management
+              ESP_LOGV("emergency", "${zone_name}: Normal operation");
+            } else {
+              // In recovery state (waiting for stability)
+              unsigned long recovery_duration = (millis() - id(${zone_slug}_recovery_start_time)) / 1000;
+              ESP_LOGD("emergency", "${zone_name}: Recovering (%lu seconds)", recovery_duration);
+            }
+          }
