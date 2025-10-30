@@ -11,9 +11,7 @@ packages:
     vars:
       zone_slug: "camera_sud"
       zone_name: "Camera Sud"
-      modbus_controller_address: 0x0C
       ha_temperature_sensor_id: "sensor.room_camera_sud_temperature"
-      ha_humidity_sensor_id: "sensor.room_camera_sud_humidity"
   pid_radiant: !include
     file: ../../pid.yaml
     vars:

@@ -10,9 +10,7 @@ packages:
     vars:
       zone_slug: "soggiorno"
       zone_name: "Soggiorno"
-      modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
-      ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
   radiant: !include
     file: ../../pid.yaml
     vars:

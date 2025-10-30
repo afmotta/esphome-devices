@@ -11,9 +11,7 @@ packages:
     vars:
       zone_slug: "cucina"
       zone_name: "Cucina"
-      modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_cucina_temperature"
-      ha_humidity_sensor_id: "sensor.room_cucina_humidity"
   pid_radiant: !include
     file: ../../pid.yaml
     vars:

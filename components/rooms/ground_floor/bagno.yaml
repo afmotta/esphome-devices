@@ -11,9 +11,7 @@ packages:
     vars:
       zone_slug: "bagno_terra"
       zone_name: "Bagno Terra"
-      modbus_controller_address: 0x0C
       ha_temperature_sensor_id: "sensor.room_bagno_terra_temperature"
-      ha_humidity_sensor_id: "sensor.room_bagno_terra_humidity"
   pid_radiant: !include
     file: ../../pid.yaml
     vars:

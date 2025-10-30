@@ -11,9 +11,7 @@ packages:
     vars:
       zone_slug: "lavanderia"
       zone_name: "Lavanderia"
-      modbus_controller_address: 0x0C
       ha_temperature_sensor_id: "sensor.room_lavanderia_temperature"
-      ha_humidity_sensor_id: "sensor.room_lavanderia_humidity"
   pid_radiant: !include
     file: ../../pid.yaml
     vars:

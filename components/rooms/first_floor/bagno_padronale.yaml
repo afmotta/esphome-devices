@@ -11,9 +11,7 @@ packages:
     vars:
       zone_slug: "bagno_padronale"
       zone_name: "Bagno Padronale"
-      modbus_controller_address: 0x0C
       ha_temperature_sensor_id: "sensor.room_bagno_padronale_temperature"
-      ha_humidity_sensor_id: "sensor.room_bagno_padronale_humidity"
   pid_radiant: !include
     file: ../../pid.yaml
     vars:
