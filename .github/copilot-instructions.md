@@ -45,6 +45,17 @@ Examples from the repo:
 
 **Epic 2 Update (October 2025):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. See `docs/epic-2-migration-guide.md` for migration details and `components/deprecated/README.md` for deprecated component explanations.
 
+**Epic 5 Update (October 2025):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. Room components now use `components/room_sensors.yaml` (v5) which sources temperature data exclusively from Home Assistant with a 3-minute emergency timeout. Key patterns:
+
+- **HA-Only Sensors:** Use `room_sensors.yaml` with required vars: `zone_slug`, `zone_name`, `ha_temperature_sensor_id`
+- **Emergency Shutdown:** Include `room_emergency_shutdown.yaml` with vars: `zone_slug`, `pid_id` (automatically forces PID OFF when sensor unavailable)
+- **State Machine:** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
+- **Obsolete Variables:** Do NOT use `modbus_controller_address`, `ha_humidity_sensor_id`, or `slow_pwm_id` (removed in v5)
+- **Control Hierarchy:** Emergency shutdown only controls PID; cascade to slow_pwm→relay is automatic
+- **Diagnostic Sensors:** `text_sensor.{zone}_sensor_state` shows "Normal"/"Emergency"/"Recovering" state
+
+For details, see `docs/epic-5-migration-guide.md`, `docs/epic-5-ha-only-sensors.md`, and `docs/epic-5-completion-report.md`. The deprecated v4 room_sensors component is archived in `components/deprecated/` for reference.
+
 If unsure, prefer conservative edits and ask for clarification. After changing component contracts (vars or ids), update all device callers accordingly.
 
 Feedback: If any examples or file references are unclear, tell me where and I will expand examples or add quick cross-reference links.
