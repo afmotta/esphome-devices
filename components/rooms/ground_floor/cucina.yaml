@@ -34,6 +34,13 @@ packages:
       area_name: "Cucina"
       sensor: cucina_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "cucina"
+      zone_name: "Cucina"
+      slow_pwm_id: slow_pwm_cucina
+      pid_id: pid_radiant_cucina
 
 output:
   - platform: slow_pwm

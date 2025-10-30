@@ -25,6 +25,13 @@ packages:
       ki: 0.005
       kd: 0.05
       pump_management_script: first_floor_radiant_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "lavanderia"
+      zone_name: "Lavanderia"
+      slow_pwm_id: slow_pwm_lavanderia
+      pid_id: pid_radiant_lavanderia
 
 output:
   - platform: slow_pwm

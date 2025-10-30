@@ -25,6 +25,13 @@ packages:
       ki: 0.005
       kd: 0.05
       pump_management_script: first_floor_radiant_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "camera_padronale"
+      zone_name: "Camera Padronale"
+      slow_pwm_id: slow_pwm_camera_padronale
+      pid_id: pid_radiant_camera_padronale
 
 output:
   - platform: slow_pwm
