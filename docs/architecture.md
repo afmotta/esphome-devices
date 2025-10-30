@@ -1208,6 +1208,163 @@ Stories must be sequenced according to the 4-phase rollout plan (Section 10.1). 
 
 ---
 
+---
+
+## 16. Epic 6: MEV Integration Pattern (October 2025)
+
+### 16.1 Overview
+
+Epic 6 introduces a reusable pattern for integrating mechanical systems (Mechanical Extract Ventilation) into the ESPHome architecture. This establishes a blueprint for future mechanical system integrations (air conditioning, heat recovery, etc.).
+
+**Key Innovation:** Mechanical systems follow the same Epic 5 pattern - boards expose hardware controls as HA entities, Home Assistant provides all intelligence and automation logic.
+
+### 16.2 MEV Component Architecture
+
+**System:** Cappellotto AIR FRESH I H EVO (First Floor)  
+**Board:** KC868-A6 ESPHome  
+**Location:** `devices/mev-primo-piano.yaml`
+
+**Component Structure:**
+```yaml
+# components/mev.yaml - Reusable MEV hardware abstraction
+# Exposes 6 control entities to Home Assistant:
+# - 4 relay switches (power, mode, dehumidifier, cooling)
+# - 1 number entity (0-10V fan speed control)
+# - 1 binary sensor (alarm monitoring)
+
+packages:
+  base: !include ../boards/a6.yaml
+  wifi: !include ../boards/wifi.yaml
+  mev: !include
+    file: ../components/mev.yaml
+    vars:
+      mev_slug: "mev_primo_piano"
+      mev_name: "MEV Primo Piano"
+      power_relay: relay_1
+      mode_relay: relay_2
+      dehumid_relay: relay_3
+      cooling_relay: relay_4
+      fan_speed_output: dac_1
+      alarm_input: input_1
+```
+
+### 16.3 Hardware Interface Pattern
+
+**Relay Control Pattern:**
+```yaml
+# Template switches wrap hardware relays with state tracking
+switch:
+  - platform: template
+    name: "${mev_name} Power"
+    id: ${mev_slug}_power
+    turn_on_action:
+      - switch.turn_on: ${power_relay}
+    turn_off_action:
+      - switch.turn_off: ${power_relay}
+    lambda: |-
+      return id(${power_relay}).state;
+```
+
+**0-10V DAC Control Pattern:**
+```yaml
+# Number entity maps percentage (0-100%) to voltage (0-10V)
+number:
+  - platform: template
+    name: "${mev_name} Fan Speed"
+    id: ${mev_slug}_fan_speed
+    min_value: 0
+    max_value: 100
+    set_action:
+      - output.set_level:
+          id: ${fan_speed_output}
+          level: !lambda 'return x / 100.0;'
+```
+
+**Binary Input Monitoring Pattern:**
+```yaml
+# Template binary sensor wraps hardware input with device class
+binary_sensor:
+  - platform: template
+    name: "${mev_name} Alarm"
+    id: ${mev_slug}_alarm
+    device_class: problem
+    lambda: |-
+      return id(${alarm_input}).state;
+```
+
+### 16.4 Reusable Component Contract
+
+**Required Variables:**
+- `mev_slug`: Entity ID prefix (e.g., "mev_primo_piano")
+- `mev_name`: Friendly name prefix (e.g., "MEV Primo Piano")
+- `power_relay`: Relay ID from board config (e.g., relay_1)
+- `mode_relay`: Relay ID for seasonal mode (e.g., relay_2)
+- `dehumid_relay`: Relay ID for dehumidifier (e.g., relay_3)
+- `cooling_relay`: Relay ID for cooling integration (e.g., relay_4)
+- `fan_speed_output`: DAC output ID (e.g., dac_1)
+- `alarm_input`: Binary sensor input ID (e.g., input_1)
+
+**Exposed Entities (6 total):**
+1. `switch.${mev_slug}_power` - Main power control
+2. `switch.${mev_slug}_mode` - Winter/summer mode
+3. `switch.${mev_slug}_dehumidifier` - Dehumidifier activation
+4. `switch.${mev_slug}_cooling` - Cooling system integration
+5. `number.${mev_slug}_fan_speed` - Fan speed 0-100%
+6. `binary_sensor.${mev_slug}_alarm` - Alarm state monitoring
+
+### 16.5 Resource Usage
+
+**Compilation Metrics:**
+- Flash: 47.5% (872,138 / 1,835,008 bytes)
+- RAM: 10.6% (34,572 / 327,680 bytes)
+- Compilation Time: ~20 seconds (ESP-IDF framework)
+
+**Entity Count:** 6 exposed entities (minimal overhead)
+
+### 16.6 Future Mechanical System Pattern
+
+**Generalized Pattern for Air Conditioning, HRV, etc.:**
+```yaml
+# components/mechanical_system_template.yaml
+# 1. Identify hardware interfaces (relays, DAC outputs, inputs)
+# 2. Create parameterized component with vars for hardware IDs
+# 3. Expose entities as template wrappers with proper device classes
+# 4. Document interface contract in component header
+# 5. Include in device config with vars: mapping
+```
+
+**Key Principles:**
+- Board = hardware abstraction layer (no logic)
+- Component = reusable package with parameterized vars
+- Home Assistant = all automation and intelligence
+- Template entities = state tracking + friendly names
+
+### 16.7 Documentation Pattern
+
+Epic 6 establishes a three-document pattern for mechanical system integrations:
+
+1. **Wiring Diagram** (`docs/epic-6-mev-wiring-diagram.md`)
+   - Pin mappings (board → mechanical system)
+   - Wire specifications (gauge, type, shielding)
+   - Safety warnings and installation procedures
+   
+2. **Integration Guide** (`docs/epic-6-mev-integration-guide.md`)
+   - Entity documentation with examples
+   - Home Assistant automation snippets
+   - Dashboard configuration examples
+   - Troubleshooting common issues
+   
+3. **Testing Checklist** (`docs/epic-6-mev-testing-checklist.md`)
+   - Pre-installation bench testing
+   - Per-interface verification procedures
+   - Acceptance criteria validation
+
+**Future Mechanical Integrations:** Follow this three-document template for consistent documentation quality.
+
+---
+
 **Document Revision History:**
 - v1.0 (October 14, 2025): Initial architecture complete — Winston (Architect)
+- v1.1 (October 22, 2025): Epic 2 simplification applied — PM (Story Manager)
+- v1.2 (October 30, 2025): Epic 6 MEV integration pattern added — James (Developer)
 
