@@ -28,7 +28,6 @@ packages:
     vars:
       zone_slug: "camera_padronale"
       zone_name: "Camera Padronale"
-      slow_pwm_id: slow_pwm_camera_padronale
       pid_id: pid_radiant_camera_padronale
 
 output:

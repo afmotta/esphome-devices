@@ -28,7 +28,6 @@ packages:
     vars:
       zone_slug: "camera_sud"
       zone_name: "Camera Sud"
-      slow_pwm_id: slow_pwm_camera_sud
       pid_id: pid_radiant_camera_sud
 
 output:

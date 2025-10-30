@@ -11,7 +11,6 @@
 # Required vars:
 #   - zone_slug: Room identifier (must match room_sensors.yaml)
 #   - zone_name: Display name for logging
-#   - slow_pwm_id: ID of the slow_pwm output to control
 #   - pid_id: ID of the PID climate entity to control
 #
 # Optional vars:
@@ -35,7 +34,6 @@
 #     vars:
 #       zone_slug: "bagno_grande"
 #       zone_name: "Bagno Grande"
-#       slow_pwm_id: slow_pwm_bagno_grande
 #       pid_id: pid_radiant_bagno_grande
 
 defaults:
@@ -52,12 +50,10 @@ interval:
           // Check if emergency is active
           if (id(${zone_slug}_emergency_triggered)) {
             // ====================================================================
-            // EMERGENCY MODE: Ensure all outputs are OFF
+            // EMERGENCY MODE: Ensure PID is OFF
             // ====================================================================
-            
-            // Force slow_pwm output to 0% (which triggers relay turn_off_action)
-            // This is idempotent - safe to call repeatedly
-            id(${slow_pwm_id})->set_level(0.0f);
+            // Note: PID OFF automatically sets slow_pwm to 0%, which triggers
+            // relay turn_off_action. No need to manually control slow_pwm.
             
             // Force PID climate to OFF mode
             auto pid = id(${pid_id});

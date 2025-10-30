@@ -36,7 +36,6 @@ packages:
     vars:
       zone_slug: "soggiorno"
       zone_name: "Soggiorno"
-      slow_pwm_id: slow_pwm_soggiorno
       pid_id: pid_radiant_soggiorno
 
 output:

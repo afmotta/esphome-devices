@@ -37,7 +37,6 @@ packages:
     vars:
       zone_slug: "cucina"
       zone_name: "Cucina"
-      slow_pwm_id: slow_pwm_cucina
       pid_id: pid_radiant_cucina
 
 output:

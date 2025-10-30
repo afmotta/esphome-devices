@@ -28,7 +28,6 @@ packages:
     vars:
       zone_slug: "camera_ospiti"
       zone_name: "Camera Ospiti"
-      slow_pwm_id: slow_pwm_camera_ospiti
       pid_id: pid_radiant_camera_ospiti
 
 output:

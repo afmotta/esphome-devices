@@ -28,7 +28,6 @@ packages:
     vars:
       zone_slug: "anticamera"
       zone_name: "Anticamera"
-      slow_pwm_id: slow_pwm_anticamera
       pid_id: pid_radiant_anticamera
 
 output:
