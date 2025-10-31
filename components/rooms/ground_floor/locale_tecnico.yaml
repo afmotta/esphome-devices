@@ -22,3 +22,11 @@ packages:
       area_name: "Locale tecnico"
       sensor: locale_tecnico_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
+  window_detection: !include
+    file: ../../room_window_detection.yaml
+    vars:
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      ha_window_sensor_id: "binary_sensor.locale_tecnico_window"
+      pid_id: pid_fancoil_locale_tecnico
+      window_shutdown_modes: "cooling, heating"

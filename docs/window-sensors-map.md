@@ -8,26 +8,26 @@ Window detection requires a binary sensor from Home Assistant that indicates whe
 
 ## Ground Floor (distribuzione-piano-terra)
 
-| Room | Window Sensor Entity ID | Status | Notes |
-|------|------------------------|--------|-------|
-| Soggiorno | `binary_sensor.soggiorno_window` | ✅ Configured | Window detection active for fancoil |
-| Cucina | `binary_sensor.cucina_window` | ✅ Configured | Window detection active for fancoil |
-| Sala da Pranzo | N/A | ⚠️ Not Applicable | Fancoil-only room without PID control |
-| Bagno | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Anticamera | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Room           | Window Sensor Entity ID            | Status           | Notes                               |
+| -------------- | ---------------------------------- | ---------------- | ----------------------------------- |
+| Soggiorno      | `binary_sensor.soggiorno_window`   | ✅ Configured     | Window detection active for fancoil |
+| Cucina         | `binary_sensor.cucina_window`      | ✅ Configured     | Window detection active for fancoil |
+| Sala da Pranzo | `binary_sensor.sala_pranzo_window` | ✅ Configured     | Window detection active for fancoil |
+| Bagno          | N/A                                | ⚠️ Not Applicable | Radiant floor only (no fancoil)     |
+| Anticamera     | N/A                                | ⚠️ Not Applicable | Radiant floor only (no fancoil)     |
 
 ## First Floor (distribuzione-primo-piano)
 
-| Room | Window Sensor Entity ID | Status | Notes |
-|------|------------------------|--------|-------|
-| Camera Padronale | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Camera Nord | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Camera Sud | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Camera Ospiti | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Bagno Padronale | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Bagno Grande | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Bagno Ospiti | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
-| Lavanderia | N/A | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Room             | Window Sensor Entity ID | Status           | Notes                           |
+| ---------------- | ----------------------- | ---------------- | ------------------------------- |
+| Camera Padronale | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Camera Nord      | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Camera Sud       | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Camera Ospiti    | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Bagno Padronale  | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Bagno Grande     | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Bagno Ospiti     | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
+| Lavanderia       | N/A                     | ⚠️ Not Applicable | Radiant floor only (no fancoil) |
 
 ## Sensor Requirements
 

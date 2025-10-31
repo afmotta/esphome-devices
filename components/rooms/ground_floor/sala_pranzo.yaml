@@ -15,3 +15,11 @@ packages:
       area_name: "Sala da Pranzo"
       sensor: soggiorno_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
+  window_detection: !include
+    file: ../../room_window_detection.yaml
+    vars:
+      zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      ha_window_sensor_id: "binary_sensor.sala_pranzo_window"
+      pid_id: pid_fancoil_sala_pranzo
+      window_shutdown_modes: "cooling, heating"
