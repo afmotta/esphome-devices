@@ -38,6 +38,14 @@ packages:
       zone_slug: "cucina"
       zone_name: "Cucina"
       pid_id: pid_radiant_cucina
+  window_detection: !include
+    file: ../../room_window_detection.yaml
+    vars:
+      zone_slug: "cucina"
+      zone_name: "Cucina"
+      ha_window_sensor_id: "binary_sensor.cucina_window"
+      pid_id: pid_fancoil_cucina
+      window_shutdown_modes: "cooling, heating"
 
 output:
   - platform: slow_pwm
