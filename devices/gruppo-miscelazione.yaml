@@ -31,8 +31,6 @@ sensor:
     unit_of_measurement: "°C"
     one_wire_id: one_wire_01
 
-# Simplified PID Climate Controllers (Epic 2 Story 2.1)
-# Replaces dual_pid.yaml pattern with single PID per circuit
 climate:
   - platform: pid
     id: pid_mixing_ground_floor

@@ -1,29 +1,21 @@
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
-  room_bagno_grande: !include
-    file: ../components/rooms/first_floor/bagno_grande.yaml
-  room_bagno_ospiti: !include
-    file: ../components/rooms/first_floor/bagno_ospiti.yaml
-  room_bagno_padronale: !include
-    file: ../components/rooms/first_floor/bagno_padronale.yaml
-  room_camera_nord: !include
-    file: ../components/rooms/first_floor/camera_nord.yaml
-  room_camera_sud: !include
-    file: ../components/rooms/first_floor/camera_sud.yaml
-  room_camera_ospiti: !include
-    file: ../components/rooms/first_floor/camera_ospiti.yaml
-  room_camera_padronale: !include
-    file: ../components/rooms/first_floor/camera_padronale.yaml
-  room_lavanderia: !include
-    file: ../components/rooms/first_floor/lavanderia.yaml
+  bagno_grande: !include ../components/rooms/first_floor/bagno_grande.yaml
+  bagno_ospiti: !include ../components/rooms/first_floor/bagno_ospiti.yaml
+  bagno_padronale: !include ../components/rooms/first_floor/bagno_padronale.yaml
+  camera_nord: !include ../components/rooms/first_floor/camera_nord.yaml
+  camera_sud: !include ../components/rooms/first_floor/camera_sud.yaml
+  camera_ospiti: !include ../components/rooms/first_floor/camera_ospiti.yaml
+  camera_padronale: !include ../components/rooms/first_floor/camera_padronale.yaml
+  lavanderia: !include ../components/rooms/first_floor/lavanderia.yaml
 
 modbus:
   id: rs485_bus
   uart_id: rs485
 
 modbus_controller:
-  - id: modbus_0_10v_adapter_fancoils_first_floor
+  - id: modbus_0_10v_adapter_fancoils_second_floor
     address: 0x2
     modbus_id: rs485_bus
     update_interval: 5s
