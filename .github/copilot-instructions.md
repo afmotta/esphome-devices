@@ -56,6 +56,18 @@ Examples from the repo:
 
 For details, see `docs/epic-5-migration-guide.md`, `docs/epic-5-ha-only-sensors.md`, and `docs/epic-5-completion-report.md`. The deprecated v4 room_sensors component is archived in `components/deprecated/` for reference.
 
+**Epic 7 Update (October 2025):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. Room components can optionally include `components/room_window_detection.yaml` for automated window-aware shutdown. Key patterns:
+
+- **Window Detection:** Use `room_window_detection.yaml` for fancoil rooms with PID controllers
+- **Required Vars:** `zone_slug`, `zone_name`, `ha_window_sensor_id`, `pid_id`, `window_shutdown_modes`
+- **Equipment Decision:** Only add to rooms with fancoils+PID (NOT radiant-only or fancoil-only without PID)
+- **State Machine:** Normal → Window Open (180s timeout) → Recovering (60s) → Normal
+- **Shutdown Modes:** CSV string of climate modes to shutdown (e.g., `"cooling, heating"`)
+- **PID Integration:** Uses `climate.control` API to force PID OFF when window open
+- **Diagnostic Sensors:** `text_sensor.{zone}_window_detection_state` shows "Normal"/"Window Open"/"Recovering"
+
+For details, see `docs/epic-7-window-detection-guide.md`, `docs/window-sensors-map.md`, and `docs/epic-7-completion-report.md`.
+
 If unsure, prefer conservative edits and ask for clarification. After changing component contracts (vars or ids), update all device callers accordingly.
 
 Feedback: If any examples or file references are unclear, tell me where and I will expand examples or add quick cross-reference links.
