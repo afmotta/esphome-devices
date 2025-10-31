@@ -4,6 +4,7 @@
 #
 # Complete room climate control component for Soggiorno (Living Room)
 # Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+# Epic 7: Window detection added for fancoil system
 packages:
   room_sensors: !include
     file: ../../room_sensors.yaml
@@ -37,6 +38,14 @@ packages:
       zone_slug: "soggiorno"
       zone_name: "Soggiorno"
       pid_id: pid_radiant_soggiorno
+  window_detection: !include
+    file: ../../room_window_detection.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      ha_window_sensor_id: "binary_sensor.soggiorno_window"
+      pid_id: pid_fancoil_soggiorno
+      window_shutdown_modes: "cooling, heating"
 
 output:
   - platform: slow_pwm
