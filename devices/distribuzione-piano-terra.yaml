@@ -1,20 +1,11 @@
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
-
-  # Note: emergency_shutdown component temporarily removed - needs refactoring for slow_pwm outputs
-  # TODO: Re-add emergency_shutdown after component is updated to work with slow_pwm
-
-  room_soggiorno: !include
-    file: ../components/rooms/ground_floor/soggiorno.yaml
-  room_cucina: !include
-    file: ../components/rooms/ground_floor/cucina.yaml
-  room_bagno: !include
-    file: ../components/rooms/ground_floor/bagno.yaml
-  room_anticamera: !include
-    file: ../components/rooms/ground_floor/anticamera.yaml
-  room_sala_pranzo: !include
-    file: ../components/rooms/ground_floor/sala_pranzo.yaml
+  soggiorno: !include ../components/rooms/ground_floor/soggiorno.yaml
+  cucina: !include ../components/rooms/ground_floor/cucina.yaml
+  bagno: !include ../components/rooms/ground_floor/bagno.yaml
+  anticamera: !include ../components/rooms/ground_floor/anticamera.yaml
+  sala_pranzo: !include ../components/rooms/ground_floor/sala_pranzo.yaml
 
 modbus:
   id: rs485_bus
