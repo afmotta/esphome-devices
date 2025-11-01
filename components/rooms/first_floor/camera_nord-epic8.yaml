@@ -1,0 +1,89 @@
+# ============================================================================
+# Camera Nord Room Component - First Floor (Epic 8)
+# ============================================================================
+#
+# Complete room climate control component for Camera Nord (North Bedroom/Office)
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+#
+# Epic 8: Unified state machine architecture
+#   - Emergency condition component (sensor failure detection)
+#   - Room control coordinator (priority-based PID control)
+#
+# Migration: Epic 5 → Epic 8
+#   REMOVED: room_sensors.yaml (Epic 5)
+#   REMOVED: room_emergency_shutdown.yaml (Epic 5)
+#   ADDED: room_emergency_condition.yaml (Epic 8)
+#   ADDED: room_control_coordinator.yaml (Epic 8)
+#
+# Note: NO window condition (radiant floor only, no fancoil)
+
+packages:
+  # ============================================================================
+  # EPIC 8: CONDITION COMPONENTS
+  # ============================================================================
+
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
+    vars:
+      zone_slug: "camera_nord"
+      zone_name: "Camera Nord"
+      ha_temperature_sensor_id: "sensor.room_camera_nord_temperature"
+      emergency_timeout: 180 # 3 minutes before emergency trigger
+      recovery_timeout: 60 # 1 minute stability period
+
+  # ============================================================================
+  # EPIC 8: COORDINATOR (Priority-based control engine)
+  # ============================================================================
+
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "camera_nord"
+      zone_name: "Camera Nord"
+      pid_id: pid_radiant_camera_nord
+      coordinator_interval: 5 # 5-second polling
+
+  # ============================================================================
+  # CLIMATE CONTROL (unchanged from Epic 5)
+  # ============================================================================
+
+  pid_radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_camera_nord"
+      circuit_name: "Radiant Camera Nord"
+      output: slow_pwm_camera_nord
+      sensor: camera_nord_room_temp_abstracted
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
+      pump_management_script: first_floor_radiant_pump_management
+
+# ============================================================================
+# TEMPERATURE SENSOR ABSTRACTION
+# ============================================================================
+# Epic 8 Note: Emergency condition monitors HA sensor but doesn't expose it.
+# We need to create the abstracted sensor for PID controllers.
+
+sensor:
+  - platform: homeassistant
+    entity_id: "sensor.room_camera_nord_temperature"
+    id: camera_nord_room_temp_abstracted
+    internal: true
+    filters:
+      - filter_out: nan
+
+# ============================================================================
+# ROOM OUTPUTS (unchanged from Epic 5)
+# ============================================================================
+
+output:
+  - platform: slow_pwm
+    id: slow_pwm_camera_nord
+    period: 60s
+    turn_on_action:
+      - switch.turn_on: relay_05
+      - switch.turn_on: relay_06
+    turn_off_action:
+      - switch.turn_off: relay_05
+      - switch.turn_off: relay_06
