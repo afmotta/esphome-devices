@@ -79,7 +79,7 @@ globals:
   - id: ${zone_slug}_${condition_id}_priority
     type: int
     restore_value: false
-    initial_value: "${priority_value}"
+    initial_value: "2"
 
   # Optional debugging: Last trigger timestamp
   - id: ${zone_slug}_${condition_id}_last_trigger_time
