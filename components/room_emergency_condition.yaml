@@ -47,10 +47,10 @@
 # ============================================================================
 
 defaults:
-  emergency_timeout: 180  # 3 minutes
-  recovery_timeout: 60    # 1 minute
+  emergency_timeout: 180 # 3 minutes
+  recovery_timeout: 60 # 1 minute
   condition_id: "emergency"
-  priority_value: 1       # Highest priority (safety-critical)
+  priority_value: 1 # Highest priority (safety-critical)
 
 # ============================================================================
 # INTERFACE CONTRACT: Required Globals
@@ -62,25 +62,25 @@ globals:
     type: int
     restore_value: false
     initial_value: "0"
-  
+
   # Priority: 1=highest (emergency is most critical)
   - id: ${zone_slug}_${condition_id}_priority
     type: int
     restore_value: false
     initial_value: "1"
-  
+
   # Optional debugging: Last trigger timestamp
   - id: ${zone_slug}_${condition_id}_last_trigger_time
     type: unsigned long
     restore_value: false
     initial_value: "0"
-  
+
   # Internal state management (not part of interface contract)
   - id: ${zone_slug}_last_valid_sensor_time
     type: unsigned long
     restore_value: false
     initial_value: "0"
-  
+
   - id: ${zone_slug}_recovery_start_time
     type: unsigned long
     restore_value: false
@@ -114,7 +114,7 @@ interval:
       - lambda: |-
           unsigned long now = millis();
           int current_state = id(${zone_slug}_${condition_id}_state);
-          
+
           // ====================================================================
           // Check sensor availability
           // ====================================================================
@@ -125,13 +125,13 @@ interval:
               sensor_valid = true;
             }
           }
-          
+
           unsigned long time_since_valid = (now - id(${zone_slug}_last_valid_sensor_time)) / 1000;
-          
+
           // ====================================================================
           // STATE TRANSITION LOGIC
           // ====================================================================
-          
+
           if (!sensor_valid && time_since_valid >= ${emergency_timeout}) {
             // ================================================================
             // SENSOR FAILURE DETECTED
