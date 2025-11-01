@@ -97,27 +97,13 @@ interval:
           // READ CONDITION STATES AND PRIORITIES
           // ====================================================================
 
-          // Emergency condition
-          int emergency_state = 0;
-          int emergency_priority = 99;
-
-          if (id(${zone_slug}_emergency_state).has_value()) {
-            emergency_state = id(${zone_slug}_emergency_state).value();
-          }
-          if (id(${zone_slug}_emergency_priority).has_value()) {
-            emergency_priority = id(${zone_slug}_emergency_priority).value();
-          }
+          // Emergency condition (globals directly return values, not optionals)
+          int emergency_state = id(${zone_slug}_emergency_state);
+          int emergency_priority = id(${zone_slug}_emergency_priority);
 
           // Window condition
-          int window_state = 0;
-          int window_priority = 99;
-
-          if (id(${zone_slug}_window_state).has_value()) {
-            window_state = id(${zone_slug}_window_state).value();
-          }
-          if (id(${zone_slug}_window_priority).has_value()) {
-            window_priority = id(${zone_slug}_window_priority).value();
-          }
+          int window_state = id(${zone_slug}_window_state);
+          int window_priority = id(${zone_slug}_window_priority);
 
           // ====================================================================
           // PRIORITY RESOLUTION ALGORITHM
@@ -206,25 +192,12 @@ text_sensor:
     update_interval: ${coordinator_interval}s
     lambda: |-
       // Read condition states
-      int emergency_state = 0;
-      int emergency_priority = 99;
+      // Read condition states and priorities (globals directly return values)
+      int emergency_state = id(${zone_slug}_emergency_state);
+      int emergency_priority = id(${zone_slug}_emergency_priority);
 
-      if (id(${zone_slug}_emergency_state).has_value()) {
-        emergency_state = id(${zone_slug}_emergency_state).value();
-      }
-      if (id(${zone_slug}_emergency_priority).has_value()) {
-        emergency_priority = id(${zone_slug}_emergency_priority).value();
-      }
-
-      int window_state = 0;
-      int window_priority = 99;
-
-      if (id(${zone_slug}_window_state).has_value()) {
-        window_state = id(${zone_slug}_window_state).value();
-      }
-      if (id(${zone_slug}_window_priority).has_value()) {
-        window_priority = id(${zone_slug}_window_priority).value();
-      }
+      int window_state = id(${zone_slug}_window_state);
+      int window_priority = id(${zone_slug}_window_priority);
 
       // Priority resolution (same as interval lambda)
       int highest_priority_value = 99;
