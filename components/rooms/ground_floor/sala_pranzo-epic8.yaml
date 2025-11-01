@@ -1,0 +1,63 @@
+# ============================================================================
+# Sala da Pranzo Room Component - Ground Floor (Epic 8)
+# ============================================================================
+#
+# Complete room climate control component for Sala da Pranzo (Dining Room)
+# Includes: Fancoil PID controller (uses shared Soggiorno temperature sensor)
+#
+# Epic 8: Unified state machine architecture
+#   - Window condition component (energy efficiency for fancoil)
+#   - Room control coordinator (priority-based PID control)
+#
+# Migration: Epic 7 → Epic 8
+#   REMOVED: room_window_detection.yaml (Epic 7)
+#   ADDED: room_window_condition.yaml (Epic 8)
+#   ADDED: room_control_coordinator.yaml (Epic 8)
+#
+# UNIQUE ARCHITECTURE:
+#   - NO emergency condition (no dedicated temperature sensor)
+#   - NO temperature sensor abstraction (uses soggiorno_room_temp_abstracted)
+#   - Fancoil only (no radiant floor heating)
+#   - Relies on Soggiorno's sensor for temperature monitoring
+
+packages:
+  # ============================================================================
+  # EPIC 8: CONDITION COMPONENTS
+  # ============================================================================
+
+  window_condition: !include
+    file: ../../room_window_condition.yaml
+    vars:
+      zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      ha_window_sensor_id: "binary_sensor.sala_pranzo_window"
+      pid_id: pid_fancoil_sala_pranzo
+      window_shutdown_modes: "cooling, heating"
+      window_timeout: 180 # 3 minutes grace period
+      recovery_timeout: 60 # 1 minute stability period
+
+  # ============================================================================
+  # EPIC 8: COORDINATOR (Priority-based control engine)
+  # ============================================================================
+
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      pid_id: pid_fancoil_sala_pranzo
+      coordinator_interval: 5 # 5-second polling
+
+  # ============================================================================
+  # CLIMATE CONTROL (unchanged from Epic 7)
+  # ============================================================================
+
+  fancoil: !include
+    file: ../../fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42050
+      area_slug: "sala_pranzo"
+      area_name: "Sala da Pranzo"
+      sensor: soggiorno_room_temp_abstracted
+      switch_management_script: ground_floor_fancoils_pump_management
