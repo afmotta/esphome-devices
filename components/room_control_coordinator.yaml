@@ -1,0 +1,257 @@
+# Component: room_control_coordinator.yaml
+# Purpose: Stateless coordinator for unified condition-based PID control
+# Epic: Epic 8 - Unified State Machine Architecture
+# Design: epic-8-coordinator-design.md v1.0
+#
+# This component implements a stateless aggregation engine that:
+# - Reads condition states from multiple condition components (emergency, window, occupancy)
+# - Applies priority hierarchy to determine which condition should control PID
+# - Forces PID to OFF when any condition is Active or Recovering
+# - Provides diagnostic observability showing which condition is currently active
+#
+# KEY ARCHITECTURE:
+#   - Coordinator is STATELESS (all state lives in condition components)
+#   - Coordinator reads condition globals, makes control decisions
+#   - Priority resolution: lowest priority number = highest importance
+#   - MVP: HA automation handles PID resume when conditions clear
+#
+# Required vars:
+#   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
+#   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
+#   - pid_id: PID climate entity ID (e.g., "pid_soggiorno")
+#
+# Optional vars (with defaults):
+#   - coordinator_interval: Polling interval in seconds (default: 5)
+#
+# Dependencies:
+#   - Condition components must be included and expose interface contract globals:
+#     - ${zone_slug}_emergency_state, ${zone_slug}_emergency_priority
+#     - ${zone_slug}_window_state, ${zone_slug}_window_priority
+#     - (future: occupancy, etc.)
+#   - PID climate component must be configured with matching pid_id
+#
+# Exposes:
+#   - text_sensor.{zone}_coordinator_status: Human-readable coordination state
+#       Examples: "Normal (All Clear)", "Shutdown: Emergency (Active)", 
+#                 "Shutdown: Window (Recovering)"
+#
+# Priority Hierarchy (lower number = higher priority):
+#   1 = Emergency (sensor failure - safety critical)
+#   2 = Window (open window - energy efficiency)
+#   3+ = Future conditions (occupancy, schedule, etc.)
+#
+# Coordinator Decision Logic:
+#   - Read all condition states+priorities
+#   - Filter conditions where state > 0 (Active=1 or Recovering=2)
+#   - Select condition with lowest priority number (highest importance)
+#   - Force PID to OFF if any condition Active/Recovering
+#   - Log coordination decisions for debugging
+#
+# MVP Behavior:
+#   - Coordinator forces PID OFF when conditions trigger
+#   - Coordinator does NOT auto-resume PID when conditions clear
+#   - HA automation monitors coordinator_status and resumes climate control
+#
+# Integration Example:
+# packages:
+#   emergency_condition: !include
+#     file: ../room_emergency_condition.yaml
+#     vars:
+#       zone_slug: soggiorno
+#       zone_name: "Soggiorno"
+#       ha_temperature_sensor_id: sensor.soggiorno_temperature
+#   window_condition: !include
+#     file: ../room_window_condition.yaml
+#     vars:
+#       zone_slug: soggiorno
+#       zone_name: "Soggiorno"
+#       ha_window_sensor_id: binary_sensor.soggiorno_window
+#       pid_id: pid_soggiorno
+#       window_shutdown_modes: "cooling, heating"
+#   coordinator: !include
+#     file: ../room_control_coordinator.yaml
+#     vars:
+#       zone_slug: soggiorno
+#       zone_name: "Soggiorno"
+#       pid_id: pid_soggiorno
+#
+# Version History:
+#   - v1.0 (Nov 2025): Initial Epic 8 implementation following coordinator design doc
+
+# ============================================================================
+# DEFAULT VALUES
+# ============================================================================
+
+defaults:
+  coordinator_interval: 5  # 5 seconds polling interval
+
+# ============================================================================
+# COORDINATOR STATE MACHINE (Polling every 5s)
+# ============================================================================
+
+interval:
+  - interval: ${coordinator_interval}s
+    then:
+      - lambda: |-
+          // ====================================================================
+          // READ CONDITION STATES AND PRIORITIES
+          // ====================================================================
+          
+          // Emergency condition
+          int emergency_state = 0;
+          int emergency_priority = 99;
+          
+          if (id(${zone_slug}_emergency_state).has_value()) {
+            emergency_state = id(${zone_slug}_emergency_state).value();
+          }
+          if (id(${zone_slug}_emergency_priority).has_value()) {
+            emergency_priority = id(${zone_slug}_emergency_priority).value();
+          }
+          
+          // Window condition
+          int window_state = 0;
+          int window_priority = 99;
+          
+          if (id(${zone_slug}_window_state).has_value()) {
+            window_state = id(${zone_slug}_window_state).value();
+          }
+          if (id(${zone_slug}_window_priority).has_value()) {
+            window_priority = id(${zone_slug}_window_priority).value();
+          }
+          
+          // ====================================================================
+          // PRIORITY RESOLUTION ALGORITHM
+          // ====================================================================
+          // Find highest priority (lowest number) condition with state > 0
+          
+          int highest_priority_value = 99;  // Sentinel: no active condition
+          std::string active_condition_name = "None";
+          std::string active_condition_state_name = "";
+          
+          // Check emergency condition
+          if (emergency_state > 0) {
+            // Validate priority is in valid range
+            if (emergency_priority < 1 || emergency_priority > 99) {
+              ESP_LOGW("coordinator", "${zone_name}: Invalid emergency priority %d, ignoring", emergency_priority);
+            } else {
+              if (emergency_priority < highest_priority_value) {
+                highest_priority_value = emergency_priority;
+                active_condition_name = "Emergency";
+                active_condition_state_name = (emergency_state == 1) ? "Active" : "Recovering";
+              }
+            }
+          }
+          
+          // Check window condition
+          if (window_state > 0) {
+            // Validate priority is in valid range
+            if (window_priority < 1 || window_priority > 99) {
+              ESP_LOGW("coordinator", "${zone_name}: Invalid window priority %d, ignoring", window_priority);
+            } else {
+              if (window_priority < highest_priority_value) {
+                highest_priority_value = window_priority;
+                active_condition_name = "Window";
+                active_condition_state_name = (window_state == 1) ? "Active" : "Recovering";
+              }
+            }
+          }
+          
+          // ====================================================================
+          // PID CONTROL DECISION TREE
+          // ====================================================================
+          
+          auto pid = id(${pid_id});
+          bool shutdown_required = (highest_priority_value < 99);
+          
+          if (shutdown_required) {
+            // ----------------------------------------------------------------
+            // AT LEAST ONE CONDITION ACTIVE OR RECOVERING
+            // ----------------------------------------------------------------
+            
+            if (pid->mode != climate::CLIMATE_MODE_OFF) {
+              // PID is running, need to shut down
+              ESP_LOGW("coordinator", "${zone_name}: SHUTDOWN TRIGGERED - Condition: %s (%s), Priority: %d", 
+                       active_condition_name.c_str(), active_condition_state_name.c_str(), highest_priority_value);
+              
+              auto call = pid->make_call();
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+              call.perform();
+              
+            } else {
+              // PID already OFF, maintain shutdown
+              ESP_LOGD("coordinator", "${zone_name}: SHUTDOWN MAINTAINED - Condition: %s (%s), Priority: %d", 
+                       active_condition_name.c_str(), active_condition_state_name.c_str(), highest_priority_value);
+            }
+            
+          } else {
+            // ----------------------------------------------------------------
+            // ALL CONDITIONS NORMAL
+            // ----------------------------------------------------------------
+            
+            ESP_LOGV("coordinator", "${zone_name}: NORMAL - All conditions clear");
+            
+            // MVP: Do NOT auto-resume PID
+            // HA automation monitors coordinator_status and handles resume
+          }
+
+# ============================================================================
+# DIAGNOSTIC STATUS SENSOR
+# ============================================================================
+
+text_sensor:
+  - platform: template
+    id: ${zone_slug}_coordinator_status
+    name: "${zone_name} Control Status"
+    icon: "mdi:state-machine"
+    update_interval: ${coordinator_interval}s
+    lambda: |-
+      // Read condition states
+      int emergency_state = 0;
+      int emergency_priority = 99;
+      
+      if (id(${zone_slug}_emergency_state).has_value()) {
+        emergency_state = id(${zone_slug}_emergency_state).value();
+      }
+      if (id(${zone_slug}_emergency_priority).has_value()) {
+        emergency_priority = id(${zone_slug}_emergency_priority).value();
+      }
+      
+      int window_state = 0;
+      int window_priority = 99;
+      
+      if (id(${zone_slug}_window_state).has_value()) {
+        window_state = id(${zone_slug}_window_state).value();
+      }
+      if (id(${zone_slug}_window_priority).has_value()) {
+        window_priority = id(${zone_slug}_window_priority).value();
+      }
+      
+      // Priority resolution (same as interval lambda)
+      int highest_priority_value = 99;
+      std::string active_condition_name = "None";
+      std::string active_condition_state_name = "";
+      
+      // Check emergency condition
+      if (emergency_state > 0 && emergency_priority >= 1 && emergency_priority <= 99) {
+        if (emergency_priority < highest_priority_value) {
+          highest_priority_value = emergency_priority;
+          active_condition_name = "Emergency";
+          active_condition_state_name = (emergency_state == 1) ? "Active" : "Recovering";
+        }
+      }
+      
+      // Check window condition
+      if (window_state > 0 && window_priority >= 1 && window_priority <= 99) {
+        if (window_priority < highest_priority_value) {
+          highest_priority_value = window_priority;
+          active_condition_name = "Window";
+          active_condition_state_name = (window_state == 1) ? "Active" : "Recovering";
+        }
+      }
+      
+      // Generate status string
+      if (highest_priority_value < 99) {
+        return {"Shutdown: " + active_condition_name + " (" + active_condition_state_name + ")"};
+      } else {
+        return {"Normal (All Clear)"};
+      }
