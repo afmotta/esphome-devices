@@ -1,0 +1,69 @@
+# ============================================================================
+# Camera Sud Room Component - First Floor (Epic 8)
+# ============================================================================
+#
+# Epic 8 unified architecture: Condition components + Room Control Coordinator
+# Equipment: Radiant floor heating only
+# Conditions: Emergency (sensor failure detection only)
+
+packages:
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
+    vars:
+      zone_slug: "camera_sud"
+      zone_name: "Camera Sud"
+      ha_temperature_sensor_id: "sensor.room_camera_sud_temperature"
+      priority: 1
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "camera_sud"
+      zone_name: "Camera Sud"
+      pid_id: pid_radiant_camera_sud
+      emergency_condition_priority_id: camera_sud_emergency_condition_priority
+      emergency_condition_state_id: camera_sud_emergency_condition_state
+  pid_radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_camera_sud"
+      circuit_name: "Radiant Camera Sud"
+      output: slow_pwm_camera_sud
+      sensor: camera_sud_room_temp_abstracted
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
+      pump_management_script: first_floor_radiant_pump_management
+
+# ============================================================================
+# Temperature Sensor Abstraction
+# ============================================================================
+# Epic 8 emergency condition monitors sensor but doesn't expose it for PID use
+# Need abstraction layer for PID controller integration
+
+sensor:
+  - platform: homeassistant
+    id: camera_sud_room_temp_abstracted
+    entity_id: "sensor.room_camera_sud_temperature"
+    filters:
+      - filter_out: nan
+    on_value:
+      then:
+        - logger.log:
+            format: "[Camera Sud] Temperature abstraction updated: %.1f°C"
+            args: ["x"]
+            level: DEBUG
+
+# ============================================================================
+# Output Configuration
+# ============================================================================
+
+output:
+  - platform: slow_pwm
+    id: slow_pwm_camera_sud
+    period: 60s
+    turn_on_action:
+      - switch.turn_on: relay_03
+      - switch.turn_on: relay_04
+    turn_off_action:
+      - switch.turn_off: relay_03
+      - switch.turn_off: relay_04
