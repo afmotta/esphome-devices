@@ -1,17 +1,34 @@
 # ============================================================================
-# Camera Ospiti Room Component - First Floor
+# Camera Ospiti Room Component - First Floor (Epic 8)
 # ============================================================================
 #
-# Complete room climate control component for Camera Ospiti
-# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+# Epic 8 unified architecture: Condition components + Room Control Coordinator
+# Equipment: Radiant floor heating only
+# Conditions: Emergency (sensor failure detection only)
 
 packages:
-  room_sensors: !include
-    file: ../../room_sensors.yaml
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
     vars:
       zone_slug: "camera_ospiti"
       zone_name: "Camera Ospiti"
       ha_temperature_sensor_id: "sensor.room_camera_ospiti_temperature"
+      priority: 1
+
+  # Window condition stub (radiant-only room has no real window detection)
+  window_condition_stub: !include
+    file: ../../room_window_condition_stub.yaml
+    vars:
+      zone_slug: "camera_ospiti"
+
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "camera_ospiti"
+      zone_name: "Camera Ospiti"
+      pid_id: pid_radiant_camera_ospiti
+      emergency_condition_priority_id: camera_ospiti_emergency_condition_priority
+      emergency_condition_state_id: camera_ospiti_emergency_condition_state
   pid_radiant: !include
     file: ../../pid.yaml
     vars:
@@ -23,12 +40,29 @@ packages:
       ki: 0.005
       kd: 0.05
       pump_management_script: first_floor_radiant_pump_management
-  emergency_shutdown: !include
-    file: ../../room_emergency_shutdown.yaml
-    vars:
-      zone_slug: "camera_ospiti"
-      zone_name: "Camera Ospiti"
-      pid_id: pid_radiant_camera_ospiti
+
+# ============================================================================
+# Temperature Sensor Abstraction
+# ============================================================================
+# Epic 8 emergency condition monitors sensor but doesn't expose it for PID use
+# Need abstraction layer for PID controller integration
+
+sensor:
+  - platform: homeassistant
+    id: camera_ospiti_room_temp_abstracted
+    entity_id: "sensor.room_camera_ospiti_temperature"
+    filters:
+      - filter_out: nan
+    on_value:
+      then:
+        - logger.log:
+            format: "[Camera Ospiti] Temperature abstraction updated: %.1f°C"
+            args: ["x"]
+            level: DEBUG
+
+# ============================================================================
+# Output Configuration
+# ============================================================================
 
 output:
   - platform: slow_pwm

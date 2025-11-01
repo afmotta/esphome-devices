@@ -1,11 +1,12 @@
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
-  soggiorno: !include ../components/rooms/ground_floor/soggiorno-epic8.yaml
+  soggiorno: !include ../components/rooms/ground_floor/soggiorno.yaml
   cucina: !include ../components/rooms/ground_floor/cucina.yaml
   bagno: !include ../components/rooms/ground_floor/bagno.yaml
-  anticamera: !include ../components/rooms/ground_floor/anticamera-epic8.yaml
+  anticamera: !include ../components/rooms/ground_floor/anticamera.yaml
   sala_pranzo: !include ../components/rooms/ground_floor/sala_pranzo.yaml
+  locale_tecnico: !include ../components/rooms/ground_floor/locale_tecnico.yaml
 
 modbus:
   id: rs485_bus

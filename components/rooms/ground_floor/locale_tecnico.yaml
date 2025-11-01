@@ -1,18 +1,38 @@
 # ============================================================================
-# Locale tecnico Room Component - Ground Floor
+# Locale Tecnico Room Component - Ground Floor (Epic 8)
 # ============================================================================
 #
-# Complete room climate control component for Locale tecnico (Technical Room)
-# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+# Epic 8 unified architecture: Condition components + Room Control Coordinator
+# Equipment: Fancoil only
+# Conditions: Emergency (sensor failure) + Window (open window detection)
+
 packages:
-  room_sensors: !include
-    file: ../../room_sensors.yaml
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
     vars:
       zone_slug: "locale_tecnico"
       zone_name: "Locale tecnico"
-      modbus_controller_address: 0x0A
       ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
-      ha_humidity_sensor_id: "sensor.room_locale_tecnico_humidity"
+      priority: 1
+  window_condition: !include
+    file: ../../room_window_condition.yaml
+    vars:
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      ha_window_sensor_id: "binary_sensor.locale_tecnico_window"
+      pid_id: pid_fancoil_locale_tecnico
+      window_shutdown_modes: "cooling, heating"
+      priority: 2
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      pid_id: pid_fancoil_locale_tecnico
+      emergency_condition_priority_id: locale_tecnico_emergency_condition_priority
+      emergency_condition_state_id: locale_tecnico_emergency_condition_state
+      window_condition_priority_id: locale_tecnico_window_condition_priority
+      window_condition_state_id: locale_tecnico_window_condition_state
   fancoil: !include
     file: ../../fancoil.yaml
     vars:
@@ -22,11 +42,22 @@ packages:
       area_name: "Locale tecnico"
       sensor: locale_tecnico_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
-  window_detection: !include
-    file: ../../room_window_detection.yaml
-    vars:
-      zone_slug: "locale_tecnico"
-      zone_name: "Locale tecnico"
-      ha_window_sensor_id: "binary_sensor.locale_tecnico_window"
-      pid_id: pid_fancoil_locale_tecnico
-      window_shutdown_modes: "cooling, heating"
+
+# ============================================================================
+# Temperature Sensor Abstraction
+# ============================================================================
+# Epic 8 emergency condition monitors sensor but doesn't expose it for PID use
+# Need abstraction layer for PID controller integration
+
+sensor:
+  - platform: homeassistant
+    id: locale_tecnico_room_temp_abstracted
+    entity_id: "sensor.room_locale_tecnico_temperature"
+    filters:
+      - filter_out: nan
+    on_value:
+      then:
+        - logger.log:
+            format: "[Locale tecnico] Temperature abstraction updated: %.1f°C"
+            args: ["x"]
+            level: DEBUG

@@ -1,0 +1,42 @@
+# ============================================================================
+# Camera Nord Room Component - First Floor
+# ============================================================================
+#
+# Complete room climate control component for Camera Nord
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+
+packages:
+  room_sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "camera_nord"
+      zone_name: "Camera Nord"
+      ha_temperature_sensor_id: "sensor.room_camera_nord_temperature"
+  pid_radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_camera_nord"
+      circuit_name: "Radiant Camera Nord"
+      output: slow_pwm_camera_nord
+      sensor: camera_nord_room_temp_abstracted
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
+      pump_management_script: first_floor_radiant_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "camera_nord"
+      zone_name: "Camera Nord"
+      pid_id: pid_radiant_camera_nord
+
+output:
+  - platform: slow_pwm
+    id: slow_pwm_camera_nord
+    period: 60s
+    turn_on_action:
+      - switch.turn_on: relay_05
+      - switch.turn_on: relay_06
+    turn_off_action:
+      - switch.turn_off: relay_05
+      - switch.turn_off: relay_06

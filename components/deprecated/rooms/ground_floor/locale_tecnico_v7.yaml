@@ -1,0 +1,32 @@
+# ============================================================================
+# Locale tecnico Room Component - Ground Floor
+# ============================================================================
+#
+# Complete room climate control component for Locale tecnico (Technical Room)
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+packages:
+  room_sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      modbus_controller_address: 0x0A
+      ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
+      ha_humidity_sensor_id: "sensor.room_locale_tecnico_humidity"
+  fancoil: !include
+    file: ../../fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42052
+      area_slug: "locale_tecnico"
+      area_name: "Locale tecnico"
+      sensor: locale_tecnico_room_temp_abstracted
+      switch_management_script: ground_floor_fancoils_pump_management
+  window_detection: !include
+    file: ../../room_window_detection.yaml
+    vars:
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      ha_window_sensor_id: "binary_sensor.locale_tecnico_window"
+      pid_id: pid_fancoil_locale_tecnico
+      window_shutdown_modes: "cooling, heating"
