@@ -32,7 +32,7 @@
 #
 # Exposes:
 #   - text_sensor.{zone}_coordinator_status: Human-readable coordination state
-#       Examples: "Normal (All Clear)", "Shutdown: Emergency (Active)", 
+#       Examples: "Normal (All Clear)", "Shutdown: Emergency (Active)",
 #                 "Shutdown: Window (Recovering)"
 #
 # Priority Hierarchy (lower number = higher priority):
@@ -83,7 +83,7 @@
 # ============================================================================
 
 defaults:
-  coordinator_interval: 5  # 5 seconds polling interval
+  coordinator_interval: 5 # 5 seconds polling interval
 
 # ============================================================================
 # COORDINATOR STATE MACHINE (Polling every 5s)
@@ -96,38 +96,38 @@ interval:
           // ====================================================================
           // READ CONDITION STATES AND PRIORITIES
           // ====================================================================
-          
+
           // Emergency condition
           int emergency_state = 0;
           int emergency_priority = 99;
-          
+
           if (id(${zone_slug}_emergency_state).has_value()) {
             emergency_state = id(${zone_slug}_emergency_state).value();
           }
           if (id(${zone_slug}_emergency_priority).has_value()) {
             emergency_priority = id(${zone_slug}_emergency_priority).value();
           }
-          
+
           // Window condition
           int window_state = 0;
           int window_priority = 99;
-          
+
           if (id(${zone_slug}_window_state).has_value()) {
             window_state = id(${zone_slug}_window_state).value();
           }
           if (id(${zone_slug}_window_priority).has_value()) {
             window_priority = id(${zone_slug}_window_priority).value();
           }
-          
+
           // ====================================================================
           // PRIORITY RESOLUTION ALGORITHM
           // ====================================================================
           // Find highest priority (lowest number) condition with state > 0
-          
+
           int highest_priority_value = 99;  // Sentinel: no active condition
           std::string active_condition_name = "None";
           std::string active_condition_state_name = "";
-          
+
           // Check emergency condition
           if (emergency_state > 0) {
             // Validate priority is in valid range
@@ -141,7 +141,7 @@ interval:
               }
             }
           }
-          
+
           // Check window condition
           if (window_state > 0) {
             // Validate priority is in valid range
@@ -155,14 +155,14 @@ interval:
               }
             }
           }
-          
+
           // ====================================================================
           // PID CONTROL DECISION TREE
           // ====================================================================
-          
+
           auto pid = id(${pid_id});
           bool shutdown_required = (highest_priority_value < 99);
-          
+
           if (shutdown_required) {
             // ----------------------------------------------------------------
             // AT LEAST ONE CONDITION ACTIVE OR RECOVERING
@@ -208,29 +208,29 @@ text_sensor:
       // Read condition states
       int emergency_state = 0;
       int emergency_priority = 99;
-      
+
       if (id(${zone_slug}_emergency_state).has_value()) {
         emergency_state = id(${zone_slug}_emergency_state).value();
       }
       if (id(${zone_slug}_emergency_priority).has_value()) {
         emergency_priority = id(${zone_slug}_emergency_priority).value();
       }
-      
+
       int window_state = 0;
       int window_priority = 99;
-      
+
       if (id(${zone_slug}_window_state).has_value()) {
         window_state = id(${zone_slug}_window_state).value();
       }
       if (id(${zone_slug}_window_priority).has_value()) {
         window_priority = id(${zone_slug}_window_priority).value();
       }
-      
+
       // Priority resolution (same as interval lambda)
       int highest_priority_value = 99;
       std::string active_condition_name = "None";
       std::string active_condition_state_name = "";
-      
+
       // Check emergency condition
       if (emergency_state > 0 && emergency_priority >= 1 && emergency_priority <= 99) {
         if (emergency_priority < highest_priority_value) {
@@ -239,7 +239,7 @@ text_sensor:
           active_condition_state_name = (emergency_state == 1) ? "Active" : "Recovering";
         }
       }
-      
+
       // Check window condition
       if (window_state > 0 && window_priority >= 1 && window_priority <= 99) {
         if (window_priority < highest_priority_value) {
@@ -248,7 +248,7 @@ text_sensor:
           active_condition_state_name = (window_state == 1) ? "Active" : "Recovering";
         }
       }
-      
+
       // Generate status string
       if (highest_priority_value < 99) {
         return {"Shutdown: " + active_condition_name + " (" + active_condition_state_name + ")"};
