@@ -1,0 +1,329 @@
+# Component: room_window_condition.yaml
+# Purpose: Detect window-open conditions and expose state+priority to coordinator
+# Epic: Epic 8 - Unified State Machine Architecture
+# Interface: Epic 8 Condition Contract v1.0 (docs/epic-8-condition-interface-spec.md)
+#
+# This component implements window detection for climate shutdown following
+# the Epic 8 condition interface contract. It exposes state+priority globals that the
+# room_control_coordinator.yaml reads to coordinate shutdown actions.
+#
+# KEY ARCHITECTURE CHANGE from Epic 7:
+#   - Epic 7: Monolithic detection + control (PID shutdown in this component)
+#   - Epic 8: Separated detection (this component) + control (coordinator component)
+#
+# MODE-AWARENESS DESIGN:
+#   Unlike "dumb sensor" principle, window condition retains mode-awareness logic
+#   for semantic correctness. Window open during heating is wasteful but not critical;
+#   window open during cooling is highly wasteful. Condition autonomy allows it to
+#   understand its own trigger semantics without coordinator needing mode-specific rules.
+#
+# Required vars:
+#   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
+#   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
+#   - ha_window_sensor_id: HA binary sensor entity ID (e.g., "binary_sensor.soggiorno_window")
+#   - pid_id: PID climate entity ID for mode checking (e.g., "pid_soggiorno")
+#   - window_shutdown_modes: Comma-separated climate modes that trigger shutdown
+#       Examples:
+#         - "cooling, heating" → Shutdown in both modes (typical for fancoils)
+#         - "cooling" → Shutdown only in cooling mode
+#         - "" → Never shutdown (not recommended, but supported)
+#
+# Optional vars (with defaults):
+#   - window_timeout: Seconds before window trigger (default: 180 = 3 min)
+#   - recovery_timeout: Seconds of stability for recovery (default: 60 = 1 min)
+#   - condition_id: Condition identifier for globals (default: "window")
+#   - priority_value: Priority in coordinator hierarchy (default: 2 = second highest)
+#
+# Exposes (Epic 8 Interface Contract):
+#   - global.{zone}_window_state: State enum (0=Normal, 1=Active, 2=Recovering)
+#   - global.{zone}_window_priority: Priority value (2=second highest)
+#   - text_sensor.{zone}_window_state_sensor: Human-readable state for HA dashboard
+#   - global.{zone}_window_last_trigger_time: Debug timestamp (optional)
+#
+# State Machine:
+#   Normal (0) → Active (1)      [window open for window_timeout seconds AND mode in shutdown_modes]
+#   Active (1) → Recovering (2)  [window closes OR mode changes to non-shutdown mode]
+#   Recovering (2) → Normal (0)  [stability for recovery_timeout seconds]
+#   Recovering (2) → Active (1)  [window re-opens during recovery AND mode in shutdown_modes]
+#
+# Coordinator Integration:
+#   - Coordinator reads {zone}_window_state and {zone}_window_priority globals
+#   - Coordinator forces PID OFF when state is Active (1) or Recovering (2)
+#   - Coordinator handles PID resume when state returns to Normal (0)
+#
+# Version History:
+#   - v1.0 (Oct 2025): Initial Epic 8 implementation (refactored from room_window_detection.yaml)
+
+# ============================================================================
+# DEFAULT VALUES
+# ============================================================================
+
+defaults:
+  window_timeout: 180 # 3 minutes grace period
+  recovery_timeout: 60 # 1 minute stability period
+  condition_id: "window"
+  priority_value: 2 # Second highest priority (below emergency)
+
+# ============================================================================
+# INTERFACE CONTRACT: Required Globals
+# ============================================================================
+
+globals:
+  # State: 0=Normal, 1=Active, 2=Recovering
+  - id: ${zone_slug}_${condition_id}_state
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Priority: 2=second highest (energy efficiency, not safety-critical)
+  - id: ${zone_slug}_${condition_id}_priority
+    type: int
+    restore_value: false
+    initial_value: "${priority_value}"
+
+  # Optional debugging: Last trigger timestamp
+  - id: ${zone_slug}_${condition_id}_last_trigger_time
+    type: unsigned long
+    restore_value: false
+    initial_value: "0"
+
+  # Internal state management (not part of interface contract)
+  # Timestamp when window was opened (0 = closed)
+  - id: ${zone_slug}_window_open_time
+    type: unsigned long
+    restore_value: false
+    initial_value: "0"
+
+  # Recovery start timestamp (0 = not in recovery)
+  - id: ${zone_slug}_window_recovery_start_time
+    type: unsigned long
+    restore_value: false
+    initial_value: "0"
+
+# ============================================================================
+# HA WINDOW SENSOR MONITORING
+# ============================================================================
+
+binary_sensor:
+  - platform: homeassistant
+    entity_id: ${ha_window_sensor_id}
+    id: ${zone_slug}_window_sensor
+    internal: true
+    on_state:
+      then:
+        - lambda: |-
+            // Log window state changes
+            if (x) {
+              ESP_LOGI("window_condition", "${zone_name}: Window OPENED");
+            } else {
+              ESP_LOGI("window_condition", "${zone_name}: Window CLOSED");
+            }
+
+# ============================================================================
+# STATE MACHINE (10s polling interval)
+# ============================================================================
+
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          unsigned long now = millis();
+          int current_state = id(${zone_slug}_${condition_id}_state);
+
+          // ====================================================================
+          // GET WINDOW SENSOR STATE
+          // ====================================================================
+
+          bool window_open = false;
+          bool sensor_available = false;
+
+          if (id(${zone_slug}_window_sensor).has_state()) {
+            sensor_available = true;
+            window_open = id(${zone_slug}_window_sensor).state;
+          } else {
+            // Sensor unavailable - graceful degradation (treat as closed)
+            ESP_LOGV("window_condition", "${zone_name}: Window sensor unavailable, treating as closed");
+            sensor_available = false;
+            window_open = false;
+          }
+
+          // ====================================================================
+          // GET CURRENT PID MODE (Mode-Awareness Logic)
+          // ====================================================================
+
+          auto pid = id(${pid_id});
+          climate::ClimateMode current_mode = pid->mode;
+
+          // Check if current mode is in shutdown_modes list
+          bool mode_requires_shutdown = false;
+          std::string modes_str = "${window_shutdown_modes}";
+
+          // Parse comma-separated list and check each mode
+          if (modes_str.find("heating") != std::string::npos && 
+              current_mode == climate::CLIMATE_MODE_HEAT) {
+            mode_requires_shutdown = true;
+          }
+          if (modes_str.find("cooling") != std::string::npos && 
+              current_mode == climate::CLIMATE_MODE_COOL) {
+            mode_requires_shutdown = true;
+          }
+          if (modes_str.find("heat_cool") != std::string::npos && 
+              current_mode == climate::CLIMATE_MODE_HEAT_COOL) {
+            mode_requires_shutdown = true;
+          }
+          if (modes_str.find("auto") != std::string::npos && 
+              current_mode == climate::CLIMATE_MODE_AUTO) {
+            mode_requires_shutdown = true;
+          }
+
+          // ====================================================================
+          // STATE TRANSITION LOGIC
+          // ====================================================================
+
+          if (window_open && sensor_available) {
+            // ================================================================
+            // WINDOW IS OPEN
+            // ================================================================
+            
+            // Track when window opened
+            if (id(${zone_slug}_window_open_time) == 0) {
+              id(${zone_slug}_window_open_time) = now;
+              ESP_LOGD("window_condition", "${zone_name}: Window open timer started");
+            }
+            
+            // Calculate how long window has been open
+            unsigned long open_duration = (now - id(${zone_slug}_window_open_time)) / 1000;  // seconds
+            
+            // Check if we should trigger shutdown
+            if (open_duration >= ${window_timeout}) {
+              // Window open longer than timeout
+              
+              if (mode_requires_shutdown) {
+                // ============================================================
+                // TRIGGER CONDITION: Window + Mode Match
+                // ============================================================
+                
+                if (current_state == 0) {
+                  // ----------------------------------------------------------
+                  // TRANSITION: Normal (0) → Active (1)
+                  // ----------------------------------------------------------
+                  id(${zone_slug}_${condition_id}_state) = 1;
+                  id(${zone_slug}_${condition_id}_last_trigger_time) = now;
+                  id(${zone_slug}_window_recovery_start_time) = 0;  // Clear recovery
+                  ESP_LOGW("window_condition", "${zone_name}: WINDOW ACTIVE - Open for %lu seconds in mode %d", 
+                           open_duration, (int)current_mode);
+                  
+                } else if (current_state == 2) {
+                  // ----------------------------------------------------------
+                  // TRANSITION: Recovering (2) → Active (1)
+                  // Window re-opened during recovery
+                  // ----------------------------------------------------------
+                  id(${zone_slug}_${condition_id}_state) = 1;
+                  id(${zone_slug}_window_recovery_start_time) = 0;
+                  ESP_LOGW("window_condition", "${zone_name}: WINDOW RE-TRIGGERED - Opened again during recovery");
+                  
+                } else {
+                  // Already Active (1), no state change needed
+                  ESP_LOGV("window_condition", "${zone_name}: WINDOW ACTIVE - Still open (%lu seconds)", open_duration);
+                }
+                
+              } else {
+                // ============================================================
+                // MODE DOES NOT REQUIRE SHUTDOWN
+                // ============================================================
+                ESP_LOGD("window_condition", "${zone_name}: Window open %lu seconds, but mode %d not in shutdown list", 
+                         open_duration, (int)current_mode);
+                
+                // If we were in Active state but mode changed, transition to Recovering
+                if (current_state == 1) {
+                  // ----------------------------------------------------------
+                  // TRANSITION: Active (1) → Recovering (2)
+                  // Mode changed to non-shutdown mode while window still open
+                  // ----------------------------------------------------------
+                  id(${zone_slug}_${condition_id}_state) = 2;
+                  id(${zone_slug}_window_recovery_start_time) = now;
+                  ESP_LOGI("window_condition", "${zone_name}: WINDOW RECOVERING - Mode changed to non-shutdown mode");
+                }
+              }
+              
+            } else {
+              // Window open but within grace period
+              ESP_LOGV("window_condition", "${zone_name}: Window open %lu / ${window_timeout} seconds (grace period)", 
+                       open_duration);
+            }
+            
+          } else {
+            // ================================================================
+            // WINDOW IS CLOSED (or sensor unavailable)
+            // ================================================================
+            
+            // Clear window open timer
+            if (id(${zone_slug}_window_open_time) > 0) {
+              ESP_LOGD("window_condition", "${zone_name}: Window closed, timer reset");
+              id(${zone_slug}_window_open_time) = 0;
+            }
+            
+            // Handle recovery if we were in Active state
+            if (current_state == 1) {
+              // --------------------------------------------------------------
+              // TRANSITION: Active (1) → Recovering (2)
+              // Window closed
+              // --------------------------------------------------------------
+              id(${zone_slug}_${condition_id}_state) = 2;
+              id(${zone_slug}_window_recovery_start_time) = now;
+              ESP_LOGI("window_condition", "${zone_name}: WINDOW RECOVERING - Window closed");
+              
+            } else if (current_state == 2) {
+              // --------------------------------------------------------------
+              // CHECK FOR: Recovering (2) → Normal (0)
+              // Check if recovery stability period complete
+              // --------------------------------------------------------------
+              unsigned long recovery_duration = (now - id(${zone_slug}_window_recovery_start_time)) / 1000;
+              
+              if (recovery_duration >= ${recovery_timeout}) {
+                id(${zone_slug}_${condition_id}_state) = 0;
+                id(${zone_slug}_window_recovery_start_time) = 0;
+                ESP_LOGI("window_condition", "${zone_name}: WINDOW NORMAL - Recovery complete after %lu seconds", 
+                         recovery_duration);
+              } else {
+                ESP_LOGV("window_condition", "${zone_name}: WINDOW RECOVERING - %lu / ${recovery_timeout} seconds", 
+                         recovery_duration);
+              }
+              
+            } else {
+              // Already Normal (0), no state change needed
+              ESP_LOGV("window_condition", "${zone_name}: WINDOW NORMAL - Window closed");
+            }
+          }
+
+# ============================================================================
+# INTERFACE CONTRACT: Required Diagnostic Sensor
+# ============================================================================
+
+text_sensor:
+  - platform: template
+    id: ${zone_slug}_${condition_id}_state_sensor
+    name: "${zone_name} Window State"
+    icon: "mdi:window-open-variant"
+    update_interval: 5s
+    lambda: |-
+      int state = id(${zone_slug}_${condition_id}_state);
+      if (state == 0) {
+        // Normal state - check if window is open within grace period
+        if (id(${zone_slug}_window_sensor).has_state() && id(${zone_slug}_window_sensor).state) {
+          if (id(${zone_slug}_window_open_time) > 0) {
+            unsigned long open_duration = (millis() - id(${zone_slug}_window_open_time)) / 1000;
+            return {"Normal (window open " + to_string((int)open_duration) + "s)"};
+          } else {
+            return {"Normal (window open)"};
+          }
+        } else {
+          return {"Normal"};
+        }
+      } else if (state == 1) {
+        return {"Active"};
+      } else if (state == 2) {
+        return {"Recovering"};
+      } else {
+        return {"Unknown"};
+      }
