@@ -4,7 +4,7 @@ packages:
   soggiorno: !include ../components/rooms/ground_floor/soggiorno-epic8.yaml
   cucina: !include ../components/rooms/ground_floor/cucina.yaml
   bagno: !include ../components/rooms/ground_floor/bagno.yaml
-  anticamera: !include ../components/rooms/ground_floor/anticamera.yaml
+  anticamera: !include ../components/rooms/ground_floor/anticamera-epic8.yaml
   sala_pranzo: !include ../components/rooms/ground_floor/sala_pranzo.yaml
 
 modbus:

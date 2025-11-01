@@ -14,6 +14,13 @@ packages:
       zone_name: "Lavanderia"
       ha_temperature_sensor_id: "sensor.room_lavanderia_temperature"
       priority: 1
+
+  # Window condition stub (radiant-only room has no real window detection)
+  window_condition_stub: !include
+    file: ../../room_window_condition_stub.yaml
+    vars:
+      zone_slug: "lavanderia"
+
   coordinator: !include
     file: ../../room_control_coordinator.yaml
     vars:

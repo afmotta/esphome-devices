@@ -14,6 +14,13 @@ packages:
       zone_name: "Camera Sud"
       ha_temperature_sensor_id: "sensor.room_camera_sud_temperature"
       priority: 1
+
+  # Window condition stub (radiant-only room has no real window detection)
+  window_condition_stub: !include
+    file: ../../room_window_condition_stub.yaml
+    vars:
+      zone_slug: "camera_sud"
+
   coordinator: !include
     file: ../../room_control_coordinator.yaml
     vars:

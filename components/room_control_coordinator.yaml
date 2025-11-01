@@ -97,11 +97,11 @@ interval:
           // READ CONDITION STATES AND PRIORITIES
           // ====================================================================
 
-          // Emergency condition (globals directly return values, not optionals)
+          // Emergency condition (always present)
           int emergency_state = id(${zone_slug}_emergency_state);
           int emergency_priority = id(${zone_slug}_emergency_priority);
 
-          // Window condition
+          // Window condition (stub=0 for radiant-only rooms, real values for fancoil rooms)
           int window_state = id(${zone_slug}_window_state);
           int window_priority = id(${zone_slug}_window_priority);
 

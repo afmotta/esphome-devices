@@ -31,6 +31,12 @@ packages:
       emergency_timeout: 180 # 3 minutes before emergency trigger
       recovery_timeout: 60 # 1 minute stability period
 
+  # Window condition stub (radiant-only room has no real window detection)
+  window_condition_stub: !include
+    file: ../../room_window_condition_stub.yaml
+    vars:
+      zone_slug: "camera_padronale"
+
   # ============================================================================
   # EPIC 8: COORDINATOR (Priority-based control engine)
   # ============================================================================
