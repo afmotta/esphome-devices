@@ -15,15 +15,22 @@
 #   ADDED: room_control_coordinator.yaml (Epic 8)
 #
 # UNIQUE ARCHITECTURE:
-#   - NO emergency condition (no dedicated temperature sensor)
+#   - Emergency condition stub (no dedicated sensor, uses soggiorno's sensor)
 #   - NO temperature sensor abstraction (uses soggiorno_room_temp_abstracted)
 #   - Fancoil only (no radiant floor heating)
 #   - Relies on Soggiorno's sensor for temperature monitoring
+#   - Emergency detection handled by Soggiorno's emergency condition
 
 packages:
   # ============================================================================
   # EPIC 8: CONDITION COMPONENTS
   # ============================================================================
+
+  # Emergency condition stub (room uses shared sensor from soggiorno)
+  emergency_condition_stub: !include
+    file: ../../room_emergency_condition_stub.yaml
+    vars:
+      zone_slug: "sala_pranzo"
 
   window_condition: !include
     file: ../../room_window_condition.yaml

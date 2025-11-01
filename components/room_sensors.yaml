@@ -1,0 +1,35 @@
+# Component: room_sensors.yaml (v8)
+# Purpose: HA temperature sensor abstraction for PID control
+# Epic: Epic 8 - Unified State Machine Architecture
+#
+# This component provides a clean abstraction layer for room temperature sensors,
+# sourcing data from Home Assistant. The abstracted sensor is used by PID controllers.
+#
+# Architecture Note:
+#   - This component ONLY handles sensor abstraction (temperature data for PID)
+#   - Emergency detection/shutdown is handled by room_emergency_condition.yaml
+#   - Coordinator control is handled by room_control_coordinator.yaml
+#
+# Required vars:
+#   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
+#   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
+#   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
+#
+# Exposes:
+#   - sensor.{zone}_room_temp_abstracted: Temperature for PID controllers (internal)
+#
+# Version History:
+#   - v5 (Oct 2025): Combined sensor + emergency shutdown logic (221 lines)
+#   - v8 (Nov 2025): Sensor abstraction only, emergency logic moved to condition component
+
+# ============================================================================
+# HOME ASSISTANT TEMPERATURE SENSOR
+# ============================================================================
+
+sensor:
+  - platform: homeassistant
+    entity_id: ${ha_temperature_sensor_id}
+    id: ${zone_slug}_room_temp_abstracted
+    internal: true # Used by PID controllers, not exposed to HA
+    filters:
+      - filter_out: nan # Remove invalid readings

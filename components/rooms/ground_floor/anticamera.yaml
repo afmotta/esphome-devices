@@ -19,6 +19,17 @@
 
 packages:
   # ============================================================================
+  # EPIC 8: SENSOR ABSTRACTION
+  # ============================================================================
+
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "anticamera"
+      zone_name: "Anticamera"
+      ha_temperature_sensor_id: "sensor.room_anticamera_temperature"
+
+  # ============================================================================
   # EPIC 8: CONDITION COMPONENTS
   # ============================================================================
 
@@ -64,20 +75,6 @@ packages:
       ki: 0.005
       kd: 0.05
       pump_management_script: ground_floor_radiant_pump_management
-
-# ============================================================================
-# TEMPERATURE SENSOR ABSTRACTION
-# ============================================================================
-# Epic 8 Note: Emergency condition monitors HA sensor but doesn't expose it.
-# We need to create the abstracted sensor for PID controllers.
-
-sensor:
-  - platform: homeassistant
-    entity_id: "sensor.room_anticamera_temperature"
-    id: anticamera_room_temp_abstracted
-    internal: true
-    filters:
-      - filter_out: nan
 
 # ============================================================================
 # ROOM OUTPUTS (unchanged from Epic 5)
