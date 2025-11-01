@@ -20,6 +20,17 @@
 
 packages:
   # ============================================================================
+  # EPIC 8: SENSOR ABSTRACTION
+  # ============================================================================
+
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "cucina"
+      zone_name: "Cucina"
+      ha_temperature_sensor_id: "sensor.room_cucina_temperature"
+
+  # ============================================================================
   # EPIC 8: CONDITION COMPONENTS
   # ============================================================================
 
@@ -80,20 +91,6 @@ packages:
       area_name: "Cucina"
       sensor: cucina_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
-
-# ============================================================================
-# TEMPERATURE SENSOR ABSTRACTION
-# ============================================================================
-# Epic 8 Note: Emergency condition monitors HA sensor but doesn't expose it.
-# We need to create the abstracted sensor for PID controllers.
-
-sensor:
-  - platform: homeassistant
-    entity_id: "sensor.room_cucina_temperature"
-    id: cucina_room_temp_abstracted
-    internal: true
-    filters:
-      - filter_out: nan
 
 # ============================================================================
 # ROOM OUTPUTS (unchanged from Epic 7)

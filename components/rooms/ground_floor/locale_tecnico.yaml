@@ -7,6 +7,21 @@
 # Conditions: Emergency (sensor failure) + Window (open window detection)
 
 packages:
+  # ============================================================================
+  # EPIC 8: SENSOR ABSTRACTION
+  # ============================================================================
+
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
+
+  # ============================================================================
+  # EPIC 8: CONDITION COMPONENTS
+  # ============================================================================
+
   emergency_condition: !include
     file: ../../room_emergency_condition.yaml
     vars:
@@ -42,22 +57,3 @@ packages:
       area_name: "Locale tecnico"
       sensor: locale_tecnico_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
-
-# ============================================================================
-# Temperature Sensor Abstraction
-# ============================================================================
-# Epic 8 emergency condition monitors sensor but doesn't expose it for PID use
-# Need abstraction layer for PID controller integration
-
-sensor:
-  - platform: homeassistant
-    id: locale_tecnico_room_temp_abstracted
-    entity_id: "sensor.room_locale_tecnico_temperature"
-    filters:
-      - filter_out: nan
-    on_value:
-      then:
-        - logger.log:
-            format: "[Locale tecnico] Temperature abstraction updated: %.1f°C"
-            args: ["x"]
-            level: DEBUG
