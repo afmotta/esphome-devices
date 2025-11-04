@@ -1,17 +1,75 @@
 # ============================================================================
-# Soggiorno Room Component - Ground Floor
+# Soggiorno Room Component - Ground Floor (Epic 8)
 # ============================================================================
 #
 # Complete room climate control component for Soggiorno (Living Room)
 # Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
-# Epic 7: Window detection added for fancoil system
+#
+# Epic 8: Unified state machine architecture
+#   - Emergency condition component (sensor failure detection)
+#   - Window condition component (energy efficiency)
+#   - Room control coordinator (priority-based PID control)
+#
+# Migration: Epic 5/7 → Epic 8
+#   REMOVED: room_sensors.yaml (Epic 5)
+#   REMOVED: room_emergency_shutdown.yaml (Epic 5)
+#   REMOVED: room_window_detection.yaml (Epic 7)
+#   ADDED: room_emergency_condition.yaml (Epic 8)
+#   ADDED: room_window_condition.yaml (Epic 8)
+#   ADDED: room_control_coordinator.yaml (Epic 8)
+
 packages:
-  room_sensors: !include
+  # ============================================================================
+  # EPIC 8: SENSOR ABSTRACTION
+  # ============================================================================
+
+  sensors: !include
     file: ../../room_sensors.yaml
     vars:
       zone_slug: "soggiorno"
       zone_name: "Soggiorno"
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+
+  # ============================================================================
+  # EPIC 8: CONDITION COMPONENTS
+  # ============================================================================
+
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+      emergency_timeout: 180 # 3 minutes before emergency trigger
+      recovery_timeout: 60 # 1 minute stability period
+
+  window_condition: !include
+    file: ../../room_window_condition.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      ha_window_sensor_id: "binary_sensor.soggiorno_window"
+      pid_id: pid_fancoil_soggiorno
+      window_shutdown_modes: "cooling, heating"
+      window_timeout: 180 # 3 minutes grace period
+      recovery_timeout: 60 # 1 minute stability period
+
+  # ============================================================================
+  # EPIC 8: COORDINATOR (Priority-based control engine)
+  # ============================================================================
+
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      pid_id: pid_fancoil_soggiorno
+      coordinator_interval: 5 # 5-second polling
+
+  # ============================================================================
+  # CLIMATE CONTROL (unchanged from Epic 7)
+  # ============================================================================
+
   radiant: !include
     file: ../../pid.yaml
     vars:
@@ -23,6 +81,7 @@ packages:
       ki: 0.005
       kd: 0.05
       pump_management_script: ground_floor_radiant_pump_management
+
   fancoil: !include
     file: ../../fancoil.yaml
     vars:
@@ -32,20 +91,10 @@ packages:
       area_name: "Soggiorno"
       sensor: soggiorno_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
-  emergency_shutdown: !include
-    file: ../../room_emergency_shutdown.yaml
-    vars:
-      zone_slug: "soggiorno"
-      zone_name: "Soggiorno"
-      pid_id: pid_radiant_soggiorno
-  window_detection: !include
-    file: ../../room_window_detection.yaml
-    vars:
-      zone_slug: "soggiorno"
-      zone_name: "Soggiorno"
-      ha_window_sensor_id: "binary_sensor.soggiorno_window"
-      pid_id: pid_fancoil_soggiorno
-      window_shutdown_modes: "cooling, heating"
+
+# ============================================================================
+# ROOM OUTPUTS (unchanged from Epic 7)
+# ============================================================================
 
 output:
   - platform: slow_pwm

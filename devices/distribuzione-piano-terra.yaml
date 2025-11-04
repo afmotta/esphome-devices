@@ -6,6 +6,7 @@ packages:
   bagno: !include ../components/rooms/ground_floor/bagno.yaml
   anticamera: !include ../components/rooms/ground_floor/anticamera.yaml
   sala_pranzo: !include ../components/rooms/ground_floor/sala_pranzo.yaml
+  locale_tecnico: !include ../components/rooms/ground_floor/locale_tecnico.yaml
 
 modbus:
   id: rs485_bus

@@ -1,11 +1,67 @@
 # ============================================================================
-# Sala da pranzo Room Component - Ground Floor
+# Sala da Pranzo Room Component - Ground Floor (Epic 8)
 # ============================================================================
 #
-# Complete room climate control component for Sala da pranzo (Living Room)
-# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+# Complete room climate control component for Sala da Pranzo (Dining Room)
+# Includes: Fancoil PID controller (uses shared Soggiorno temperature sensor)
+#
+# Epic 8: Unified state machine architecture
+#   - Window condition component (energy efficiency for fancoil)
+#   - Room control coordinator (priority-based PID control)
+#
+# Migration: Epic 7 → Epic 8
+#   REMOVED: room_window_detection.yaml (Epic 7)
+#   ADDED: room_window_condition.yaml (Epic 8)
+#   ADDED: room_control_coordinator.yaml (Epic 8)
+#
+# UNIQUE ARCHITECTURE:
+#   - Emergency condition stub (no dedicated sensor, uses soggiorno's sensor)
+#   - NO temperature sensor abstraction (uses soggiorno_room_temp_abstracted)
+#   - Fancoil only (no radiant floor heating)
+#   - Relies on Soggiorno's sensor for temperature monitoring
+#   - Emergency detection handled by Soggiorno's emergency condition
 
 packages:
+  # ============================================================================
+  # EPIC 8: CONDITION COMPONENTS
+  # ============================================================================
+
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
+    vars:
+      zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      ha_temperature_sensor_id: "sensor.room_sala_pranzo_temperature"
+      emergency_timeout: 180 # 3 minutes before emergency trigger
+      recovery_timeout: 60 # 1 minute stability period
+
+  window_condition: !include
+    file: ../../room_window_condition.yaml
+    vars:
+      zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      ha_window_sensor_id: "binary_sensor.sala_pranzo_window"
+      pid_id: pid_fancoil_sala_pranzo
+      window_shutdown_modes: "cooling, heating"
+      window_timeout: 60 # 1 minute grace period
+      recovery_timeout: 60 # 1 minute stability period
+
+  # ============================================================================
+  # EPIC 8: COORDINATOR (Priority-based control engine)
+  # ============================================================================
+
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      pid_id: pid_fancoil_sala_pranzo
+      coordinator_interval: 5 # 5-second polling
+
+  # ============================================================================
+  # CLIMATE CONTROL (unchanged from Epic 7)
+  # ============================================================================
+
   fancoil: !include
     file: ../../fancoil.yaml
     vars:
@@ -15,11 +71,3 @@ packages:
       area_name: "Sala da Pranzo"
       sensor: soggiorno_room_temp_abstracted
       switch_management_script: ground_floor_fancoils_pump_management
-  window_detection: !include
-    file: ../../room_window_detection.yaml
-    vars:
-      zone_slug: "sala_pranzo"
-      zone_name: "Sala da Pranzo"
-      ha_window_sensor_id: "binary_sensor.sala_pranzo_window"
-      pid_id: pid_fancoil_sala_pranzo
-      window_shutdown_modes: "cooling, heating"

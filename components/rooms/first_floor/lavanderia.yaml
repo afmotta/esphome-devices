@@ -1,17 +1,41 @@
 # ============================================================================
-# Lavanderia Room Component - First Floor
+# Lavanderia Room Component - First Floor (Epic 8)
 # ============================================================================
 #
-# Complete room climate control component for Lavanderia
-# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+# Epic 8 unified architecture: Condition components + Room Control Coordinator
+# Equipment: Radiant floor heating only
+# Conditions: Emergency (sensor failure detection only)
 
 packages:
-  room_sensors: !include
+  sensors: !include
     file: ../../room_sensors.yaml
     vars:
       zone_slug: "lavanderia"
       zone_name: "Lavanderia"
       ha_temperature_sensor_id: "sensor.room_lavanderia_temperature"
+
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
+    vars:
+      zone_slug: "lavanderia"
+      zone_name: "Lavanderia"
+      ha_temperature_sensor_id: "sensor.room_lavanderia_temperature"
+      priority: 1
+
+  # Window condition stub (radiant-only room has no real window detection)
+  window_condition_stub: !include
+    file: ../../room_window_condition_stub.yaml
+    vars:
+      zone_slug: "lavanderia"
+
+  coordinator: !include
+    file: ../../room_control_coordinator.yaml
+    vars:
+      zone_slug: "lavanderia"
+      zone_name: "Lavanderia"
+      pid_id: pid_radiant_lavanderia
+      emergency_condition_priority_id: lavanderia_emergency_condition_priority
+      emergency_condition_state_id: lavanderia_emergency_condition_state
   pid_radiant: !include
     file: ../../pid.yaml
     vars:
@@ -23,12 +47,10 @@ packages:
       ki: 0.005
       kd: 0.05
       pump_management_script: first_floor_radiant_pump_management
-  emergency_shutdown: !include
-    file: ../../room_emergency_shutdown.yaml
-    vars:
-      zone_slug: "lavanderia"
-      zone_name: "Lavanderia"
-      pid_id: pid_radiant_lavanderia
+
+# ============================================================================
+# Output Configuration
+# ============================================================================
 
 output:
   - platform: slow_pwm
@@ -38,6 +60,10 @@ output:
       - switch.turn_on: relay_09
     turn_off_action:
       - switch.turn_off: relay_09
+
+# ============================================================================
+# Climate Configuration
+# ============================================================================
 
 climate:
   - id: !extend pid_radiant_lavanderia

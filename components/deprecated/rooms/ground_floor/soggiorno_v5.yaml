@@ -1,0 +1,61 @@
+# ============================================================================
+# Soggiorno Room Component - Ground Floor
+# ============================================================================
+#
+# Complete room climate control component for Soggiorno (Living Room)
+# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
+# Epic 7: Window detection added for fancoil system
+packages:
+  room_sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+  radiant: !include
+    file: ../../pid.yaml
+    vars:
+      circuit_slug: "radiant_soggiorno"
+      circuit_name: "Radiant Soggiorno"
+      output: slow_pwm_soggiorno
+      sensor: soggiorno_room_temp_abstracted
+      kp: 0.8
+      ki: 0.005
+      kd: 0.05
+      pump_management_script: ground_floor_radiant_pump_management
+  fancoil: !include
+    file: ../../fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
+      register_address: 0x42049
+      area_slug: "soggiorno"
+      area_name: "Soggiorno"
+      sensor: soggiorno_room_temp_abstracted
+      switch_management_script: ground_floor_fancoils_pump_management
+  emergency_shutdown: !include
+    file: ../../room_emergency_shutdown.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      pid_id: pid_radiant_soggiorno
+  window_detection: !include
+    file: ../../room_window_detection.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      ha_window_sensor_id: "binary_sensor.soggiorno_window"
+      pid_id: pid_fancoil_soggiorno
+      window_shutdown_modes: "cooling, heating"
+
+output:
+  - platform: slow_pwm
+    id: slow_pwm_soggiorno
+    period: 60s
+    turn_on_action:
+      - switch.turn_on: relay_05
+      - switch.turn_on: relay_06
+      - switch.turn_on: relay_07
+    turn_off_action:
+      - switch.turn_off: relay_05
+      - switch.turn_off: relay_06
+      - switch.turn_off: relay_07

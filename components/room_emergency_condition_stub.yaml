@@ -1,0 +1,59 @@
+# Component: room_emergency_condition_stub.yaml
+# Purpose: Stub emergency condition for rooms without dedicated sensors
+# Epic: Epic 8 - Unified State Machine Architecture
+# Interface: Epic 8 Condition Contract v1.0 (docs/epic-8-condition-interface-spec.md)
+#
+# This stub provides dummy emergency condition globals for rooms that don't have
+# dedicated temperature sensors (e.g., sala_pranzo uses shared sensor from soggiorno).
+#
+# The stub exposes the required interface contract globals but keeps them in safe
+# "always Normal" state, effectively disabling emergency detection for these rooms.
+#
+# Required vars:
+#   - zone_slug: Room identifier (e.g., "sala_pranzo")
+#
+# Exposes (Epic 8 Interface Contract):
+#   - global.{zone}_emergency_state: Always 0 (Normal)
+#   - global.{zone}_emergency_priority: Set to 99 (lowest, never wins)
+#
+# Architecture Note:
+#   Similar to room_window_condition_stub.yaml, this maintains uniform interface
+#   contract across all rooms, allowing the coordinator to read emergency globals
+#   from every room without conditional compilation logic.
+#
+# Use Cases:
+#   - Rooms with shared sensors from other zones (e.g., sala_pranzo → soggiorno)
+#   - Rooms where emergency detection is not applicable
+#
+# Version History:
+#   - v1.0 (Nov 2025): Initial implementation for sala_pranzo shared sensor case
+
+# ============================================================================
+# INTERFACE CONTRACT: Stub Globals (Always Safe State)
+# ============================================================================
+
+globals:
+  # State: Always 0 (Normal = no emergency)
+  - id: ${zone_slug}_emergency_state
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Priority: 99 (lowest possible, never wins in coordinator priority resolution)
+  - id: ${zone_slug}_emergency_priority
+    type: int
+    restore_value: false
+    initial_value: "99"
+
+# ============================================================================
+# DIAGNOSTIC SENSOR (Optional but useful for dashboard visibility)
+# ============================================================================
+
+text_sensor:
+  - platform: template
+    id: ${zone_slug}_emergency_state_sensor
+    name: "${zone_slug} Emergency State"
+    icon: "mdi:alert-circle-check"
+    update_interval: 60s
+    lambda: |-
+      return {"Stub (No Sensor)"};
