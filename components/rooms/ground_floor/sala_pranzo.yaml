@@ -26,11 +26,14 @@ packages:
   # EPIC 8: CONDITION COMPONENTS
   # ============================================================================
 
-  # Emergency condition stub (room uses shared sensor from soggiorno)
-  emergency_condition_stub: !include
-    file: ../../room_emergency_condition_stub.yaml
+  emergency_condition: !include
+    file: ../../room_emergency_condition.yaml
     vars:
       zone_slug: "sala_pranzo"
+      zone_name: "Sala da Pranzo"
+      ha_temperature_sensor_id: "sensor.room_sala_pranzo_temperature"
+      emergency_timeout: 180 # 3 minutes before emergency trigger
+      recovery_timeout: 60 # 1 minute stability period
 
   window_condition: !include
     file: ../../room_window_condition.yaml
@@ -40,7 +43,7 @@ packages:
       ha_window_sensor_id: "binary_sensor.sala_pranzo_window"
       pid_id: pid_fancoil_sala_pranzo
       window_shutdown_modes: "cooling, heating"
-      window_timeout: 180 # 3 minutes grace period
+      window_timeout: 60 # 1 minute grace period
       recovery_timeout: 60 # 1 minute stability period
 
   # ============================================================================
