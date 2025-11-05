@@ -451,22 +451,28 @@ text_sensor.soggiorno_coordinator_status # "Normal (All Clear)"
 
 ## Future Roadmap
 
-### Epic 9: Occupancy-Based Shutdown (Next Epic)
+### Occupancy-Based Climate Control (Home Assistant Implementation)
 
-**Goal:** Shut down climate control in unoccupied rooms for energy savings
+**Architectural Decision (November 2025):** Occupancy-based climate control will be implemented as **Home Assistant automations** rather than ESPHome firmware components.
 
-**Implementation Approach (Epic 8 Foundation):**
-```yaml
-# components/room_occupancy_condition.yaml
-# - Monitors HA occupancy sensors (PIR, mmWave, etc.)
-# - Exposes state (0/1/2) and priority (3)
-# - Triggers after room unoccupied for 2 hours
-# - NO COORDINATOR CHANGES REQUIRED
-```
+**Rationale:**
+- **Better Flexibility:** HA automations easier to modify and test than ESPHome firmware
+- **No Deployment Overhead:** No firmware compilation and OTA updates required
+- **Richer Logic:** HA provides superior tools for complex occupancy patterns
+- **Easier Debugging:** HA automation debugging simpler than ESPHome lambda troubleshooting
 
-**Estimated Effort:** 3-4 story points (60% reduction vs. pre-Epic 8)
+**Implementation Approach:**
+- HA automations monitor occupancy sensors (PIR, mmWave, composite entities)
+- HA distinguishes equipment types (fancoil vs. radiant) for appropriate control
+- HA controls climate entities directly (force OFF or adjust setpoints)
+- Coordinator remains unchanged (emergency + window conditions only)
 
-### Epic 10+: Advanced Coordination Features
+**Impact on Epic 8 Architecture:**
+- Coordinator architecture validated for extensibility but not extended beyond 2 conditions
+- Condition interface contract remains valuable as design pattern (even if occupancy not added)
+- Epic 8 goal achieved: created extensible foundation that **could** support more conditions
+
+### Epic 10+: Advanced Coordination Features (If Needed)
 
 **Potential Features:**
 - **Multi-room coordination:** Building-wide policies (e.g., "if 5+ rooms trigger emergency, alert system owner")

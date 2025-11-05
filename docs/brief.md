@@ -201,7 +201,7 @@ Once the autonomous Modbus foundation is proven stable:
 
 ### Long-Term Vision (1-2 Years)
 
-- **Occupancy-Based Zone Control**: Integrate presence sensors (PIR, mmWave, or HA-based) to reduce heating/cooling in unoccupied zones with "vacation mode" for extended absence
+- **Occupancy-Based Zone Control**: **Note: Occupancy control will be implemented as Home Assistant automations, not ESPHome components.** Integrate presence sensors (PIR, mmWave, or HA-based) to reduce heating/cooling in unoccupied zones with "vacation mode" for extended absence. HA automations will monitor occupancy sensors and control climate entities directly (force OFF for fancoils, adjust setpoints for radiant systems).
 
 - **Energy Cost Optimization**: Track electricity/gas costs per zone and optimize cooling strategy (fancoil vs. floor cooling) for cost efficiency, not just comfort, with time-of-use rate awareness
 

@@ -17,6 +17,34 @@
 | 2025-10-09 | 1.0     | Initial brownfield PRD for RS485 Modbus board-to-board communication and automation enhancements | Mary (Business Analyst) |
 | 2025-10-17 | 1.1     | Removed ground floor cooling automation from Epic 1 - deferred to future phase                   | Mary (Business Analyst) |
 | 2025-10-23 | 1.2     | Added Epic 4: Room-Based Component Architecture refactoring                                      | Mary (Business Analyst) |
+| 2025-11-05 | 1.3     | Added note on occupancy control approach (Home Assistant implementation, not ESPHome)            | Mary (Business Analyst) |
+
+---
+
+## Important Note: Occupancy-Based Climate Control
+
+**Architectural Decision (November 2025):** Occupancy-based climate control (originally planned as Epic 9) will be implemented as **Home Assistant automations** rather than ESPHome firmware components.
+
+**Rationale:**
+- **Better Flexibility:** HA automations are easier to modify and test than ESPHome firmware
+- **No Deployment Overhead:** Changes don't require firmware compilation and OTA updates
+- **Richer Logic:** HA provides superior tools for complex occupancy patterns and equipment-aware control
+- **Easier Debugging:** HA automation debugging is simpler than ESPHome lambda troubleshooting
+
+**Impact on ESPHome Architecture:**
+- ESPHome boards continue to expose climate entities (PID controllers) and condition states (emergency, window)
+- Epic 8 coordinator architecture remains limited to emergency and window conditions only (no occupancy condition)
+- Occupancy detection, analysis, and control decisions occur entirely at the Home Assistant level
+- No `room_occupancy_condition.yaml` component will be created
+
+**Implementation Approach:**
+Home Assistant automations will:
+- Monitor occupancy sensors (PIR, mmWave, or composite entities)
+- Distinguish equipment types (fancoil vs. radiant) for appropriate control strategies
+- Control climate entities directly (force OFF for fancoils, adjust setpoints for radiant)
+- Coordinate with window detection and emergency shutdown states exposed by ESPHome
+
+This decision reinforces the project's two-tier architecture: **ESPHome handles local hardware control and safety conditions, Home Assistant provides intelligence and complex automation logic.**
 
 ---
 
