@@ -11,6 +11,11 @@ packages:
     vars:
       pid_id: pid_mixing_first_floor
       pid_name: "PID Miscelatrice Primo Piano"
+  rest_api: !include
+    file: ../components/rest_api_master.yaml
+    vars:
+      web_server_port: 80
+      web_server_include_internal: true
 
 # Modbus RTU bus for 0-10V adapters
 modbus:
@@ -30,6 +35,59 @@ sensor:
     id: dallas_0xe9000000b366ed28
     unit_of_measurement: "°C"
     one_wire_id: one_wire_01
+
+  # REST API endpoints: Supply temperature sensors
+  # These template sensors expose Dallas sensors with REST-friendly IDs
+  - platform: template
+    name: "Supply Temp Piano Terra"
+    id: supply_temp_piano_terra
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    lambda: |-
+      if (id(dallas_0x81000000b3e6f628).has_state()) {
+        return id(dallas_0x81000000b3e6f628).state;
+      }
+      return NAN;
+
+  - platform: template
+    name: "Supply Temp Primo Piano"
+    id: supply_temp_primo_piano
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    lambda: |-
+      if (id(dallas_0xe9000000b366ed28).has_state()) {
+        return id(dallas_0xe9000000b366ed28).state;
+      }
+      return NAN;
+
+# REST API endpoint: Climate mode text sensor
+# Reflects current system operating mode
+text_sensor:
+  - platform: template
+    name: "Climate Mode"
+    id: climate_mode
+    icon: mdi:thermostat
+    lambda: |-
+      // Determine climate mode from PID states
+      // Priority: If any PID is heating/cooling, report that mode
+      // Otherwise report "off"
+      auto ground_action = id(pid_mixing_ground_floor).action;
+      auto first_action = id(pid_mixing_first_floor).action;
+
+      if (ground_action == climate::CLIMATE_ACTION_HEATING || 
+          first_action == climate::CLIMATE_ACTION_HEATING) {
+        return {"heat"};
+      } else if (ground_action == climate::CLIMATE_ACTION_COOLING || 
+                 first_action == climate::CLIMATE_ACTION_COOLING) {
+        return {"cool"};
+      } else {
+        return {"off"};
+      }
+    update_interval: 10s
 
 climate:
   - platform: pid

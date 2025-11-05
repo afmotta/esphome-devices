@@ -1,0 +1,63 @@
+# ============================================================================
+# REST API Master Component - ESPHome Web Server
+# ============================================================================
+#
+# Exposes ESPHome sensors and text sensors via HTTP JSON endpoints.
+# Enables other ESPHome devices to poll sensor data without Home Assistant.
+#
+# Epic 9: REST API-Based Board Communication
+# Story 9.1: Master REST Server
+#
+# EXPOSED ENDPOINTS:
+#   GET /sensor/{sensor_id}       - Returns sensor value as JSON
+#   GET /text_sensor/{id}          - Returns text sensor value as JSON
+#   GET /                          - Web UI (if include_internal: true)
+#
+# JSON RESPONSE FORMAT:
+#   {
+#     "id": "sensor-supply_temp_piano_terra",
+#     "value": 42.5,
+#     "state": "42.5",
+#     "unit": "°C"
+#   }
+#
+# USAGE:
+#   packages:
+#     rest_api: !include
+#       file: ../components/rest_api_master.yaml
+#       vars:
+#         web_server_port: 80           # Optional: HTTP port (default: 80)
+#         web_server_include_internal: true  # Optional: Show internal sensors in web UI
+#
+# REQUIREMENTS:
+#   - ESPHome with web_server component support
+#   - Ethernet or WiFi connectivity
+#   - mDNS enabled (for .local hostname resolution)
+#   - Existing sensors to expose (no dynamic configuration needed)
+#
+# NETWORK ACCESS:
+#   - http://\{device_name\}.local/sensor/supply_temp_piano_terra
+#   - http://\{device_name\}.local/text_sensor/climate_mode
+#   - http://\{device_name\}.local/  (web UI)
+#
+# SECURITY:
+#   - No authentication in MVP (local network only)
+#   - No SSL/TLS (plaintext HTTP)
+#   - Trust-based security model
+#
+# FIRMWARE IMPACT:
+#   - Adds ~10-20KB to firmware size
+#   - Includes HTTP server, JSON serialization, web UI assets
+#   - Monitor flash usage during compilation
+#
+# ============================================================================
+
+# Web server with JSON API support
+web_server:
+  port: ${web_server_port}
+  version: 2  # Required for JSON API endpoints
+  include_internal: ${web_server_include_internal}
+  # Optional authentication (disabled for MVP):
+  # auth:
+  #   username: admin
+  #   password: !secret web_server_password
