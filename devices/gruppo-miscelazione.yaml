@@ -17,6 +17,19 @@ modbus:
   id: rs485_bus
   uart_id: rs485
 
+udp:
+  id: udp_packet_transport
+
+packet_transport:
+  - platform: udp
+    udp_id: udp_packet_transport
+    update_interval: 10s
+    sensors:
+      - id: dallas_0x81000000b3e6f628
+        broadcast_id: mixing_output_ground_floor_temperature
+      - id: dallas_0xe9000000b366ed28
+        broadcast_id: mixing_output_first_floor_temperature
+
 sensor:
   - platform: dallas_temp
     address: 0x81000000b3e6f628
