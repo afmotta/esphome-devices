@@ -1,14 +1,36 @@
-# Component: room_sensors.yaml (v8)
-# Purpose: HA temperature sensor abstraction for PID control
-# Epic: Epic 8 - Unified State Machine Architecture
+# Component: room_sensors.yaml (v6)
+# Purpose: Temperature sensor abstraction for PID control with optional UDP support
+# Epic: Epic 10 - ESP32 Room Sensors & Zone Activity Tracking via UDP
 #
-# This component provides a clean abstraction layer for room temperature sensors,
-# sourcing data from Home Assistant. The abstracted sensor is used by PID controllers.
+# This component provides a clean abstraction layer for room temperature sensors.
+# It supports two modes via separate implementations:
+#   - HA-Only Mode: Use this file directly (Epic 8 v8 backward compatible)
+#   - UDP Mode: Use sensor_failover_3tier.yaml instead (Epic 10 3-tier failover)
+#
+# USAGE:
+#   For HA-only mode (default, Epic 8 behavior):
+#     sensors: !include
+#       file: ../../room_sensors.yaml
+#       vars:
+#         zone_slug: "soggiorno"
+#         zone_name: "Soggiorno"
+#         ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+#
+#   For UDP mode (Epic 10 3-tier failover):
+#     sensors: !include
+#       file: ../../sensor_failover_3tier.yaml
+#       vars:
+#         zone_slug: "soggiorno"
+#         zone_name: "Soggiorno"
+#         udp_sensor_id: "soggiorno_udp_temp"
+#         ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+#         emergency_timeout: 180  # optional
 #
 # Architecture Note:
 #   - This component ONLY handles sensor abstraction (temperature data for PID)
 #   - Emergency detection/shutdown is handled by room_emergency_condition.yaml
 #   - Coordinator control is handled by room_control_coordinator.yaml
+#   - Both modes expose: sensor.{zone}_room_temp_abstracted for PID controllers
 #
 # Required vars:
 #   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
@@ -21,9 +43,10 @@
 # Version History:
 #   - v5 (Oct 2025): Combined sensor + emergency shutdown logic (221 lines)
 #   - v8 (Nov 2025): Sensor abstraction only, emergency logic moved to condition component
+#   - v6 (Nov 2025): UDP support via sensor_failover_3tier.yaml delegation (Epic 10)
 
 # ============================================================================
-# HOME ASSISTANT TEMPERATURE SENSOR
+# HOME ASSISTANT TEMPERATURE SENSOR (HA-Only Mode)
 # ============================================================================
 
 sensor:
