@@ -18,6 +18,35 @@ modbus_controller:
     modbus_id: rs485_bus
     update_interval: 5s
 
+binary_sensor:
+  - platform: template
+    id: piano_terra_any_radiant_zone_open
+    name: "Ground Floor Any Radiant Zone Open"
+    device_class: running
+    icon: "mdi:pump"
+    lambda: |-
+      return id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_radiant_anticamera).action == climate::CLIMATE_ACTION_COOLING ||
+             id(pid_radiant_bagno_terra).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_radiant_bagno_terra).action == climate::CLIMATE_ACTION_COOLING ||
+             id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_radiant_cucina).action == climate::CLIMATE_ACTION_COOLING ||
+             id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
+
+  - platform: template
+    id: piano_terra_any_fancoil_zone_open
+    name: "Ground Floor Any Fancoil Zone Open"
+    device_class: running
+    icon: "mdi:pump"
+    lambda: |-
+      return id(pid_fancoil_cucina).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_fancoil_cucina).action == climate::CLIMATE_ACTION_COOLING ||
+             id(pid_fancoil_sala_pranzo).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_fancoil_sala_pranzo).action == climate::CLIMATE_ACTION_COOLING ||
+             id(pid_fancoil_soggiorno).action == climate::CLIMATE_ACTION_HEATING ||
+             id(pid_fancoil_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
+
 script:
   - id: ground_floor_radiant_pump_management
     mode: queued
