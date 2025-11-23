@@ -43,7 +43,7 @@ binary_sensor:
       then:
         - if:
             condition:
-              lambda: "return x.state;"
+              lambda: "return x;"
             then:
               - logger.log:
                   format: "Ground Floor Any Radiant Zone OPEN"
@@ -59,14 +59,14 @@ binary_sensor:
       then:
         - if:
             condition:
-              lambda: "return x.state;"
+              lambda: "return x;"
             then:
               - logger.log:
-                  format: "Ground Floor Any Radiant Zone OPEN"
+                  format: "Ground Floor Any Fancoil Zone OPEN"
               - switch.turn_on: relay_2
             else:
               - logger.log:
-                  format: "Ground Floor Any Radiant Zone CLOSED"
+                  format: "Ground Floor Any Fancoil Zone CLOSED"
               - switch.turn_off: relay_2
   - platform: packet_transport
     id: primo_piano_any_zone_open
@@ -75,14 +75,14 @@ binary_sensor:
       then:
         - if:
             condition:
-              lambda: "return x.state;"
+              lambda: "return x;"
             then:
               - logger.log:
-                  format: "Ground Floor Any Radiant Zone OPEN"
+                  format: "First Floor Any Zone OPEN"
               - switch.turn_on: relay_3
             else:
               - logger.log:
-                  format: "Ground Floor Any Radiant Zone CLOSED"
+                  format: "First Floor Any Zone CLOSED"
               - switch.turn_off: relay_3
 
 sensor:
