@@ -2,7 +2,7 @@
 
 **Epic:** 10 - ESP32 Room Sensors & Zone Activity Tracking via UDP  
 **Date:** November 20, 2025  
-**Status:** Ready  
+**Status:** Ready for Manual Testing  
 **Story Points:** 5  
 **Version:** 1.0
 
@@ -794,16 +794,16 @@ INVESTIGATION REQUIRED: High packet loss, network issue suspected
 
 ### Rollback Decision Matrix
 
-| Condition | Severity | Action |
-|-----------|----------|--------|
-| Boot errors on any device | CRITICAL | Immediate rollback |
-| Epic 9 UDP not working (no packets) | CRITICAL | Rollback, investigate packet_transport |
-| Epic 10 UDP not working (Epic 9 OK) | HIGH | Rollback, debug broadcast_id mismatch |
-| Relay response time >60s | MEDIUM | Continue monitoring, optimize if persistent |
-| Packet loss >5% | MEDIUM | Continue monitoring, investigate network |
-| Energy savings <10% | LOW | Continue, document actual savings |
-| Any ERROR logs | HIGH | Investigate, rollback if recurring |
-| Stuck relays (ON when no demand) | CRITICAL | Immediate rollback (safety issue) |
+| Condition                           | Severity | Action                                      |
+| ----------------------------------- | -------- | ------------------------------------------- |
+| Boot errors on any device           | CRITICAL | Immediate rollback                          |
+| Epic 9 UDP not working (no packets) | CRITICAL | Rollback, investigate packet_transport      |
+| Epic 10 UDP not working (Epic 9 OK) | HIGH     | Rollback, debug broadcast_id mismatch       |
+| Relay response time >60s            | MEDIUM   | Continue monitoring, optimize if persistent |
+| Packet loss >5%                     | MEDIUM   | Continue monitoring, investigate network    |
+| Energy savings <10%                 | LOW      | Continue, document actual savings           |
+| Any ERROR logs                      | HIGH     | Investigate, rollback if recurring          |
+| Stuck relays (ON when no demand)    | CRITICAL | Immediate rollback (safety issue)           |
 
 **Rollback Procedure:**
 ```bash
@@ -827,37 +827,37 @@ esphome upload devices/distribuzione-primo-piano.yaml
 
 **OTA Deployment:**
 
-| Device | Upload Status | Boot Status | Online in HA | Notes |
-|--------|--------------|-------------|--------------|-------|
-| gruppo-miscelazione | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | [Notes] |
-| distribuzione-piano-terra | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | [Notes] |
-| distribuzione-primo-piano | ✅ / ❌ | ✅ / ❌ | ✅ / ❌ | [Notes] |
+| Device                    | Upload Status | Boot Status | Online in HA | Notes   |
+| ------------------------- | ------------- | ----------- | ------------ | ------- |
+| gruppo-miscelazione       | ✅ / ❌         | ✅ / ❌       | ✅ / ❌        | [Notes] |
+| distribuzione-piano-terra | ✅ / ❌         | ✅ / ❌       | ✅ / ❌        | [Notes] |
+| distribuzione-primo-piano | ✅ / ❌         | ✅ / ❌       | ✅ / ❌        | [Notes] |
 
 **Epic 9 UDP Validation:**
 
-| Test | Status | Notes |
-|------|--------|-------|
-| Network capture shows packets | ✅ / ❌ | [Packet count] |
-| Supply temp broadcasts visible | ✅ / ❌ | [Broadcast IDs] |
-| Packet structure correct (JSON) | ✅ / ❌ | [Sample payload] |
+| Test                            | Status | Notes            |
+| ------------------------------- | ------ | ---------------- |
+| Network capture shows packets   | ✅ / ❌  | [Packet count]   |
+| Supply temp broadcasts visible  | ✅ / ❌  | [Broadcast IDs]  |
+| Packet structure correct (JSON) | ✅ / ❌  | [Sample payload] |
 
 **Epic 10 UDP Validation:**
 
-| Test | Status | Notes |
-|------|--------|-------|
-| Zone demand broadcasts visible | ✅ / ❌ | [Packet count] |
-| Binary sensor states in packets | ✅ / ❌ | [Sample payload] |
-| Mixing group receives broadcasts | ✅ / ❌ | [Binary sensors in HA] |
+| Test                             | Status | Notes                  |
+| -------------------------------- | ------ | ---------------------- |
+| Zone demand broadcasts visible   | ✅ / ❌  | [Packet count]         |
+| Binary sensor states in packets  | ✅ / ❌  | [Sample payload]       |
+| Mixing group receives broadcasts | ✅ / ❌  | [Binary sensors in HA] |
 
 **Functional Tests:**
 
-| Test | Response Time | Status | Notes |
-|------|--------------|--------|-------|
-| Test 1: Ground floor relay ON | XX seconds | ✅ / ❌ | [Details] |
-| Test 1: Ground floor relay OFF | XX seconds | ✅ / ❌ | [Details] |
-| Test 2: First floor relay ON | XX seconds | ✅ / ❌ | [Details] |
-| Test 2: First floor relay OFF | XX seconds | ✅ / ❌ | [Details] |
-| Test 3: Multi-zone demand | N/A | ✅ / ❌ | [Details] |
+| Test                           | Response Time | Status | Notes     |
+| ------------------------------ | ------------- | ------ | --------- |
+| Test 1: Ground floor relay ON  | XX seconds    | ✅ / ❌  | [Details] |
+| Test 1: Ground floor relay OFF | XX seconds    | ✅ / ❌  | [Details] |
+| Test 2: First floor relay ON   | XX seconds    | ✅ / ❌  | [Details] |
+| Test 2: First floor relay OFF  | XX seconds    | ✅ / ❌  | [Details] |
+| Test 3: Multi-zone demand      | N/A           | ✅ / ❌  | [Details] |
 
 **Network Performance:**
 
@@ -875,10 +875,10 @@ esphome upload devices/distribuzione-primo-piano.yaml
 
 **Energy Savings:**
 
-| Relay | Baseline (h/24h) | Epic 10 (h/24h) | Reduction | Target Met |
-|-------|------------------|-----------------|-----------|------------|
-| Ground floor (relay_1) | XX.X | XX.X | XX.X% | ✅ / ❌ |
-| First floor (relay_2) | XX.X | XX.X | XX.X% | ✅ / ❌ |
+| Relay                  | Baseline (h/24h) | Epic 10 (h/24h) | Reduction | Target Met |
+| ---------------------- | ---------------- | --------------- | --------- | ---------- |
+| Ground floor (relay_1) | XX.X             | XX.X            | XX.X%     | ✅ / ❌      |
+| First floor (relay_2)  | XX.X             | XX.X            | XX.X%     | ✅ / ❌      |
 
 **Overall Assessment:**
 
@@ -893,5 +893,65 @@ esphome upload devices/distribuzione-primo-piano.yaml
 
 ---
 
-**Epic 10 Integration Status:** ⏳ Pending Story 10.6 Completion
+**Epic 10 Integration Status:** ⏳ Pending Manual Deployment and Testing
+
+---
+
+## Dev Agent Record
+
+### Agent Model Used
+Claude Sonnet 4.5
+
+### Completion Notes
+
+**Story 10.6 Status: Ready for Manual Testing**
+
+This story requires physical deployment and multi-day validation that cannot be automated by the development agent:
+
+**Prerequisites Completed:**
+- ✅ Story 10.5: All device configurations compile successfully
+- ✅ Firmware ready for OTA deployment (gruppo-miscelazione, distribuzione-piano-terra, distribuzione-primo-piano)
+- ✅ Test procedures documented in story file
+- ✅ Network capture commands and analysis procedures provided
+- ✅ Functional test scripts documented (HA service calls)
+- ✅ Energy measurement templates provided
+
+**Manual Testing Required:**
+1. **OTA Deployment:** Upload firmware to all 3 physical devices via ESPHome CLI
+2. **Epic 9 UDP Validation:** Network packet capture to verify supply temperature broadcasts (first production test)
+3. **Epic 10 UDP Validation:** Network packet capture to verify zone demand broadcasts
+4. **Functional Testing:** Manual relay control tests via Home Assistant (ground floor, first floor, multi-zone)
+5. **Stability Monitoring:** 24-48 hour observation period with log monitoring
+6. **Energy Savings Measurement:** Baseline vs post-Epic-10 relay runtime comparison
+
+**Deployment Recommendation:**
+- **Timing:** Weekend deployment (Friday evening → Monday morning)
+- **Duration:** 1 evening (deployment + testing) + 24-48 hours (monitoring) + 2 hours (analysis)
+- **Rollback Preparation:** Git tag created for emergency rollback to pre-Epic-10 state
+
+**Test Execution Guide:**
+All test procedures, commands, and acceptance criteria documented in story file sections:
+- **OTA Upload Commands:** Line ~265
+- **Network Capture Setup:** Line ~180
+- **Functional Test Scripts:** Line ~220
+- **Monitoring Schedule:** Line ~520
+- **Energy Measurement Template:** Line ~300
+- **Rollback Procedure:** Line ~830
+
+**Next Steps:**
+1. User schedules deployment window (recommend upcoming weekend)
+2. User executes OTA deployment following documented procedures
+3. User performs functional tests and captures network traffic
+4. User monitors system for 24-48 hours
+5. User documents results in Testing Acceptance Form (line ~850)
+6. Based on results, proceed to Story 10.7 (documentation) or rollback if critical issues
+
+**Agent Role:** Development and compilation validation complete. Story 10.6 transitioned to manual testing phase.
+
+### File List
+- `docs/stories/story-10.6-integration-testing-epic9-validation.md` - Status updated to "Ready for Manual Testing", Dev Agent Record added
+
+### Change Log
+- **2025-11-23:** Story 10.6 marked as requiring manual testing and deployment (deferred to user execution during weekend deployment window)
+
 
