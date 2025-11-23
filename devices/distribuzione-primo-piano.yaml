@@ -10,6 +10,19 @@ packages:
   camera_padronale: !include ../components/rooms/first_floor/camera_padronale.yaml
   lavanderia: !include ../components/rooms/first_floor/lavanderia.yaml
 
+# Epic 10: UDP broadcasting for zone demand signaling to mixing groups
+# Broadcasts binary sensor state every 5 seconds to enable demand-based relay control
+# Port 6053 standard (Epic 9), mixing groups subscribe to these broadcasts (Story 10.4)
+udp:
+  id: udp_packet_transport
+
+packet_transport:
+  - platform: udp
+    udp_id: udp_packet_transport
+    update_interval: 5s # Fast response for relay control (Story 10.3)
+    binary_sensors:
+      - primo_piano_any_zone_open # Existing binary sensor
+
 modbus:
   id: rs485_bus
   uart_id: rs485

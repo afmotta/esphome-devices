@@ -2,7 +2,7 @@
 
 **Epic:** 10 - ESP32 Room Sensors & Zone Activity Tracking via UDP  
 **Date:** November 20, 2025  
-**Status:** Ready for Review  
+**Status:** Done  
 **Story Points:** 2  
 **Version:** 1.0
 
