@@ -2,8 +2,11 @@
 
 **Epic:** 10 - ESP32 Room Sensors & Zone Activity Tracking via UDP  
 **Date:** November 20, 2025  
-**Status:** Planning  
+**Status:** Complete  
+**Completion Date:** November 23, 2025  
 **Version:** 1.0
+
+**Completion Report:** See `docs/epic-10-completion-report.md` for full details, metrics, and lessons learned.
 
 ---
 
@@ -146,21 +149,21 @@ Implement two complementary UDP communication patterns using ESPHome's native `p
 
 **vs. Current Epic 5 HA-Only Architecture:**
 
-| Aspect | Epic 5 (Current) | Epic 10 (Proposed) | Benefit |
-|--------|------------------|-------------------|---------|
-| **Room Sensing** | HA API sensors | UDP + HA fallback | Lower latency, HA-independent |
-| **Sensor Source** | Assumes HA integration | Native ESP32 broadcast | Decoupled architecture |
-| **Mixing Control** | Always-on relays | Demand-based relays | Energy savings 20-30% |
-| **Failure Mode** | 180s timeout → emergency | UDP → HA → emergency | Graceful degradation |
+| Aspect             | Epic 5 (Current)         | Epic 10 (Proposed)     | Benefit                       |
+| ------------------ | ------------------------ | ---------------------- | ----------------------------- |
+| **Room Sensing**   | HA API sensors           | UDP + HA fallback      | Lower latency, HA-independent |
+| **Sensor Source**  | Assumes HA integration   | Native ESP32 broadcast | Decoupled architecture        |
+| **Mixing Control** | Always-on relays         | Demand-based relays    | Energy savings 20-30%         |
+| **Failure Mode**   | 180s timeout → emergency | UDP → HA → emergency   | Graceful degradation          |
 
 **vs. Alternative Approaches:**
 
-| Approach | Pros | Cons | Decision |
-|----------|------|------|----------|
-| **UDP Broadcast** | Direct communication, low latency | Requires ESP32 sensors | ✅ **Selected** |
-| **Keep HA-Only** | No changes needed | Maintains operational coupling | ❌ Doesn't address problem |
-| **MQTT Bridge** | Reliable delivery | Adds broker dependency | ❌ Violates Epic 9 peer-to-peer principle |
-| **Modbus Revival** | Proven reliable | Requires RS485 wiring to rooms | ❌ Impractical for room sensors |
+| Approach           | Pros                              | Cons                           | Decision                                 |
+| ------------------ | --------------------------------- | ------------------------------ | ---------------------------------------- |
+| **UDP Broadcast**  | Direct communication, low latency | Requires ESP32 sensors         | ✅ **Selected**                           |
+| **Keep HA-Only**   | No changes needed                 | Maintains operational coupling | ❌ Doesn't address problem                |
+| **MQTT Bridge**    | Reliable delivery                 | Adds broker dependency         | ❌ Violates Epic 9 peer-to-peer principle |
+| **Modbus Revival** | Proven reliable                   | Requires RS485 wiring to rooms | ❌ Impractical for room sensors           |
 
 ### Why This Solution Will Succeed
 

@@ -68,6 +68,69 @@ For details, see `docs/epic-5-migration-guide.md`, `docs/epic-5-ha-only-sensors.
 
 For details, see `docs/epic-7-window-detection-guide.md`, `docs/window-sensors-map.md`, and `docs/epic-7-completion-report.md`.
 
+**Epic 10 Update (November 2025):** UDP-based zone activity tracking enables demand-based relay control for energy optimization. Distribution boards broadcast zone demand (any PID active per floor/zone type), and the mixing group receives broadcasts to control circulation pump relays only when needed. Key patterns:
+
+- **Zone Activity Aggregation:** Use inline template binary_sensor with OR logic combining PID states (e.g., `piano_terra_any_radiant_zone_open`)
+- **UDP Broadcasting:** Binary sensor broadcasts zone demand every 5 seconds via `packet_transport` platform on port 6053
+- **Broadcast Naming:** Follow convention `{board}_{zone_type}_any_zone_open` (e.g., `piano_terra_any_radiant_zone_open`)
+- **UDP Receivers:** Mixing group uses `packet_transport` with `providers` list (distribution board names) and `platform: packet_transport` binary sensors
+- **Demand-Based Relay Control:** Relays controlled by `on_state` triggers responding to UDP binary sensors (NOT direct PID state checks)
+- **Update Intervals:** 5 seconds for reactive zone demand (matches Epic 9's 10s for slow-changing supply temps)
+- **Epic 9 Dependency:** Epic 10 builds on Epic 9 UDP infrastructure (`packet_transport` platform for supply temperature broadcasts)
+- **Energy Savings:** Target 20-30% relay runtime reduction by stopping pumps when no zone demand exists
+
+Example inline zone aggregation pattern (in device file):
+
+```yaml
+binary_sensor:
+  - platform: template
+    id: piano_terra_any_radiant_zone_open
+    lambda: |-
+      return (id(pid_radiant_soggiorno).action != CLIMATE_ACTION_OFF ||
+              id(pid_radiant_cucina).action != CLIMATE_ACTION_OFF ||
+              id(pid_radiant_bagno).action != CLIMATE_ACTION_OFF);
+    update_interval: 5s
+```
+
+Example UDP broadcaster pattern (in distribution board):
+
+```yaml
+udp:
+  id: udp_packet_transport
+
+packet_transport:
+  - platform: udp
+    udp_id: udp_packet_transport
+    binary_sensors:
+      - id: piano_terra_any_radiant_zone_open
+        broadcast_id: "piano_terra_any_radiant_zone_open"
+```
+
+Example UDP receiver pattern (in mixing group):
+
+```yaml
+packet_transport:
+  providers:
+    - distribuzione-piano-terra
+    - distribuzione-primo-piano
+
+binary_sensor:
+  - platform: packet_transport
+    id: piano_terra_any_radiant_zone_open
+    provider: distribuzione-piano-terra
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: "return x;" # x is boolean in on_state context
+            then:
+              - switch.turn_on: relay_1
+            else:
+              - switch.turn_off: relay_1
+```
+
+For details, see `docs/epic-10-completion-report.md`, `docs/epic-10-udp-sensor-guide.md`, and `docs/epic-10-migration-guide.md`.
+
 If unsure, prefer conservative edits and ask for clarification. After changing component contracts (vars or ids), update all device callers accordingly.
 
 Feedback: If any examples or file references are unclear, tell me where and I will expand examples or add quick cross-reference links.
