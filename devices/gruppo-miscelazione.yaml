@@ -29,6 +29,61 @@ packet_transport:
         broadcast_id: mixing_output_ground_floor_temperature
       - id: dallas_0xe9000000b366ed28
         broadcast_id: mixing_output_first_floor_temperature
+    providers:
+      - name: distribuzione-piano-terra
+      - name: distribuzione-primo-piano
+
+# Epic 10: Binary sensor entities for UDP-received zone demand (Story 10.4)
+# These expose the packet_transport received values to Home Assistant and relay control logic
+binary_sensor:
+  - platform: packet_transport
+    id: piano_terra_any_radiant_zone_open
+    provider: distribuzione-piano-terra
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: "return x.state;"
+            then:
+              - logger.log:
+                  format: "Ground Floor Any Radiant Zone OPEN"
+              - switch.turn_on: relay_1
+            else:
+              - logger.log:
+                  format: "Ground Floor Any Radiant Zone CLOSED"
+              - switch.turn_off: relay_1
+  - platform: packet_transport
+    id: piano_terra_any_fancoil_zone_open
+    provider: distribuzione-piano-terra
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: "return x.state;"
+            then:
+              - logger.log:
+                  format: "Ground Floor Any Radiant Zone OPEN"
+              - switch.turn_on: relay_2
+            else:
+              - logger.log:
+                  format: "Ground Floor Any Radiant Zone CLOSED"
+              - switch.turn_off: relay_2
+  - platform: packet_transport
+    id: primo_piano_any_zone_open
+    provider: distribuzione-primo-piano
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: "return x.state;"
+            then:
+              - logger.log:
+                  format: "Ground Floor Any Radiant Zone OPEN"
+              - switch.turn_on: relay_3
+            else:
+              - logger.log:
+                  format: "Ground Floor Any Radiant Zone CLOSED"
+              - switch.turn_off: relay_3
 
 sensor:
   - platform: dallas_temp
@@ -60,14 +115,6 @@ climate:
       min_temperature: 0
       max_temperature: 40
       temperature_step: 0.5
-    on_state:
-      # Relay control: turn on when PID active, off when idle
-      - lambda: |-
-          if (x.action == climate::CLIMATE_ACTION_HEATING || x.action == climate::CLIMATE_ACTION_COOLING) {
-            id(relay_1).turn_on();
-          } else {
-            id(relay_1).turn_off();
-          }
 
   - platform: pid
     id: pid_mixing_first_floor
@@ -84,11 +131,3 @@ climate:
       min_temperature: 0
       max_temperature: 40
       temperature_step: 0.5
-    on_state:
-      # Relay control: turn on when PID active, off when idle
-      - lambda: |-
-          if (x.action == climate::CLIMATE_ACTION_HEATING || x.action == climate::CLIMATE_ACTION_COOLING) {
-            id(relay_2).turn_on();
-          } else {
-            id(relay_2).turn_off();
-          }
