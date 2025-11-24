@@ -1,3 +1,7 @@
+defaults:
+  device_name: distribuzione-piano-terra
+  friendly_name: "Distribuzione Piano Terra"
+
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml

@@ -1,3 +1,7 @@
+defaults:
+  device_name: distribuzione-primo-piano
+  friendly_name: "Distribuzione Primo Piano"
+
 packages:
   board: !include ../boards/a16.yaml
   wifi: !include ../boards/wifi.yaml
