@@ -3,8 +3,8 @@
 # Board: KC868-A6
 
 defaults:
-  - device_name: "mev-primo-piano"
-  - friendly_name: "VMC Primo Piano"
+  device_name: "mev-primo-piano"
+  friendly_name: "VMC Primo Piano"
 
 packages:
   base: !include ../boards/a6.yaml
