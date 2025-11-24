@@ -1,8 +1,9 @@
 # Component: sensor_failover_3tier.yaml
 # Purpose: 3-tier sensor failover (UDP → HA → Emergency) for PID control
 # Epic: Epic 9 - UDP Packet Transport Board Communication
+# Epic: Epic 11 - ESP32 Room Sensors via UDP
 #
-# This component provides a 3-tier failover abstraction layer for room temperature sensors:
+# This component provides a 3-tier failover abstraction layer for temperature sensors:
 #   - Tier 1 (UDP): Direct board-to-board communication (lowest latency, highest reliability)
 #   - Tier 2 (HA): Home Assistant sensor fallback (network dependency)
 #   - Tier 3 (Emergency): No valid sensors, returns NaN to trigger emergency shutdown
@@ -16,7 +17,7 @@
 # Required vars:
 #   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
 #   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
-#   - udp_sensor_id: UDP packet_transport sensor ID (e.g., "supply_temp_piano_terra_udp")
+#   - udp_sensor_id: ID of pre-existing UDP sensor (created by caller)
 #   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
 #
 # Optional vars (with defaults):
@@ -34,8 +35,26 @@
 #   | NaN        | Valid       | Tier 2 (HA)        | HA value         |
 #   | NaN        | NaN         | Tier 3 (Emergency) | NaN              |
 #
+# Usage Example (Epic 11 Room Sensors):
+#   # In device/room YAML, create UDP sensor first:
+#   sensor:
+#     - platform: packet_transport
+#       id: soggiorno_udp_temp
+#       provider: soggiorno_room_sensor
+#       internal: true
+#
+#   # Then include this component referencing the UDP sensor:
+#   sensors: !include
+#     file: ../../sensor_failover_3tier.yaml
+#     vars:
+#       zone_slug: "soggiorno"
+#       zone_name: "Soggiorno"
+#       udp_sensor_id: "soggiorno_udp_temp"
+#       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+#
 # Version History:
 #   - v1.0 (Nov 2025): Initial Epic 9 implementation
+#   - v2.0 (Nov 2025): Epic 11 compatibility - UDP sensor now created externally by caller
 
 # ============================================================================
 # DEFAULT VALUES
@@ -44,17 +63,20 @@
 defaults:
   emergency_timeout: 180 # 3 minutes (not currently used in this component)
 
-# ============================================================================
-# UDP SENSOR (Tier 1 - Highest Priority)
-# ============================================================================
-# Note: This sensor is created by the calling device/room component using
-# ESPHome's packet_transport sensor platform. We reference it by ID here.
-
-# ============================================================================
-# HOME ASSISTANT SENSOR (Tier 2 - Fallback)
-# ============================================================================
-
 sensor:
+  - platform: packet_transport
+    id: ${udp_temperature_sensor_id}
+    provider: ${udp_sensor_provider}
+    internal: true # Only used by abstracted sensor, not exposed to HA
+    filters:
+      - filter_out: nan # Remove invalid readings
+  # ============================================================================
+  # HOME ASSISTANT SENSOR (Tier 2 - Fallback)
+  # ============================================================================
+  # Note: UDP sensor (Tier 1) is created by the calling device/room component
+  # using ESPHome's packet_transport sensor platform. This component references
+  # it by ID via the ${udp_sensor_id} variable.
+
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
     id: ${zone_slug}_ha_temperature_tier2
@@ -62,9 +84,9 @@ sensor:
     filters:
       - filter_out: nan # Remove invalid readings
 
-# ============================================================================
-# ABSTRACTED SENSOR (3-Tier Failover Logic)
-# ============================================================================
+  # ============================================================================
+  # ABSTRACTED SENSOR (3-Tier Failover Logic)
+  # ============================================================================
 
   - platform: template
     id: ${zone_slug}_room_temp_abstracted
@@ -79,7 +101,7 @@ sensor:
       static std::string last_tier = "";
       std::string current_tier;
       float value;
-      
+
       // Tier 1: UDP sensor (highest priority)
       if (!isnan(id(${udp_sensor_id}).state)) {
         current_tier = "UDP";
@@ -100,7 +122,7 @@ sensor:
         id(${zone_slug}_sensor_tier).publish_state(current_tier);
         return value;
       }
-      
+
       // Tier 2: HA sensor (fallback)
       if (!isnan(id(${zone_slug}_ha_temperature_tier2).state)) {
         current_tier = "HA";
@@ -121,10 +143,10 @@ sensor:
         id(${zone_slug}_sensor_tier).publish_state(current_tier);
         return value;
       }
-      
+
       // Tier 3: Emergency (both sensors unavailable)
       current_tier = "Emergency";
-      
+
       // Log tier change
       if (last_tier != current_tier) {
         if (last_tier == "UDP") {
@@ -136,7 +158,7 @@ sensor:
         }
         last_tier = current_tier;
       }
-      
+
       id(${zone_slug}_sensor_tier).publish_state(current_tier);
       return NAN; // Triggers emergency condition via room_emergency_condition.yaml
 
