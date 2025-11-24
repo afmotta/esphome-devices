@@ -1,0 +1,11 @@
+# Example ESP32 Room Sensor Configuration - Soggiorno (Living Room)
+# This file demonstrates how to use the ESP32 room sensor template
+
+substitutions:
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  encryption_key: !secret encryption_key
+  ota_password: !secret ota_password
+
+packages:
+  - !include "../devices/soggiorno-room-sensor.yaml"

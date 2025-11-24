@@ -1,0 +1,11 @@
+# Example ESP32 Room Sensor Configuration - Soggiorno (Living Room)
+# This file demonstrates how to use the ESP32 room sensor template
+
+substitutions:
+  device_name: "soggiorno-room-sensor"
+  zone_slug: "soggiorno"
+  zone_name: "Soggiorno"
+
+packages:
+  room_sensor: !include
+    file: ../boards/s1-pro-multi-sense.yaml
