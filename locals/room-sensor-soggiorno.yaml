@@ -8,4 +8,4 @@ substitutions:
   ota_password: !secret ota_password
 
 packages:
-  - !include "../devices/soggiorno-room-sensor.yaml"
+  - !include "../devices/room-sensor-soggiorno.yaml"
