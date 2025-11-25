@@ -70,4 +70,3 @@ packages:
       area_slug: "sala_pranzo"
       area_name: "Sala da Pranzo"
       sensor: soggiorno_room_temp_abstracted
-      switch_management_script: ground_floor_fancoils_pump_management

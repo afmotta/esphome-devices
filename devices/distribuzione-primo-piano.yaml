@@ -17,6 +17,10 @@ packages:
 # Epic 10: UDP broadcasting for zone demand signaling to mixing groups
 # Broadcasts binary sensor state every 5 seconds to enable demand-based relay control
 # Port 6053 standard (Epic 9), mixing groups subscribe to these broadcasts (Story 10.4)
+#
+# Epic 11: UDP room sensor receivers
+# Receives temperature/humidity broadcasts from ESP32 room sensors (Story 11.3)
+# Providers configured for 8 first floor rooms, 10s update interval for sensor data
 udp:
   id: udp_packet_transport
 
@@ -26,6 +30,16 @@ packet_transport:
     update_interval: 5s # Fast response for relay control (Story 10.3)
     binary_sensors:
       - primo_piano_any_zone_open # Existing binary sensor
+    # Epic 11: UDP room sensor receivers (8 first floor rooms)
+    providers:
+      - name: room_sensor_bagno_grande
+      - name: room_sensor_bagno_ospiti
+      - name: room_sensor_bagno_padronale
+      - name: room_sensor_camera_nord
+      - name: room_sensor_camera_sud
+      - name: room_sensor_camera_ospiti
+      - name: room_sensor_camera_padronale
+      - name: room_sensor_lavanderia
 
 modbus:
   id: rs485_bus

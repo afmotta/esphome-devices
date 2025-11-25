@@ -56,4 +56,3 @@ packages:
       area_slug: "locale_tecnico"
       area_name: "Locale tecnico"
       sensor: locale_tecnico_room_temp_abstracted
-      switch_management_script: ground_floor_fancoils_pump_management
