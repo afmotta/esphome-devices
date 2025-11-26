@@ -21,6 +21,3 @@ climate:
       min_temperature: 0
       max_temperature: 40
       temperature_step: 0.5
-    on_state:
-      then:
-        - script.execute: ${pump_management_script}

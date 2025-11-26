@@ -74,7 +74,6 @@ packages:
       kp: 0.8
       ki: 0.005
       kd: 0.05
-      pump_management_script: first_floor_radiant_pump_management
 
 # ============================================================================
 # ROOM OUTPUTS (unchanged from Epic 5)

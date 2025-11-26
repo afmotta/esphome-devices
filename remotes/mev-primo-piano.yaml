@@ -2,20 +2,15 @@
 # This file can be used for remote ESPHome dashboard configuration
 
 substitutions:
-  device_name: mev-primo-piano
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  encryption_key: !secret encryption_key
+  ota_password: !secret ota_password
 
 packages:
-  - !include "github://afmotta/esphome-devices/devices/mev-primo-piano.yaml@main"
-  - !include "github://afmotta/esphome-devices/boards/wifi.yaml@main"
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-api:
-  encryption:
-    key: !secret encryption_key
-
-ota:
-  - platform: esphome
-    password: !secret ota_password
+  config:
+    url: https://github.com/afmotta/esphome-devices
+    files: [devices/mev-primo-piano.yaml]
+    ref: main
+    username: !secret github_username
+    password: !secret github_pat
