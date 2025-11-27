@@ -1,68 +1,18 @@
 # ============================================================================
-# Anticamera Room Component - Ground Floor (Epic 8)
+# Anticamera
+# Ground Floor
 # ============================================================================
-#
-# Complete room climate control component for Anticamera (Hallway)
-# Includes: HA temperature sensor, PID controller, diagnostic sensors, slow PWM output
-#
-# Epic 8: Unified state machine architecture
-#   - Emergency condition component (sensor failure detection)
-#   - Room control coordinator (priority-based PID control)
-#
-# Migration: Epic 5 → Epic 8
-#   REMOVED: room_sensors.yaml (Epic 5)
-#   REMOVED: room_emergency_shutdown.yaml (Epic 5)
-#   ADDED: room_emergency_condition.yaml (Epic 8)
-#   ADDED: room_control_coordinator.yaml (Epic 8)
-#
-# Note: NO window condition (radiant floor only, no fancoil)
+# Heating: Radiant Floor
+# Cooling: None
+# ============================================================================
 
 packages:
-  # ============================================================================
-  # EPIC 8: SENSOR ABSTRACTION
-  # ============================================================================
-
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
       zone_slug: "anticamera"
       zone_name: "Anticamera"
       ha_temperature_sensor_id: "sensor.room_anticamera_temperature"
-
-  # ============================================================================
-  # EPIC 8: CONDITION COMPONENTS
-  # ============================================================================
-
-  emergency_condition: !include
-    file: ../../room_emergency_condition.yaml
-    vars:
-      zone_slug: "anticamera"
-      zone_name: "Anticamera"
-      ha_temperature_sensor_id: "sensor.room_anticamera_temperature"
-      emergency_timeout: 180 # 3 minutes before emergency trigger
-      recovery_timeout: 60 # 1 minute stability period
-
-  # Window condition stub (radiant-only room has no real window detection)
-  window_condition_stub: !include
-    file: ../../room_window_condition_stub.yaml
-    vars:
-      zone_slug: "anticamera"
-
-  # ============================================================================
-  # EPIC 8: COORDINATOR (Priority-based control engine)
-  # ============================================================================
-
-  coordinator: !include
-    file: ../../room_control_coordinator.yaml
-    vars:
-      zone_slug: "anticamera"
-      zone_name: "Anticamera"
-      pid_id: pid_radiant_anticamera
-      coordinator_interval: 5 # 5-second polling
-
-  # ============================================================================
-  # CLIMATE CONTROL (unchanged from Epic 5)
-  # ============================================================================
 
   pid_radiant: !include
     file: ../../pid.yaml
@@ -74,10 +24,6 @@ packages:
       kp: 0.8
       ki: 0.005
       kd: 0.05
-
-# ============================================================================
-# ROOM OUTPUTS (unchanged from Epic 5)
-# ============================================================================
 
 output:
   - platform: slow_pwm

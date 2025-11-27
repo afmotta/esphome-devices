@@ -1,16 +1,12 @@
 # ============================================================================
-# Locale Tecnico Room Component - Ground Floor (Epic 8)
+# Locale Tecnico
+# Ground Floor
 # ============================================================================
-#
-# Epic 8 unified architecture: Condition components + Room Control Coordinator
-# Equipment: Fancoil only
-# Conditions: Emergency (sensor failure) + Window (open window detection)
+# Heating: None
+# Cooling: Fancoil
+# ============================================================================
 
 packages:
-  # ============================================================================
-  # EPIC 8: SENSOR ABSTRACTION
-  # ============================================================================
-
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
@@ -18,36 +14,6 @@ packages:
       zone_name: "Locale tecnico"
       ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
 
-  # ============================================================================
-  # EPIC 8: CONDITION COMPONENTS
-  # ============================================================================
-
-  emergency_condition: !include
-    file: ../../room_emergency_condition.yaml
-    vars:
-      zone_slug: "locale_tecnico"
-      zone_name: "Locale tecnico"
-      ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
-      priority: 1
-  window_condition: !include
-    file: ../../room_window_condition.yaml
-    vars:
-      zone_slug: "locale_tecnico"
-      zone_name: "Locale tecnico"
-      ha_window_sensor_id: "binary_sensor.locale_tecnico_window"
-      pid_id: pid_fancoil_locale_tecnico
-      window_shutdown_modes: "cooling, heating"
-      priority: 2
-  coordinator: !include
-    file: ../../room_control_coordinator.yaml
-    vars:
-      zone_slug: "locale_tecnico"
-      zone_name: "Locale tecnico"
-      pid_id: pid_fancoil_locale_tecnico
-      emergency_condition_priority_id: locale_tecnico_emergency_condition_priority
-      emergency_condition_state_id: locale_tecnico_emergency_condition_state
-      window_condition_priority_id: locale_tecnico_window_condition_priority
-      window_condition_state_id: locale_tecnico_window_condition_state
   fancoil: !include
     file: ../../fancoil.yaml
     vars:

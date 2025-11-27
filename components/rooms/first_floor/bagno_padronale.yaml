@@ -1,10 +1,10 @@
 # ============================================================================
-# Bagno Padronale Room Component - First Floor (Epic 8)
+# Bagno Padronale
+# First Floor
 # ============================================================================
-#
-# Epic 8 unified architecture: Condition components + Room Control Coordinator
-# Equipment: Radiant floor heating only
-# Conditions: Emergency (sensor failure detection only)
+# Heating: Radiant Floor
+# Cooling: None
+# ============================================================================
 
 packages:
   sensors: !include
@@ -14,28 +14,6 @@ packages:
       zone_name: "Bagno Padronale"
       ha_temperature_sensor_id: "sensor.room_bagno_padronale_temperature"
 
-  emergency_condition: !include
-    file: ../../room_emergency_condition.yaml
-    vars:
-      zone_slug: "bagno_padronale"
-      zone_name: "Bagno Padronale"
-      ha_temperature_sensor_id: "sensor.room_bagno_padronale_temperature"
-      priority: 1
-
-  # Window condition stub (radiant-only room has no real window detection)
-  window_condition_stub: !include
-    file: ../../room_window_condition_stub.yaml
-    vars:
-      zone_slug: "bagno_padronale"
-
-  coordinator: !include
-    file: ../../room_control_coordinator.yaml
-    vars:
-      zone_slug: "bagno_padronale"
-      zone_name: "Bagno Padronale"
-      pid_id: pid_radiant_bagno_padronale
-      emergency_condition_priority_id: bagno_padronale_emergency_condition_priority
-      emergency_condition_state_id: bagno_padronale_emergency_condition_state
   pid_radiant: !include
     file: ../../pid.yaml
     vars:
@@ -47,10 +25,6 @@ packages:
       ki: 0.005
       kd: 0.05
 
-# ============================================================================
-# Output Configuration
-# ============================================================================
-
 output:
   - platform: slow_pwm
     id: slow_pwm_bagno_padronale
@@ -60,10 +34,7 @@ output:
     turn_off_action:
       - switch.turn_off: relay_11
 
-# ============================================================================
-# Climate Configuration
-# ============================================================================
-
+# disable cooling for this room
 climate:
   - id: !extend pid_radiant_bagno_padronale
     cool_output: !remove

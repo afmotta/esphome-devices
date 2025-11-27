@@ -1,74 +1,18 @@
 # ============================================================================
-# Cucina Room Component - Ground Floor (Epic 8)
+# Cucina
+# Ground Floor
 # ============================================================================
-#
-# Complete room climate control component for Cucina (Kitchen)
-# Includes: HA temperature sensor, dual PID controllers (radiant + fancoil), diagnostic sensors
-#
-# Epic 8: Unified state machine architecture
-#   - Emergency condition component (sensor failure detection)
-#   - Window condition component (energy efficiency for fancoil)
-#   - Room control coordinator (priority-based PID control)
-#
-# Migration: Epic 5 + Epic 7 → Epic 8
-#   REMOVED: room_sensors.yaml (Epic 5)
-#   REMOVED: room_emergency_shutdown.yaml (Epic 5)
-#   REMOVED: room_window_detection.yaml (Epic 7)
-#   ADDED: room_emergency_condition.yaml (Epic 8)
-#   ADDED: room_window_condition.yaml (Epic 8)
-#   ADDED: room_control_coordinator.yaml (Epic 8)
+# Heating: Radiant Floor
+# Cooling: Fancoil
+# ============================================================================
 
 packages:
-  # ============================================================================
-  # EPIC 8: SENSOR ABSTRACTION
-  # ============================================================================
-
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
       zone_slug: "cucina"
       zone_name: "Cucina"
       ha_temperature_sensor_id: "sensor.room_cucina_temperature"
-
-  # ============================================================================
-  # EPIC 8: CONDITION COMPONENTS
-  # ============================================================================
-
-  emergency_condition: !include
-    file: ../../room_emergency_condition.yaml
-    vars:
-      zone_slug: "cucina"
-      zone_name: "Cucina"
-      ha_temperature_sensor_id: "sensor.room_cucina_temperature"
-      emergency_timeout: 180 # 3 minutes before emergency trigger
-      recovery_timeout: 60 # 1 minute stability period
-
-  window_condition: !include
-    file: ../../room_window_condition.yaml
-    vars:
-      zone_slug: "cucina"
-      zone_name: "Cucina"
-      ha_window_sensor_id: "binary_sensor.cucina_window"
-      pid_id: pid_fancoil_cucina
-      window_shutdown_modes: "cooling, heating"
-      window_timeout: 180 # 3 minutes grace period
-      recovery_timeout: 60 # 1 minute stability period
-
-  # ============================================================================
-  # EPIC 8: COORDINATOR (Priority-based control engine)
-  # ============================================================================
-
-  coordinator: !include
-    file: ../../room_control_coordinator.yaml
-    vars:
-      zone_slug: "cucina"
-      zone_name: "Cucina"
-      pid_id: pid_fancoil_cucina
-      coordinator_interval: 5 # 5-second polling
-
-  # ============================================================================
-  # CLIMATE CONTROL (unchanged from Epic 7)
-  # ============================================================================
 
   pid_radiant: !include
     file: ../../pid.yaml
@@ -89,10 +33,6 @@ packages:
       area_slug: "cucina"
       area_name: "Cucina"
       sensor: cucina_room_temp_abstracted
-
-# ============================================================================
-# ROOM OUTPUTS (unchanged from Epic 7)
-# ============================================================================
 
 output:
   - platform: slow_pwm
