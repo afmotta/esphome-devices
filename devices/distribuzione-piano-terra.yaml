@@ -23,12 +23,12 @@ packet_transport:
       - piano_terra_any_radiant_zone_open
       - piano_terra_any_fancoil_zone_open
     providers:
-      - name: soggiorno_room_sensor
-      - name: cucina_room_sensor
-      - name: bagno_room_sensor
-      - name: anticamera_room_sensor
-      - name: sala_pranzo_room_sensor
-      - name: locale_tecnico_room_sensor
+      - name: room_sensor_soggiorno
+      - name: room_sensor_cucina
+      - name: room_sensor_bagno
+      - name: room_sensor_anticamera
+      - name: room_sensor_sala_pranzo
+      - name: room_sensor_locale_tecnico
 
 modbus:
   id: rs485_bus
@@ -39,75 +39,6 @@ modbus_controller:
     address: 0x2
     modbus_id: rs485_bus
     update_interval: 5s
-
-# ============================================================================
-# UDP ROOM SENSOR RECEIVERS
-# ============================================================================
-# Receives temperature/humidity broadcasts from ESP32 room sensors
-# Sensors marked internal: true (used by sensor_failover_3tier component)
-# Provider naming: {zone_slug}_room_sensor
-# Sensor ID naming: {zone_slug}_udp_temperature, {zone_slug}_udp_humidity
-
-sensor:
-  # Soggiorno UDP Receivers
-  - platform: packet_transport
-    id: soggiorno_udp_temperature
-    provider: room_sensor_soggiorno
-    internal: true
-  - platform: packet_transport
-    id: soggiorno_udp_humidity
-    provider: room_sensor_soggiorno
-    internal: true
-
-  # Cucina UDP Receivers
-  - platform: packet_transport
-    id: cucina_udp_temperature
-    provider: room_sensor_cucina
-    internal: true
-  - platform: packet_transport
-    id: cucina_udp_humidity
-    provider: room_sensor_cucina
-    internal: true
-
-  # Bagno (Terra) UDP Receivers
-  - platform: packet_transport
-    id: bagno_terra_udp_temperature
-    provider: room_sensor_bagno_terra
-    internal: true
-  - platform: packet_transport
-    id: bagno_terra_udp_humidity
-    provider: room_sensor_bagno_terra
-    internal: true
-
-  # Anticamera UDP Receivers
-  - platform: packet_transport
-    id: anticamera_udp_temperature
-    provider: room_sensor_anticamera
-    internal: true
-  - platform: packet_transport
-    id: anticamera_udp_humidity
-    provider: room_sensor_anticamera
-    internal: true
-
-  # Sala Pranzo UDP Receivers
-  - platform: packet_transport
-    id: sala_pranzo_udp_temperature
-    provider: room_sensor_sala_pranzo
-    internal: true
-  - platform: packet_transport
-    id: sala_pranzo_udp_humidity
-    provider: room_sensor_sala_pranzo
-    internal: true
-
-  # Locale Tecnico UDP Receivers
-  - platform: packet_transport
-    id: locale_tecnico_udp_temperature
-    provider: room_sensor_locale_tecnico
-    internal: true
-  - platform: packet_transport
-    id: locale_tecnico_udp_humidity
-    provider: room_sensor_locale_tecnico
-    internal: true
 
 binary_sensor:
   - platform: template

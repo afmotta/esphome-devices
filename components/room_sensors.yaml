@@ -67,22 +67,30 @@ sensor:
   - platform: packet_transport
     id: ${zone_slug}_udp_temperature
     provider: room_sensor_${zone_slug}
-    internal: true # Only used by abstracted sensor, not exposed to HA
+    internal: true
     filters:
-      - filter_out: nan # Remove invalid readings
-  # ============================================================================
-  # HOME ASSISTANT SENSOR (Tier 2 - Fallback)
-  # ============================================================================
-  # Note: UDP sensor (Tier 1) is created by the calling device/room component
-  # using ESPHome's packet_transport sensor platform. This component references
-  # it by ID via the ${zone_slug}_udp_temperature variable.
+      - filter_out: nan
+
+  - platform: packet_transport
+    id: ${zone_slug}_udp_humidity
+    provider: room_sensor_${zone_slug}
+    internal: true
+    filters:
+      - filter_out: nan
 
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
     id: ${zone_slug}_ha_temperature
-    internal: true # Only used by abstracted sensor, not exposed to HA
+    internal: true
     filters:
-      - filter_out: nan # Remove invalid readings
+      - filter_out: nan
+
+  - platform: homeassistant
+    entity_id: ${ha_humidity_sensor_id}
+    id: ${zone_slug}_ha_humidity
+    internal: true
+    filters:
+      - filter_out: nan
 
   # ============================================================================
   # ABSTRACTED SENSOR (3-Tier Failover Logic)
@@ -91,7 +99,7 @@ sensor:
   - platform: template
     id: ${zone_slug}_room_temp_abstracted
     name: "${zone_name} Temperature (Abstracted)"
-    internal: true # Used by PID controllers, not exposed to HA
+    internal: true
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     device_class: temperature
