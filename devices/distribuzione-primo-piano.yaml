@@ -14,23 +14,15 @@ packages:
   camera_padronale: !include ../components/rooms/first_floor/camera_padronale.yaml
   lavanderia: !include ../components/rooms/first_floor/lavanderia.yaml
 
-# Epic 10: UDP broadcasting for zone demand signaling to mixing groups
-# Broadcasts binary sensor state every 5 seconds to enable demand-based relay control
-# Port 6053 standard (Epic 9), mixing groups subscribe to these broadcasts (Story 10.4)
-#
-# Epic 11: UDP room sensor receivers
-# Receives temperature/humidity broadcasts from ESP32 room sensors (Story 11.3)
-# Providers configured for 8 first floor rooms, 10s update interval for sensor data
 udp:
   id: udp_packet_transport
 
 packet_transport:
   - platform: udp
     udp_id: udp_packet_transport
-    update_interval: 5s # Fast response for relay control (Story 10.3)
+    update_interval: 5s
     binary_sensors:
-      - primo_piano_any_zone_open # Existing binary sensor
-    # Epic 11: UDP room sensor receivers (8 first floor rooms)
+      - primo_piano_any_zone_open
     providers:
       - name: room_sensor_bagno_grande
       - name: room_sensor_bagno_ospiti
@@ -70,27 +62,3 @@ binary_sensor:
              id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_COOLING ||
              id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
              id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_COOLING;
-
-script:
-  - id: first_floor_radiant_pump_management
-    mode: queued
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(pid_radiant_bagno_padronale).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_bagno_grande).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_bagno_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_lavanderia).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_camera_nord).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_camera_nord).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_radiant_camera_sud).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_camera_sud).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_COOLING ||
-                     id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
-                     id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_COOLING;
-          then:
-            - switch.turn_on: relay_16
-          else:
-            - switch.turn_off: relay_16
