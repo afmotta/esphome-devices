@@ -13,6 +13,7 @@ packages:
       zone_slug: "bagno_ospiti"
       zone_name: "Bagno Ospiti"
       ha_temperature_sensor_id: "sensor.room_bagno_ospiti_temperature"
+      ha_humidity_sensor_id: "sensor.room_bagno_ospiti_humidity"
 
   pid_radiant: !include
     file: ../../pid.yaml

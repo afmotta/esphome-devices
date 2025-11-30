@@ -13,6 +13,7 @@ packages:
       zone_slug: "anticamera"
       zone_name: "Anticamera"
       ha_temperature_sensor_id: "sensor.room_anticamera_temperature"
+      ha_humidity_sensor_id: "sensor.room_anticamera_humidity"
 
   pid_radiant: !include
     file: ../../pid.yaml

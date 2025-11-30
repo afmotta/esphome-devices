@@ -7,6 +7,14 @@
 # ============================================================================
 
 packages:
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
+      ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
+
   radiant: !include
     file: ../../pid.yaml
     vars:

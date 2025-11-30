@@ -13,6 +13,7 @@ packages:
       zone_slug: "sala_pranzo"
       zone_name: "Sala da Pranzo"
       ha_temperature_sensor_id: "sensor.room_sala_pranzo_temperature"
+      ha_humidity_sensor_id: "sensor.room_sala_pranzo_humidity"
 
   fancoil: !include
     file: ../../fancoil.yaml

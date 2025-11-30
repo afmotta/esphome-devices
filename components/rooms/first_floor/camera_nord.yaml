@@ -13,6 +13,7 @@ packages:
       zone_slug: "camera_nord"
       zone_name: "Camera Nord"
       ha_temperature_sensor_id: "sensor.room_camera_nord_temperature"
+      ha_humidity_sensor_id: "sensor.room_camera_nord_humidity"
 
   pid_radiant: !include
     file: ../../pid.yaml

@@ -13,6 +13,7 @@ packages:
       zone_slug: "camera_padronale"
       zone_name: "Camera Padronale"
       ha_temperature_sensor_id: "sensor.room_camera_padronale_temperature"
+      ha_humidity_sensor_id: "sensor.room_camera_padronale_humidity"
 
   pid_radiant: !include
     file: ../../pid.yaml

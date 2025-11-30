@@ -13,6 +13,7 @@ packages:
       zone_slug: "locale_tecnico"
       zone_name: "Locale tecnico"
       ha_temperature_sensor_id: "sensor.room_locale_tecnico_temperature"
+      ha_humidity_sensor_id: "sensor.room_locale_tecnico_humidity"
 
   fancoil: !include
     file: ../../fancoil.yaml

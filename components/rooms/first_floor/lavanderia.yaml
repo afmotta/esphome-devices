@@ -13,6 +13,7 @@ packages:
       zone_slug: "lavanderia"
       zone_name: "Lavanderia"
       ha_temperature_sensor_id: "sensor.room_lavanderia_temperature"
+      ha_humidity_sensor_id: "sensor.room_lavanderia_humidity"
 
   pid_radiant: !include
     file: ../../pid.yaml
