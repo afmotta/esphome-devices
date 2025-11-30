@@ -32,9 +32,9 @@ number:
     address: ${register_address}
     value_type: U_WORD
     min_value: 0
-    max_value: 10000
+    max_value: 1000
     mode: box
-    internal: true # Not exposed to HA, used by template output
+    internal: true
 
 # Template output for PID controller integration
 # Converts PID float output (0.0-1.0) to register value (0-10000)
@@ -45,10 +45,10 @@ output:
     write_action:
       - number.set:
           id: ${adapter_id}_register_${register_address}
-          value: !lambda "return state * 10000.0;"
+          value: !lambda "return state * 1000.0;"
       - logger.log:
           format: "PID output %.2f → register %.0f"
-          args: ["state", "state * 10000.0"]
+          args: ["state", "state * 1000.0"]
 
 # Diagnostic sensor: Current fancoil capacity percentage
 sensor:
