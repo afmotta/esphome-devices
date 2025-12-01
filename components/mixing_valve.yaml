@@ -1,0 +1,69 @@
+# Component: mixing_valve.yaml
+# Purpose: Wraps DAC output with valve entity to represent physical mixing valve actuator
+# Required vars:
+#   - valve_name: Display name for the valve (e.g., "Mixing Valve Ground Floor")
+#   - valve_id: Entity ID (e.g., mixing_valve_ground_floor)
+#   - dac_output: DAC output ID controlling the valve actuator (e.g., dac_1)
+#
+# Usage Example:
+# packages:
+#   mixing_valve_ground_floor: !include
+#     file: ../components/mixing_valve.yaml
+#     vars:
+#       valve_name: "Mixing Valve Ground Floor"
+#       valve_id: mixing_valve_ground_floor
+#       dac_output: dac_1
+#
+# The component creates:
+# - Valve entity with manual position control
+# - Wraps 0-10V DAC output for physical mixing valve actuator control
+# - Position represents valve opening: 0%=closed, 100%=fully open
+# - Number entity to track and display current commanded position
+#
+# NOTE: DAC output must be defined at device level
+# WARNING: This valve provides manual override. When PID is active, both the valve
+# and PID will write to the same DAC output. The last write wins.
+
+# Internal number to track current valve position
+number:
+  - platform: template
+    name: "${valve_name} Position"
+    id: ${valve_id}_position
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    internal: true
+    optimistic: true
+    initial_value: 0
+    on_value:
+      then:
+        - output.set_level:
+            id: ${dac_output}
+            level: !lambda "return x;"
+        - logger.log:
+            format: "${valve_name}: Setting position to %.0f%% (DAC level %.2f)"
+            args: ["x * 100.0", "x"]
+
+valve:
+  - platform: template
+    device_class: water
+    name: ${valve_name}
+    id: ${valve_id}
+    has_position: true
+    lambda: |-
+      return id(${valve_id}_position).state;
+    open_action:
+      - number.set:
+          id: ${valve_id}_position
+          value: 1
+    close_action:
+      - number.set:
+          id: ${valve_id}_position
+          value: 0
+    stop_action:
+      # Stop maintains current position (no action needed)
+      - logger.log: "${valve_name}: Stop - maintaining current position"
+    position_action:
+      - number.set:
+          id: ${valve_id}_position
+          value: !lambda "return pos;"
