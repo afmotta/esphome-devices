@@ -16,12 +16,12 @@ packages:
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
 
   radiant: !include
-    file: ../../pid.yaml
+    file: ../../radiant.yaml
     vars:
-      circuit_slug: "radiant_soggiorno"
-      circuit_name: "Radiant Soggiorno"
-      output: slow_pwm_soggiorno
+      area_slug: "soggiorno"
+      area_name: "Soggiorno"
       sensor: soggiorno_room_temp_abstracted
+      relay_id: "relay_05"
       kp: 0.8
       ki: 0.005
       kd: 0.05
@@ -34,16 +34,3 @@ packages:
       area_slug: "soggiorno"
       area_name: "Soggiorno"
       sensor: soggiorno_room_temp_abstracted
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_soggiorno
-    period: 60s
-    turn_on_action:
-      - switch.turn_on: relay_05
-      - switch.turn_on: relay_06
-      - switch.turn_on: relay_07
-    turn_off_action:
-      - switch.turn_off: relay_05
-      - switch.turn_off: relay_06
-      - switch.turn_off: relay_07

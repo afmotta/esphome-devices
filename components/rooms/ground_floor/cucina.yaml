@@ -16,12 +16,12 @@ packages:
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
   pid_radiant: !include
-    file: ../../pid.yaml
+    file: ../../radiant.yaml
     vars:
-      circuit_slug: "radiant_cucina"
-      circuit_name: "Radiant Cucina"
-      output: slow_pwm_cucina
+      zone_slug: "cucina"
+      zone_name: "Cucina"
       sensor: cucina_room_temp_abstracted
+      relay_id: "relay_01"
       kp: 0.8
       ki: 0.005
       kd: 0.05
@@ -34,14 +34,3 @@ packages:
       area_slug: "cucina"
       area_name: "Cucina"
       sensor: cucina_room_temp_abstracted
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_cucina
-    period: 60s
-    turn_on_action:
-      - switch.turn_on: relay_01
-      - switch.turn_on: relay_02
-    turn_off_action:
-      - switch.turn_off: relay_01
-      - switch.turn_off: relay_02

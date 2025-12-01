@@ -16,24 +16,15 @@ packages:
       ha_humidity_sensor_id: "sensor.room_bagno_terra_humidity"
 
   pid_radiant: !include
-    file: ../../pid.yaml
+    file: ../../radiant.yaml
     vars:
-      circuit_slug: "radiant_bagno_terra"
-      circuit_name: "Radiant Bagno Terra"
-      output: slow_pwm_bagno_terra
+      zone_slug: "bagno_terra"
+      zone_name: "Bagno Terra"
       sensor: bagno_terra_room_temp_abstracted
+      relay_id: "relay_04"
       kp: 0.8
       ki: 0.005
       kd: 0.05
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_bagno_terra
-    period: 60s
-    turn_on_action:
-      - switch.turn_on: relay_03
-    turn_off_action:
-      - switch.turn_off: relay_03
 
 climate:
   - id: !extend pid_radiant_bagno_terra
