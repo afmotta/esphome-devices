@@ -6,7 +6,7 @@ defaults:
 
 packages:
   pid: !include
-    file: ../../pid.yaml
+    file: ./pid.yaml
     vars:
       circuit_slug: "radiant_${zone_slug}"
       circuit_name: "Radiant ${zone_name}"

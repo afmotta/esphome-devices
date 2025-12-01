@@ -27,6 +27,3 @@ climate:
       temperature_step: 0.5
     cool_output: fancoil_${area_slug}_output
     heat_output: fancoil_${area_slug}_output
-    on_state:
-      then:
-        - script.execute: ${switch_management_script}
