@@ -4,7 +4,6 @@
 # Required vars:
 #   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
 #   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
-#   - udp_sensor_id: ID of pre-existing UDP sensor (created by caller)
 #   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
 #   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
 #
@@ -53,80 +52,25 @@ sensor:
   # ============================================================================
   # ABSTRACTED SENSOR (3-Tier Failover Logic)
   # ============================================================================
-
-  - platform: template
-    id: ${zone_slug}_room_temp_abstracted
-    name: "${zone_name} Temperature (Abstracted)"
-    internal: true
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: temperature
-    state_class: measurement
-    update_interval: 10s
-    lambda: |-
-      static std::string last_tier = "";
-      std::string current_tier;
-      float value;
-
-      // Tier 1: HA sensor (main)
-      if (!isnan(id(${zone_slug}_ha_temperature).state)) {
-        current_tier = "HA";
-        value = id(${zone_slug}_ha_temperature).state;
-        
-        // Log tier change
-        if (last_tier != current_tier) {
-          if (last_tier == "UDP") {
-            ESP_LOGI("failover", "[%s] Recovery: UDP → HA (HA sensor restored)", "${zone_name}");
-          } else if (last_tier == "Emergency") {
-            ESP_LOGI("failover", "[%s] Recovery: Emergency → HA (HA sensor restored)", "${zone_name}");
-          } else if (last_tier == "") {
-            ESP_LOGD("failover", "[%s] Initial state: Tier 1 (HA)", "${zone_name}");
-          }
-          last_tier = current_tier;
-        }
-        
-        id(${zone_slug}_sensor_tier).publish_state(current_tier);
-        return value;
-      }
-
-      // Tier 2: UDP sensor (fallback)
-      if (!isnan(id(${zone_slug}_udp_temperature).state)) {
-        current_tier = "UDP";
-        value = id(${zone_slug}_udp_temperature).state;
-        
-        // Log tier change
-        if (last_tier != current_tier) {
-          if (last_tier == "HA") {
-            ESP_LOGI("failover", "[%s] Failover: HA → UDP (HA sensor unavailable)", "${zone_name}");
-          } else if (last_tier == "Emergency") {
-            ESP_LOGI("failover", "[%s] Recovery: Emergency → UDP (UDP sensor restored)", "${zone_name}");
-          } else if (last_tier == "") {
-            ESP_LOGD("failover", "[%s] Initial state: Tier 2 (UDP)", "${zone_name}");
-          }
-          last_tier = current_tier;
-        }
-        
-        id(${zone_slug}_sensor_tier).publish_state(current_tier);
-        return value;
-      }
-
-      // Tier 3: Emergency (both sensors unavailable)
-      current_tier = "Emergency";
-
-      // Log tier change
-      if (last_tier != current_tier) {
-        if (last_tier == "UDP") {
-          ESP_LOGE("failover", "[%s] Failover: UDP → Emergency (all sensors unavailable)", "${zone_name}");
-        } else if (last_tier == "HA") {
-          ESP_LOGE("failover", "[%s] Failover: HA → Emergency (all sensors unavailable)", "${zone_name}");
-        } else if (last_tier == "") {
-          ESP_LOGE("failover", "[%s] Initial state: Tier 3 (Emergency - no valid sensors)", "${zone_name}");
-        }
-        last_tier = current_tier;
-      }
-
-      id(${zone_slug}_sensor_tier).publish_state(current_tier);
-      return NAN;
+packages:
+  temperature_failover: !include
+    file: components/failover_sensor.yaml
+    vars:
+      sensor_id: ${zone_slug}_room_temp_abstracted
+      sensor_name: "${zone_name} Temperature (Abstracted)"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      ha_sensor: ${zone_slug}_ha_temperature
+      udp_sensor: ${zone_slug}_udp_temperature
+  humidity_failover: !include
+    file: components/failover_sensor.yaml
+    vars:
+      sensor_id: ${zone_slug}_room_humidity_abstracted
+      sensor_name: "${zone_name} Humidity (Abstracted)"
+      unit_of_measurement: "%"
+      device_class: humidity
+      ha_sensor: ${zone_slug}_ha_humidity
+      udp_sensor: ${zone_slug}_udp_humidity
 
 # ============================================================================
 # DIAGNOSTIC TEXT SENSOR (Tier Visibility)

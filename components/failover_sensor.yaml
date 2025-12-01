@@ -1,0 +1,111 @@
+# Component: room_sensors.yaml
+# Purpose: 3-tier sensor failover (HA → UDP → Emergency) for PID control
+#
+# Required vars:
+#   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
+#   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
+#   - udp_sensor_id: ID of pre-existing UDP sensor (created by caller)
+#   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
+#   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
+#
+# Exposes:
+#   - sensor.{zone}_room_temp_abstracted: Temperature for PID controllers (internal)
+#   - text_sensor.{zone}_sensor_tier: Active tier ("UDP", "HA", or "Emergency")
+#
+# Tier Priority Rules:
+#   | HA Sensor  | UDP Sensor  | Active Tier         | Abstracted Value |
+#   |------------|-------------|---------------------|------------------|
+#   | Valid      | Valid       | Tier 1 (HA)         | HA value         |
+#   | Valid      | NaN         | Tier 1 (HA)         | HA value         |
+#   | NaN        | Valid       | Tier 2 (UDP)        | UDP value        |
+#   | NaN        | NaN         | Tier 3 (Emergency)  | NaN              |
+# ============================================================================
+
+sensor:
+  # ============================================================================
+  # ABSTRACTED SENSOR (3-Tier Failover Logic)
+  # ============================================================================
+
+  - platform: template
+    id: ${sensor_id}
+    name: "${sensor_name}"
+    internal: true
+    unit_of_measurement: ${unit_of_measurement}
+    accuracy_decimals: 1
+    device_class: ${device_class}
+    state_class: measurement
+    update_interval: 10s
+    lambda: |-
+      static std::string last_tier = "";
+      std::string current_tier;
+      float value;
+
+      // Tier 1: HA sensor (main)
+      if (!isnan(id(${ha_sensor}).state)) {
+        current_tier = "HA";
+        value = id(${ha_sensor}).state;
+
+        // Log tier change
+        if (last_tier != current_tier) {
+          if (last_tier == "UDP") {
+            ESP_LOGI("failover", "[%s] Recovery: UDP → HA (HA sensor restored)", "${sensor_id}");
+          } else if (last_tier == "Emergency") {
+            ESP_LOGI("failover", "[%s] Recovery: Emergency → HA (HA sensor restored)", "${sensor_id}");
+          } else if (last_tier == "") {
+            ESP_LOGD("failover", "[%s] Initial state: Tier 1 (HA)", "${sensor_id}");
+          }
+          last_tier = current_tier;
+        }
+        
+        id(${sensor_id}_sensor_tier).publish_state(current_tier);
+        return value;
+      }
+
+      // Tier 2: UDP sensor (fallback)
+      if (!isnan(id(${udp_sensor}).state)) {
+        current_tier = "UDP";
+        value = id(${udp_sensor}).state;
+
+        // Log tier change
+        if (last_tier != current_tier) {
+          if (last_tier == "HA") {
+            ESP_LOGI("failover", "[%s] Failover: HA → UDP (HA sensor unavailable)", "${sensor_id}");
+          } else if (last_tier == "Emergency") {
+            ESP_LOGI("failover", "[%s] Recovery: Emergency → UDP (UDP sensor restored)", "${sensor_id}");
+          } else if (last_tier == "") {
+            ESP_LOGD("failover", "[%s] Initial state: Tier 2 (UDP)", "${sensor_id}");
+          }
+          last_tier = current_tier;
+        }
+
+        id(${sensor_id}_sensor_tier).publish_state(current_tier);
+        return value;
+      }
+
+      // Tier 3: Emergency (both sensors unavailable)
+      current_tier = "Emergency";
+
+      // Log tier change
+      if (last_tier != current_tier) {
+        if (last_tier == "UDP") {
+          ESP_LOGE("failover", "[%s] Failover: UDP → Emergency (all sensors unavailable)", "${sensor_id}");
+        } else if (last_tier == "HA") {
+          ESP_LOGE("failover", "[%s] Failover: HA → Emergency (all sensors unavailable)", "${sensor_id}");
+        } else if (last_tier == "") {
+          ESP_LOGE("failover", "[%s] Initial state: Tier 3 (Emergency - no valid sensors)", "${sensor_id}");
+        }
+        last_tier = current_tier;
+      }
+
+      id(${sensor_id}_sensor_tier).publish_state(current_tier);
+      return NAN;
+
+# ============================================================================
+# DIAGNOSTIC TEXT SENSOR (Tier Visibility)
+# ============================================================================
+
+text_sensor:
+  - platform: template
+    id: ${sensor_id}_sensor_tier
+    name: "${sensor_name} Active Sensor Tier"
+    icon: "mdi:chart-timeline-variant"
