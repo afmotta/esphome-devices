@@ -71,6 +71,13 @@ packages:
       device_class: humidity
       ha_sensor: ${zone_slug}_ha_humidity
       udp_sensor: ${zone_slug}_udp_humidity
+  dew_point: !include
+    file: components/dew_point_sensor.yaml
+    vars:
+      zone_slug: ${zone_slug}
+      zone_name: ${zone_name}
+      temperature_sensor: ${zone_slug}_room_temp_abstracted
+      humidity_sensor: ${zone_slug}_room_humidity_abstracted
 
 # ============================================================================
 # DIAGNOSTIC TEXT SENSOR (Tier Visibility)
