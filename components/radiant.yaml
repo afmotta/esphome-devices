@@ -1,5 +1,8 @@
 defaults:
   pwm_period: 60s
+  kp: 0.8
+  ki: 0.005
+  kd: 0.05
 
 packages:
   pid: !include
@@ -9,9 +12,9 @@ packages:
       circuit_name: "Radiant ${zone_name}"
       output: slow_pwm_${zone_slug}
       sensor: ${temperature_sensor}
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
 
 output:
   - platform: slow_pwm
