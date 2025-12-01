@@ -1,3 +1,9 @@
+defaults:
+  visual_min_temperature: 0
+  visual_max_temperature: 40
+  visual_temperature_step: 0.5
+  default_target_temperature: 20.00
+
 packages:
   sensori_pid_cool: !include
     file: pid_sensors.yaml
@@ -10,7 +16,7 @@ climate:
     id: pid_${circuit_slug}
     name: "PID ${circuit_name}"
     sensor: ${sensor}
-    default_target_temperature: 20.00
+    default_target_temperature: ${default_target_temperature}
     heat_output: ${output}
     cool_output: ${output}
     control_parameters:
@@ -18,6 +24,6 @@ climate:
       ki: ${ki}
       kd: ${kd}
     visual:
-      min_temperature: 0
-      max_temperature: 40
-      temperature_step: 0.5
+      min_temperature: ${visual_min_temperature}
+      max_temperature: ${visual_max_temperature}
+      temperature_step: ${visual_temperature_step}
