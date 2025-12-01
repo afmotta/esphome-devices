@@ -1,0 +1,96 @@
+# Component: mixing_valve.yaml
+# Purpose: Control mixing valve via 0-10V DAC output with Home Assistant integration
+#
+# A mixing valve controls water temperature by mixing hot and cold water.
+# The 0-10V signal controls the valve position (0V = closed, 10V = fully open).
+#
+# Required vars:
+#   - valve_slug: Unique identifier for the valve (e.g., "mixing_ground_floor")
+#   - valve_name: Display name for the valve (e.g., "Miscelatrice Piano Terra")
+#   - dac_output: DAC output ID from board config (e.g., dac_1)
+#
+# Usage Example:
+# packages:
+#   mixing_valve_ground_floor: !include
+#     file: ../components/mixing_valve.yaml
+#     vars:
+#       valve_slug: mixing_ground_floor
+#       valve_name: "Miscelatrice Piano Terra"
+#       dac_output: dac_1
+#
+# The component creates:
+# - Template output for PID controller connection (float 0.0-1.0)
+# - Number entity for valve position control (0-100%)
+# - Sensor showing current valve position percentage
+#
+# Note: The position sensor tracks the last commanded position from either
+# PID control or manual input. Since DAC outputs are write-only, this reflects
+# the commanded value rather than actual measured position.
+#
+# Thread safety: ESPHome runs single-threaded in the main loop, so actions
+# execute sequentially without race conditions.
+
+# Global variable to track the actual commanded position
+# This ensures both PID and manual controls share the same state
+globals:
+  - id: ${valve_slug}_current_position
+    type: float
+    restore_value: true
+    initial_value: "0.0"
+
+# Template output for PID controller integration
+# Exposes a float output (0.0-1.0) that the PID controller can use
+# Internally converts to DAC level and updates position tracking
+output:
+  - platform: template
+    id: ${valve_slug}_output
+    type: float
+    write_action:
+      - output.set_level:
+          id: ${dac_output}
+          level: !lambda "return state;"
+      - globals.set:
+          id: ${valve_slug}_current_position
+          value: !lambda "return state * 100.0;"
+      - logger.log:
+          format: "Mixing valve ${valve_name}: PID output %.2f (%.0f%%)"
+          args: ["state", "state * 100.0"]
+
+# Number entity for manual valve position control (0-100%)
+# Allows direct control from Home Assistant
+# Uses optimistic: true for responsive UI, with lambda to also reflect PID changes
+number:
+  - platform: template
+    name: "${valve_name} Position"
+    id: ${valve_slug}_position
+    icon: mdi:valve
+    min_value: 0
+    max_value: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    lambda: |-
+      return id(${valve_slug}_current_position);
+    set_action:
+      - output.set_level:
+          id: ${dac_output}
+          level: !lambda "return x / 100.0;"
+      - globals.set:
+          id: ${valve_slug}_current_position
+          value: !lambda "return x;"
+      - logger.log:
+          format: "Mixing valve ${valve_name}: Manual position set to %.0f%%"
+          args: ["x"]
+
+# Sensor showing current valve position percentage
+# Provides read-only view of the valve position for dashboards
+sensor:
+  - platform: template
+    name: "${valve_name} Position Sensor"
+    id: ${valve_slug}_position_sensor
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    icon: "mdi:valve"
+    lambda: |-
+      return id(${valve_slug}_current_position);
+    update_interval: 10s

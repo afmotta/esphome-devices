@@ -15,6 +15,18 @@ packages:
     vars:
       pid_id: pid_mixing_first_floor
       pid_name: "PID Miscelatrice Primo Piano"
+  mixing_valve_ground_floor: !include
+    file: ../components/mixing_valve.yaml
+    vars:
+      valve_slug: mixing_ground_floor
+      valve_name: "Miscelatrice Piano Terra"
+      dac_output: dac_1
+  mixing_valve_first_floor: !include
+    file: ../components/mixing_valve.yaml
+    vars:
+      valve_slug: mixing_first_floor
+      valve_name: "Miscelatrice Primo Piano"
+      dac_output: dac_2
 
 # Modbus RTU bus for 0-10V adapters
 modbus:
@@ -109,8 +121,8 @@ climate:
     name: "PID Miscelatrice Piano Terra"
     sensor: dallas_0x81000000b3e6f628
     default_target_temperature: 28.0
-    heat_output: dac_1
-    cool_output: dac_1
+    heat_output: mixing_ground_floor_output
+    cool_output: mixing_ground_floor_output
     control_parameters:
       kp: 0.2
       ki: 0.01
@@ -125,8 +137,8 @@ climate:
     name: "PID Miscelatrice Primo Piano"
     sensor: dallas_0xe9000000b366ed28
     default_target_temperature: 28.0
-    heat_output: dac_2
-    cool_output: dac_2
+    heat_output: mixing_first_floor_output
+    cool_output: mixing_first_floor_output
     control_parameters:
       kp: 0.2
       ki: 0.01
