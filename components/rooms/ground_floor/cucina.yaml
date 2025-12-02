@@ -20,7 +20,7 @@ packages:
     vars:
       zone_slug: "cucina"
       zone_name: "Cucina"
-      sensor: cucina_room_temp_abstracted
+      temperature_sensor: cucina_room_temp_abstracted
       relay_id: "relay_01"
       kp: 0.8
       ki: 0.005
@@ -31,6 +31,6 @@ packages:
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42051
-      area_slug: "cucina"
-      area_name: "Cucina"
-      sensor: cucina_room_temp_abstracted
+      zone_slug: "cucina"
+      zone_name: "Cucina"
+      temperature_sensor: cucina_room_temp_abstracted

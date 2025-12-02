@@ -3,19 +3,19 @@ packages:
     file: ../components/modbus_0_10v_output.yaml
     vars:
       adapter_id: ${adapter_id}
-      output_id: "fancoil_${area_slug}_output"
+      output_id: "fancoil_${zone_slug}_output"
       register_address: ${register_address}
   pid_sensors: !include
     file: pid_sensors.yaml
     vars:
-      pid_id: pid_fancoil_${area_slug}
-      pid_name: "PID Fancoil ${area_name}"
+      pid_id: pid_fancoil_${zone_slug}
+      pid_name: "PID Fancoil ${zone_name}"
 
 climate:
   - platform: pid
-    id: pid_fancoil_${area_slug}
-    name: "PID Fancoil ${area_name}"
-    sensor: ${sensor}
+    id: pid_fancoil_${zone_slug}
+    name: "PID Fancoil ${zone_name}"
+    sensor: ${temperature_sensor}
     default_target_temperature: 22
     control_parameters:
       kp: 0.2
@@ -25,5 +25,5 @@ climate:
       min_temperature: 0
       max_temperature: 40
       temperature_step: 0.5
-    cool_output: fancoil_${area_slug}_output
-    heat_output: fancoil_${area_slug}_output
+    cool_output: fancoil_${zone_slug}_output
+    heat_output: fancoil_${zone_slug}_output

@@ -20,6 +20,6 @@ packages:
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42052
-      area_slug: "locale_tecnico"
-      area_name: "Locale tecnico"
-      sensor: locale_tecnico_room_temp_abstracted
+      zone_slug: "locale_tecnico"
+      zone_name: "Locale tecnico"
+      temperature_sensor: locale_tecnico_room_temp_abstracted

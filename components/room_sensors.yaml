@@ -23,14 +23,14 @@
 sensor:
   - platform: packet_transport
     id: ${zone_slug}_udp_temperature
-    provider: room_sensor_${zone_slug}
+    provider: room-sensor-${zone_slug | replace('_', '-')}
     internal: true
     filters:
       - filter_out: nan
 
   - platform: packet_transport
     id: ${zone_slug}_udp_humidity
-    provider: room_sensor_${zone_slug}
+    provider: room-sensor-${zone_slug | replace('_', '-')}
     internal: true
     filters:
       - filter_out: nan

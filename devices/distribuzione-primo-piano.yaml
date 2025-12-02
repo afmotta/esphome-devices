@@ -24,14 +24,14 @@ packet_transport:
     binary_sensors:
       - primo_piano_any_zone_open
     providers:
-      - name: room_sensor_bagno_grande
-      - name: room_sensor_bagno_ospiti
-      - name: room_sensor_bagno_padronale
-      - name: room_sensor_camera_nord
-      - name: room_sensor_camera_sud
-      - name: room_sensor_camera_ospiti
-      - name: room_sensor_camera_padronale
-      - name: room_sensor_lavanderia
+      - name: room-sensor-bagno-grande
+      - name: room-sensor-bagno-ospiti
+      - name: room-sensor-bagno-padronale
+      - name: room-sensor-camera-nord
+      - name: room-sensor-camera-sud
+      - name: room-sensor-camera-ospiti
+      - name: room-sensor-camera-padronale
+      - name: room-sensor-lavanderia
 
 modbus:
   id: rs485_bus

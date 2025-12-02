@@ -23,12 +23,12 @@ packet_transport:
       - piano_terra_any_radiant_zone_open
       - piano_terra_any_fancoil_zone_open
     providers:
-      - name: room_sensor_soggiorno
-      - name: room_sensor_cucina
-      - name: room_sensor_bagno
-      - name: room_sensor_anticamera
-      - name: room_sensor_sala_pranzo
-      - name: room_sensor_locale_tecnico
+      - name: room-sensor-soggiorno
+      - name: room-sensor-cucina
+      - name: room-sensor-bagno
+      - name: room-sensor-anticamera
+      - name: room-sensor-sala-pranzo
+      - name: room-sensor-locale-tecnico
 
 modbus:
   id: rs485_bus

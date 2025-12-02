@@ -18,9 +18,9 @@ packages:
   radiant: !include
     file: ../../radiant.yaml
     vars:
-      area_slug: "soggiorno"
-      area_name: "Soggiorno"
-      sensor: soggiorno_room_temp_abstracted
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      temperature_sensor: soggiorno_room_temp_abstracted
       relay_id: "relay_05"
       kp: 0.8
       ki: 0.005
@@ -31,6 +31,6 @@ packages:
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42049
-      area_slug: "soggiorno"
-      area_name: "Soggiorno"
-      sensor: soggiorno_room_temp_abstracted
+      zone_slug: "soggiorno"
+      zone_name: "Soggiorno"
+      temperature_sensor: soggiorno_room_temp_abstracted

@@ -17,24 +17,15 @@ packages:
       ha_humidity_sensor_id: "sensor.room_bagno_grande_humidity"
 
   pid_radiant: !include
-    file: ../../pid.yaml
+    file: ../../radiant.yaml
     vars:
-      circuit_slug: "radiant_bagno_grande"
-      circuit_name: "Radiant Bagno Grande"
-      output: slow_pwm_bagno_grande
-      sensor: bagno_grande_room_temp_abstracted
+      zone_slug: "bagno_grande"
+      zone_name: "Bagno Grande"
+      relay_id: "relay_01"
+      temperature_sensor: bagno_grande_room_temp_abstracted
       kp: 0.8
       ki: 0.005
       kd: 0.05
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_bagno_grande
-    period: 60s
-    turn_on_action:
-      - switch.turn_on: relay_12
-    turn_off_action:
-      - switch.turn_off: relay_12
 
 climate:
   - id: !extend pid_radiant_bagno_grande

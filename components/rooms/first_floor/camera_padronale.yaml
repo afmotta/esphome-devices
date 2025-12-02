@@ -16,23 +16,12 @@ packages:
       ha_humidity_sensor_id: "sensor.room_camera_padronale_humidity"
 
   pid_radiant: !include
-    file: ../../pid.yaml
+    file: ../../radiant.yaml
     vars:
-      circuit_slug: "radiant_camera_padronale"
-      circuit_name: "Radiant Camera Padronale"
-      output: slow_pwm_camera_padronale
-      sensor: camera_padronale_room_temp_abstracted
+      zone_slug: "camera_padronale"
+      zone_name: "Camera Padronale"
+      relay_id: "relay_06"
+      temperature_sensor: camera_padronale_room_temp_abstracted
       kp: 0.8
       ki: 0.005
       kd: 0.05
-
-output:
-  - platform: slow_pwm
-    id: slow_pwm_camera_padronale
-    period: 60s
-    turn_on_action:
-      - switch.turn_on: relay_02
-      - switch.turn_on: relay_08
-    turn_off_action:
-      - switch.turn_off: relay_02
-      - switch.turn_off: relay_08

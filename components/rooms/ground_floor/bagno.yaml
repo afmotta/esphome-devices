@@ -20,7 +20,7 @@ packages:
     vars:
       zone_slug: "bagno_terra"
       zone_name: "Bagno Terra"
-      sensor: bagno_terra_room_temp_abstracted
+      temperature_sensor: bagno_terra_room_temp_abstracted
       relay_id: "relay_04"
       kp: 0.8
       ki: 0.005
