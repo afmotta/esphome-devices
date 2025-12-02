@@ -49,3 +49,11 @@ sensor:
     climate_id: ${pid_id}
     id: ${pid_id}_kd
     type: KD
+
+binary_sensor:
+  - platform: template
+    name: "${pid_name} is Active"
+    id: ${pid_id}_is_active
+    lambda: |-
+      auto action = id(${pid_id}).action;
+      return (action == CLIMATE_ACTION_HEATING || action == CLIMATE_ACTION_COOLING);

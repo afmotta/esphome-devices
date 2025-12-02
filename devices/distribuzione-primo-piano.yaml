@@ -22,7 +22,8 @@ packet_transport:
     udp_id: udp_packet_transport
     update_interval: 5s
     binary_sensors:
-      - primo_piano_any_zone_open
+      - any_zone_open_primo_piano
+      - max_dew_point_primo_piano
     providers:
       - name: room-sensor-bagno-grande
       - name: room-sensor-bagno-ospiti
@@ -45,20 +46,27 @@ modbus_controller:
 
 binary_sensor:
   - platform: template
-    id: primo_piano_any_zone_open
+    id: any_zone_open_primo_piano
     name: "First Floor Any Zone Open"
     device_class: running
     icon: "mdi:pump"
     lambda: |-
-      return id(pid_radiant_bagno_padronale).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_bagno_grande).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_bagno_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_lavanderia).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_camera_nord).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_camera_nord).action == climate::CLIMATE_ACTION_COOLING ||
-             id(pid_radiant_camera_sud).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_camera_sud).action == climate::CLIMATE_ACTION_COOLING ||
-             id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_camera_padronale).action == climate::CLIMATE_ACTION_COOLING ||
-             id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_HEATING ||
-             id(pid_radiant_camera_ospiti).action == climate::CLIMATE_ACTION_COOLING;
+      return id(pid_radiant_bagno_padronale_is_active)||
+             id(pid_radiant_bagno_grande_is_active)||
+             id(pid_radiant_bagno_ospiti_is_active)||
+             id(pid_radiant_lavanderia_is_active)||
+             id(pid_radiant_camera_nord_is_active)||
+             id(pid_radiant_camera_sud_is_active)||
+             id(pid_radiant_camera_padronale_is_active)||
+             id(pid_radiant_camera_ospiti_is_active);
+
+sensor:
+  - platform: combination
+    id: max_dew_point_primo_piano
+    name: "Max Dew Point Primo piano"
+    type: max
+    sources:
+      - source: camera_ospiti_dew_point
+      - source: camera_nord_dew_point
+      - source: camera_padronale_dew_point
+      - source: camera_sud_dew_point
