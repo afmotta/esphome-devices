@@ -16,10 +16,6 @@ packages:
       valve_name: "Miscelatrice Primo Piano"
       dallas_address: 0xe9000000b366ed28
 
-modbus:
-  id: rs485_bus
-  uart_id: rs485
-
 udp:
   id: udp_packet_transport
 
