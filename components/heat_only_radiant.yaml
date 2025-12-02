@@ -1,0 +1,21 @@
+defaults:
+  pwm_period: 60s
+  kp: 0.8
+  ki: 0.005
+  kd: 0.05
+
+packages:
+  pid: !include
+    file: ./radiant.yaml
+    vars:
+      zone_slug: ${zone_slug}
+      zone_name: ${zone_name}
+      relay_id: ${relay_id}
+      temperature_sensor: ${temperature_sensor}
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
+
+climate:
+  - id: !extend pid_radiant_${zone_slug}
+    cool_output: !remove

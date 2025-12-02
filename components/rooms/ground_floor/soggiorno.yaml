@@ -16,12 +16,12 @@ packages:
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
 
   radiant: !include
-    file: ../../radiant.yaml
+    file: ../../heat_only_radiant.yaml
     vars:
       zone_slug: "soggiorno"
       zone_name: "Soggiorno"
       temperature_sensor: soggiorno_room_temp_abstracted
-      relay_id: "relay_05"
+      relay_id: "relay_04"
       kp: 0.8
       ki: 0.005
       kd: 0.05

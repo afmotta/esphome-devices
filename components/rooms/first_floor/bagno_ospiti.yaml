@@ -16,7 +16,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_bagno_ospiti_humidity"
 
   pid_radiant: !include
-    file: ../../radiant.yaml
+    file: ../../heat_only_radiant.yaml
     vars:
       zone_slug: "bagno_ospiti"
       zone_name: "Bagno Ospiti"
@@ -25,7 +25,3 @@ packages:
       kp: 0.8
       ki: 0.005
       kd: 0.05
-
-climate:
-  - id: !extend pid_radiant_bagno_ospiti
-    cool_output: !remove
