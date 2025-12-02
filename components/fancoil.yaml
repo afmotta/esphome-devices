@@ -9,8 +9,6 @@ packages:
   pid: !include
     file: pid.yaml
     vars:
-      pid_id: pid_fancoil_${zone_slug}
-      pid_name: "PID Fancoil ${zone_name}"
       circuit_slug: "fancoil_${zone_slug}"
       circuit_name: "Fancoil ${zone_name}"
       sensor: ${temperature_sensor}

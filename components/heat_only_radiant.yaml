@@ -10,7 +10,6 @@ packages:
     vars:
       circuit_slug: "radiant_${zone_slug}"
       circuit_name: "Radiant ${zone_name}"
-      output: slow_pwm_${zone_slug}
       sensor: ${temperature_sensor}
       kp: ${kp}
       ki: ${ki}

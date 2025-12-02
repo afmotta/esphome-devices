@@ -5,18 +5,17 @@ defaults:
 packages:
   base: !include ../boards/a6.yaml
   wifi: !include ../boards/wifi.yaml
-  pid_sensor_mixing_ground_floor: !include
-    file: ../components/pid_sensors.yaml
+  mixing_valve_1: !include ../components/mixing_valve.yaml
     vars:
-      pid_id: pid_mixing_ground_floor
-      pid_name: "PID Miscelatrice Piano Terra"
-  pid_sensors_mixing_first_floor: !include
-    file: ../components/pid_sensors.yaml
+      valve_id: "ground_floor"
+      valve_name: "Miscelatrice Piano Terra"
+      dallas_address: 0x81000000b3e6f628
+  mixing_valve_2: !include ../components/mixing_valve.yaml
     vars:
-      pid_id: pid_mixing_first_floor
-      pid_name: "PID Miscelatrice Primo Piano"
+      valve_id: "first_floor"
+      valve_name: "Miscelatrice Primo Piano"
+      dallas_address: 0xe9000000b366ed28
 
-# Modbus RTU bus for 0-10V adapters
 modbus:
   id: rs485_bus
   uart_id: rs485
@@ -27,18 +26,10 @@ udp:
 packet_transport:
   - platform: udp
     udp_id: udp_packet_transport
-    update_interval: 10s
-    sensors:
-      - id: dallas_0x81000000b3e6f628
-        broadcast_id: mixing_output_ground_floor_temperature
-      - id: dallas_0xe9000000b366ed28
-        broadcast_id: mixing_output_first_floor_temperature
     providers:
       - name: distribuzione-piano-terra
       - name: distribuzione-primo-piano
 
-# Epic 10: Binary sensor entities for UDP-received zone demand (Story 10.4)
-# These expose the packet_transport received values to Home Assistant and relay control logic
 binary_sensor:
   - platform: packet_transport
     id: piano_terra_any_radiant_zone_open
@@ -73,7 +64,7 @@ binary_sensor:
                   format: "Ground Floor Any Fancoil Zone CLOSED"
               - switch.turn_off: relay_2
   - platform: packet_transport
-    id: primo_piano_any_zone_open
+    id: any_zone_open_primo_piano
     provider: distribuzione-primo-piano
     on_state:
       then:
@@ -88,50 +79,3 @@ binary_sensor:
               - logger.log:
                   format: "First Floor Any Zone CLOSED"
               - switch.turn_off: relay_3
-
-sensor:
-  - platform: dallas_temp
-    address: 0x81000000b3e6f628
-    name: "Dallas 0x81000000b3e6f628"
-    id: dallas_0x81000000b3e6f628
-    unit_of_measurement: "°C"
-    one_wire_id: one_wire_01
-  - platform: dallas_temp
-    address: 0xe9000000b366ed28
-    name: "Temperatura Mandata 0xe9000000b366ed28"
-    id: dallas_0xe9000000b366ed28
-    unit_of_measurement: "°C"
-    one_wire_id: one_wire_01
-
-climate:
-  - platform: pid
-    id: pid_mixing_ground_floor
-    name: "PID Miscelatrice Piano Terra"
-    sensor: dallas_0x81000000b3e6f628
-    default_target_temperature: 28.0
-    heat_output: dac_1
-    cool_output: dac_1
-    control_parameters:
-      kp: 0.2
-      ki: 0.01
-      kd: 0.0
-    visual:
-      min_temperature: 0
-      max_temperature: 40
-      temperature_step: 0.5
-
-  - platform: pid
-    id: pid_mixing_first_floor
-    name: "PID Miscelatrice Primo Piano"
-    sensor: dallas_0xe9000000b366ed28
-    default_target_temperature: 28.0
-    heat_output: dac_2
-    cool_output: dac_2
-    control_parameters:
-      kp: 0.2
-      ki: 0.01
-      kd: 0.0
-    visual:
-      min_temperature: 0
-      max_temperature: 40
-      temperature_step: 0.5

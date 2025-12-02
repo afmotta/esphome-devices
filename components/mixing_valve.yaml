@@ -25,6 +25,11 @@
 # and PID will write to the same DAC output. The last write wins.
 
 # Internal number to track current valve position
+defaults:
+  kp: 0.2
+  ki: 0.01
+  kd: 0.0
+
 number:
   - platform: template
     name: "${valve_name} Position"
@@ -67,3 +72,36 @@ valve:
       - number.set:
           id: ${valve_id}_position
           value: !lambda "return pos;"
+
+output:
+  - platform: template
+    type: float
+    id: ${valve_id}_output
+    write_action:
+      - number.set:
+          id: ${valve_id}_position
+          value: !lambda "return pos;"
+
+sensor:
+  - platform: dallas_temp
+    address: ${dallas_address}
+    name: "Dallas ${dallas_address}"
+    id: dallas_${dallas_address}
+    unit_of_measurement: "°C"
+    one_wire_id: one_wire_01
+
+packages:
+  pid: !include
+    file: ./pid.yaml
+    vars:
+      circuit_slug: "mixing_valve_${valve_id}"
+      circuit_name: "Mixing Valve ${valve_name}"
+      sensor: dallas_${dallas_address}
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
+
+climate:
+  - id: !extend pid_mixing_valve_${valve_id}
+    heat_output: ${valve_id}_output
+    cool_output: ${valve_id}_output
