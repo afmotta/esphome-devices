@@ -6,21 +6,20 @@
 # Heating: Radiant Floor
 # Cooling: None
 # ============================================================================
+defaults:
+  zone_slug: "bagno_grande"
+  zone_name: "Bagno Grande"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "bagno_grande"
-      zone_name: "Bagno Grande"
       ha_temperature_sensor_id: "sensor.room_bagno_grande_temperature"
       ha_humidity_sensor_id: "sensor.room_bagno_grande_humidity"
 
   pid_radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      zone_slug: "bagno_grande"
-      zone_name: "Bagno Grande"
       relay_id: "relay_01"
       temperature_sensor: bagno_grande_room_temp_abstracted
       kp: 0.8

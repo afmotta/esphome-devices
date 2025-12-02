@@ -5,21 +5,20 @@
 # Heating: Radiant Floor
 # Cooling: Radiant Floor
 # ============================================================================
+defaults:
+  zone_slug: "camera_nord"
+  zone_name: "Camera Nord"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "camera_nord"
-      zone_name: "Camera Nord"
       ha_temperature_sensor_id: "sensor.room_camera_nord_temperature"
       ha_humidity_sensor_id: "sensor.room_camera_nord_humidity"
 
   pid_radiant: !include
     file: ../../radiant.yaml
     vars:
-      zone_slug: "camera_nord"
-      zone_name: "Camera Nord"
       relay_id: "relay_04"
       temperature_sensor: camera_nord_room_temp_abstracted
       kp: 0.8

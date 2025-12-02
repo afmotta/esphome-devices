@@ -5,21 +5,20 @@
 # Heating: Radiant Floor
 # Cooling: Radiant Floor
 # ============================================================================
+defaults:
+  zone_slug: "camera_padronale"
+  zone_name: "Camera Padronale"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "camera_padronale"
-      zone_name: "Camera Padronale"
       ha_temperature_sensor_id: "sensor.room_camera_padronale_temperature"
       ha_humidity_sensor_id: "sensor.room_camera_padronale_humidity"
 
   pid_radiant: !include
     file: ../../radiant.yaml
     vars:
-      zone_slug: "camera_padronale"
-      zone_name: "Camera Padronale"
       relay_id: "relay_06"
       temperature_sensor: camera_padronale_room_temp_abstracted
       kp: 0.8

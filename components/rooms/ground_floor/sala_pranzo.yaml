@@ -5,13 +5,14 @@
 # Heating: None
 # Cooling: Fancoil
 # ============================================================================
+defaults:
+  zone_slug: "sala_pranzo"
+  zone_name: "Sala da Pranzo"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "sala_pranzo"
-      zone_name: "Sala da Pranzo"
       ha_temperature_sensor_id: "sensor.room_sala_pranzo_temperature"
       ha_humidity_sensor_id: "sensor.room_sala_pranzo_humidity"
 
@@ -20,6 +21,4 @@ packages:
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42050
-      zone_slug: "sala_pranzo"
-      zone_name: "Sala da Pranzo"
       temperature_sensor: sala_pranzo_room_temp_abstracted

@@ -5,21 +5,20 @@
 # Heating: Radiant Floor
 # Cooling: Fancoil
 # ============================================================================
+defaults:
+  zone_slug: "soggiorno"
+  zone_name: "Soggiorno"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "soggiorno"
-      zone_name: "Soggiorno"
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
 
   radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      zone_slug: "soggiorno"
-      zone_name: "Soggiorno"
       temperature_sensor: soggiorno_room_temp_abstracted
       relay_id: "relay_04"
       kp: 0.8
@@ -31,6 +30,4 @@ packages:
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42049
-      zone_slug: "soggiorno"
-      zone_name: "Soggiorno"
       temperature_sensor: soggiorno_room_temp_abstracted

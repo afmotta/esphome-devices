@@ -5,21 +5,20 @@
 # Heating: Radiant Floor
 # Cooling: Fancoil
 # ============================================================================
+defaults:
+  zone_slug: "cucina"
+  zone_name: "Cucina"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "cucina"
-      zone_name: "Cucina"
       ha_temperature_sensor_id: "sensor.room_cucina_temperature"
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
   pid_radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      zone_slug: "cucina"
-      zone_name: "Cucina"
       temperature_sensor: cucina_room_temp_abstracted
       relay_id: "relay_03"
       kp: 0.8
@@ -31,6 +30,4 @@ packages:
     vars:
       adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
       register_address: 0x42051
-      zone_slug: "cucina"
-      zone_name: "Cucina"
       temperature_sensor: cucina_room_temp_abstracted

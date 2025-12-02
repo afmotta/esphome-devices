@@ -5,21 +5,20 @@
 # Heating: Radiant Floor
 # Cooling: Radiant Floor
 # ============================================================================
+defaults:
+  zone_slug: "lavanderia"
+  zone_name: "Lavanderia"
 
 packages:
   sensors: !include
     file: ../../room_sensors.yaml
     vars:
-      zone_slug: "lavanderia"
-      zone_name: "Lavanderia"
       ha_temperature_sensor_id: "sensor.room_lavanderia_temperature"
       ha_humidity_sensor_id: "sensor.room_lavanderia_humidity"
 
   pid_radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      zone_slug: "lavanderia"
-      zone_name: "Lavanderia"
       relay_id: "relay_08"
       temperature_sensor: lavanderia_room_temp_abstracted
       kp: 0.8
