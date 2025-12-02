@@ -6,16 +6,25 @@ defaults:
 
 packages:
   pid: !include
-    file: ./radiant.yaml
+    file: ./pid.yaml
     vars:
-      zone_slug: ${zone_slug}
-      zone_name: ${zone_name}
-      relay_id: ${relay_id}
-      temperature_sensor: ${temperature_sensor}
+      circuit_slug: "radiant_${zone_slug}"
+      circuit_name: "Radiant ${zone_name}"
+      output: slow_pwm_${zone_slug}
+      sensor: ${temperature_sensor}
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
 
+output:
+  - platform: slow_pwm
+    id: slow_pwm_${zone_slug}
+    period: ${pwm_period}
+    turn_on_action:
+      - switch.turn_on: ${relay_id}
+    turn_off_action:
+      - switch.turn_off: ${relay_id}
+
 climate:
   - id: !extend pid_radiant_${zone_slug}
-    cool_output: !remove
+    heat_output: slow_pwm_${zone_slug}

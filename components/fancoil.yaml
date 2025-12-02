@@ -13,7 +13,6 @@ packages:
       pid_name: "PID Fancoil ${zone_name}"
       circuit_slug: "fancoil_${zone_slug}"
       circuit_name: "Fancoil ${zone_name}"
-      output: fancoil_${zone_slug}_output
       sensor: ${temperature_sensor}
       kp: 0.2
       ki: 0.01
@@ -21,4 +20,4 @@ packages:
 
 climate:
   - id: !extend pid_fancoil_${zone_slug}
-    heat_output: !remove
+    cool_output: "fancoil_${zone_slug}_output"

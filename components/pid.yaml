@@ -17,8 +17,6 @@ climate:
     name: "PID ${circuit_name}"
     sensor: ${sensor}
     default_target_temperature: ${default_target_temperature}
-    heat_output: ${output}
-    cool_output: ${output}
     control_parameters:
       kp: ${kp}
       ki: ${ki}
