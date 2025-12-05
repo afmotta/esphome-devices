@@ -5,7 +5,8 @@ defaults:
 packages:
   base: !include ../boards/a6.yaml
   wifi: !include ../boards/wifi.yaml
-  mixing_pump_radiant_piano_terra: !include ../components/mixing_pump.yaml
+  mixing_pump_radiant_piano_terra: !include
+    file: ../components/mixing_pump.yaml
     vars:
       area_slug: "ground_floor_radiant"
       area_name: "Piano Terra"
@@ -13,8 +14,10 @@ packages:
       udp_provider: distribuzione-piano-terra
       udp_sensor_id: piano_terra_any_radiant_zone_open
       relay_id: relay_1
+      dac_output: dac_1
 
-  mixing_pump_primo_piano: !include ../components/mixing_pump.yaml
+  mixing_pump_primo_piano: !include
+    file: ../components/mixing_pump.yaml
     vars:
       area_slug: "primo_piano"
       area_name: "Primo Piano"
@@ -22,6 +25,7 @@ packages:
       udp_provider: distribuzione-primo-piano
       udp_sensor_id: any_zone_open_primo_piano
       relay_id: relay_3
+      dac_output: dac_2
 
 udp:
   id: udp_packet_transport

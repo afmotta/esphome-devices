@@ -80,7 +80,7 @@ output:
     write_action:
       - number.set:
           id: ${valve_id}_position
-          value: !lambda "return pos;"
+          value: !lambda "return state;"
 
 sensor:
   - platform: dallas_temp
