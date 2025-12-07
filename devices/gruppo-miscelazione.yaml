@@ -33,14 +33,14 @@ packages:
       udp_sensor_id: any_zone_open_primo_piano
       relay_id: relay_3
       dac_output: dac_2
-  # direct_pump_fancoil_secondo_piano: !include
-  #   file: ../components/direct_pump.yaml
-  #   vars:
-  #     area_slug: "secondo_piano"
-  #     area_name: "Secondo Piano"
-  #     udp_provider: distribuzione-primo-piano
-  #     udp_sensor_id: any_zone_open_secondo_piano
-  #     relay_id: relay_4
+  direct_pump_fancoil_secondo_piano: !include
+    file: ../components/direct_pump.yaml
+    vars:
+      area_slug: "fancoil_secondo_piano"
+      area_name: "Fancoil Secondo Piano"
+      udp_provider: distribuzione-primo-piano
+      udp_sensor_id: any_zone_open_fancoil_secondo_piano
+      relay_id: relay_4
   # direct_pump_mev_primo_piano: !include
   #   file: ../components/direct_pump.yaml
   #   vars:

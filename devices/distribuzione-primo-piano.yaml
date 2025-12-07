@@ -13,6 +13,7 @@ packages:
   camera_ospiti: !include ../components/rooms/first_floor/camera_ospiti.yaml
   camera_padronale: !include ../components/rooms/first_floor/camera_padronale.yaml
   lavanderia: !include ../components/rooms/first_floor/lavanderia.yaml
+  sottotetto: !include ../components/rooms/second_floor/sottotetto.yaml
 
 udp:
   id: udp_packet_transport
@@ -33,6 +34,7 @@ packet_transport:
       - name: room-sensor-camera-ospiti
       - name: room-sensor-camera-padronale
       - name: room-sensor-lavanderia
+      - name: room-sensor-sottotetto
 
 modbus:
   id: rs485_bus
@@ -59,6 +61,13 @@ binary_sensor:
              id(pid_radiant_camera_sud_is_active)||
              id(pid_radiant_camera_padronale_is_active)||
              id(pid_radiant_camera_ospiti_is_active);
+  - platform: template
+    id: any_zone_open_fancoil_secondo_piano
+    name: "Second Floor Any Fancoil Zone Open"
+    device_class: running
+    icon: "mdi:pump"
+    lambda: |-
+      return id(pid_fancoil_sottotetto_is_active);
 
 sensor:
   - platform: combination

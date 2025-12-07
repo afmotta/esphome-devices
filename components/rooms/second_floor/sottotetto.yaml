@@ -1,0 +1,24 @@
+# ============================================================================
+# Sottotetto
+# Second Floor
+# ============================================================================
+# Heating: Fancoil
+# Cooling: Fancoil
+# ============================================================================
+defaults:
+  zone_slug: "sala_pranzo"
+  zone_name: "Sala da Pranzo"
+
+packages:
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      ha_temperature_sensor_id: "sensor.room_sottotetto_temperature"
+      ha_humidity_sensor_id: "sensor.room_sottotetto_humidity"
+
+  fancoil: !include
+    file: ../../fancoil.yaml
+    vars:
+      adapter_id: modbus_0_10v_adapter_fancoils_second_floor
+      register_address: 0x42050
+      temperature_sensor: sottotetto_room_temp_abstracted
