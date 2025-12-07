@@ -27,5 +27,5 @@ substitutions:
 
 esphome:
   name: ${device_name}
-  friendly_name: "MEV Primo Piano"
+  friendly_name: ${friendly_name}
   comment: "First Floor Mechanical Extract Ventilation Control - KC868-A6"

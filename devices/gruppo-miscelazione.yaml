@@ -26,7 +26,7 @@ packages:
   mixing_pump_primo_piano: !include
     file: ../components/mixing_pump.yaml
     vars:
-      area_slug: "primo_piano"
+      area_slug: "first_floor_radiant"
       area_name: "Primo Piano"
       dallas_address: 0xe9000000b366ed28
       udp_provider: distribuzione-primo-piano
@@ -41,14 +41,6 @@ packages:
       udp_provider: distribuzione-primo-piano
       udp_sensor_id: any_zone_open_fancoil_secondo_piano
       relay_id: relay_4
-  # direct_pump_mev_primo_piano: !include
-  #   file: ../components/direct_pump.yaml
-  #   vars:
-  #     area_slug: "mev_primo_piano"
-  #     area_name: "MEV Primo Piano"
-  #     udp_provider: distribuzione-primo-piano
-  #     udp_sensor_id: mev_primo_piano_integration_active
-  #     relay_id: relay_5
 
 udp:
   id: udp_packet_transport
@@ -59,3 +51,16 @@ packet_transport:
     providers:
       - name: distribuzione-piano-terra
       - name: distribuzione-primo-piano
+
+sensor:
+  - platform: packet_transport
+    id: target_temperature_sensor_first_floor_radiant
+    provider: distribuzione-primo-piano
+    device_class: "temperature"
+    state_class: "measurement"
+    unit_of_measurement: "°C"
+    on_value:
+      then:
+        - climate.control:
+            id: pid_mixing_valve_first_floor_radiant
+            target_temperature: !lambda "return (x + 1);"

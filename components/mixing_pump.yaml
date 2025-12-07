@@ -1,13 +1,7 @@
-defaults:
-  valve_id: "mixing_valve_${area_slug}"
-  valve_name: "Mixing Valve for ${area_name}"
-
 packages:
   mixing_valve: !include
     file: mixing_valve.yaml
     vars:
-      valve_id: "${valve_id}"
-      valve_name: "${valve_name}"
       dallas_address: ${dallas_address}
 
 binary_sensor:

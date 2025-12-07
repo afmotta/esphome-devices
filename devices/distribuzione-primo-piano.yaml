@@ -24,6 +24,7 @@ packet_transport:
     update_interval: 5s
     binary_sensors:
       - any_zone_open_primo_piano
+    sensors:
       - max_dew_point_primo_piano
     providers:
       - name: room-sensor-bagno-grande

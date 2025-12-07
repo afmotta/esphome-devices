@@ -1,34 +1,9 @@
-# Component: mixing_valve.yaml
-# Purpose: Wraps DAC output with valve entity to represent physical mixing valve actuator
-# Required vars:
-#   - valve_name: Display name for the valve (e.g., "Mixing Valve Ground Floor")
-#   - valve_id: Entity ID (e.g., mixing_valve_ground_floor)
-#   - dac_output: DAC output ID controlling the valve actuator (e.g., dac_1)
-#
-# Usage Example:
-# packages:
-#   mixing_valve_ground_floor: !include
-#     file: ../components/mixing_valve.yaml
-#     vars:
-#       valve_name: "Mixing Valve Ground Floor"
-#       valve_id: mixing_valve_ground_floor
-#       dac_output: dac_1
-#
-# The component creates:
-# - Valve entity with manual position control
-# - Wraps 0-10V DAC output for physical mixing valve actuator control
-# - Position represents valve opening: 0%=closed, 100%=fully open
-# - Number entity to track and display current commanded position
-#
-# NOTE: DAC output must be defined at device level
-# WARNING: This valve provides manual override. When PID is active, both the valve
-# and PID will write to the same DAC output. The last write wins.
-
-# Internal number to track current valve position
 defaults:
   kp: 0.2
   ki: 0.01
   kd: 0.0
+  valve_id: "mixing_valve_${area_slug}"
+  valve_name: "Mixing Valve for ${area_name}"
 
 number:
   - platform: template
@@ -94,14 +69,14 @@ packages:
   pid: !include
     file: ./pid.yaml
     vars:
-      circuit_slug: "mixing_valve_${valve_id}"
-      circuit_name: "Mixing Valve ${valve_name}"
+      circuit_slug: "${valve_id}"
+      circuit_name: "${valve_name}"
       sensor: dallas_${dallas_address}
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
 
 climate:
-  - id: !extend pid_mixing_valve_${valve_id}
+  - id: !extend pid_${valve_id}
     heat_output: ${valve_id}_output
     cool_output: ${valve_id}_output
