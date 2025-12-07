@@ -1,0 +1,17 @@
+binary_sensor:
+  - platform: packet_transport
+    id: ${udp_sensor_id}
+    provider: ${udp_provider}
+    on_state:
+      then:
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - logger.log:
+                  format: "Direct pump for ${area_name} ON"
+              - switch.turn_on: ${relay_id}
+            else:
+              - logger.log:
+                  format: "Direct pump for ${area_name} OFF"
+              - switch.turn_off: ${relay_id}
