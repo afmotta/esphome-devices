@@ -10,7 +10,7 @@
 
 defaults:
   room_slug: "bagno_grande"
-  zone_name: "Bagno Grande"
+  room_name: "Bagno Grande"
 
 packages:
   sensors: !include

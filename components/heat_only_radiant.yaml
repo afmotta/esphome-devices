@@ -9,7 +9,7 @@ packages:
     file: ./pid.yaml
     vars:
       circuit_slug: "radiant_${room_slug}"
-      circuit_name: "Radiant ${zone_name}"
+      circuit_name: "Radiant ${room_name}"
       sensor: ${temperature_sensor}
       kp: ${kp}
       ki: ${ki}

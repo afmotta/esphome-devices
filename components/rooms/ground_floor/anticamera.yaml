@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "anticamera"
-  zone_name: "Anticamera"
+  room_name: "Anticamera"
 
 packages:
   sensors: !include

@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "lavanderia"
-  zone_name: "Lavanderia"
+  room_name: "Lavanderia"
 
 packages:
   sensors: !include

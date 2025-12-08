@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "camera_padronale"
-  zone_name: "Camera Padronale"
+  room_name: "Camera Padronale"
 
 packages:
   sensors: !include

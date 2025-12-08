@@ -3,7 +3,7 @@
 #
 # Required vars:
 #   - room_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
-#   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
+#   - room_name: Display name (e.g., "Soggiorno", "Bagno Grande")
 #   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
 #   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
 #
@@ -57,7 +57,7 @@ packages:
     file: ./failover_sensor.yaml
     vars:
       sensor_id: ${room_slug}_room_temp_abstracted
-      sensor_name: "${zone_name} Temperature (Abstracted)"
+      sensor_name: "${room_name} Temperature (Abstracted)"
       unit_of_measurement: "°C"
       device_class: temperature
       ha_sensor: ${room_slug}_ha_temperature
@@ -66,7 +66,7 @@ packages:
     file: ./failover_sensor.yaml
     vars:
       sensor_id: ${room_slug}_room_humidity_abstracted
-      sensor_name: "${zone_name} Humidity (Abstracted)"
+      sensor_name: "${room_name} Humidity (Abstracted)"
       unit_of_measurement: "%"
       device_class: humidity
       ha_sensor: ${room_slug}_ha_humidity
@@ -75,6 +75,6 @@ packages:
     file: ./dew_point_sensor.yaml
     vars:
       room_slug: ${room_slug}
-      zone_name: ${zone_name}
+      room_name: ${room_name}
       temperature_sensor: ${room_slug}_room_temp_abstracted
       humidity_sensor: ${room_slug}_room_humidity_abstracted

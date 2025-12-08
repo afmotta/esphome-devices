@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "bagno_ospiti"
-  zone_name: "Bagno Ospiti"
+  room_name: "Bagno Ospiti"
 
 packages:
   sensors: !include

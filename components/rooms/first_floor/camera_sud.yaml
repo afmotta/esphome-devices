@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "camera_sud"
-  zone_name: "Camera Sud"
+  room_name: "Camera Sud"
 
 packages:
   sensors: !include

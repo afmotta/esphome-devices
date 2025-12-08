@@ -47,7 +47,7 @@ Examples from the repo:
 
 **Epic 5 Update (October 2025):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. Room components now use `components/room_sensors.yaml` (v5) which sources temperature data exclusively from Home Assistant with a 3-minute emergency timeout. Key patterns:
 
-- **HA-Only Sensors:** Use `room_sensors.yaml` with required vars: `room_slug`, `zone_name`, `ha_temperature_sensor_id`
+- **HA-Only Sensors:** Use `room_sensors.yaml` with required vars: `room_slug`, `room_name`, `ha_temperature_sensor_id`
 - **Emergency Shutdown:** Include `room_emergency_shutdown.yaml` with vars: `room_slug`, `pid_id` (automatically forces PID OFF when sensor unavailable)
 - **State Machine:** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
 - **Obsolete Variables:** Do NOT use `modbus_controller_address`, `ha_humidity_sensor_id`, or `slow_pwm_id` (removed in v5)
@@ -59,7 +59,7 @@ For details, see `docs/epic-5-migration-guide.md`, `docs/epic-5-ha-only-sensors.
 **Epic 7 Update (October 2025):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. Room components can optionally include `components/room_window_detection.yaml` for automated window-aware shutdown. Key patterns:
 
 - **Window Detection:** Use `room_window_detection.yaml` for fancoil rooms with PID controllers
-- **Required Vars:** `room_slug`, `zone_name`, `ha_window_sensor_id`, `pid_id`, `window_shutdown_modes`
+- **Required Vars:** `room_slug`, `room_name`, `ha_window_sensor_id`, `pid_id`, `window_shutdown_modes`
 - **Equipment Decision:** Only add to rooms with fancoils+PID (NOT radiant-only or fancoil-only without PID)
 - **State Machine:** Normal → Window Open (180s timeout) → Recovering (60s) → Normal
 - **Shutdown Modes:** CSV string of climate modes to shutdown (e.g., `"cooling, heating"`)

@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "sala_pranzo"
-  zone_name: "Sala Pranzo"
+  room_name: "Sala Pranzo"
 
 packages:
   sensors: !include

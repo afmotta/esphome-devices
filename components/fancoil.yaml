@@ -10,7 +10,7 @@ packages:
     file: pid.yaml
     vars:
       circuit_slug: "fancoil_${room_slug}"
-      circuit_name: "Fancoil ${zone_name}"
+      circuit_name: "Fancoil ${room_name}"
       sensor: ${temperature_sensor}
       kp: 0.2
       ki: 0.01

@@ -1,6 +1,6 @@
 sensor:
   - platform: template
-    name: "${zone_name} Dew Point"
+    name: "${room_name} Dew Point"
     id: ${room_slug}_dew_point
     update_interval: 30s
     device_class: temperature

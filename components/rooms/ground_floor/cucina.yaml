@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "cucina"
-  zone_name: "Cucina"
+  room_name: "Cucina"
 
 packages:
   sensors: !include

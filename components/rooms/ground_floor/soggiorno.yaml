@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "soggiorno"
-  zone_name: "Soggiorno"
+  room_name: "Soggiorno"
 
 packages:
   sensors: !include

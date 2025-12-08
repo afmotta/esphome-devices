@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "camera_ospiti"
-  zone_name: "Camera Ospiti"
+  room_name: "Camera Ospiti"
 
 packages:
   sensors: !include

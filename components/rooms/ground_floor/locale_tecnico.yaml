@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "locale_tecnico"
-  zone_name: "Locale Tecnico"
+  room_name: "Locale Tecnico"
 
 packages:
   sensors: !include

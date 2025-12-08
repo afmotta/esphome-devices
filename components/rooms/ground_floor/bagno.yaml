@@ -8,7 +8,7 @@
 # ============================================================================
 defaults:
   room_slug: "bagno_terra"
-  zone_name: "Bagno Piano Terra"
+  room_name: "Bagno Piano Terra"
 
 packages:
   sensors: !include

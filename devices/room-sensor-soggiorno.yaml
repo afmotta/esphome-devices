@@ -6,7 +6,7 @@ substitutions:
   friendly_name: "Room Sensor Soggiorno"
   defaults:
   room_slug: "soggiorno"
-  zone_name: "Soggiorno"
+  room_name: "Soggiorno"
 
 packages:
   room_sensor: !include

@@ -7,7 +7,7 @@
 # ============================================================================
 defaults:
   room_slug: "sottotetto"
-  zone_name: "Sottotetto"
+  room_name: "Sottotetto"
 
 packages:
   sensors: !include
