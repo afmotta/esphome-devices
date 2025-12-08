@@ -3,7 +3,7 @@
 # Board: KC868-A6
 
 defaults:
-  device_name: "mev-primo-piano"
+  device_name: "first_floor_mev"
   friendly_name: "VMC Primo Piano"
 
 packages:
@@ -12,8 +12,8 @@ packages:
   mev: !include
     file: ../components/mev.yaml
     vars:
-      mev_slug: "mev_primo_piano"
-      mev_name: "MEV Primo Piano"
+      mev_slug: "first_floor_mev"
+      mev_name: "VMC Primo Piano"
       power_relay: relay_1
       mode_relay: relay_2
       dehumidifier_relay: relay_3

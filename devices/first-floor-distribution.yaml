@@ -1,5 +1,5 @@
 defaults:
-  device_name: distribuzione-primo-piano
+  device_name: first-floor-distribution
   friendly_name: "Distribuzione Primo Piano"
 
 packages:
@@ -23,9 +23,9 @@ packet_transport:
     udp_id: udp_packet_transport
     update_interval: 5s
     binary_sensors:
-      - any_zone_open_primo_piano
+      - first_floor_any_zone_open
     sensors:
-      - max_dew_point_primo_piano
+      - first_floor_max_dew_point
     providers:
       - name: room-sensor-bagno-grande
       - name: room-sensor-bagno-ospiti
@@ -49,8 +49,8 @@ modbus_controller:
 
 binary_sensor:
   - platform: template
-    id: any_zone_open_primo_piano
-    name: "First Floor Any Zone Open"
+    id: first_floor_any_zone_open
+    name: "First Floor Zone Open"
     device_class: running
     icon: "mdi:pump"
     lambda: |-
@@ -63,8 +63,8 @@ binary_sensor:
              id(pid_radiant_camera_padronale_is_active)||
              id(pid_radiant_camera_ospiti_is_active);
   - platform: template
-    id: any_zone_open_fancoil_secondo_piano
-    name: "Second Floor Any Fancoil Zone Open"
+    id: second_floor_fancoil_any_zone_open
+    name: "Second Floor Fancoil Zone Open"
     device_class: running
     icon: "mdi:pump"
     lambda: |-
@@ -72,7 +72,7 @@ binary_sensor:
 
 sensor:
   - platform: combination
-    id: max_dew_point_primo_piano
+    id: first_floor_max_dew_point
     name: "Max Dew Point Primo piano"
     type: max
     sources:

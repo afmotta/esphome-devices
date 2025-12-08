@@ -7,7 +7,7 @@ substitutions:
 packages:
   config:
     url: https://github.com/afmotta/esphome-devices
-    files: [devices/distribuzione-piano-terra.yaml]
+    files: [devices/main-distribution.yaml]
     ref: main
     username: !secret github_username
     password: !secret github_pat

@@ -5,4 +5,4 @@ substitutions:
   ota_password: !secret ota_password
 
 packages:
-  - !include "../devices/distribuzione-primo-piano.yaml"
+  - !include "../devices/first-floor-distribution.yaml"

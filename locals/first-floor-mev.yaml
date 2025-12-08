@@ -5,4 +5,4 @@ substitutions:
   ota_password: !secret ota_password
 
 packages:
-  - !include "../devices/mev-primo-piano.yaml"
+  - !include "../devices/first-floor-mev.yaml"

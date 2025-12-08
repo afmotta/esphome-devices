@@ -1,5 +1,5 @@
 defaults:
-  device_name: distribuzione-piano-terra
+  device_name: ground-floor-distribution
   friendly_name: "Distribuzione Piano Terra"
 
 packages:
@@ -20,8 +20,8 @@ packet_transport:
     udp_id: udp_packet_transport
     update_interval: 5s
     binary_sensors:
-      - piano_terra_any_radiant_zone_open
-      - piano_terra_any_fancoil_zone_open
+      - ground_floor_radiant_any_zone_open
+      - ground_floor_fancoil_any_zone_open
     providers:
       - name: room-sensor-soggiorno
       - name: room-sensor-cucina
@@ -42,8 +42,8 @@ modbus_controller:
 
 binary_sensor:
   - platform: template
-    id: piano_terra_any_radiant_zone_open
-    name: "Ground Floor Any Radiant Zone Open"
+    id: ground_floor_radiant_any_zone_open
+    name: "Ground Floor Radiant Any Zone Open"
     device_class: running
     icon: "mdi:pump"
     lambda: |-
@@ -57,7 +57,7 @@ binary_sensor:
              id(pid_radiant_soggiorno).action == climate::CLIMATE_ACTION_COOLING;
 
   - platform: template
-    id: piano_terra_any_fancoil_zone_open
+    id: ground_floor_fancoil_any_zone_open
     name: "Ground Floor Any Fancoil Zone Open"
     device_class: running
     icon: "mdi:pump"
