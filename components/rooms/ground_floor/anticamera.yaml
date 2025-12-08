@@ -6,7 +6,7 @@
 # Cooling: None
 # ============================================================================
 defaults:
-  zone_slug: "anticamera"
+  room_slug: "anticamera"
   zone_name: "Anticamera"
 
 packages:

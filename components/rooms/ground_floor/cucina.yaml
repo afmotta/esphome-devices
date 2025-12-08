@@ -6,7 +6,7 @@
 # Cooling: Fancoil
 # ============================================================================
 defaults:
-  zone_slug: "cucina"
+  room_slug: "cucina"
   zone_name: "Cucina"
 
 packages:

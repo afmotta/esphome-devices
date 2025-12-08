@@ -6,7 +6,7 @@
 # Cooling: Radiant Floor
 # ============================================================================
 defaults:
-  zone_slug: "lavanderia"
+  room_slug: "lavanderia"
   zone_name: "Lavanderia"
 
 packages:

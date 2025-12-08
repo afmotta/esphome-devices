@@ -6,7 +6,7 @@
 # Cooling: Fancoil
 # ============================================================================
 defaults:
-  zone_slug: "soggiorno"
+  room_slug: "soggiorno"
   zone_name: "Soggiorno"
 
 packages:

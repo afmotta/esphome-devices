@@ -6,7 +6,7 @@
 # Cooling: None
 # ============================================================================
 defaults:
-  zone_slug: "bagno_padronale"
+  room_slug: "bagno_padronale"
   zone_name: "Bagno Padronale"
 
 packages:

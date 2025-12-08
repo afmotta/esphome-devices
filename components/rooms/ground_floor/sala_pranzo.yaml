@@ -6,8 +6,8 @@
 # Cooling: Fancoil
 # ============================================================================
 defaults:
-  zone_slug: "sala_pranzo"
-  zone_name: "Sala da Pranzo"
+  room_slug: "sala_pranzo"
+  zone_name: "Sala Pranzo"
 
 packages:
   sensors: !include

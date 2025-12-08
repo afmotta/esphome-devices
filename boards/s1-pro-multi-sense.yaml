@@ -2148,6 +2148,6 @@ packet_transport:
     update_interval: 10s
     sensors:
       - id: scd40_temp
-        broadcast_id: "${zone_slug}_room_temp"
+        broadcast_id: "${room_slug}_room_temp"
       - id: scd40_rh
-        broadcast_id: "${zone_slug}_room_humidity"
+        broadcast_id: "${room_slug}_room_humidity"

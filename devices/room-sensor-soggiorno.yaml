@@ -4,7 +4,8 @@
 substitutions:
   device_name: "room-sensor-soggiorno"
   friendly_name: "Room Sensor Soggiorno"
-  zone_slug: "soggiorno"
+  defaults:
+  room_slug: "soggiorno"
   zone_name: "Soggiorno"
 
 packages:

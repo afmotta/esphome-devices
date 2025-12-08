@@ -6,8 +6,8 @@
 # Cooling: Fancoil
 # ============================================================================
 defaults:
-  zone_slug: "locale_tecnico"
-  zone_name: "Locale tecnico"
+  room_slug: "locale_tecnico"
+  zone_name: "Locale Tecnico"
 
 packages:
   sensors: !include

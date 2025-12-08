@@ -3,13 +3,13 @@ packages:
     file: ../components/modbus_0_10v_output.yaml
     vars:
       adapter_id: ${adapter_id}
-      output_id: "fancoil_${zone_slug}_output"
+      output_id: "fancoil_${room_slug}_output"
       register_address: ${register_address}
 
   pid: !include
     file: pid.yaml
     vars:
-      circuit_slug: "fancoil_${zone_slug}"
+      circuit_slug: "fancoil_${room_slug}"
       circuit_name: "Fancoil ${zone_name}"
       sensor: ${temperature_sensor}
       kp: 0.2
@@ -17,5 +17,5 @@ packages:
       kd: 0.05
 
 climate:
-  - id: !extend pid_fancoil_${zone_slug}
-    cool_output: "fancoil_${zone_slug}_output"
+  - id: !extend pid_fancoil_${room_slug}
+    cool_output: "fancoil_${room_slug}_output"

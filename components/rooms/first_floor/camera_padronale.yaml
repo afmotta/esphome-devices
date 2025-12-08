@@ -6,7 +6,7 @@
 # Cooling: Radiant Floor
 # ============================================================================
 defaults:
-  zone_slug: "camera_padronale"
+  room_slug: "camera_padronale"
   zone_name: "Camera Padronale"
 
 packages:

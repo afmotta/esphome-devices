@@ -2,7 +2,7 @@
 # Purpose: 3-tier sensor failover (HA → UDP → Emergency) for PID control
 #
 # Required vars:
-#   - zone_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
+#   - room_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
 #   - zone_name: Display name (e.g., "Soggiorno", "Bagno Grande")
 #   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
 #   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
@@ -22,29 +22,29 @@
 
 sensor:
   - platform: packet_transport
-    id: ${zone_slug}_udp_temperature
-    provider: room-sensor-${zone_slug | replace('_', '-')}
+    id: ${room_slug}_udp_temperature
+    provider: room-sensor-${room_slug | replace('_', '-')}
     internal: true
     filters:
       - filter_out: nan
 
   - platform: packet_transport
-    id: ${zone_slug}_udp_humidity
-    provider: room-sensor-${zone_slug | replace('_', '-')}
+    id: ${room_slug}_udp_humidity
+    provider: room-sensor-${room_slug | replace('_', '-')}
     internal: true
     filters:
       - filter_out: nan
 
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
-    id: ${zone_slug}_ha_temperature
+    id: ${room_slug}_ha_temperature
     internal: true
     filters:
       - filter_out: nan
 
   - platform: homeassistant
     entity_id: ${ha_humidity_sensor_id}
-    id: ${zone_slug}_ha_humidity
+    id: ${room_slug}_ha_humidity
     internal: true
     filters:
       - filter_out: nan
@@ -56,35 +56,25 @@ packages:
   temperature_failover: !include
     file: ./failover_sensor.yaml
     vars:
-      sensor_id: ${zone_slug}_room_temp_abstracted
+      sensor_id: ${room_slug}_room_temp_abstracted
       sensor_name: "${zone_name} Temperature (Abstracted)"
       unit_of_measurement: "°C"
       device_class: temperature
-      ha_sensor: ${zone_slug}_ha_temperature
-      udp_sensor: ${zone_slug}_udp_temperature
+      ha_sensor: ${room_slug}_ha_temperature
+      udp_sensor: ${room_slug}_udp_temperature
   humidity_failover: !include
     file: ./failover_sensor.yaml
     vars:
-      sensor_id: ${zone_slug}_room_humidity_abstracted
+      sensor_id: ${room_slug}_room_humidity_abstracted
       sensor_name: "${zone_name} Humidity (Abstracted)"
       unit_of_measurement: "%"
       device_class: humidity
-      ha_sensor: ${zone_slug}_ha_humidity
-      udp_sensor: ${zone_slug}_udp_humidity
+      ha_sensor: ${room_slug}_ha_humidity
+      udp_sensor: ${room_slug}_udp_humidity
   dew_point: !include
     file: ./dew_point_sensor.yaml
     vars:
-      zone_slug: ${zone_slug}
+      room_slug: ${room_slug}
       zone_name: ${zone_name}
-      temperature_sensor: ${zone_slug}_room_temp_abstracted
-      humidity_sensor: ${zone_slug}_room_humidity_abstracted
-
-# ============================================================================
-# DIAGNOSTIC TEXT SENSOR (Tier Visibility)
-# ============================================================================
-
-text_sensor:
-  - platform: template
-    id: ${zone_slug}_sensor_tier
-    name: "${zone_name} Active Sensor Tier"
-    icon: "mdi:chart-timeline-variant"
+      temperature_sensor: ${room_slug}_room_temp_abstracted
+      humidity_sensor: ${room_slug}_room_humidity_abstracted

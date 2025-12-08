@@ -6,7 +6,7 @@
 # Cooling: Radiant Floor
 # ============================================================================
 defaults:
-  zone_slug: "camera_sud"
+  room_slug: "camera_sud"
   zone_name: "Camera Sud"
 
 packages:

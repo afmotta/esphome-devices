@@ -6,7 +6,7 @@
 # Cooling: Fancoil
 # ============================================================================
 defaults:
-  zone_slug: "sottotetto"
+  room_slug: "sottotetto"
   zone_name: "Sottotetto"
 
 packages:

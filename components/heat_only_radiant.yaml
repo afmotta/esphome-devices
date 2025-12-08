@@ -8,7 +8,7 @@ packages:
   pid: !include
     file: ./pid.yaml
     vars:
-      circuit_slug: "radiant_${zone_slug}"
+      circuit_slug: "radiant_${room_slug}"
       circuit_name: "Radiant ${zone_name}"
       sensor: ${temperature_sensor}
       kp: ${kp}
@@ -17,7 +17,7 @@ packages:
 
 output:
   - platform: slow_pwm
-    id: slow_pwm_${zone_slug}
+    id: slow_pwm_${room_slug}
     period: ${pwm_period}
     turn_on_action:
       - switch.turn_on: ${relay_id}
@@ -25,5 +25,5 @@ output:
       - switch.turn_off: ${relay_id}
 
 climate:
-  - id: !extend pid_radiant_${zone_slug}
-    heat_output: slow_pwm_${zone_slug}
+  - id: !extend pid_radiant_${room_slug}
+    heat_output: slow_pwm_${room_slug}

@@ -6,8 +6,10 @@
 # Heating: Radiant Floor
 # Cooling: None
 # ============================================================================
+# ============================================================================
+
 defaults:
-  zone_slug: "bagno_grande"
+  room_slug: "bagno_grande"
   zone_name: "Bagno Grande"
 
 packages:

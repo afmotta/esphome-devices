@@ -3,5 +3,5 @@ packages:
     file: heat_only_radiant.yaml
 
 climate:
-  - id: !extend pid_radiant_${zone_slug}
-    cool_output: slow_pwm_${zone_slug}
+  - id: !extend pid_radiant_${room_slug}
+    cool_output: slow_pwm_${room_slug}

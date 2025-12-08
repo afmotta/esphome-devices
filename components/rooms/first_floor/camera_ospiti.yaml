@@ -6,7 +6,7 @@
 # Cooling: Radiant Floor
 # ============================================================================
 defaults:
-  zone_slug: "camera_ospiti"
+  room_slug: "camera_ospiti"
   zone_name: "Camera Ospiti"
 
 packages:

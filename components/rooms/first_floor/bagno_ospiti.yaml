@@ -6,7 +6,7 @@
 # Cooling: None
 # ============================================================================
 defaults:
-  zone_slug: "bagno_ospiti"
+  room_slug: "bagno_ospiti"
   zone_name: "Bagno Ospiti"
 
 packages:
