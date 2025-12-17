@@ -1,5 +1,11 @@
+substitutions:
+  wifi_package: !include wifi.yaml
+  ethernet_package: !include a16_ethernet.yaml
+  enable_ethernet: true # Set to "false" to disable Ethernet
+
 packages:
-  - !include base.yaml
+  base: !include base.yaml
+  network_package: ${ethernet_package if enable_ethernet else wifi_package}
 
 uart:
   - id: rs485
