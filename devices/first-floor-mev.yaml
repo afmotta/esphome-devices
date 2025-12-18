@@ -8,7 +8,6 @@ defaults:
 
 packages:
   base: !include ../boards/a6.yaml
-  wifi: !include ../boards/wifi.yaml
   mev: !include
     file: ../components/mev.yaml
     vars:

@@ -4,7 +4,6 @@ defaults:
 
 packages:
   base: !include ../boards/a6.yaml
-  wifi: !include ../boards/wifi.yaml
   mixing_pump_ground_floor_radiant: !include
     file: ../components/mixing_pump.yaml
     vars:

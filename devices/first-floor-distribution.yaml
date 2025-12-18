@@ -4,7 +4,6 @@ defaults:
 
 packages:
   board: !include ../boards/a16.yaml
-  wifi: !include ../boards/wifi.yaml
   bagno_grande: !include ../components/rooms/first_floor/bagno_grande.yaml
   bagno_ospiti: !include ../components/rooms/first_floor/bagno_ospiti.yaml
   bagno_padronale: !include ../components/rooms/first_floor/bagno_padronale.yaml

@@ -4,7 +4,6 @@ defaults:
 
 packages:
   board: !include ../boards/a16.yaml
-  wifi: !include ../boards/wifi.yaml
   soggiorno: !include ../components/rooms/ground_floor/soggiorno.yaml
   cucina: !include ../components/rooms/ground_floor/cucina.yaml
   bagno: !include ../components/rooms/ground_floor/bagno.yaml
