@@ -1,0 +1,26 @@
+# Ethernet configuration - mutually exclusive with WiFi!
+ethernet:
+  type: W5500
+  clk_pin: GPIO15
+  mosi_pin: GPIO13
+  miso_pin: GPIO14
+  cs_pin: GPIO16
+  interrupt_pin: GPIO12
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: "${device_name} - IP Address"
+      address_0:
+        name: "${device_name} - IP Address 0"
+      address_1:
+        name: "${device_name} - IP Address 1"
+      address_2:
+        name: "${device_name} - IP Address 2"
+      address_3:
+        name: "${device_name} - IP Address 3"
+      address_4:
+        name: "${device_name} - IP Address 4"
+    dns_address:
+      name: "${device_name} - DNS Address"
+    mac_address:
+      name: "${device_name} - MAC Address"

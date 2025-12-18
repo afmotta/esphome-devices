@@ -1,0 +1,304 @@
+substitutions:
+  wifi_package: !include waveshare-s3-wifi.yaml
+  ethernet_package: !include waveshare-s3-ethernet.yaml
+  enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
+
+packages:
+  network_package: ${ethernet_package if enable_ethernet else wifi_package}
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${device_friendly}
+  min_version: 2025.12.0
+  comment: "WaveShare ESP32-S3-POE-ETH-8DI-8RO device"
+  # name_add_mac_suffix: false
+  # on_boot:
+  #   then:
+  #     - pcf85063.read_time
+
+# Waveshare ESP32-S3-ETH-8DI-8RO uses ESP32-S3-WROOM-1U-N16R8
+# -> 16 MB flash
+# -> 8 MB psram
+esp32:
+  board: esp32s3box #esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: arduino
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${encryption_key}
+  actions:
+    # Ability to command the buzzer from Home Assistant
+    - action: rtttl_play
+      variables:
+        song_str: string
+      then:
+        - rtttl.play:
+            rtttl: !lambda "return song_str;"
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+# I2C bus
+i2c:
+  sda: GPIO42
+  scl: GPIO41
+  scan: false
+  frequency: 100kHz
+  id: i2cbus
+
+pca9554:
+  - id: "TCA9554_hub"
+    address: 0x20
+
+# RS485 / Modbus
+uart:
+  - id: modbus_uart
+    tx_pin: GPIO17
+    rx_pin: GPIO18
+    baud_rate: 38400
+    stop_bits: 1 #default to 8E1
+    data_bits: 8 #default to 8E1
+    parity: EVEN #default to 8E1
+
+# see: https://esphome.io/components/time.html
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    on_time_sync:
+      then:
+        # Update the RTC when the synchronization was successful
+        pcf85063.write_time:
+  - platform: pcf85063
+    id: pcf85063_time
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+  - platform: gpio
+    name: "Boot Button"
+    pin:
+      number: 0
+      ignore_strapping_warning: true
+      mode:
+        input: true
+      inverted: true
+    disabled_by_default: true
+    on_press:
+      then:
+        - button.press: restart_button
+
+  # Digital Inputs
+  - platform: gpio
+    id: di1
+    name: "DI1"
+    pin:
+      number: GPIO4
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di2
+    name: "DI2"
+    pin:
+      number: GPIO5
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di3
+    name: "DI3"
+    pin:
+      number: GPIO6
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di4
+    name: "DI4"
+    pin:
+      number: GPIO7
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di5
+    name: "DI5"
+    pin:
+      number: GPIO8
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di6
+    name: "DI6"
+    pin:
+      number: GPIO9
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di7
+    name: "DI7"
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+  - platform: gpio
+    id: di8
+    name: "DI8"
+    pin:
+      number: GPIO11
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on_off: 10ms
+
+# buzzer
+output:
+  - platform: ledc
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+    id: buzzer
+
+rtttl:
+  output: buzzer
+  id: rtttl_buzzer
+  gain: 30%
+
+# RGB LED
+light:
+  - platform: esp32_rmt_led_strip
+    rgb_order: RGB
+    chipset: WS2812
+    pin: GPIO38
+    num_leds: 1
+    name: "RGB LED"
+    id: rgb_led
+
+# Relays
+switch:
+  - platform: gpio
+    name: "Relay 1"
+    id: relay1
+    pin:
+      pca9554: TCA9554_hub
+      number: 0
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 2"
+    id: relay2
+    pin:
+      pca9554: TCA9554_hub
+      number: 1
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 3"
+    id: relay3
+    pin:
+      pca9554: TCA9554_hub
+      number: 2
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 4"
+    id: relay4
+    pin:
+      pca9554: TCA9554_hub
+      number: 3
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 5"
+    id: relay5
+    pin:
+      pca9554: TCA9554_hub
+      number: 4
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 6"
+    id: relay6
+    pin:
+      pca9554: TCA9554_hub
+      number: 5
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 7"
+    id: relay7
+    pin:
+      pca9554: TCA9554_hub
+      number: 6
+      mode:
+        output: true
+      inverted: false
+
+  - platform: gpio
+    name: "Relay 8"
+    id: relay8
+    pin:
+      pca9554: TCA9554_hub
+      number: 7
+      mode:
+        output: true
+      inverted: false
+
+# Virtual buttons
+button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config

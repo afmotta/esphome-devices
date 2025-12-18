@@ -1,5 +1,7 @@
 esphome:
   name: ${device_name}
+  min_version: 2025.12.0
+  friendly_name: ${friendly_name}
 
 esp32:
   board: esp32dev
