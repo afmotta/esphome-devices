@@ -8,13 +8,12 @@ packages:
 
 esphome:
   name: ${device_name}
-  friendly_name: ${device_friendly}
+  friendly_name: ${friendly_name}
   min_version: 2025.12.0
   comment: "WaveShare ESP32-S3-POE-ETH-8DI-8RO device"
-  # name_add_mac_suffix: false
-  # on_boot:
-  #   then:
-  #     - pcf85063.read_time
+  on_boot:
+    then:
+      - pcf85063.read_time
 
 # Waveshare ESP32-S3-ETH-8DI-8RO uses ESP32-S3-WROOM-1U-N16R8
 # -> 16 MB flash
