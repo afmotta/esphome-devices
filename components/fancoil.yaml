@@ -1,11 +1,4 @@
 packages:
-  modbus_output: !include
-    file: ../components/modbus_0_10v_output.yaml
-    vars:
-      adapter_id: ${adapter_id}
-      output_id: "fancoil_${room_slug}_output"
-      register_address: ${register_address}
-
   pid: !include
     file: pid.yaml
     vars:
@@ -18,4 +11,4 @@ packages:
 
 climate:
   - id: !extend pid_fancoil_${room_slug}
-    cool_output: "fancoil_${room_slug}_output"
+    cool_output: ${output_id}

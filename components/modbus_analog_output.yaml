@@ -20,19 +20,25 @@
 # The component creates:
 # - number platform for register writes (0-10000 = 0-10V)
 # - template output for PID controller connection (0.0-1.0 → 0-10000)
-# - diagnostic sensors for adapter status
+# - sensors for adapter status
 #
 # NOTE: modbus_controller must be defined separately at device level
 
 # Number platform for direct register control (used by template output)
+
+defaults:
+  update_interval: 5s
+  output_id: analog_output_${output_number + id_offset}
+  number_id: ${controller_id}_register_${register_address}
+
 number:
   - platform: modbus_controller
-    modbus_controller_id: ${adapter_id}
-    id: ${adapter_id}_register_${register_address}
+    modbus_controller_id: ${controller_id}
+    id: ${number_id}
     address: ${register_address}
     value_type: U_WORD
     min_value: 0
-    max_value: 1000
+    max_value: 10000
     mode: box
     internal: true
 
@@ -44,11 +50,8 @@ output:
     type: float
     write_action:
       - number.set:
-          id: ${adapter_id}_register_${register_address}
-          value: !lambda "return state * 1000.0;"
-      - logger.log:
-          format: "PID output %.2f → register %.0f"
-          args: ["state", "state * 1000.0"]
+          id: ${number_id}
+          value: !lambda "return state * 10000;"
 
 # Diagnostic sensor: Current fancoil capacity percentage
 sensor:
@@ -59,18 +62,20 @@ sensor:
     icon: "mdi:fan"
     lambda: |-
       // Convert register value (0-10000) to percentage (0-100%)
-      if (id(${adapter_id}_register_${register_address}).has_state()) {
-        return id(${adapter_id}_register_${register_address}).state / 100.0;
+      if (id(${number_id}).has_state()) {
+        return id(${number_id}).state / 100.0;
       }
       return NAN;
-    update_interval: 10s
-
-# Diagnostic sensor: Adapter communication status
-binary_sensor:
+    update_interval: ${update_interval}
   - platform: template
-    id: ${output_id}_status
-    device_class: connectivity
+    id: ${output_id}_voltage
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    icon: "mdi:flash"
     lambda: |-
-      // Check if we can communicate with the 0-10V adapter
-      // If register has a state, adapter is responding
-      return id(${adapter_id}_register_${register_address}).has_state();
+      // Convert register value (0-10000) to voltage (0-10V)
+      if (id(${number_id}).has_state()) {
+        return id(${number_id}).state / 1000.0;
+      }
+      return NAN;
+    update_interval: ${update_interval}

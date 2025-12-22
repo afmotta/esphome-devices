@@ -22,7 +22,7 @@ packages:
   pid_radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      relay_id: "relay_01"
+      relay_id: relay_10
       temperature_sensor: bagno_grande_room_temp_abstracted
       kp: 0.8
       ki: 0.005

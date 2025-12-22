@@ -19,7 +19,7 @@ packages:
   pid_radiant: !include
     file: ../../radiant.yaml
     vars:
-      relay_id: "relay_06"
+      relay_id: relay_15
       temperature_sensor: camera_padronale_room_temp_abstracted
       kp: 0.8
       ki: 0.005

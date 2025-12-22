@@ -8,6 +8,7 @@
 defaults:
   room_slug: "soggiorno"
   room_name: "Soggiorno"
+  temperature_sensor: soggiorno_room_temp_abstracted
 
 packages:
   sensors: !include
@@ -19,8 +20,7 @@ packages:
   radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      temperature_sensor: soggiorno_room_temp_abstracted
-      relay_id: "relay_04"
+      relay_id: relay_9
       kp: 0.8
       ki: 0.005
       kd: 0.05
@@ -28,6 +28,4 @@ packages:
   fancoil: !include
     file: ../../fancoil.yaml
     vars:
-      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
-      register_address: 0x42049
-      temperature_sensor: soggiorno_room_temp_abstracted
+      output_id: analog_output_3

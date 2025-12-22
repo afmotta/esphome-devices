@@ -9,6 +9,7 @@
 defaults:
   room_slug: "bagno_terra"
   room_name: "Bagno Piano Terra"
+  temperature_sensor: bagno_terra_room_temp_abstracted
 
 packages:
   sensors: !include
@@ -20,8 +21,7 @@ packages:
   pid_radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      temperature_sensor: bagno_terra_room_temp_abstracted
-      relay_id: "relay_02"
+      relay_id: relay_7
       kp: 0.8
       ki: 0.005
       kd: 0.05

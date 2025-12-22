@@ -2,60 +2,8 @@ defaults:
   kp: 0.2
   ki: 0.01
   kd: 0.0
-  valve_id: "mixing_valve_${area_slug}"
+  valve_slug: "mixing_valve_${area_slug}"
   valve_name: "Mixing Valve for ${area_name}"
-
-number:
-  - platform: template
-    name: "${valve_name} Position"
-    id: ${valve_id}_position
-    min_value: 0
-    max_value: 1
-    step: 0.01
-    internal: true
-    optimistic: true
-    initial_value: 0
-    on_value:
-      then:
-        - output.set_level:
-            id: ${dac_output}
-            level: !lambda "return x;"
-        - logger.log:
-            format: "${valve_name}: Setting position to %.0f%% (DAC level %.2f)"
-            args: ["x * 100.0", "x"]
-
-valve:
-  - platform: template
-    device_class: water
-    name: ${valve_name}
-    id: ${valve_id}
-    has_position: true
-    lambda: |-
-      return id(${valve_id}_position).state;
-    open_action:
-      - number.set:
-          id: ${valve_id}_position
-          value: 1
-    close_action:
-      - number.set:
-          id: ${valve_id}_position
-          value: 0
-    stop_action:
-      # Stop maintains current position (no action needed)
-      - logger.log: "${valve_name}: Stop - maintaining current position"
-    position_action:
-      - number.set:
-          id: ${valve_id}_position
-          value: !lambda "return pos;"
-
-output:
-  - platform: template
-    type: float
-    id: ${valve_id}_output
-    write_action:
-      - number.set:
-          id: ${valve_id}_position
-          value: !lambda "return state;"
 
 sensor:
   - platform: dallas_temp
@@ -69,7 +17,7 @@ packages:
   pid: !include
     file: ./pid.yaml
     vars:
-      circuit_slug: "${valve_id}"
+      circuit_slug: "${valve_slug}"
       circuit_name: "${valve_name}"
       sensor: dallas_${dallas_address}
       kp: ${kp}
@@ -77,6 +25,6 @@ packages:
       kd: ${kd}
 
 climate:
-  - id: !extend pid_${valve_id}
-    heat_output: ${valve_id}_output
-    cool_output: ${valve_id}_output
+  - id: !extend pid_${valve_slug}
+    heat_output: ${output_id}
+    cool_output: ${output_id}

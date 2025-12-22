@@ -8,6 +8,7 @@
 defaults:
   room_slug: "anticamera"
   room_name: "Anticamera"
+  temperature_sensor: anticamera_room_temp_abstracted
 
 packages:
   sensors: !include
@@ -19,8 +20,7 @@ packages:
   pid_radiant: !include
     file: ../../heat_only_radiant.yaml
     vars:
-      relay_id: "relay_01"
-      temperature_sensor: anticamera_room_temp_abstracted
+      relay_id: relay_6
       kp: 0.8
       ki: 0.005
       kd: 0.05

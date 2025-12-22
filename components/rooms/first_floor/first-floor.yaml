@@ -1,0 +1,56 @@
+defaults:
+  safe_margin: 1.0
+
+packages:
+  mixing_pump_primo_piano: !include
+    file: ../../mixing_pump.yaml
+    vars:
+      area_slug: "first_floor_radiant"
+      area_name: "Primo Piano"
+      dallas_address: 0xe9000000b366ed28
+      sensor_id: first_floor_any_zone_open
+      relay_id: relay_3
+      output_id: analog_output_2
+  bagno_grande: !include bagno_grande.yaml
+  bagno_ospiti: !include bagno_ospiti.yaml
+  bagno_padronale: !include bagno_padronale.yaml
+  camera_nord: !include camera_nord.yaml
+  camera_sud: !include camera_sud.yaml
+  camera_ospiti: !include camera_ospiti.yaml
+  camera_padronale: !include camera_padronale.yaml
+  lavanderia: !include lavanderia.yaml
+
+binary_sensor:
+  - platform: template
+    id: first_floor_any_zone_open
+    name: "First Floor Zone Open"
+    device_class: running
+    icon: "mdi:pump"
+    lambda: |-
+      return id(pid_radiant_bagno_padronale_is_active)||
+             id(pid_radiant_bagno_grande_is_active)||
+             id(pid_radiant_bagno_ospiti_is_active)||
+             id(pid_radiant_lavanderia_is_active)||
+             id(pid_radiant_camera_nord_is_active)||
+             id(pid_radiant_camera_sud_is_active)||
+             id(pid_radiant_camera_padronale_is_active)||
+             id(pid_radiant_camera_ospiti_is_active);
+
+sensor:
+  - platform: combination
+    id: first_floor_max_dew_point
+    name: "Max Dew Point Primo piano"
+    type: max
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    state_class: "measurement"
+    sources:
+      - source: camera_ospiti_dew_point
+      - source: camera_nord_dew_point
+      - source: camera_padronale_dew_point
+      - source: camera_sud_dew_point
+    on_value:
+      then:
+        - climate.control:
+            id: pid_mixing_valve_first_floor_radiant
+            target_temperature: !lambda "return (x + ${safe_margin});"

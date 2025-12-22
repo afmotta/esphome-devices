@@ -1,0 +1,44 @@
+packages:
+  mixing_pump_ground_floor_radiant: !include
+    file: ../../mixing_pump.yaml
+    vars:
+      area_slug: "ground_floor_radiant"
+      area_name: "Radiante Piano Terra"
+      dallas_address: 0x81000000b3e6f628
+      sensor_id: ground_floor_radiant_any_zone_open
+      relay_id: relay_1
+      output_id: analog_output_1
+  direct_pump_ground_floor_fancoil: !include
+    file: ../../direct_pump.yaml
+    vars:
+      area_slug: "ground_floor_fancoil"
+      area_name: "Fancoil Piano Terra"
+      sensor_id: ground_floor_fancoil_any_zone_open
+      relay_id: relay_2
+  soggiorno: !include soggiorno.yaml
+  cucina: !include cucina.yaml
+  bagno: !include bagno.yaml
+  anticamera: !include anticamera.yaml
+  locale_tecnico: !include locale_tecnico.yaml
+
+binary_sensor:
+  - platform: template
+    id: ground_floor_radiant_any_zone_open
+    name: "Ground Floor Radiant Any Zone Open"
+    device_class: running
+    icon: "mdi:pump"
+    lambda: |-
+      return id(pid_radiant_anticamera_is_active) ||
+             id(pid_radiant_bagno_terra_is_active) ||
+             id(pid_radiant_cucina_is_active) ||
+             id(pid_radiant_soggiorno_is_active);
+
+  - platform: template
+    id: ground_floor_fancoil_any_zone_open
+    name: "Ground Floor Any Fancoil Zone Open"
+    device_class: running
+    icon: "mdi:pump"
+    lambda: |-
+      return id(pid_fancoil_cucina_is_active) ||
+             id(pid_fancoil_locale_tecnico_is_active) ||
+             id(pid_fancoil_soggiorno_is_active);

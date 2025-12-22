@@ -207,7 +207,7 @@ light:
 switch:
   - platform: gpio
     name: "Relay 1"
-    id: relay1
+    id: relay_1
     pin:
       pca9554: TCA9554_hub
       number: 0
@@ -217,7 +217,7 @@ switch:
 
   - platform: gpio
     name: "Relay 2"
-    id: relay2
+    id: relay_2
     pin:
       pca9554: TCA9554_hub
       number: 1
@@ -227,7 +227,7 @@ switch:
 
   - platform: gpio
     name: "Relay 3"
-    id: relay3
+    id: relay_3
     pin:
       pca9554: TCA9554_hub
       number: 2
@@ -237,7 +237,7 @@ switch:
 
   - platform: gpio
     name: "Relay 4"
-    id: relay4
+    id: relay_4
     pin:
       pca9554: TCA9554_hub
       number: 3
@@ -247,7 +247,7 @@ switch:
 
   - platform: gpio
     name: "Relay 5"
-    id: relay5
+    id: relay_5
     pin:
       pca9554: TCA9554_hub
       number: 4
@@ -257,7 +257,7 @@ switch:
 
   - platform: gpio
     name: "Relay 6"
-    id: relay6
+    id: relay_6
     pin:
       pca9554: TCA9554_hub
       number: 5
@@ -267,7 +267,7 @@ switch:
 
   - platform: gpio
     name: "Relay 7"
-    id: relay7
+    id: relay_7
     pin:
       pca9554: TCA9554_hub
       number: 6
@@ -277,7 +277,7 @@ switch:
 
   - platform: gpio
     name: "Relay 8"
-    id: relay8
+    id: relay_8
     pin:
       pca9554: TCA9554_hub
       number: 7

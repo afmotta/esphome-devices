@@ -7,42 +7,33 @@ packages:
     file: ../boards/waveshare-s3.yaml
     vars:
       enable_ethernet: true
-  mixing_pump_ground_floor_radiant: !include
-    file: ../components/mixing_pump.yaml
+  analog_outputs_1: !include
+    file: ../components/modbus_analog_outputs_board.yaml
     vars:
-      area_slug: "ground_floor_radiant"
-      area_name: "Radiante Piano Terra"
-      dallas_address: 0x81000000b3e6f628
-      udp_provider: ground-floor-distribution
-      udp_sensor_id: ground_floor_radiant_zone_open
-      relay_id: relay_1
-      dac_output: dac_1
-  direct_pump_ground_floor_fancoil: !include
-    file: ../components/direct_pump.yaml
+      controller_id: analog_outputs_board_1
+      modbus_address: 0x1
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: 0
+  relays_1: !include
+    file: ../components/modbus_relay_board.yaml
     vars:
-      area_slug: "ground_floor_fancoil"
-      area_name: "Fancoil Piano Terra"
-      udp_provider: ground-floor-distribution
-      udp_sensor_id: ground_floor_fancoil_zone_open
-      relay_id: relay_2
-  mixing_pump_primo_piano: !include
-    file: ../components/mixing_pump.yaml
+      controller_id: relay_board_1
+      modbus_address: 0x2
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: 8
+  relays_2: !include
+    file: ../components/modbus_relay_board.yaml
     vars:
-      area_slug: "first_floor_radiant"
-      area_name: "Primo Piano"
-      dallas_address: 0xe9000000b366ed28
-      udp_provider: first-floor-distribution
-      udp_sensor_id: first_floor_any_zone_open
-      relay_id: relay_3
-      dac_output: dac_2
-  direct_pump_fancoil_secondo_piano: !include
-    file: ../components/direct_pump.yaml
-    vars:
-      area_slug: "fancoil_second_floor"
-      area_name: "Fancoil Secondo Piano"
-      udp_provider: second-floor-distribution
-      udp_sensor_id: second_floor_fancoil_any_zone_open
-      relay_id: relay_4
+      controller_id: relay_board_2
+      modbus_address: 0x3
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: 16
+  ground_floor: !include ../components/rooms/ground_floor/ground-floor.yaml
+  first_floor: !include ../components/rooms/first_floor/first-floor.yaml
+  second_floor: !include ../components/rooms/second_floor/second-floor.yaml
 
 udp:
   id: udp_packet_transport
@@ -51,18 +42,26 @@ packet_transport:
   - platform: udp
     udp_id: udp_packet_transport
     providers:
-      - name: ground-floor-distribution
-      - name: first-floor-distribution
+      - name: room-sensor-soggiorno
+      - name: room-sensor-cucina
+      - name: room-sensor-bagno
+      - name: room-sensor-anticamera
+      - name: room-sensor-locale-tecnico
+      - name: room-sensor-bagno-grande
+      - name: room-sensor-bagno-ospiti
+      - name: room-sensor-bagno-padronale
+      - name: room-sensor-camera-nord
+      - name: room-sensor-camera-sud
+      - name: room-sensor-camera-ospiti
+      - name: room-sensor-camera-padronale
+      - name: room-sensor-lavanderia
+      - name: room-sensor-sottotetto
 
-sensor:
-  - platform: packet_transport
-    id: first_floor_max_dew_point
-    provider: first-floor-distribution
-    device_class: "temperature"
-    state_class: "measurement"
-    unit_of_measurement: "°C"
-    on_value:
-      then:
-        - climate.control:
-            id: pid_mixing_valve_first_floor_radiant
-            target_temperature: !lambda "return (x + 1);"
+modbus:
+  id: rs485_bus
+  uart_id: modbus_uart
+
+one_wire:
+  - platform: gpio
+    pin: GPIO21
+    id: one_wire_01

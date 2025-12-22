@@ -8,6 +8,7 @@
 defaults:
   room_slug: "locale_tecnico"
   room_name: "Locale Tecnico"
+  temperature_sensor: locale_tecnico_room_temp_abstracted
 
 packages:
   sensors: !include
@@ -19,6 +20,4 @@ packages:
   fancoil: !include
     file: ../../fancoil.yaml
     vars:
-      adapter_id: modbus_0_10v_adapter_fancoils_ground_floor
-      register_address: 0x42052
-      temperature_sensor: locale_tecnico_room_temp_abstracted
+      output_id: analog_output_6
