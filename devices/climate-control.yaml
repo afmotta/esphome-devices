@@ -34,6 +34,17 @@ packages:
   ground_floor: !include ../components/rooms/ground_floor/ground-floor.yaml
   first_floor: !include ../components/rooms/first_floor/first-floor.yaml
   second_floor: !include ../components/rooms/second_floor/second-floor.yaml
+  first_floor_mev: !include
+    file: ../components/mev.yaml
+    vars:
+      mev_slug: "first_floor_mev"
+      mev_name: "VMC Primo Piano"
+      power_relay: relay_18
+      mode_relay: relay_19
+      dehumidifier_relay: relay_20
+      cooling_relay: relay_21
+      fan_speed_output: analog_output_7
+      alarm_input: di1
 
 udp:
   id: udp_packet_transport
