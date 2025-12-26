@@ -1,5 +1,6 @@
 defaults:
   safe_margin: 1.0
+  fancoil_boost_threshold_default: 4.0
 
 packages:
   mixing_pump_ground_floor_radiant: !include
@@ -73,3 +74,40 @@ sensor:
               - logger.log:
                   format: "[Ground Floor Radiant] Dew point protection: supply temp min = %.1f°C"
                   args: ["x + ${safe_margin}"]
+
+  # Effective fancoil boost threshold with fallback
+  # Uses HA input_number if available, otherwise fallback to default
+  - platform: template
+    id: effective_fancoil_boost_threshold
+    name: "Effective Fancoil Boost Threshold"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-alert"
+    lambda: |-
+      if (id(ha_fancoil_boost_threshold).has_state() && !std::isnan(id(ha_fancoil_boost_threshold).state)) {
+        return id(ha_fancoil_boost_threshold).state;
+      }
+      ESP_LOGW("threshold", "HA unavailable, using fallback: %.1f°C", ${fancoil_boost_threshold_default});
+      return ${fancoil_boost_threshold_default};
+    update_interval: 30s
+
+  # Calculated hysteresis (threshold / 2)
+  - platform: template
+    id: fancoil_boost_hysteresis
+    name: "Fancoil Boost Hysteresis"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-chevron-down"
+    lambda: |-
+      return id(effective_fancoil_boost_threshold).state / 2.0;
+    update_interval: 30s
+
+# HA sensor for fancoil boost threshold (runtime configurable)
+# Create input_number.ground_floor_fancoil_boost_threshold in HA
+number:
+  - platform: homeassistant
+    id: ha_fancoil_boost_threshold
+    entity_id: input_number.ground_floor_fancoil_boost_threshold
+    internal: true
