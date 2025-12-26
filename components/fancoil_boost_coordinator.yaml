@@ -1,0 +1,181 @@
+# Fancoil Boost Coordinator for Ground Floor Hybrid Cooling
+# ============================================================================
+# Switches between radiant-only (comfort) and fancoil-boost (capacity) modes
+#
+# Operating Modes:
+#   - Normal (Radiant Only): Radiant PIDs active, Fancoils OFF
+#   - Boost (Fancoil Boost): Radiant at 100%, Fancoil PIDs active
+#
+# Activation: delta > threshold (configurable via HA)
+# Deactivation: delta < threshold/2 (hysteresis)
+# Minimum time-in-state: 10 minutes (prevents cycling)
+#
+# Required vars:
+#   None - uses hardcoded ground floor IDs
+# ============================================================================
+
+defaults:
+  min_time_in_state_seconds: 600  # 10 minutes
+
+globals:
+  - id: boost_mode_active
+    type: bool
+    initial_value: "false"
+    restore_value: true
+  - id: last_mode_change_time
+    type: uint32_t
+    initial_value: "0"
+
+# Diagnostic sensors for monitoring
+binary_sensor:
+  - platform: template
+    id: fancoil_boost_active
+    name: "Ground Floor Fancoil Boost Active"
+    device_class: running
+    icon: "mdi:fan-alert"
+    lambda: "return id(boost_mode_active);"
+
+text_sensor:
+  - platform: template
+    id: ground_floor_cooling_mode
+    name: "Ground Floor Cooling Mode"
+    icon: "mdi:thermostat"
+    lambda: |-
+      if (id(boost_mode_active)) {
+        return {"Fancoil Boost"};
+      }
+      return {"Radiant Only"};
+    update_interval: 5s
+
+sensor:
+  # Max temperature delta across hybrid rooms (Soggiorno + Cucina)
+  - platform: template
+    id: ground_floor_max_delta
+    name: "Ground Floor Max Temperature Delta"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-lines"
+    lambda: |-
+      // Get current temps and targets
+      float soggiorno_temp = id(soggiorno_room_temp_abstracted).state;
+      float soggiorno_target = id(pid_radiant_soggiorno).target_temperature;
+      float cucina_temp = id(cucina_room_temp_abstracted).state;
+      float cucina_target = id(pid_radiant_cucina).target_temperature;
+      
+      // Calculate deltas (positive = too warm)
+      float soggiorno_delta = soggiorno_temp - soggiorno_target;
+      float cucina_delta = cucina_temp - cucina_target;
+      
+      // Return max delta
+      return std::max(soggiorno_delta, cucina_delta);
+    update_interval: 30s
+
+# Coordinator logic - runs every 30 seconds
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          // Only process during cooling mode (summer)
+          if (!id(summer_mode).state) {
+            // In heating mode, ensure fancoils are off and radiant PIDs control
+            if (id(boost_mode_active)) {
+              ESP_LOGI("coordinator", "Exiting boost mode - heating season");
+              id(boost_mode_active) = false;
+              
+              // Turn off fancoils
+              auto call_s = id(pid_fancoil_soggiorno).make_call();
+              call_s.set_mode("OFF");
+              call_s.perform();
+              
+              auto call_c = id(pid_fancoil_cucina).make_call();
+              call_c.set_mode("OFF");
+              call_c.perform();
+            }
+            return;
+          }
+          
+          // Get threshold values
+          float threshold = id(effective_fancoil_boost_threshold).state;
+          float hysteresis = threshold / 2.0;
+          float max_delta = id(ground_floor_max_delta).state;
+          
+          // Check for invalid readings
+          if (std::isnan(threshold) || std::isnan(max_delta)) {
+            ESP_LOGW("coordinator", "Invalid sensor readings, skipping");
+            return;
+          }
+          
+          // Check minimum time-in-state
+          uint32_t now = millis();
+          uint32_t min_time_ms = ${min_time_in_state_seconds} * 1000;
+          
+          if (id(last_mode_change_time) != 0 && 
+              (now - id(last_mode_change_time)) < min_time_ms) {
+            ESP_LOGD("coordinator", "Min time not elapsed (%d/%d ms), staying in current mode",
+                     (now - id(last_mode_change_time)), min_time_ms);
+            return;
+          }
+          
+          // Determine mode transitions
+          bool should_boost = false;
+          bool should_normal = false;
+          
+          if (!id(boost_mode_active) && max_delta > threshold) {
+            should_boost = true;
+            ESP_LOGI("coordinator", "Boost activation triggered: delta %.1f°C > threshold %.1f°C",
+                     max_delta, threshold);
+          }
+          
+          if (id(boost_mode_active) && max_delta < hysteresis) {
+            should_normal = true;
+            ESP_LOGI("coordinator", "Normal activation triggered: delta %.1f°C < hysteresis %.1f°C",
+                     max_delta, hysteresis);
+          }
+          
+          // Execute boost mode transition
+          if (should_boost) {
+            id(boost_mode_active) = true;
+            id(last_mode_change_time) = now;
+            
+            // Set all radiant zones to 100% (fully open)
+            id(slow_pwm_soggiorno).set_level(1.0);
+            id(slow_pwm_cucina).set_level(1.0);
+            id(slow_pwm_bagno_terra).set_level(1.0);
+            id(slow_pwm_anticamera).set_level(1.0);
+            
+            // Enable fancoil PIDs in COOL mode
+            auto call_s = id(pid_fancoil_soggiorno).make_call();
+            call_s.set_mode("COOL");
+            call_s.perform();
+            
+            auto call_c = id(pid_fancoil_cucina).make_call();
+            call_c.set_mode("COOL");
+            call_c.perform();
+            
+            ESP_LOGI("coordinator", "=== BOOST MODE ACTIVATED ===");
+            ESP_LOGI("coordinator", "Radiant zones at 100%%, Fancoils in COOL mode");
+          }
+          
+          // Execute normal mode transition
+          if (should_normal) {
+            id(boost_mode_active) = false;
+            id(last_mode_change_time) = now;
+            
+            // Disable fancoil PIDs
+            auto call_s = id(pid_fancoil_soggiorno).make_call();
+            call_s.set_mode("OFF");
+            call_s.perform();
+            
+            auto call_c = id(pid_fancoil_cucina).make_call();
+            call_c.set_mode("OFF");
+            call_c.perform();
+            
+            // Note: Radiant PIDs will resume control automatically
+            // The slow_pwm outputs are still connected to the PIDs
+            // and will be controlled by PID output on next cycle
+            
+            ESP_LOGI("coordinator", "=== NORMAL MODE ACTIVATED ===");
+            ESP_LOGI("coordinator", "Radiant PIDs resume control, Fancoils OFF");
+          }
+

@@ -24,6 +24,7 @@ packages:
   bagno: !include bagno.yaml
   anticamera: !include anticamera.yaml
   locale_tecnico: !include locale_tecnico.yaml
+  fancoil_boost_coordinator: !include ../../fancoil_boost_coordinator.yaml
 
 binary_sensor:
   - platform: template
