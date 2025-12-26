@@ -1,3 +1,6 @@
+defaults:
+  safe_margin: 1.0
+
 packages:
   mixing_pump_ground_floor_radiant: !include
     file: ../../mixing_pump.yaml
@@ -42,3 +45,23 @@ binary_sensor:
       return id(pid_fancoil_cucina_is_active) ||
              id(pid_fancoil_locale_tecnico_is_active) ||
              id(pid_fancoil_soggiorno_is_active);
+
+# Max dew point for ground floor radiant cooling protection
+# Excludes Bagno due to shower-induced humidity spikes
+sensor:
+  - platform: combination
+    id: ground_floor_max_dew_point
+    name: "Max Dew Point Piano Terra"
+    type: max
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    state_class: "measurement"
+    sources:
+      - source: soggiorno_dew_point
+      - source: cucina_dew_point
+      - source: anticamera_dew_point
+    on_value:
+      then:
+        - climate.control:
+            id: pid_mixing_valve_ground_floor_radiant
+            target_temperature: !lambda "return (x + ${safe_margin});"
