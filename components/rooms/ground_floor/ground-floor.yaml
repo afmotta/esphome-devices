@@ -107,6 +107,34 @@ sensor:
       return id(effective_fancoil_boost_threshold).state / 2.0;
     update_interval: 30s
 
+  # Supply temperature minimum based on dew point protection
+  # Shows the enforced minimum supply temperature (dew point + safety margin)
+  - platform: template
+    id: ground_floor_supply_temp_minimum
+    name: "Ground Floor Supply Temp Minimum"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-water"
+    lambda: |-
+      float dew_point = id(ground_floor_max_dew_point).state;
+      if (std::isnan(dew_point)) return NAN;
+      return dew_point + ${safe_margin};
+    update_interval: 30s
+
+  # Time in current mode (for debugging min_time_in_state behavior)
+  - platform: template
+    id: ground_floor_time_in_current_mode
+    name: "Ground Floor Time In Current Mode"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    icon: "mdi:timer"
+    lambda: |-
+      if (id(last_mode_change_time) == 0) return 0.0;
+      uint32_t elapsed_ms = millis() - id(last_mode_change_time);
+      return elapsed_ms / 60000.0;
+    update_interval: 60s
+
 # HA sensor for fancoil boost threshold (runtime configurable)
 # Create input_number.ground_floor_fancoil_boost_threshold in HA
 number:
@@ -114,3 +142,31 @@ number:
     id: ha_fancoil_boost_threshold
     entity_id: input_number.ground_floor_fancoil_boost_threshold
     internal: true
+
+# PID Autotune buttons for manual tuning during observation phase
+# Use these to tune PID parameters for cooling mode if needed
+button:
+  - platform: template
+    name: "Autotune Radiant Soggiorno"
+    icon: "mdi:tune"
+    entity_category: config
+    on_press:
+      - climate.pid.autotune: pid_radiant_soggiorno
+  - platform: template
+    name: "Autotune Radiant Cucina"
+    icon: "mdi:tune"
+    entity_category: config
+    on_press:
+      - climate.pid.autotune: pid_radiant_cucina
+  - platform: template
+    name: "Autotune Radiant Anticamera"
+    icon: "mdi:tune"
+    entity_category: config
+    on_press:
+      - climate.pid.autotune: pid_radiant_anticamera
+  - platform: template
+    name: "Autotune Radiant Bagno Terra"
+    icon: "mdi:tune"
+    entity_category: config
+    on_press:
+      - climate.pid.autotune: pid_radiant_bagno_terra
