@@ -44,8 +44,9 @@ binary_sensor:
     device_class: running
     icon: "mdi:pump"
     lambda: |-
-      // Include boost_mode_active for explicit fancoil pump control during boost
-      return id(boost_mode_active) ||
+      // Include per-room boost states for explicit fancoil pump control during boost
+      return id(soggiorno_boost_active) ||
+             id(cucina_boost_active) ||
              id(pid_fancoil_cucina_is_active) ||
              id(pid_fancoil_locale_tecnico_is_active) ||
              id(pid_fancoil_soggiorno_is_active);
@@ -122,7 +123,8 @@ sensor:
       return dew_point + ${safe_margin};
     update_interval: 30s
 
-  # Time in current mode (for debugging min_time_in_state behavior)
+  # Time since last mode change (shows most recent room transition)
+  # Epic 14: Tracks per-room timing independently
   - platform: template
     id: ground_floor_time_in_current_mode
     name: "Ground Floor Time In Current Mode"
@@ -130,9 +132,21 @@ sensor:
     accuracy_decimals: 0
     icon: "mdi:timer"
     lambda: |-
-      if (id(last_mode_change_time) == 0) return 0.0;
-      uint32_t elapsed_ms = millis() - id(last_mode_change_time);
-      return elapsed_ms / 60000.0;
+      uint32_t now = millis();
+      uint32_t soggiorno_time = id(soggiorno_last_mode_change_time);
+      uint32_t cucina_time = id(cucina_last_mode_change_time);
+
+      // Find most recent change (minimum elapsed time)
+      uint32_t min_elapsed = UINT32_MAX;
+      if (soggiorno_time != 0) {
+        min_elapsed = std::min(min_elapsed, now - soggiorno_time);
+      }
+      if (cucina_time != 0) {
+        min_elapsed = std::min(min_elapsed, now - cucina_time);
+      }
+
+      if (min_elapsed == UINT32_MAX) return 0.0;
+      return min_elapsed / 60000.0;
     update_interval: 60s
 
 # HA sensor for fancoil boost threshold (runtime configurable)
