@@ -44,7 +44,9 @@ binary_sensor:
     device_class: running
     icon: "mdi:pump"
     lambda: |-
-      return id(pid_fancoil_cucina_is_active) ||
+      // Include boost_mode_active for explicit fancoil pump control during boost
+      return id(boost_mode_active) ||
+             id(pid_fancoil_cucina_is_active) ||
              id(pid_fancoil_locale_tecnico_is_active) ||
              id(pid_fancoil_soggiorno_is_active);
 
