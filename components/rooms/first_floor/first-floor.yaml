@@ -51,6 +51,13 @@ sensor:
       - source: camera_sud_dew_point
     on_value:
       then:
-        - climate.control:
-            id: pid_mixing_valve_first_floor_radiant
-            target_temperature: !lambda "return (x + ${safe_margin});"
+        - if:
+            condition:
+              lambda: "return id(summer_mode).state;"
+            then:
+              - climate.control:
+                  id: pid_mixing_valve_first_floor_radiant
+                  target_temperature: !lambda "return (x + ${safe_margin});"
+              - logger.log:
+                  format: "[First Floor Radiant] Dew point protection: supply temp min = %.1f°C"
+                  args: ["x + ${safe_margin}"]

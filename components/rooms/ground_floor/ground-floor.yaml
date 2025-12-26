@@ -48,6 +48,7 @@ binary_sensor:
 
 # Max dew point for ground floor radiant cooling protection
 # Excludes Bagno due to shower-induced humidity spikes
+# Only limits supply temp during cooling mode (summer_mode = true)
 sensor:
   - platform: combination
     id: ground_floor_max_dew_point
@@ -62,6 +63,13 @@ sensor:
       - source: anticamera_dew_point
     on_value:
       then:
-        - climate.control:
-            id: pid_mixing_valve_ground_floor_radiant
-            target_temperature: !lambda "return (x + ${safe_margin});"
+        - if:
+            condition:
+              lambda: "return id(summer_mode).state;"
+            then:
+              - climate.control:
+                  id: pid_mixing_valve_ground_floor_radiant
+                  target_temperature: !lambda "return (x + ${safe_margin});"
+              - logger.log:
+                  format: "[Ground Floor Radiant] Dew point protection: supply temp min = %.1f°C"
+                  args: ["x + ${safe_margin}"]
