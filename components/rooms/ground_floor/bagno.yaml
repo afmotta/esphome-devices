@@ -3,8 +3,7 @@
 # Ground Floor
 # ============================================================================
 # Heating: Radiant Floor
-# Cooling: None
-# ===========================================================================
+# Cooling: None (bathrooms excluded from radiant cooling)
 # ============================================================================
 defaults:
   room_slug: "bagno_terra"

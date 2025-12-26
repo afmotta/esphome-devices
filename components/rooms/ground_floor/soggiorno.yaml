@@ -3,7 +3,7 @@
 # Ground Floor
 # ============================================================================
 # Heating: Radiant Floor
-# Cooling: Fancoil
+# Cooling: Radiant Floor (primary) + Fancoil (boost)
 # ============================================================================
 defaults:
   room_slug: "soggiorno"
@@ -18,7 +18,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
 
   radiant: !include
-    file: ../../heat_only_radiant.yaml
+    file: ../../radiant.yaml
     vars:
       relay_id: relay_9
       kp: 0.8
