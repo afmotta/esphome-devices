@@ -29,3 +29,6 @@ packages:
     file: ../../fancoil.yaml
     vars:
       output_id: analog_output_4
+
+  fancoil_boost_coordinator: !include
+    file: ../../fancoil_boost_coordinator.yaml

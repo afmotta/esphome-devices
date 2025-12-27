@@ -11,7 +11,8 @@
 # Minimum time-in-state: 10 minutes (prevents cycling)
 #
 # Required vars:
-#   None - uses hardcoded ground floor IDs
+#   room_slug: Unique room identifier (e.g., "soggiorno")
+#   room_name: Human-readable room name (e.g., "Soggiorno")
 # ============================================================================
 
 defaults:
@@ -19,75 +20,31 @@ defaults:
 
 globals:
   # Per-room boost state (Epic 14 - independent room control)
-  - id: soggiorno_boost_active
-    type: bool
-    initial_value: "false"
-    restore_value: true
-  - id: cucina_boost_active
+  - id: ${room_slug}_boost_active
     type: bool
     initial_value: "false"
     restore_value: true
   # Per-room timing for independent mode transitions
-  - id: soggiorno_last_mode_change_time
-    type: uint32_t
-    initial_value: "0"
-  - id: cucina_last_mode_change_time
+  - id: ${room_slug}_last_mode_change_time
     type: uint32_t
     initial_value: "0"
 
 # Diagnostic sensors for monitoring
 binary_sensor:
   - platform: template
-    id: fancoil_boost_active
-    name: "Ground Floor Fancoil Boost Active"
-    device_class: running
-    icon: "mdi:fan-alert"
-    lambda: "return id(soggiorno_boost_active) || id(cucina_boost_active);"
-
-  - platform: template
-    id: soggiorno_boost_active_sensor
-    name: "Soggiorno Boost Active"
+    id: ${room_slug}_boost_active_sensor
+    name: "${room_name} Boost Active"
     device_class: running
     icon: "mdi:fan"
-    lambda: "return id(soggiorno_boost_active);"
-
-  - platform: template
-    id: cucina_boost_active_sensor
-    name: "Cucina Boost Active"
-    device_class: running
-    icon: "mdi:fan"
-    lambda: "return id(cucina_boost_active);"
+    lambda: "return id(${room_slug}_boost_active);"
 
 text_sensor:
   - platform: template
-    id: ground_floor_cooling_mode
-    name: "Ground Floor Cooling Mode"
+    id: ${room_slug}_cooling_mode
+    name: "${room_name} Cooling Mode"
     icon: "mdi:thermostat"
     lambda: |-
-      bool any_boost = id(soggiorno_boost_active) || id(cucina_boost_active);
-      if (any_boost) {
-        return {"Fancoil Boost"};
-      }
-      return {"Radiant Only"};
-    update_interval: 5s
-
-  - platform: template
-    id: soggiorno_cooling_mode
-    name: "Soggiorno Cooling Mode"
-    icon: "mdi:thermostat"
-    lambda: |-
-      if (id(soggiorno_boost_active)) {
-        return {"Fancoil Boost"};
-      }
-      return {"Radiant Only"};
-    update_interval: 5s
-
-  - platform: template
-    id: cucina_cooling_mode
-    name: "Cucina Cooling Mode"
-    icon: "mdi:thermostat"
-    lambda: |-
-      if (id(cucina_boost_active)) {
+      if (id(${room_slug}_boost_active)) {
         return {"Fancoil Boost"};
       }
       return {"Radiant Only"};
@@ -97,78 +54,30 @@ sensor:
   # Per-room temperature delta sensors (Epic 14)
   # These enable independent boost decisions per room
   - platform: template
-    id: soggiorno_temp_delta
-    name: "Soggiorno Temperature Delta"
+    id: ${room_slug}_temp_delta
+    name: "${room_name} Temperature Delta"
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     device_class: "temperature"
     icon: "mdi:thermometer-lines"
     lambda: |-
-      float current = id(soggiorno_room_temp_abstracted).state;
-      float target = id(pid_radiant_soggiorno).target_temperature;
+      float current = id(${room_slug}_room_temp_abstracted).state;
+      float target = id(pid_radiant_${room_slug}).target_temperature;
       if (std::isnan(current) || std::isnan(target)) return NAN;
       // Positive delta = room is warmer than target (needs cooling)
       return current - target;
-    update_interval: 30s
-
-  - platform: template
-    id: cucina_temp_delta
-    name: "Cucina Temperature Delta"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: "temperature"
-    icon: "mdi:thermometer-lines"
-    lambda: |-
-      float current = id(cucina_room_temp_abstracted).state;
-      float target = id(pid_radiant_cucina).target_temperature;
-      if (std::isnan(current) || std::isnan(target)) return NAN;
-      // Positive delta = room is warmer than target (needs cooling)
-      return current - target;
-    update_interval: 30s
-
-  # Max temperature delta across hybrid rooms (Soggiorno + Cucina)
-  # Uses per-room deltas for efficiency and clarity
-  - platform: template
-    id: ground_floor_max_delta
-    name: "Ground Floor Max Temperature Delta"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: "temperature"
-    icon: "mdi:thermometer-lines"
-    lambda: |-
-      float soggiorno_delta = id(soggiorno_temp_delta).state;
-      float cucina_delta = id(cucina_temp_delta).state;
-
-      // Handle NaN cases
-      if (std::isnan(soggiorno_delta) && std::isnan(cucina_delta)) return NAN;
-      if (std::isnan(soggiorno_delta)) return cucina_delta;
-      if (std::isnan(cucina_delta)) return soggiorno_delta;
-
-      return std::max(soggiorno_delta, cucina_delta);
     update_interval: 30s
 
   # Per-room time in current mode (Epic 14 diagnostics)
   - platform: template
-    id: soggiorno_time_in_mode
-    name: "Soggiorno Time In Mode"
+    id: ${room_slug}_time_in_mode
+    name: "${room_name} Time In Mode"
     unit_of_measurement: "min"
     accuracy_decimals: 0
     icon: "mdi:timer"
     lambda: |-
-      if (id(soggiorno_last_mode_change_time) == 0) return 0.0;
-      uint32_t elapsed_ms = millis() - id(soggiorno_last_mode_change_time);
-      return elapsed_ms / 60000.0;
-    update_interval: 60s
-
-  - platform: template
-    id: cucina_time_in_mode
-    name: "Cucina Time In Mode"
-    unit_of_measurement: "min"
-    accuracy_decimals: 0
-    icon: "mdi:timer"
-    lambda: |-
-      if (id(cucina_last_mode_change_time) == 0) return 0.0;
-      uint32_t elapsed_ms = millis() - id(cucina_last_mode_change_time);
+      if (id(${room_slug}_last_mode_change_time) == 0) return 0.0;
+      uint32_t elapsed_ms = millis() - id(${room_slug}_last_mode_change_time);
       return elapsed_ms / 60000.0;
     update_interval: 60s
 
@@ -181,31 +90,24 @@ interval:
           // Only process during cooling mode (summer)
           if (!id(summer_mode).state) {
             // In heating mode, ensure fancoils are off and radiant PIDs control
-            bool any_active = id(soggiorno_boost_active) || id(cucina_boost_active);
-            if (any_active) {
+            if (id(${room_slug}_boost_active)) {
               ESP_LOGI("coordinator", "Exiting boost mode - heating season");
-              id(soggiorno_boost_active) = false;
-              id(cucina_boost_active) = false;
-              
+              id(${room_slug}_boost_active) = false;
+
               // Turn off fancoils
-              auto call_s = id(pid_fancoil_soggiorno).make_call();
+              auto call_s = id(pid_fancoil_${room_slug}).make_call();
               call_s.set_mode("OFF");
               call_s.perform();
-              
-              auto call_c = id(pid_fancoil_cucina).make_call();
-              call_c.set_mode("OFF");
-              call_c.perform();
             }
             return;
           }
 
           // Get threshold values (shared across rooms)
           float threshold = id(effective_fancoil_boost_threshold).state;
-          float hysteresis = threshold / 2.0;
+          float hysteresis = id(fancoil_boost_hysteresis).state;
 
           // Get per-room deltas
-          float soggiorno_delta = id(soggiorno_temp_delta).state;
-          float cucina_delta = id(cucina_temp_delta).state;
+          float ${room_slug}_delta = id(${room_slug}_temp_delta).state;
 
           // Check for invalid threshold
           if (std::isnan(threshold)) {
@@ -216,88 +118,42 @@ interval:
           uint32_t now = millis();
           uint32_t min_time_ms = ${min_time_in_state_seconds} * 1000;
 
-          // ============================================================
-          // SOGGIORNO EVALUATION (Independent)
-          // ============================================================
-          if (!std::isnan(soggiorno_delta)) {
-            bool soggiorno_time_ok = (id(soggiorno_last_mode_change_time) == 0 ||
-                                      (now - id(soggiorno_last_mode_change_time)) >= min_time_ms);
-            
-            if (soggiorno_time_ok) {
-              // Check for boost activation
-              if (!id(soggiorno_boost_active) && soggiorno_delta > threshold) {
-                id(soggiorno_boost_active) = true;
-                id(soggiorno_last_mode_change_time) = now;
-                
-                // Only set THIS room's radiant to 100%
-                id(slow_pwm_soggiorno).set_level(1.0);
-                
-                // Enable THIS room's fancoil
-                auto call = id(pid_fancoil_soggiorno).make_call();
-                call.set_mode("COOL");
-                call.perform();
-                
-                ESP_LOGI("coordinator", "=== SOGGIORNO BOOST ACTIVATED === delta %.1f°C > threshold %.1f°C",
-                         soggiorno_delta, threshold);
-              }
-              
-              // Check for normal mode return
-              if (id(soggiorno_boost_active) && soggiorno_delta < hysteresis) {
-                id(soggiorno_boost_active) = false;
-                id(soggiorno_last_mode_change_time) = now;
-                
-                // Disable THIS room's fancoil
-                auto call = id(pid_fancoil_soggiorno).make_call();
-                call.set_mode("OFF");
-                call.perform();
-                
-                // Note: Radiant PID will resume control automatically
-                
-                ESP_LOGI("coordinator", "=== SOGGIORNO NORMAL MODE === delta %.1f°C < hysteresis %.1f°C",
-                         soggiorno_delta, hysteresis);
-              }
-            }
-          }
+          if (!std::isnan(${room_slug}_delta)) {
+            bool ${room_slug}_time_ok = (id(${room_slug}_last_mode_change_time) == 0 ||
+                                      (now - id(${room_slug}_last_mode_change_time)) >= min_time_ms);
 
-          // ============================================================
-          // CUCINA EVALUATION (Independent)
-          // ============================================================
-          if (!std::isnan(cucina_delta)) {
-            bool cucina_time_ok = (id(cucina_last_mode_change_time) == 0 ||
-                                   (now - id(cucina_last_mode_change_time)) >= min_time_ms);
-            
-            if (cucina_time_ok) {
+            if (${room_slug}_time_ok) {
               // Check for boost activation
-              if (!id(cucina_boost_active) && cucina_delta > threshold) {
-                id(cucina_boost_active) = true;
-                id(cucina_last_mode_change_time) = now;
+              if (!id(${room_slug}_boost_active) && ${room_slug}_delta > threshold) {
+                id(${room_slug}_boost_active) = true;
+                id(${room_slug}_last_mode_change_time) = now;
                 
                 // Only set THIS room's radiant to 100%
-                id(slow_pwm_cucina).set_level(1.0);
-                
+                id(slow_pwm_${room_slug}).set_level(1.0);
+
                 // Enable THIS room's fancoil
-                auto call = id(pid_fancoil_cucina).make_call();
+                auto call = id(pid_fancoil_${room_slug}).make_call();
                 call.set_mode("COOL");
                 call.perform();
-                
-                ESP_LOGI("coordinator", "=== CUCINA BOOST ACTIVATED === delta %.1f°C > threshold %.1f°C",
-                         cucina_delta, threshold);
+
+                ESP_LOGI("coordinator", "=== ${room_slug} BOOST ACTIVATED === delta %.1f°C > threshold %.1f°C",
+                         ${room_slug}_delta, threshold);
               }
               
               // Check for normal mode return
-              if (id(cucina_boost_active) && cucina_delta < hysteresis) {
-                id(cucina_boost_active) = false;
-                id(cucina_last_mode_change_time) = now;
-                
+              if (id(${room_slug}_boost_active) && ${room_slug}_delta < hysteresis) {
+                id(${room_slug}_boost_active) = false;
+                id(${room_slug}_last_mode_change_time) = now;
+
                 // Disable THIS room's fancoil
-                auto call = id(pid_fancoil_cucina).make_call();
+                auto call = id(pid_fancoil_${room_slug}).make_call();
                 call.set_mode("OFF");
                 call.perform();
                 
                 // Note: Radiant PID will resume control automatically
-                
-                ESP_LOGI("coordinator", "=== CUCINA NORMAL MODE === delta %.1f°C < hysteresis %.1f°C",
-                         cucina_delta, hysteresis);
+
+                ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE === delta %.1f°C < hysteresis %.1f°C",
+                         ${room_slug}_delta, hysteresis);
               }
             }
           }
