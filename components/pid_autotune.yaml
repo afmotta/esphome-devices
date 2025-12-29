@@ -1,0 +1,28 @@
+# Component: pid_autotune.yaml
+# Purpose: Basic PID autotune button (no interference prevention needed)
+#
+# Required vars:
+#   - room_slug: Room identifier (e.g., "anticamera")
+#   - room_name: Display name (e.g., "Radiant Anticamera")
+#   - pid_id: PID climate entity to tune (e.g., "pid_radiant_anticamera")
+#
+# For rooms with fancoils/boost, use pid_autotune_with_fancoil.yaml instead
+# ============================================================================
+
+button:
+  - platform: template
+    name: "Autotune ${room_name}"
+    id: autotune_${room_slug}
+    icon: "mdi:tune"
+    entity_category: config
+    on_press:
+      - logger.log:
+          format: "[Autotune] Starting autotune for ${room_name}"
+          level: INFO
+      # Small delay to let things settle
+      - delay: 2s
+      # Start autotune
+      - climate.pid.autotune: ${pid_id}
+      - logger.log:
+          format: "[Autotune] Autotune started for ${pid_id}"
+          level: INFO

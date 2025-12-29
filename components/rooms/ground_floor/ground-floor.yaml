@@ -155,31 +155,3 @@ number:
     id: ha_fancoil_boost_threshold
     entity_id: input_number.ground_floor_fancoil_boost_threshold
     internal: true
-
-# PID Autotune buttons for manual tuning during observation phase
-# Use these to tune PID parameters for cooling mode if needed
-button:
-  - platform: template
-    name: "Autotune Radiant Soggiorno"
-    icon: "mdi:tune"
-    entity_category: config
-    on_press:
-      - climate.pid.autotune: pid_radiant_soggiorno
-  - platform: template
-    name: "Autotune Radiant Cucina"
-    icon: "mdi:tune"
-    entity_category: config
-    on_press:
-      - climate.pid.autotune: pid_radiant_cucina
-  - platform: template
-    name: "Autotune Radiant Anticamera"
-    icon: "mdi:tune"
-    entity_category: config
-    on_press:
-      - climate.pid.autotune: pid_radiant_anticamera
-  - platform: template
-    name: "Autotune Radiant Bagno Terra"
-    icon: "mdi:tune"
-    entity_category: config
-    on_press:
-      - climate.pid.autotune: pid_radiant_bagno_terra
