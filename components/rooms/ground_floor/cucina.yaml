@@ -37,11 +37,11 @@ packages:
     file: ../../pid_autotune_with_fancoil.yaml
     vars:
       pid_id: pid_radiant_cucina
+      pid_name: "Radiante Cucina"
       fancoil_pid_id: pid_fancoil_cucina
 
   autotune_fancoil: !include
     file: ../../pid_autotune.yaml
     vars:
-      room_slug: fancoil_cucina
-      room_name: "Fancoil Cucina"
       pid_id: pid_fancoil_cucina
+      pid_name: "Fancoil Cucina"

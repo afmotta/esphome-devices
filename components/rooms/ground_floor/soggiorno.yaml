@@ -43,3 +43,4 @@ packages:
     file: ../../pid_autotune.yaml
     vars:
       pid_id: pid_fancoil_soggiorno
+      pid_name: "Fancoil Soggiorno"

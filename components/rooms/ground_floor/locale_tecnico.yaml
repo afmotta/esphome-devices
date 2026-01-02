@@ -26,3 +26,4 @@ packages:
     file: ../../pid_autotune.yaml
     vars:
       pid_id: pid_fancoil_locale_tecnico
+      pid_name: "Fancoil Locale Tecnico"

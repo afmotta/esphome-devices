@@ -29,3 +29,4 @@ packages:
     file: ../../pid_autotune.yaml
     vars:
       pid_id: pid_radiant_bagno_terra
+      pid_name: "Radiante Bagno Terra"
