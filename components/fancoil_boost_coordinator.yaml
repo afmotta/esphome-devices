@@ -6,14 +6,20 @@
 #   - Normal (Radiant Only): Radiant PIDs active, Fancoils OFF
 #   - Boost (Fancoil Boost): Radiant at 100%, Fancoil PIDs active
 #
-# Activation: delta > threshold (configurable via HA)
-# Deactivation: delta <= 0 (target reached - let fancoil finish the job)
-# Minimum time-in-state: 10 minutes (prevents cycling)
+# Activation triggers (OR logic - either condition triggers boost):
+#   1. Temperature: delta > threshold (room too warm for radiant alone)
+#   2. Humidity: room humidity > humidity_threshold (limits radiant capacity)
 #
-# Design rationale: If radiant alone couldn't maintain temperature (hence boost
-# activated), stopping boost early would likely cause oscillation. Let the
-# fancoil PID run until target is reached; fan_speed_off_threshold handles
-# gradual transition as PID output decreases.
+# Deactivation (AND logic - both conditions must be satisfied):
+#   - Temperature: delta <= 0 (target reached)
+#   - Humidity: room humidity <= humidity_threshold - 5% (hysteresis)
+#
+# Humidity rationale: High humidity raises dew point, forcing radiant supply
+# water to stay warmer (to avoid condensation), limiting cooling capacity.
+# Fancoils can dehumidify while cooling, lowering dew point and enabling
+# more aggressive radiant cooling.
+#
+# Minimum time-in-state: 10 minutes (prevents cycling)
 #
 # Required vars:
 #   room_slug: Unique room identifier (e.g., "soggiorno")
@@ -102,27 +108,35 @@ interval:
           }
 
           // Get threshold values (shared across rooms)
-          float threshold = id(effective_fancoil_boost_threshold).state;
+          float temp_threshold = id(effective_fancoil_boost_threshold).state;
+          float humidity_threshold = id(effective_fancoil_humidity_threshold).state;
 
-          // Get per-room deltas
-          float ${room_slug}_delta = id(${room_slug}_temp_delta).state;
+          // Get per-room values (local variables - no room_slug prefix needed)
+          float temp_delta = id(${room_slug}_temp_delta).state;
+          float humidity = id(${room_slug}_room_humidity_abstracted).state;
 
-          // Check for invalid threshold
-          if (std::isnan(threshold)) {
-            ESP_LOGW("coordinator", "Invalid threshold, skipping");
+          // Check for invalid thresholds
+          if (std::isnan(temp_threshold) || std::isnan(humidity_threshold)) {
+            ESP_LOGW("coordinator", "Invalid threshold(s), skipping");
             return;
           }
 
           uint32_t now = millis();
           uint32_t min_time_ms = ${min_time_in_state_seconds} * 1000;
 
-          if (!std::isnan(${room_slug}_delta)) {
-            bool ${room_slug}_time_ok = (id(${room_slug}_last_mode_change_time) == 0 ||
-                                      (now - id(${room_slug}_last_mode_change_time)) >= min_time_ms);
+          // Need valid temperature delta; humidity can be NaN (we'll skip humidity check if so)
+          if (!std::isnan(temp_delta)) {
+            bool min_time_elapsed = (id(${room_slug}_last_mode_change_time) == 0 ||
+                                     (now - id(${room_slug}_last_mode_change_time)) >= min_time_ms);
 
-            if (${room_slug}_time_ok) {
-              // Check for boost activation
-              if (!id(${room_slug}_boost_active) && ${room_slug}_delta > threshold) {
+            if (min_time_elapsed) {
+              // Boost activation: OR logic (either condition triggers boost)
+              // 1. Temperature too high: room can't be cooled fast enough by radiant
+              // 2. Humidity too high: limits radiant capacity due to dew point constraint
+              bool temp_trigger = temp_delta > temp_threshold;
+              bool humidity_trigger = !std::isnan(humidity) && humidity > humidity_threshold;
+              
+              if (!id(${room_slug}_boost_active) && (temp_trigger || humidity_trigger)) {
                 id(${room_slug}_boost_active) = true;
                 id(${room_slug}_last_mode_change_time) = now;
                 
@@ -144,14 +158,21 @@ interval:
                 fancoil_call.set_mode("COOL");
                 fancoil_call.perform();
 
-                ESP_LOGI("coordinator", "=== ${room_slug} BOOST ACTIVATED === delta %.1f°C > threshold %.1f°C",
-                         ${room_slug}_delta, threshold);
+                ESP_LOGI("coordinator", "=== ${room_slug} BOOST ACTIVATED ===");
+                ESP_LOGI("coordinator", "  Temp trigger: %s (delta %.1f°C > %.1f°C)",
+                         temp_trigger ? "YES" : "no", temp_delta, temp_threshold);
+                ESP_LOGI("coordinator", "  Humidity trigger: %s (%.0f%% > %.0f%%)",
+                         humidity_trigger ? "YES" : "no", humidity, humidity_threshold);
                 ESP_LOGI("coordinator", "Radiant output LOCKED at 100%%, Fancoil COOL");
               }
               
-              // Check for normal mode return - target reached
-              // delta <= 0 means room is at or below target temperature
-              if (id(${room_slug}_boost_active) && ${room_slug}_delta <= 0) {
+              // Boost deactivation: AND logic (both conditions must be satisfied)
+              // - Temperature: target reached (delta <= 0)
+              // - Humidity: below threshold with 5% hysteresis (prevents oscillation)
+              bool temp_ok = temp_delta <= 0;
+              bool humidity_ok = std::isnan(humidity) || humidity <= (humidity_threshold - 5.0);
+              
+              if (id(${room_slug}_boost_active) && temp_ok && humidity_ok) {
                 id(${room_slug}_boost_active) = false;
                 id(${room_slug}_last_mode_change_time) = now;
 
@@ -163,8 +184,10 @@ interval:
                 // Release output override - PID will resume control
                 id(${room_slug}_radiant_override).turn_off();
 
-                ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE === delta %.1f°C <= 0 (target reached)",
-                         ${room_slug}_delta);
+                ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE ===");
+                ESP_LOGI("coordinator", "  Temp OK: delta %.1f°C <= 0", temp_delta);
+                ESP_LOGI("coordinator", "  Humidity OK: %.0f%% <= %.0f%% (threshold - 5%%)",
+                         humidity, humidity_threshold - 5.0);
                 ESP_LOGI("coordinator", "Radiant output UNLOCKED (PID resumed), Fancoil OFF");
               }
             }

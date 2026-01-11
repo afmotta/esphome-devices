@@ -1,6 +1,7 @@
 defaults:
   safe_margin: 1.0
   fancoil_boost_threshold_default: 4.0
+  fancoil_humidity_threshold_default: 60.0 # % RH - trigger boost to dehumidify
 
 packages:
   mixing_pump_ground_floor_radiant: !include
@@ -110,6 +111,37 @@ sensor:
       return dew_point + ${safe_margin};
     update_interval: 30s
 
+  # Max humidity across ground floor rooms for boost decisions
+  # High humidity limits radiant cooling capacity (dew point constraint)
+  # Fancoil boost can dehumidify while cooling
+  - platform: combination
+    id: ground_floor_max_humidity
+    name: "Max Humidity Piano Terra"
+    type: max
+    unit_of_measurement: "%"
+    device_class: "humidity"
+    state_class: "measurement"
+    sources:
+      - source: soggiorno_room_humidity_abstracted
+      - source: cucina_room_humidity_abstracted
+      - source: anticamera_room_humidity_abstracted
+
+  # Effective humidity threshold with HA fallback
+  - platform: template
+    id: effective_fancoil_humidity_threshold
+    name: "Effective Fancoil Humidity Threshold"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: "humidity"
+    icon: "mdi:water-percent-alert"
+    lambda: |-
+      if (id(ha_fancoil_humidity_threshold).has_state() && !std::isnan(id(ha_fancoil_humidity_threshold).state)) {
+        return id(ha_fancoil_humidity_threshold).state;
+      }
+      ESP_LOGW("threshold", "HA humidity threshold unavailable, using fallback: %.0f%%", ${fancoil_humidity_threshold_default});
+      return ${fancoil_humidity_threshold_default};
+    update_interval: 30s
+
   # Time since last mode change (shows most recent room transition)
   # Epic 14: Tracks per-room timing independently
   - platform: template
@@ -136,10 +168,15 @@ sensor:
       return min_elapsed / 60000.0;
     update_interval: 60s
 
-# HA sensor for fancoil boost threshold (runtime configurable)
-# Create input_number.ground_floor_fancoil_boost_threshold in HA
+# HA sensors for fancoil boost thresholds (runtime configurable)
+# Create input_number entities in HA for runtime tuning
 number:
   - platform: homeassistant
     id: ha_fancoil_boost_threshold
     entity_id: input_number.ground_floor_fancoil_boost_threshold
+    internal: true
+
+  - platform: homeassistant
+    id: ha_fancoil_humidity_threshold
+    entity_id: input_number.ground_floor_fancoil_humidity_threshold
     internal: true
