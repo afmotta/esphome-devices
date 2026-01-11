@@ -81,23 +81,17 @@ sensor:
       return elapsed_ms / 60000.0;
     update_interval: 60s
 
-# Coordinator logic - runs every 30 seconds
+# Coordinator logic - runs every 60 seconds
 # Epic 14: Independent per-room evaluation
 interval:
-  - interval: 30s
+  - interval: 60s
     then:
       - lambda: |-
           // Only process during cooling mode (summer)
           if (!id(summer_mode).state) {
-            // In heating mode, ensure fancoils are off and radiant PIDs control
             if (id(${room_slug}_boost_active)) {
               ESP_LOGI("coordinator", "Exiting boost mode - heating season");
               id(${room_slug}_boost_active) = false;
-
-              // Turn off fancoils
-              auto call_s = id(pid_fancoil_${room_slug}).make_call();
-              call_s.set_mode("OFF");
-              call_s.perform();
             }
             return;
           }
@@ -128,16 +122,27 @@ interval:
                 id(${room_slug}_boost_active) = true;
                 id(${room_slug}_last_mode_change_time) = now;
                 
-                // Only set THIS room's radiant to 100%
+                // IMPORTANT: Enable output override to lock radiant at 100%
+                // This prevents the PID from overwriting our output value
+                // Use number.set for override_value (expects 0-100%)
+                auto value_call = id(${room_slug}_radiant_override_value).make_call();
+                value_call.set_value(100.0);  // 100% open
+                value_call.perform();
+                
+                // Use switch.turn_on for override flag
+                id(${room_slug}_radiant_override).turn_on();
+                
+                // Force the output to apply the override value immediately
                 id(slow_pwm_${room_slug}).set_level(1.0);
 
                 // Enable THIS room's fancoil
-                auto call = id(pid_fancoil_${room_slug}).make_call();
-                call.set_mode("COOL");
-                call.perform();
+                auto fancoil_call = id(pid_fancoil_${room_slug}).make_call();
+                fancoil_call.set_mode("COOL");
+                fancoil_call.perform();
 
                 ESP_LOGI("coordinator", "=== ${room_slug} BOOST ACTIVATED === delta %.1f°C > threshold %.1f°C",
                          ${room_slug}_delta, threshold);
+                ESP_LOGI("coordinator", "Radiant output LOCKED at 100%%, Fancoil COOL");
               }
               
               // Check for normal mode return
@@ -146,14 +151,16 @@ interval:
                 id(${room_slug}_last_mode_change_time) = now;
 
                 // Disable THIS room's fancoil
-                auto call = id(pid_fancoil_${room_slug}).make_call();
-                call.set_mode("OFF");
-                call.perform();
+                auto fancoil_call = id(pid_fancoil_${room_slug}).make_call();
+                fancoil_call.set_mode("OFF");
+                fancoil_call.perform();
                 
-                // Note: Radiant PID will resume control automatically
+                // Release output override - PID will resume control
+                id(${room_slug}_radiant_override).turn_off();
 
                 ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE === delta %.1f°C < hysteresis %.1f°C",
                          ${room_slug}_delta, hysteresis);
+                ESP_LOGI("coordinator", "Radiant output UNLOCKED (PID resumed), Fancoil OFF");
               }
             }
           }

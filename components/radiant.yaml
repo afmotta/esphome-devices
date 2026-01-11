@@ -4,7 +4,7 @@ packages:
 
 climate:
   - id: !extend pid_radiant_${room_slug}
-    cool_output: slow_pwm_${room_slug}
+    cool_output: radiant_output_${room_slug}
 
 # Summer mode handler: automatically switch between HEAT and COOL modes
 binary_sensor:
@@ -13,7 +13,7 @@ binary_sensor:
       then:
         - if:
             condition:
-              lambda: "return x;"  # x = true means summer
+              lambda: "return x;" # x = true means summer
             then:
               - climate.control:
                   id: pid_radiant_${room_slug}
