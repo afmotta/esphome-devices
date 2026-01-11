@@ -95,18 +95,6 @@ sensor:
       return ${fancoil_boost_threshold_default};
     update_interval: 30s
 
-  # Calculated hysteresis (threshold / 2)
-  - platform: template
-    id: fancoil_boost_hysteresis
-    name: "Fancoil Boost Hysteresis"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: "temperature"
-    icon: "mdi:thermometer-chevron-down"
-    lambda: |-
-      return id(effective_fancoil_boost_threshold).state / 2.0;
-    update_interval: 30s
-
   # Supply temperature minimum based on dew point protection
   # Shows the enforced minimum supply temperature (dew point + safety margin)
   - platform: template

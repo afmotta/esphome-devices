@@ -7,8 +7,13 @@
 #   - Boost (Fancoil Boost): Radiant at 100%, Fancoil PIDs active
 #
 # Activation: delta > threshold (configurable via HA)
-# Deactivation: delta < threshold/2 (hysteresis)
+# Deactivation: delta <= 0 (target reached - let fancoil finish the job)
 # Minimum time-in-state: 10 minutes (prevents cycling)
+#
+# Design rationale: If radiant alone couldn't maintain temperature (hence boost
+# activated), stopping boost early would likely cause oscillation. Let the
+# fancoil PID run until target is reached; fan_speed_off_threshold handles
+# gradual transition as PID output decreases.
 #
 # Required vars:
 #   room_slug: Unique room identifier (e.g., "soggiorno")
@@ -98,7 +103,6 @@ interval:
 
           // Get threshold values (shared across rooms)
           float threshold = id(effective_fancoil_boost_threshold).state;
-          float hysteresis = id(fancoil_boost_hysteresis).state;
 
           // Get per-room deltas
           float ${room_slug}_delta = id(${room_slug}_temp_delta).state;
@@ -145,8 +149,9 @@ interval:
                 ESP_LOGI("coordinator", "Radiant output LOCKED at 100%%, Fancoil COOL");
               }
               
-              // Check for normal mode return
-              if (id(${room_slug}_boost_active) && ${room_slug}_delta < hysteresis) {
+              // Check for normal mode return - target reached
+              // delta <= 0 means room is at or below target temperature
+              if (id(${room_slug}_boost_active) && ${room_slug}_delta <= 0) {
                 id(${room_slug}_boost_active) = false;
                 id(${room_slug}_last_mode_change_time) = now;
 
@@ -158,8 +163,8 @@ interval:
                 // Release output override - PID will resume control
                 id(${room_slug}_radiant_override).turn_off();
 
-                ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE === delta %.1f°C < hysteresis %.1f°C",
-                         ${room_slug}_delta, hysteresis);
+                ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE === delta %.1f°C <= 0 (target reached)",
+                         ${room_slug}_delta);
                 ESP_LOGI("coordinator", "Radiant output UNLOCKED (PID resumed), Fancoil OFF");
               }
             }
