@@ -8,11 +8,16 @@
 #
 # Activation triggers (OR logic - either condition triggers boost):
 #   1. Temperature: delta > threshold (room too warm for radiant alone)
-#   2. Humidity: room humidity > humidity_threshold (limits radiant capacity)
+#   2. Humidity: humidity > threshold + hysteresis/2 (limits radiant capacity)
 #
 # Deactivation (AND logic - both conditions must be satisfied):
 #   - Temperature: delta <= 0 (target reached)
-#   - Humidity: room humidity <= humidity_threshold - 5% (hysteresis)
+#   - Humidity: humidity <= threshold - hysteresis/2 (symmetric hysteresis)
+#
+# Humidity hysteresis: Creates a dead band around the threshold to prevent
+# oscillation. With threshold=65% and hysteresis=5%:
+#   - Activate at > 67.5%
+#   - Deactivate at <= 62.5%
 #
 # Humidity rationale: High humidity raises dew point, forcing radiant supply
 # water to stay warmer (to avoid condensation), limiting cooling capacity.
@@ -28,6 +33,7 @@
 
 defaults:
   min_time_in_state_seconds: 600 # 10 minutes
+  humidity_hysteresis: 5.0 # % RH dead band (symmetric around threshold)
 
 globals:
   # Per-room boost state (Epic 14 - independent room control)
@@ -123,6 +129,7 @@ interval:
 
           uint32_t now = millis();
           uint32_t min_time_ms = ${min_time_in_state_seconds} * 1000;
+          float humidity_hysteresis = ${humidity_hysteresis};
 
           // Need valid temperature delta; humidity can be NaN (we'll skip humidity check if so)
           if (!std::isnan(temp_delta)) {
@@ -133,8 +140,10 @@ interval:
               // Boost activation: OR logic (either condition triggers boost)
               // 1. Temperature too high: room can't be cooled fast enough by radiant
               // 2. Humidity too high: limits radiant capacity due to dew point constraint
+              //    Uses upper bound of hysteresis band (threshold + hysteresis/2)
               bool temp_trigger = temp_delta > temp_threshold;
-              bool humidity_trigger = !std::isnan(humidity) && humidity > humidity_threshold;
+              float humidity_activate = humidity_threshold + (humidity_hysteresis / 2.0);
+              bool humidity_trigger = !std::isnan(humidity) && humidity > humidity_activate;
               
               if (!id(${room_slug}_boost_active) && (temp_trigger || humidity_trigger)) {
                 id(${room_slug}_boost_active) = true;
@@ -162,15 +171,16 @@ interval:
                 ESP_LOGI("coordinator", "  Temp trigger: %s (delta %.1f°C > %.1f°C)",
                          temp_trigger ? "YES" : "no", temp_delta, temp_threshold);
                 ESP_LOGI("coordinator", "  Humidity trigger: %s (%.0f%% > %.0f%%)",
-                         humidity_trigger ? "YES" : "no", humidity, humidity_threshold);
+                         humidity_trigger ? "YES" : "no", humidity, humidity_activate);
                 ESP_LOGI("coordinator", "Radiant output LOCKED at 100%%, Fancoil COOL");
               }
               
               // Boost deactivation: AND logic (both conditions must be satisfied)
               // - Temperature: target reached (delta <= 0)
-              // - Humidity: below threshold with 5% hysteresis (prevents oscillation)
+              // - Humidity: below lower bound of hysteresis band (threshold - hysteresis/2)
               bool temp_ok = temp_delta <= 0;
-              bool humidity_ok = std::isnan(humidity) || humidity <= (humidity_threshold - 5.0);
+              float humidity_deactivate = humidity_threshold - (humidity_hysteresis / 2.0);
+              bool humidity_ok = std::isnan(humidity) || humidity <= humidity_deactivate;
               
               if (id(${room_slug}_boost_active) && temp_ok && humidity_ok) {
                 id(${room_slug}_boost_active) = false;
@@ -186,8 +196,8 @@ interval:
 
                 ESP_LOGI("coordinator", "=== ${room_name} NORMAL MODE ===");
                 ESP_LOGI("coordinator", "  Temp OK: delta %.1f°C <= 0", temp_delta);
-                ESP_LOGI("coordinator", "  Humidity OK: %.0f%% <= %.0f%% (threshold - 5%%)",
-                         humidity, humidity_threshold - 5.0);
+                ESP_LOGI("coordinator", "  Humidity OK: %.0f%% <= %.0f%%",
+                         humidity, humidity_deactivate);
                 ESP_LOGI("coordinator", "Radiant output UNLOCKED (PID resumed), Fancoil OFF");
               }
             }
