@@ -21,3 +21,9 @@ packages:
     file: ../../fancoil.yaml
     vars:
       output_id: analog_output_6
+
+  autotune_fancoil: !include
+    file: ../../pid_autotune.yaml
+    vars:
+      pid_id: pid_fancoil_locale_tecnico
+      pid_name: "Fancoil Locale Tecnico"

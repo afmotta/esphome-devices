@@ -3,8 +3,7 @@
 # Ground Floor
 # ============================================================================
 # Heating: Radiant Floor
-# Cooling: None
-# ===========================================================================
+# Cooling: None (bathrooms excluded from radiant cooling)
 # ============================================================================
 defaults:
   room_slug: "bagno_terra"
@@ -25,3 +24,9 @@ packages:
       kp: 0.8
       ki: 0.005
       kd: 0.05
+
+  autotune: !include
+    file: ../../pid_autotune.yaml
+    vars:
+      pid_id: pid_radiant_bagno_terra
+      pid_name: "Radiante Bagno Terra"

@@ -1,3 +1,9 @@
+defaults:
+  safe_margin: 1.0
+  fancoil_boost_threshold_default: 4.0
+  fancoil_humidity_threshold_default: 60.0 # % RH - trigger boost to dehumidify
+  predictive_boost_minutes_default: 20 # Minutes at saturation before predictive boost
+
 packages:
   mixing_pump_ground_floor_radiant: !include
     file: ../../mixing_pump.yaml
@@ -39,6 +45,162 @@ binary_sensor:
     device_class: running
     icon: "mdi:pump"
     lambda: |-
-      return id(pid_fancoil_cucina_is_active) ||
+      // Include per-room boost states for explicit fancoil pump control during boost
+      return id(soggiorno_boost_active) ||
+             id(cucina_boost_active) ||
+             id(pid_fancoil_cucina_is_active) ||
              id(pid_fancoil_locale_tecnico_is_active) ||
              id(pid_fancoil_soggiorno_is_active);
+
+# Max dew point for ground floor radiant cooling protection
+# Excludes Bagno due to shower-induced humidity spikes
+# Only limits supply temp during cooling mode (summer_mode = true)
+sensor:
+  - platform: combination
+    id: ground_floor_max_dew_point
+    name: "Max Dew Point Piano Terra"
+    type: max
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    state_class: "measurement"
+    sources:
+      - source: soggiorno_dew_point
+      - source: cucina_dew_point
+      - source: anticamera_dew_point
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: "return id(summer_mode).state;"
+            then:
+              - climate.control:
+                  id: pid_mixing_valve_ground_floor_radiant
+                  target_temperature: !lambda "return (x + ${safe_margin});"
+              - logger.log:
+                  format: "[Ground Floor Radiant] Dew point protection: supply temp min = %.1f°C"
+                  args: ["x + ${safe_margin}"]
+
+  # Effective fancoil boost threshold with fallback
+  # Uses HA input_number if available, otherwise fallback to default
+  - platform: template
+    id: effective_fancoil_boost_threshold
+    name: "Effective Fancoil Boost Threshold"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-alert"
+    lambda: |-
+      if (id(ha_fancoil_boost_threshold).has_state() && !std::isnan(id(ha_fancoil_boost_threshold).state)) {
+        return id(ha_fancoil_boost_threshold).state;
+      }
+      ESP_LOGW("threshold", "HA unavailable, using fallback: %.1f°C", ${fancoil_boost_threshold_default});
+      return ${fancoil_boost_threshold_default};
+    update_interval: 30s
+
+  # Supply temperature minimum based on dew point protection
+  # Shows the enforced minimum supply temperature (dew point + safety margin)
+  - platform: template
+    id: ground_floor_supply_temp_minimum
+    name: "Ground Floor Supply Temp Minimum"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-water"
+    lambda: |-
+      float dew_point = id(ground_floor_max_dew_point).state;
+      if (std::isnan(dew_point)) return NAN;
+      return dew_point + ${safe_margin};
+    update_interval: 30s
+
+  # Max humidity across ground floor rooms for boost decisions
+  # High humidity limits radiant cooling capacity (dew point constraint)
+  # Fancoil boost can dehumidify while cooling
+  # Note: This sensor is used by fancoil_boost_coordinator for boost decisions,
+  # NOT for mixing valve control (dew point handles that)
+  - platform: combination
+    id: ground_floor_max_humidity
+    name: "Max Humidity Piano Terra"
+    type: max
+    unit_of_measurement: "%"
+    device_class: "humidity"
+    state_class: "measurement"
+    sources:
+      - source: soggiorno_room_humidity_abstracted
+      - source: cucina_room_humidity_abstracted
+      - source: anticamera_room_humidity_abstracted
+
+  # Effective humidity threshold with HA fallback
+  - platform: template
+    id: effective_fancoil_humidity_threshold
+    name: "Effective Fancoil Humidity Threshold"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: "humidity"
+    icon: "mdi:water-percent-alert"
+    lambda: |-
+      if (id(ha_fancoil_humidity_threshold).has_state() && !std::isnan(id(ha_fancoil_humidity_threshold).state)) {
+        return id(ha_fancoil_humidity_threshold).state;
+      }
+      ESP_LOGW("threshold", "HA humidity threshold unavailable, using fallback: %.0f%%", ${fancoil_humidity_threshold_default});
+      return ${fancoil_humidity_threshold_default};
+    update_interval: 30s
+
+  # Effective predictive boost duration threshold with HA fallback
+  # Triggers boost when radiant output saturated for this many minutes
+  - platform: template
+    id: effective_predictive_boost_minutes
+    name: "Effective Predictive Boost Minutes"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    icon: "mdi:timer-alert"
+    lambda: |-
+      if (id(ha_predictive_boost_minutes).has_state() && !std::isnan(id(ha_predictive_boost_minutes).state)) {
+        return id(ha_predictive_boost_minutes).state;
+      }
+      ESP_LOGW("threshold", "HA predictive boost unavailable, using fallback: %.0f min", ${predictive_boost_minutes_default});
+      return ${predictive_boost_minutes_default};
+    update_interval: 30s
+
+  # Time since last mode change (shows most recent room transition)
+  # Epic 14: Tracks per-room timing independently
+  - platform: template
+    id: ground_floor_time_in_current_mode
+    name: "Ground Floor Time In Current Mode"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    icon: "mdi:timer"
+    lambda: |-
+      uint32_t now = millis();
+      uint32_t soggiorno_time = id(soggiorno_last_mode_change_time);
+      uint32_t cucina_time = id(cucina_last_mode_change_time);
+
+      // Find most recent change (minimum elapsed time)
+      uint32_t min_elapsed = UINT32_MAX;
+      if (soggiorno_time != 0) {
+        min_elapsed = std::min(min_elapsed, now - soggiorno_time);
+      }
+      if (cucina_time != 0) {
+        min_elapsed = std::min(min_elapsed, now - cucina_time);
+      }
+
+      if (min_elapsed == UINT32_MAX) return 0.0;
+      return min_elapsed / 60000.0;
+    update_interval: 60s
+
+# HA sensors for fancoil boost thresholds (runtime configurable)
+# Create input_number entities in HA for runtime tuning
+number:
+  - platform: homeassistant
+    id: ha_fancoil_boost_threshold
+    entity_id: input_number.ground_floor_fancoil_boost_threshold
+    internal: true
+
+  - platform: homeassistant
+    id: ha_fancoil_humidity_threshold
+    entity_id: input_number.ground_floor_fancoil_humidity_threshold
+    internal: true
+
+  - platform: homeassistant
+    id: ha_predictive_boost_minutes
+    entity_id: input_number.ground_floor_predictive_boost_minutes
+    internal: true

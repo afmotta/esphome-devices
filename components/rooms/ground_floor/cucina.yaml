@@ -3,7 +3,7 @@
 # Ground Floor
 # ============================================================================
 # Heating: Radiant Floor
-# Cooling: Fancoil
+# Cooling: Radiant Floor (primary) + Fancoil (boost)
 # ============================================================================
 defaults:
   room_slug: "cucina"
@@ -18,7 +18,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
   pid_radiant: !include
-    file: ../../heat_only_radiant.yaml
+    file: ../../radiant.yaml
     vars:
       relay_id: relay_8
       kp: 0.8
@@ -29,3 +29,19 @@ packages:
     file: ../../fancoil.yaml
     vars:
       output_id: analog_output_4
+
+  fancoil_boost_coordinator: !include
+    file: ../../fancoil_boost_coordinator.yaml
+
+  autotune: !include
+    file: ../../pid_autotune_with_fancoil.yaml
+    vars:
+      pid_id: pid_radiant_cucina
+      pid_name: "Radiante Cucina"
+      fancoil_pid_id: pid_fancoil_cucina
+
+  autotune_fancoil: !include
+    file: ../../pid_autotune.yaml
+    vars:
+      pid_id: pid_fancoil_cucina
+      pid_name: "Fancoil Cucina"

@@ -76,3 +76,10 @@ one_wire:
   - platform: gpio
     pin: GPIO21
     id: one_wire_01
+
+binary_sensor:
+  - platform: homeassistant
+    name: "Summer Mode"
+    entity_id: binary_sensor.summer_mode
+    id: summer_mode
+    internal: true
