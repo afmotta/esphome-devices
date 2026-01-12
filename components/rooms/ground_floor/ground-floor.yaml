@@ -2,6 +2,7 @@ defaults:
   safe_margin: 1.0
   fancoil_boost_threshold_default: 4.0
   fancoil_humidity_threshold_default: 60.0 # % RH - trigger boost to dehumidify
+  predictive_boost_minutes_default: 20 # Minutes at saturation before predictive boost
 
 packages:
   mixing_pump_ground_floor_radiant: !include
@@ -114,6 +115,8 @@ sensor:
   # Max humidity across ground floor rooms for boost decisions
   # High humidity limits radiant cooling capacity (dew point constraint)
   # Fancoil boost can dehumidify while cooling
+  # Note: This sensor is used by fancoil_boost_coordinator for boost decisions,
+  # NOT for mixing valve control (dew point handles that)
   - platform: combination
     id: ground_floor_max_humidity
     name: "Max Humidity Piano Terra"
@@ -140,6 +143,22 @@ sensor:
       }
       ESP_LOGW("threshold", "HA humidity threshold unavailable, using fallback: %.0f%%", ${fancoil_humidity_threshold_default});
       return ${fancoil_humidity_threshold_default};
+    update_interval: 30s
+
+  # Effective predictive boost duration threshold with HA fallback
+  # Triggers boost when radiant output saturated for this many minutes
+  - platform: template
+    id: effective_predictive_boost_minutes
+    name: "Effective Predictive Boost Minutes"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    icon: "mdi:timer-alert"
+    lambda: |-
+      if (id(ha_predictive_boost_minutes).has_state() && !std::isnan(id(ha_predictive_boost_minutes).state)) {
+        return id(ha_predictive_boost_minutes).state;
+      }
+      ESP_LOGW("threshold", "HA predictive boost unavailable, using fallback: %.0f min", ${predictive_boost_minutes_default});
+      return ${predictive_boost_minutes_default};
     update_interval: 30s
 
   # Time since last mode change (shows most recent room transition)
@@ -179,4 +198,9 @@ number:
   - platform: homeassistant
     id: ha_fancoil_humidity_threshold
     entity_id: input_number.ground_floor_fancoil_humidity_threshold
+    internal: true
+
+  - platform: homeassistant
+    id: ha_predictive_boost_minutes
+    entity_id: input_number.ground_floor_predictive_boost_minutes
     internal: true

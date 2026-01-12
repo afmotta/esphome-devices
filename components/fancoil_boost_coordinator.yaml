@@ -6,9 +6,19 @@
 #   - Normal (Radiant Only): Radiant PIDs active, Fancoils OFF
 #   - Boost (Fancoil Boost): Radiant at 100%, Fancoil PIDs active
 #
-# Activation triggers (OR logic - either condition triggers boost):
+# Activation triggers (OR logic - any condition triggers boost):
 #   1. Temperature: delta > threshold (room too warm for radiant alone)
 #   2. Humidity: humidity > threshold + hysteresis/2 (limits radiant capacity)
+#   3. PREDICTIVE: radiant output saturated (>=95%) for X minutes (capacity exhausted)
+#
+# Predictive Boost Logic:
+#   When radiant PID output is at or near maximum (>=95%) for a sustained period,
+#   the radiant system is at capacity and cannot cool further. This triggers
+#   boost BEFORE the temperature delta exceeds the reactive threshold, improving
+#   comfort by acting proactively rather than waiting for discomfort.
+#
+#   Additional safety: only triggers if temperature is not decreasing (not making
+#   progress). This prevents premature boost when the room IS cooling, just slowly.
 #
 # Deactivation (AND logic - both conditions must be satisfied):
 #   - Temperature: delta <= 0 (target reached)
@@ -34,6 +44,9 @@
 defaults:
   min_time_in_state_seconds: 600 # 10 minutes
   humidity_hysteresis: 5.0 # % RH dead band (symmetric around threshold)
+  # Predictive boost parameters
+  saturated_output_threshold: 0.95 # Output level considered "saturated" (95%)
+  saturated_duration_minutes_default: 20 # Minutes at saturation before predictive boost
 
 globals:
   # Per-room boost state (Epic 14 - independent room control)
@@ -45,6 +58,14 @@ globals:
   - id: ${room_slug}_last_mode_change_time
     type: uint32_t
     initial_value: "0"
+  # Predictive boost: track when output saturation started
+  - id: ${room_slug}_saturated_start_time
+    type: uint32_t
+    initial_value: "0"
+  # Predictive boost: previous temperature for trend detection
+  - id: ${room_slug}_prev_temperature
+    type: float
+    initial_value: "NAN"
 
 # Diagnostic sensors for monitoring
 binary_sensor:
@@ -98,10 +119,37 @@ sensor:
       return elapsed_ms / 60000.0;
     update_interval: 60s
 
-# Coordinator logic - runs every 60 seconds
+  # Predictive boost: time radiant output has been saturated
+  - platform: template
+    id: ${room_slug}_saturation_duration
+    name: "${room_name} Saturation Duration"
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    icon: "mdi:gauge-full"
+    lambda: |-
+      if (id(${room_slug}_saturated_start_time) == 0) return 0.0;
+      uint32_t elapsed_ms = millis() - id(${room_slug}_saturated_start_time);
+      return elapsed_ms / 60000.0;
+    update_interval: 30s
+
+  # Radiant PID output percentage for monitoring
+  - platform: template
+    id: ${room_slug}_radiant_output_pct
+    name: "${room_name} Radiant Output"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    icon: "mdi:percent"
+    lambda: |-
+      // Get PID COOL output (0-1 range for cooling)
+      float output = id(pid_radiant_${room_slug}_cool).state;
+      if (std::isnan(output)) return 0.0;
+      return output * 100.0;
+    update_interval: 30s
+
+# Coordinator logic - runs every 30 seconds for responsive predictive boost
 # Epic 14: Independent per-room evaluation
 interval:
-  - interval: 60s
+  - interval: 30s
     then:
       - lambda: |-
           // Only process during cooling mode (summer)
@@ -110,16 +158,24 @@ interval:
               ESP_LOGI("coordinator", "Exiting boost mode - heating season");
               id(${room_slug}_boost_active) = false;
             }
+            // Reset predictive tracking
+            id(${room_slug}_saturated_start_time) = 0;
+            id(${room_slug}_prev_temperature) = NAN;
             return;
           }
 
           // Get threshold values (shared across rooms)
           float temp_threshold = id(effective_fancoil_boost_threshold).state;
           float humidity_threshold = id(effective_fancoil_humidity_threshold).state;
+          float predictive_minutes = id(effective_predictive_boost_minutes).state;
 
-          // Get per-room values (local variables - no room_slug prefix needed)
+          // Get per-room values
           float temp_delta = id(${room_slug}_temp_delta).state;
           float humidity = id(${room_slug}_room_humidity_abstracted).state;
+          float current_temp = id(${room_slug}_room_temp_abstracted).state;
+
+          // Get PID output (COOL sensor gives 0-1 output)
+          float radiant_output = id(pid_radiant_${room_slug}_cool).state;
 
           // Check for invalid thresholds
           if (std::isnan(temp_threshold) || std::isnan(humidity_threshold)) {
@@ -130,36 +186,79 @@ interval:
           uint32_t now = millis();
           uint32_t min_time_ms = ${min_time_in_state_seconds} * 1000;
           float humidity_hysteresis = ${humidity_hysteresis};
+          float saturated_threshold = ${saturated_output_threshold};
 
+          // ================================================================
+          // PREDICTIVE BOOST: Track output saturation duration
+          // ================================================================
+          bool is_saturated = !std::isnan(radiant_output) && radiant_output >= saturated_threshold;
+
+          if (is_saturated && !id(${room_slug}_boost_active)) {
+            // Start tracking saturation if not already
+            if (id(${room_slug}_saturated_start_time) == 0) {
+              id(${room_slug}_saturated_start_time) = now;
+              ESP_LOGD("coordinator", "${room_slug}: Saturation tracking started (output %.0f%%)", radiant_output * 100);
+            }
+          } else if (!is_saturated) {
+            // Reset saturation tracking when output drops
+            if (id(${room_slug}_saturated_start_time) != 0) {
+              ESP_LOGD("coordinator", "${room_slug}: Saturation tracking reset (output %.0f%%)", radiant_output * 100);
+            }
+            id(${room_slug}_saturated_start_time) = 0;
+          }
+
+          // Calculate saturation duration
+          uint32_t saturated_duration_ms = 0;
+          if (id(${room_slug}_saturated_start_time) != 0) {
+            saturated_duration_ms = now - id(${room_slug}_saturated_start_time);
+          }
+          uint32_t predictive_threshold_ms = (uint32_t)(predictive_minutes * 60 * 1000);
+
+          // ================================================================
+          // TEMPERATURE TREND: Check if room is making progress
+          // ================================================================
+          // Only trigger predictive boost if temp is NOT decreasing
+          // This prevents premature boost when radiant IS working, just slowly
+          float prev_temp = id(${room_slug}_prev_temperature);
+          bool temp_not_decreasing = std::isnan(prev_temp) || current_temp >= (prev_temp - 0.1);
+
+          // Update previous temperature for next iteration
+          id(${room_slug}_prev_temperature) = current_temp;
+
+          // ================================================================
+          // BOOST ACTIVATION LOGIC
+          // ================================================================
           // Need valid temperature delta; humidity can be NaN (we'll skip humidity check if so)
           if (!std::isnan(temp_delta)) {
             bool min_time_elapsed = (id(${room_slug}_last_mode_change_time) == 0 ||
                                      (now - id(${room_slug}_last_mode_change_time)) >= min_time_ms);
 
             if (min_time_elapsed) {
-              // Boost activation: OR logic (either condition triggers boost)
-              // 1. Temperature too high: room can't be cooled fast enough by radiant
-              // 2. Humidity too high: limits radiant capacity due to dew point constraint
-              //    Uses upper bound of hysteresis band (threshold + hysteresis/2)
+              // Boost activation: OR logic (any condition triggers boost)
+              // 1. REACTIVE - Temperature too high: room too warm for radiant alone
+              // 2. REACTIVE - Humidity too high: limits radiant capacity
+              // 3. PREDICTIVE - Saturated output: radiant at capacity for too long
               bool temp_trigger = temp_delta > temp_threshold;
               float humidity_activate = humidity_threshold + (humidity_hysteresis / 2.0);
               bool humidity_trigger = !std::isnan(humidity) && humidity > humidity_activate;
               
-              if (!id(${room_slug}_boost_active) && (temp_trigger || humidity_trigger)) {
+              // PREDICTIVE trigger: saturated for X minutes AND not making cooling progress
+              bool predictive_trigger = (saturated_duration_ms >= predictive_threshold_ms) && 
+                                        temp_not_decreasing && 
+                                        (temp_delta > 0);  // Only if still above target
+              
+              bool any_trigger = temp_trigger || humidity_trigger || predictive_trigger;
+              if (!id(${room_slug}_boost_active) && (any_trigger)) {
                 id(${room_slug}_boost_active) = true;
                 id(${room_slug}_last_mode_change_time) = now;
+                id(${room_slug}_saturated_start_time) = 0;  // Reset saturation tracking
                 
                 // IMPORTANT: Enable output override to lock radiant at 100%
-                // This prevents the PID from overwriting our output value
-                // Use number.set for override_value (expects 0-100%)
                 auto value_call = id(${room_slug}_radiant_override_value).make_call();
                 value_call.set_value(100.0);  // 100% open
                 value_call.perform();
                 
-                // Use switch.turn_on for override flag
                 id(${room_slug}_radiant_override).turn_on();
-                
-                // Force the output to apply the override value immediately
                 id(slow_pwm_${room_slug}).set_level(1.0);
 
                 // Enable THIS room's fancoil
@@ -172,12 +271,16 @@ interval:
                          temp_trigger ? "YES" : "no", temp_delta, temp_threshold);
                 ESP_LOGI("coordinator", "  Humidity trigger: %s (%.0f%% > %.0f%%)",
                          humidity_trigger ? "YES" : "no", humidity, humidity_activate);
+                ESP_LOGI("coordinator", "  PREDICTIVE trigger: %s (saturated %.0f min >= %.0f min, temp trend: %s)",
+                         predictive_trigger ? "YES" : "no", 
+                         saturated_duration_ms / 60000.0, predictive_minutes,
+                         temp_not_decreasing ? "flat/rising" : "decreasing");
                 ESP_LOGI("coordinator", "Radiant output LOCKED at 100%%, Fancoil COOL");
               }
               
               // Boost deactivation: AND logic (both conditions must be satisfied)
               // - Temperature: target reached (delta <= 0)
-              // - Humidity: below lower bound of hysteresis band (threshold - hysteresis/2)
+              // - Humidity: below lower bound of hysteresis band
               bool temp_ok = temp_delta <= 0;
               float humidity_deactivate = humidity_threshold - (humidity_hysteresis / 2.0);
               bool humidity_ok = std::isnan(humidity) || humidity <= humidity_deactivate;
