@@ -1,8 +1,0 @@
-sensor:
-  - platform: dallas_temp
-    address: ${address}
-    name: "Dallas ${address}"
-    id: dallas_${address}
-    unit_of_measurement: "°C"
-    internal: true
-    one_wire_id: ${bus}
