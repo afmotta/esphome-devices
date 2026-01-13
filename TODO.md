@@ -1,5 +1,17 @@
 TODO:
 
+- Gestione VMC (MEV)
+- - Integrazione con sensori di qualità dell'aria (CO2, VOC, PM2.5)
+- - Logica di controllo della VMC basata sulla qualità dell'aria interna
+- - Coordinamento tra riscaldamento/raffreddamento e VMC per ottimizzare il comfort e l'efficienza energetica
+- Integrazione con sistemi di accumulo di energia termica
+- - Gestione intelligente dell'energia accumulata per riscaldamento e raffreddamento
+- - Ottimizzazione dei tempi di carica/scarica in base alle previsioni di consumo e produzione energetica
+⚠️ No learning algorithms (yet)
+🚀 Weather forecast integration would match Nest/Tado killer feature
+🚀 Energy awareness could differentiate in growing green-energy market
+🚀 Community sharing could create network effects
+🚀 ESP32 sensor boards could enable occupancy detection
 
 IN PROGRESS:
 
