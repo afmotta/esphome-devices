@@ -1,8 +1,33 @@
+defaults:
+  kp: 0.2
+  ki: 0.01
+  kd: 0.0
+  valve_slug: "mixing_valve_${area_slug}"
+  valve_name: "Mixing Valve for ${area_name}"
+
+sensor:
+  - platform: dallas_temp
+    address: ${dallas_address}
+    name: "Dallas ${dallas_address}"
+    id: dallas_${dallas_address}
+    unit_of_measurement: "°C"
+    one_wire_id: one_wire_01
+
 packages:
-  mixing_valve: !include
-    file: mixing_valve.yaml
+  pid: !include
+    file: ./pid.yaml
     vars:
-      dallas_address: ${dallas_address}
+      circuit_slug: "${valve_slug}"
+      circuit_name: "${valve_name}"
+      sensor: dallas_${dallas_address}
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
+
+climate:
+  - id: !extend pid_${valve_slug}
+    heat_output: ${output_id}
+    cool_output: ${output_id}
 
 binary_sensor:
   - platform: template
