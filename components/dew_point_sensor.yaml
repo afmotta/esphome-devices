@@ -5,7 +5,7 @@ sensor:
     update_interval: 30s
     device_class: temperature
     unit_of_measurement: "°C"
-    accuracy_decimals: 0 # formula is uncertain up to 0.35 degrees C = 0.63 degrees F for usual indoor temperatures
+    accuracy_decimals: 0 # formula is uncertain up to 0.35 degrees C for usual indoor temperatures
     lambda: |-
       const float alpha = 6.112; // hPa
       const float beta = 17.62;

@@ -5,9 +5,11 @@ packages:
       dallas_address: ${dallas_address}
 
 binary_sensor:
-  - platform: packet_transport
-    id: ${udp_sensor_id}
-    provider: ${udp_provider}
+  - platform: template
+    id: ${sensor_id}_wrapped
+    lambda: |-
+      return id(${sensor_id});
+    internal: true
     on_state:
       then:
         - if:

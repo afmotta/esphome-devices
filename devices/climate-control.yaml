@@ -1,0 +1,85 @@
+defaults:
+  device_name: climate-control
+  friendly_name: "Climate Control"
+
+packages:
+  base: !include
+    file: ../boards/waveshare-s3.yaml
+    vars:
+      enable_ethernet: true
+  analog_outputs_1: !include
+    file: ../components/modbus_analog_outputs_board.yaml
+    vars:
+      controller_id: analog_outputs_board_1
+      modbus_address: 0x1
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: 0
+  relays_1: !include
+    file: ../components/modbus_relay_board.yaml
+    vars:
+      controller_id: relay_board_1
+      modbus_address: 0x2
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: 8
+  relays_2: !include
+    file: ../components/modbus_relay_board.yaml
+    vars:
+      controller_id: relay_board_2
+      modbus_address: 0x3
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: 16
+  ground_floor: !include ../components/rooms/ground_floor/ground-floor.yaml
+  first_floor: !include ../components/rooms/first_floor/first-floor.yaml
+  second_floor: !include ../components/rooms/second_floor/second-floor.yaml
+  first_floor_mev: !include
+    file: ../components/mev.yaml
+    vars:
+      mev_slug: "first_floor_mev"
+      mev_name: "VMC Primo Piano"
+      power_relay: relay_18
+      mode_relay: relay_19
+      dehumidifier_relay: relay_20
+      cooling_relay: relay_21
+      fan_speed_output: analog_output_7
+      alarm_input: di1
+
+udp:
+  id: udp_packet_transport
+
+packet_transport:
+  - platform: udp
+    udp_id: udp_packet_transport
+    providers:
+      - name: room-sensor-soggiorno
+      - name: room-sensor-cucina
+      - name: room-sensor-bagno
+      - name: room-sensor-anticamera
+      - name: room-sensor-locale-tecnico
+      - name: room-sensor-bagno-grande
+      - name: room-sensor-bagno-ospiti
+      - name: room-sensor-bagno-padronale
+      - name: room-sensor-camera-nord
+      - name: room-sensor-camera-sud
+      - name: room-sensor-camera-ospiti
+      - name: room-sensor-camera-padronale
+      - name: room-sensor-lavanderia
+      - name: room-sensor-sottotetto
+
+modbus:
+  id: rs485_bus
+  uart_id: modbus_uart
+
+one_wire:
+  - platform: gpio
+    pin: GPIO21
+    id: one_wire_01
+
+binary_sensor:
+  - platform: homeassistant
+    name: "Summer Mode"
+    entity_id: binary_sensor.summer_mode
+    id: summer_mode
+    internal: true

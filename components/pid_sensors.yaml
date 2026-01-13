@@ -57,3 +57,13 @@ binary_sensor:
     lambda: |-
       auto action = id(${pid_id}).action;
       return (action == CLIMATE_ACTION_HEATING || action == CLIMATE_ACTION_COOLING);
+  - platform: template
+    name: "${pid_name} is Heating"
+    id: ${pid_id}_is_heating
+    lambda: |-
+      return id(${pid_id}).action == CLIMATE_ACTION_HEATING;
+  - platform: template
+    name: "${pid_name} is Cooling"
+    id: ${pid_id}_is_cooling
+    lambda: |-
+      return id(${pid_id}).action == CLIMATE_ACTION_COOLING;
