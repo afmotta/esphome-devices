@@ -1,5 +1,5 @@
 TODO:
-- aggiungere una logica per evitare che durante l'autotune dei radianti il sistema entri in boost mode
+
 
 IN PROGRESS:
 
@@ -8,3 +8,4 @@ DONE:
 - gestire fancoil per umidità
 - margine di sicurezza per dew point regolabile da home assistant
 - attualmente la temperatura di mandata basata su dew point è calcolata due volte: una per il sensore di minima temperatura di mandata, una per il controllo della valvola miscelatrice. Unificare la logica in un unico punto.
+- aggiungere una logica per evitare che durante l'autotune dei radianti il sistema entri in boost mode
