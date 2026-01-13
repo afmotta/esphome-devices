@@ -75,14 +75,10 @@ sensor:
             then:
               - climate.control:
                   id: pid_mixing_valve_ground_floor_radiant
-                  target_temperature: !lambda "return (x + id(effective_ground_floor_safe_margin).state);"
+                  target_temperature: !lambda "return id(ground_floor_supply_temp_minimum).state;"
               - logger.log:
-                  format: "[Ground Floor Radiant] Dew point protection: supply temp min = %.1f°C (margin: %.1f°C)"
-                  args:
-                    [
-                      "x + id(effective_ground_floor_safe_margin).state",
-                      "id(effective_ground_floor_safe_margin).state",
-                    ]
+                  format: "[Ground Floor Radiant] Dew point protection: supply temp min = %.1f°C"
+                  args: ["id(ground_floor_supply_temp_minimum).state"]
 
   # Effective fancoil boost threshold with fallback
   # Uses HA input_number if available, otherwise fallback to default

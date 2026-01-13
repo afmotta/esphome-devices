@@ -90,14 +90,10 @@ sensor:
             then:
               - climate.control:
                   id: pid_mixing_valve_first_floor_radiant
-                  target_temperature: !lambda "return (x + id(effective_first_floor_safe_margin).state);"
+                  target_temperature: !lambda "return id(first_floor_supply_temp_minimum).state;"
               - logger.log:
-                  format: "[First Floor Radiant] Dew point protection: supply temp min = %.1f°C (margin: %.1f°C)"
-                  args:
-                    [
-                      "x + id(effective_first_floor_safe_margin).state",
-                      "id(effective_first_floor_safe_margin).state",
-                    ]
+                  format: "[First Floor Radiant] Dew point protection: supply temp min = %.1f°C"
+                  args: ["id(first_floor_supply_temp_minimum).state"]
 
 # HA sensors for safe margin (runtime configurable)
 # Create input_number entity in HA: input_number.first_floor_safe_margin (range: 0.5-3.0, step: 0.1)
