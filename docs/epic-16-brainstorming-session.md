@@ -64,21 +64,21 @@ The cooling integration relay controls a **circulation pump** that draws chilled
 
 **Key Insight:** MEV has THREE humidity control mechanisms:
 
-| Mechanism | Control | Energy Cost |
-|-----------|---------|-------------|
-| Fan Speed | DAC output | Low |
-| Dehumidifier | Relay 3 | Medium |
-| Cooling Integration | Relay 4 (pump) | High |
+| Mechanism           | Control        | Energy Cost |
+| ------------------- | -------------- | ----------- |
+| Fan Speed           | DAC output     | Low         |
+| Dehumidifier        | Relay 3        | Medium      |
+| Cooling Integration | Relay 4 (pump) | High        |
 
 **Decision:** Implement 4-stage humidity cascade with escalating responses.
 
 **Cascade Design:**
 
-| Stage | Trigger | Actions |
-|-------|---------|---------|
-| 0 Normal | <55% | Fan at AQ demand only |
-| 1 Elevated | ≥55% for 5min | Fan boost +20% |
-| 2 High | ≥65% for 10min | Fan 70%+ + Dehumidifier ON |
+| Stage      | Trigger        | Actions                           |
+| ---------- | -------------- | --------------------------------- |
+| 0 Normal   | <55%           | Fan at AQ demand only             |
+| 1 Elevated | ≥55% for 5min  | Fan boost +20%                    |
+| 2 High     | ≥65% for 10min | Fan 70%+ + Dehumidifier ON        |
 | 3 Critical | ≥75% for 10min | Fan 90%+ + Dehumid + Cooling Pump |
 
 ---
@@ -87,23 +87,23 @@ The cooling integration relay controls a **circulation pump** that draws chilled
 
 **CO₂ Mapping:**
 
-| Level | ppm | Fan Demand |
-|-------|-----|------------|
-| Excellent | <600 | 20% |
-| Good | 600-800 | 35% |
-| Moderate | 800-1000 | 50% |
-| Poor | 1000-1400 | 70% |
-| Bad | >1400 | 90% |
+| Level     | ppm       | Fan Demand |
+| --------- | --------- | ---------- |
+| Excellent | <600      | 20%        |
+| Good      | 600-800   | 35%        |
+| Moderate  | 800-1000  | 50%        |
+| Poor      | 1000-1400 | 70%        |
+| Bad       | >1400     | 90%        |
 
 **IAQ/VOC Mapping:**
 
-| Level | Index | Fan Demand |
-|-------|-------|------------|
-| Clean | <100 | 20% |
-| Acceptable | 100-150 | 35% |
-| Elevated | 150-250 | 50% |
-| High | 250-350 | 70% |
-| Polluted | >350 | 90% |
+| Level      | Index   | Fan Demand |
+| ---------- | ------- | ---------- |
+| Clean      | <100    | 20%        |
+| Acceptable | 100-150 | 35%        |
+| Elevated   | 150-250 | 50%        |
+| High       | 250-350 | 70%        |
+| Polluted   | >350    | 90%        |
 
 ---
 
@@ -185,14 +185,49 @@ This is a **prerequisite** for Epic 16.
 └────────────────────────────────────────────────────────────────────┘
 ```
 
+> **UPDATE (January 15, 2026):** The humidity management approach was significantly refined after this session. See "Refinement Session" section below.
+
 ---
 
 ## Resulting Epics
 
-| Epic | Title | Points | Dependency |
-|------|-------|--------|------------|
-| **15** | Air Quality Sensor Broadcasting | 5 | None |
-| **16** | First Floor MEV Intelligent Control | 13 | Epic 15 |
+| Epic   | Title                               | Points | Dependency |
+| ------ | ----------------------------------- | ------ | ---------- |
+| **15** | Air Quality Sensor Broadcasting     | 5      | None       |
+| **16** | First Floor MEV Intelligent Control | 16     | Epic 15    |
+
+---
+
+## Refinement Session (January 15, 2026)
+
+After reviewing the initial stories, the humidity management approach was deemed "too naïve" and refined to use **trend-based escalation** instead of **threshold-based stages**.
+
+### Problem with Original Approach
+- Fixed thresholds (55%, 65%, 75%) were reactive, not proactive
+- No configurable target for users
+- Step-wise fan speed changes instead of continuous modulation
+- Equipment triggered by absolute values, not by "rate of failure to control"
+
+### Refined Approach: Trend-Based Control
+
+Inspired by the **fancoil boost predictive mode** (Epic 14), the humidity control now:
+
+1. **Monitors rate of change** (%/min) over a 5-minute rolling window
+2. **Keeps humidity below a configurable target** (default 55%, range 40-60%)
+3. **Modulates fan speed continuously** via 0-10V DAC proportional to rate + distance
+4. **Escalates equipment based on rate persistence**, not absolute humidity
+
+### New State Machine
+
+| State             | Entry Condition                  | Exit Condition           | Actions                 |
+| ----------------- | -------------------------------- | ------------------------ | ----------------------- |
+| **NORMAL**        | humidity < target-5% OR rate ≤ 0 | —                        | Fan = max(AQ, 20%)      |
+| **CONTROLLING**   | rate > 0, approaching target     | rate ≤ 0 for 5min        | Fan = f(rate, distance) |
+| **DEHUMIDIFYING** | rate > 1%/min for 2min           | rate ≤ 0.5%/min for 5min | Fan + Dehumidifier      |
+| **COOLING**       | rate > 2%/min for 2min           | rate ≤ 1%/min for 5min   | Fan + Dehumid + Pump    |
+
+### Key Insight
+The goal is not to react when humidity gets high, but to **actively prevent humidity from exceeding the target** with the minimum necessary energy expenditure.
 
 ---
 
@@ -214,13 +249,14 @@ These were noted but deferred to avoid scope creep.
 - **Constraint Identification:** Discovered pump protection need
 - **Gap Analysis:** Identified missing CO₂/VOC broadcast infrastructure
 - **Architecture Diagramming:** Visual representation of dual-path logic
+- **Pattern Matching:** Referenced Epic 14 predictive boost for humidity control refinement
 
 ---
 
 ## Artifacts Produced
 
 1. `docs/epic-15-brief.md` - Air Quality Sensor Broadcasting
-2. `docs/epic-16-brief.md` - First Floor MEV Intelligent Control
+2. `docs/epic-16-brief.md` - First Floor MEV Intelligent Control (updated Jan 15)
 3. `docs/epic-16-brainstorming-session.md` - This document
 
 ---
@@ -228,6 +264,6 @@ These were noted but deferred to avoid scope creep.
 ## Next Steps
 
 1. Review Epic 15 brief
-2. Review Epic 16 brief
+2. Review Epic 16 brief (updated with trend-based humidity control)
 3. Prioritize in backlog
 4. Begin implementation (Epic 15 first as prerequisite)

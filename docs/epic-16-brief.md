@@ -1,6 +1,7 @@
 # Epic 16: First Floor MEV Intelligent Control
 
 **Date:** January 14, 2026  
+**Updated:** January 15, 2026  
 **Status:** Draft  
 **Priority:** High  
 **Estimated Story Points:** 14
@@ -9,7 +10,16 @@
 
 ## Executive Summary
 
-Implement intelligent control logic for the First Floor MEV (Mechanical Extract Ventilation) system using a dual-path architecture: **Air Quality Path** (CO₂ + VOC/IAQ) drives baseline ventilation, while **Humidity Cascade Path** provides escalating responses including dehumidifier activation and cooling integration with the Heat Pump. The system uses a "max demand wins" fusion strategy where the highest demand from either path determines fan speed, with humidity-specific stages controlling additional equipment.
+Implement intelligent control logic for the First Floor MEV (Mechanical Extract Ventilation) system using a dual-path architecture: **Air Quality Path** (CO₂ + VOC/IAQ) drives baseline ventilation, while **Humidity Control Path** uses a **fan-speed-triggered state machine** to keep humidity within a configurable window (40-60%). Fan speed is the **primary control variable**, modulating continuously based on humidity position and rate of change. Equipment (dehumidifier, cooling pump) escalates when **fan speed is high but humidity is still rising**, and de-escalates when **humidity is low and fan is coasting**.
+
+### MEV System Capabilities
+
+The MEV is an intelligent heat-recovery ventilation unit with:
+- **Variable outside air intake** - Adjustable vent controlling fresh air vs recirculation ratio
+- **Internal humidity logic** - Compares inside vs outside humidity to optimize air exchange
+- **Heat recovery** - Up to 90% heat retention via heat exchanger
+- **Built-in dehumidifier** - For active moisture removal when recirculating
+- **Cooling coil** - Connected to HP chilled water buffer via circulation pump
 
 ---
 
@@ -39,58 +49,77 @@ Implement intelligent control logic for the First Floor MEV (Mechanical Extract 
 
 ## Proposed Solution
 
-### Architecture: Dual-Path Max Demand
+### Architecture: Dual-Path with Fan-Speed-Triggered State Machine
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                     MEV CONTROL LOGIC                              │
+│                     MEV CONTROL LOGIC (v5)                         │
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  PATH A: AIR QUALITY                                               │
+│  PATH A: AIR QUALITY (always active)                               │
 │  ├── Inputs: first_floor_max_co2, first_floor_max_iaq             │
 │  ├── Output: Fan Speed Demand (20-90%)                            │
-│  └── Mode: Always active                                           │
+│  └── Mapping: CO₂/IAQ levels → proportional fan demand            │
 │                                                                    │
-│  PATH B: HUMIDITY CASCADE                                          │
-│  ├── Input: first_floor_max_humidity                              │
-│  ├── Stages:                                                       │
-│  │   ├── Stage 0 (Normal): <55% → Fan at AQ demand only           │
-│  │   ├── Stage 1 (Elevated): ≥55% → Fan boost +20%                │
-│  │   ├── Stage 2 (High): ≥65% → Fan 70%+ + Dehumidifier ON        │
-│  │   └── Stage 3 (Critical): ≥75% → + Cooling Pump ON             │
-│  └── Pump Protection: 5min ON / 10min OFF minimum                 │
+│  PATH B: HUMIDITY CONTROL (fan-speed-triggered)                    │
+│  ├── Window: 40-60% (both configurable via HA)                    │
+│  ├── Goal: Keep humidity in window with MINIMUM equipment         │
+│  │                                                                 │
+│  │  FAN SPEED = Primary control AND escalation signal             │
+│  │  ├── Modulates based on position in 40-60% window + rate       │
+│  │  ├── High fan + rising humidity = escalate equipment           │
+│  │  └── Low fan + low humidity = de-escalate equipment            │
+│  │                                                                 │
+│  │  STATES:                                                        │
+│  │  ┌───────────┐     ┌──────────────┐     ┌───────────┐          │
+│  │  │  FAN_ONLY │────▶│ DEHUMIDIFYING│────▶│  COOLING  │          │
+│  │  └───────────┘◀────└──────────────┘◀────└───────────┘          │
+│  │                                                                 │
+│  │  ESCALATION (fan working hard, losing battle):                  │
+│  │  ├── Fan ≥ 70% for 5min AND rate > 0 → add Dehumidifier        │
+│  │  └── Fan ≥ 80% for 5min AND rate > 0 → add Cooling (summer)    │
+│  │                                                                 │
+│  │  DE-ESCALATION (humidity low, fan coasting):                    │
+│  │  ├── Humidity < 40% AND fan < 30% for 10min → remove Cooling   │
+│  │  └── Humidity < 40% AND fan < 30% for 10min → remove Dehumid   │
+│  │                                                                 │
+│  └── Night: Organic de-escalation as ambient humidity drops        │
 │                                                                    │
 │  FINAL OUTPUT:                                                     │
-│  ├── Fan Speed = max(Path A demand, Path B stage demand)          │
-│  ├── Dehumidifier = Stage 2+ active                                │
-│  └── Cooling Pump = Stage 3 active AND Summer Mode                │
+│  ├── Fan Speed = max(Path A demand, Path B demand, 20%)           │
+│  ├── Dehumidifier = DEHUMIDIFYING or COOLING state                │
+│  └── Cooling Pump = COOLING state AND Summer Mode                 │
 │                                                                    │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Design Decisions
 
-| Decision                  | Choice                    | Rationale                                                  |
-| ------------------------- | ------------------------- | ---------------------------------------------------------- |
-| **Fusion Strategy**       | Max Demand Wins           | Simple, debuggable, never under-ventilates                 |
-| **Humidity Scope**        | All 8 first floor rooms   | Bedroom humidity impacts radiant cooling                   |
-| **Cooling Prerequisites** | Summer Mode only          | Cold water only available in summer                        |
-| **Pump Protection**       | 5min ON / 10min OFF       | Prevents short-cycling, protects pump                      |
-| **Implementation**        | Home Assistant Automation | Follows Epic 5/6 pattern: ESPHome exposes, HA orchestrates |
+| Decision                  | Choice                            | Rationale                                                  |
+| ------------------------- | --------------------------------- | ---------------------------------------------------------- |
+| **Humidity Window**       | 40-60% (both configurable)        | Simple bounds, runtime tunable                             |
+| **Fan as Signal**         | Escalate when fan high + rising   | Fan effort indicates "losing the battle"                   |
+| **Equipment Philosophy**  | Normal in summer, not emergency   | Milan summer = humid; dehumidifier often needed            |
+| **De-escalation Trigger** | Low humidity + coasting fan       | Only remove equipment when clearly not needed              |
+| **Night Mode**            | Organic via ambient humidity      | No special logic; system naturally de-escalates            |
+| **MEV Intelligence**      | Trust internal air exchange logic | MEV optimizes fresh/recirculated mix automatically         |
+| **Minimum Fan Speed**     | 20% always                        | Continuous air exchange for health                         |
+| **Cooling Prerequisites** | Summer Mode only                  | Chilled water only available in summer                     |
+| **Implementation**        | Home Assistant Automation         | Follows Epic 5/6 pattern: ESPHome exposes, HA orchestrates |
 
 ---
 
 ## User Stories
 
-| Story | Title                                    | Points | Priority |
-| ----- | ---------------------------------------- | ------ | -------- |
-| 16.1  | First Floor Humidity Aggregation         | 1      | High     |
-| 16.2  | Air Quality → Fan Speed Mapping          | 2      | High     |
-| 16.3  | Humidity Cascade State Machine           | 3      | High     |
-| 16.4  | Cooling Integration with Pump Protection | 3      | High     |
-| 16.5  | HA Helper Entities                       | 1      | High     |
-| 16.6  | HA Automation Implementation             | 3      | High     |
-| 16.7  | Dashboard & Diagnostics                  | 1      | Medium   |
+| Story | Title                             | Points | Priority |
+| ----- | --------------------------------- | ------ | -------- |
+| 16.1  | First Floor Humidity Aggregation  | 1      | High     |
+| 16.2  | Air Quality → Fan Speed Mapping   | 2      | High     |
+| 16.3  | Humidity Rate Calculation         | 2      | High     |
+| 16.4  | Fan-Speed-Triggered State Machine | 3      | High     |
+| 16.5  | HA Configuration Entities         | 2      | High     |
+| 16.6  | HA Automation Implementation      | 3      | High     |
+| 16.7  | Dashboard & Diagnostics           | 1      | Medium   |
 
 **Total: 14 Story Points**
 
@@ -154,103 +183,244 @@ sensor:
 {{ [co2_demand, iaq_demand] | max }}
 ```
 
-### Story 16.3: Humidity Cascade State Machine
+### Story 16.3: Humidity Rate Calculation
+
+**Purpose:** Calculate rolling humidity rate of change (%/min) for fan speed modulation.
+
+**Configuration Variables:**
+
+| Variable              | Default | Range | Description                         |
+| --------------------- | ------- | ----- | ----------------------------------- |
+| `rate_window_minutes` | 5       | 2-10  | Rolling window for rate calculation |
+
+**HA Template Sensor:**
+```yaml
+template:
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    sensor:
+      - name: "First Floor Humidity Rate"
+        unique_id: first_floor_humidity_rate
+        unit_of_measurement: "%/min"
+        state_class: measurement
+        icon: mdi:trending-up
+        state: >
+          {% set window = states('input_number.mev_rate_window_minutes') | int(5) %}
+          {% set current = states('sensor.first_floor_max_humidity') | float(none) %}
+          {% set history = state_attr('sensor.first_floor_humidity_rate', 'history') | default([]) %}
+          
+          {# Add current reading to history #}
+          {% set ns = namespace(hist = history + [{'time': now().timestamp(), 'value': current}]) %}
+          
+          {# Keep only readings within window #}
+          {% set cutoff = now().timestamp() - (window * 60) %}
+          {% set ns.hist = ns.hist | selectattr('time', '>=', cutoff) | list %}
+          
+          {# Calculate rate if we have enough data #}
+          {% if ns.hist | length >= 2 and current is not none %}
+            {% set oldest = ns.hist | first %}
+            {% set dt_min = (now().timestamp() - oldest.time) / 60 %}
+            {% if dt_min > 0 %}
+              {{ ((current - oldest.value) / dt_min) | round(2) }}
+            {% else %}
+              0
+            {% endif %}
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          history: >
+            {% set window = states('input_number.mev_rate_window_minutes') | int(5) %}
+            {% set current = states('sensor.first_floor_max_humidity') | float(none) %}
+            {% set history = state_attr('sensor.first_floor_humidity_rate', 'history') | default([]) %}
+            {% set cutoff = now().timestamp() - (window * 60) %}
+            {{ (history + [{'time': now().timestamp(), 'value': current}]) 
+               | selectattr('time', '>=', cutoff) | list }}
+```
+
+### Story 16.4: Fan-Speed-Triggered State Machine
 
 **States:**
 
-| Stage | Name     | Entry Condition         | Exit Condition | Actions                          |
-| ----- | -------- | ----------------------- | -------------- | -------------------------------- |
-| 0     | Normal   | humidity <55%           | —              | Fan = AQ demand                  |
-| 1     | Elevated | humidity ≥55% for 5min  | <55% for 10min | Fan = max(AQ, AQ+20%)            |
-| 2     | High     | humidity ≥65% for 10min | <60% for 15min | Fan ≥70%, Dehumidifier ON        |
-| 3     | Critical | humidity ≥75% for 10min | <65% for 20min | Fan ≥90%, Dehumid ON, Cooling ON |
+| State             | Equipment                         | Entry Condition                            | Exit Condition                                                                        |
+| ----------------- | --------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **FAN_ONLY**      | Fan (20-90%)                      | Default / de-escalated from DEHUMIDIFYING  | Fan ≥ 70% for 5min AND rate > 0                                                       |
+| **DEHUMIDIFYING** | Fan + Dehumidifier                | Escalated from FAN_ONLY                    | Fan ≥ 80% for 5min AND rate > 0 (up) OR humidity < 40% AND fan < 30% for 10min (down) |
+| **COOLING**       | Fan + Dehumidifier + Cooling Pump | Escalated from DEHUMIDIFYING (summer only) | Humidity < 40% AND fan < 30% for 10min                                                |
 
 **State Transitions:**
 ```
-       ┌──────────────────────────────────────────────────────────┐
-       │                                                          │
-       ▼                                                          │
-  ┌─────────┐    ≥55% for 5min     ┌──────────┐                  │
-  │ NORMAL  │ ─────────────────▶   │ ELEVATED │                  │
-  │ Stage 0 │                      │ Stage 1  │                  │
-  └─────────┘ ◀───────────────────└──────────┘                   │
-       ▲         <55% for 10min          │                        │
-       │                                 │ ≥65% for 10min         │
-       │                                 ▼                        │
-       │                           ┌──────────┐                   │
-       │                           │   HIGH   │                   │
-       │                           │ Stage 2  │                   │
-       │                           │ +Dehumid │                   │
-       │                           └──────────┘                   │
-       │                                 │                        │
-       │                                 │ ≥75% for 10min         │
-       │         <65% for 20min          ▼                        │
-       │                           ┌──────────┐                   │
-       └───────────────────────────│ CRITICAL │───────────────────┘
-                                   │ Stage 3  │  <65% for 20min
-                                   │ +Cooling │
-                                   └──────────┘
+                         ESCALATION (humidity rising, fan maxed out)
+                         ─────────────────────────────────────────▶
+
+  ┌───────────────┐          ┌───────────────┐          ┌───────────────┐
+  │               │          │               │          │               │
+  │   FAN_ONLY    │          │ DEHUMIDIFYING │          │    COOLING    │
+  │               │          │               │          │               │
+  │  Fan: 20-90%  │          │  Fan: 20-90%  │          │  Fan: 20-90%  │
+  │  Dehum: OFF   │          │  Dehum: ON    │          │  Dehum: ON    │
+  │  Cooling: OFF │          │  Cooling: OFF │          │  Cooling: ON  │
+  │               │          │               │          │  (summer)     │
+  └───────────────┘          └───────────────┘          └───────────────┘
+         │                          │                          │
+         │    fan ≥ 70%             │    fan ≥ 80%             │
+         │    rate > 0              │    rate > 0              │
+         │    for 5min              │    for 5min              │
+         │─────────────────────────▶│─────────────────────────▶│
+         │                          │                          │
+         │◀─────────────────────────│◀─────────────────────────│
+         │    humidity < 40%        │    humidity < 40%        │
+         │    fan < 30%             │    fan < 30%             │
+         │    for 10min             │    for 10min             │
+
+                         ◀─────────────────────────────────────────
+                         DE-ESCALATION (humidity low, fan coasting)
 ```
 
-### Story 16.4: Cooling Integration with Pump Protection
-
-**Prerequisites:**
-- Summer Mode must be ON (`binary_sensor.summer_mode`)
-- Cold water assumed available when in Summer Mode
-
-**Pump Protection Timer:**
+**Fan Speed Formula:**
 ```yaml
-timer:
-  mev_cooling_pump_min_on:
-    duration: "00:05:00"
-  mev_cooling_pump_min_off:
-    duration: "00:10:00"
+{% set upper = states('input_number.mev_humidity_upper_bound') | float(60) %}
+{% set lower = states('input_number.mev_humidity_lower_bound') | float(40) %}
+{% set humidity = states('sensor.first_floor_max_humidity') | float(50) %}
+{% set rate = states('sensor.first_floor_humidity_rate') | float(0) %}
+{% set aq_demand = states('sensor.mev_air_quality_demand') | int(20) %}
+{% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+
+{# Position in the humidity window (0% at lower, 100% at upper) #}
+{% set window_size = upper - lower %}
+{% set position = ((humidity - lower) / window_size) | float %}
+{% set position_clamped = [[position, 0] | max, 1] | min %}
+
+{# Position contributes 0-50% fan speed #}
+{% set position_factor = (position_clamped * 50) | int %}
+
+{# Rate contributes +20% per 1%/min (only when rising) #}
+{% set rate_factor = [[rate * 20, 0] | max, 30] | min | int %}
+
+{# Final calculation #}
+{% set humidity_demand = min_fan + position_factor + rate_factor %}
+{{ [[aq_demand, humidity_demand] | max, 90] | min }}
 ```
 
-**Logic:**
-```yaml
-# Can only START if:
-#   - Summer Mode ON
-#   - Stage 3 (Critical) active
-#   - min_off timer not running (or idle)
+**Key Principle:** Fan speed is both the **control variable** (modulates to maintain humidity) AND the **escalation signal** (high fan + rising = add equipment).
 
-# Can only STOP if:
-#   - Stage <3 (exited Critical)
-#   - min_on timer not running (or idle)
-```
-
-### Story 16.5: HA Helper Entities
+### Story 16.5: HA Configuration Entities
 
 **Required Home Assistant Helpers:**
 
 Create these helpers in HA (Settings → Devices & Services → Helpers):
 
 ```yaml
-# Input Select for Humidity Stage State Machine
-input_select:
-  mev_humidity_stage:
-    name: "MEV Humidity Stage"
-    options:
-      - normal
-      - elevated
-      - high
-      - critical
-    initial: normal
+# ============================================================
+# INPUT NUMBERS - Runtime Configurable Parameters
+# ============================================================
+
+input_number:
+  # Humidity window bounds
+  mev_humidity_upper_bound:
+    name: "MEV Humidity Upper Bound"
+    min: 50
+    max: 70
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:water-percent-alert
+    initial: 60
+
+  mev_humidity_lower_bound:
+    name: "MEV Humidity Lower Bound"
+    min: 30
+    max: 50
+    step: 1
+    unit_of_measurement: "%"
     icon: mdi:water-percent
+    initial: 40
 
-# Timers for Pump Protection
-timer:
-  mev_cooling_pump_min_on:
-    name: "MEV Cooling Pump Min ON"
-    duration: "00:05:00"
+  # Fan thresholds for escalation/de-escalation
+  mev_escalation_fan_threshold:
+    name: "MEV Escalation Fan Threshold (Dehumidifier)"
+    min: 50
+    max: 90
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan-alert
+    initial: 70
+
+  mev_escalation_fan_threshold_cooling:
+    name: "MEV Escalation Fan Threshold (Cooling)"
+    min: 60
+    max: 95
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan-alert
+    initial: 80
+
+  mev_deescalation_fan_threshold:
+    name: "MEV De-escalation Fan Threshold"
+    min: 20
+    max: 50
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan-off
+    initial: 30
+
+  # Timing
+  mev_escalation_delay_minutes:
+    name: "MEV Escalation Delay"
+    min: 2
+    max: 10
+    step: 1
+    unit_of_measurement: "min"
     icon: mdi:timer
-  
-  mev_cooling_pump_min_off:
-    name: "MEV Cooling Pump Min OFF"  
-    duration: "00:10:00"
-    icon: mdi:timer-off
+    initial: 5
 
-# Template Sensors for Diagnostics
+  mev_deescalation_delay_minutes:
+    name: "MEV De-escalation Delay"
+    min: 5
+    max: 20
+    step: 1
+    unit_of_measurement: "min"
+    icon: mdi:timer
+    initial: 10
+
+  # Rate calculation window
+  mev_rate_window_minutes:
+    name: "MEV Rate Calculation Window"
+    min: 2
+    max: 10
+    step: 1
+    unit_of_measurement: "min"
+    icon: mdi:timer-sand
+    initial: 5
+
+  # Minimum fan speed (continuous air exchange)
+  mev_minimum_fan_speed:
+    name: "MEV Minimum Fan Speed"
+    min: 10
+    max: 40
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan
+    initial: 20
+
+# ============================================================
+# INPUT SELECT - State Machine State
+# ============================================================
+
+input_select:
+  mev_humidity_state:
+    name: "MEV Humidity Control State"
+    options:
+      - fan_only
+      - dehumidifying
+      - cooling
+    initial: fan_only
+    icon: mdi:state-machine
+
+# ============================================================
+# TEMPLATE SENSORS - Diagnostics
+# ============================================================
+
 template:
   - sensor:
       - name: "MEV Air Quality Demand"
@@ -260,26 +430,45 @@ template:
         state: >
           {% set co2 = states('sensor.first_floor_max_co2') | float(600) %}
           {% set iaq = states('sensor.first_floor_max_iaq') | float(100) %}
-          {% set co2_d = 90 if co2 > 1400 else 70 if co2 > 1000 else 50 if co2 > 800 else 35 if co2 > 600 else 20 %}
-          {% set iaq_d = 90 if iaq > 350 else 70 if iaq > 250 else 50 if iaq > 150 else 35 if iaq > 100 else 20 %}
+          {% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+          {% set co2_d = 90 if co2 > 1400 else 70 if co2 > 1000 else 50 if co2 > 800 else 35 if co2 > 600 else min_fan %}
+          {% set iaq_d = 90 if iaq > 350 else 70 if iaq > 250 else 50 if iaq > 150 else 35 if iaq > 100 else min_fan %}
           {{ [co2_d, iaq_d] | max }}
 
-      - name: "MEV Humidity Stage Demand"
-        unique_id: mev_humidity_stage_demand
+      - name: "MEV Humidity Demand"
+        unique_id: mev_humidity_demand
         unit_of_measurement: "%"
         icon: mdi:water-percent
         state: >
-          {% set stage = states('input_select.mev_humidity_stage') %}
+          {% set upper = states('input_number.mev_humidity_upper_bound') | float(60) %}
+          {% set lower = states('input_number.mev_humidity_lower_bound') | float(40) %}
+          {% set humidity = states('sensor.first_floor_max_humidity') | float(50) %}
+          {% set rate = states('sensor.first_floor_humidity_rate') | float(0) %}
+          {% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+          
+          {# Position in the humidity window (0% at lower, 100% at upper) #}
+          {% set window_size = upper - lower %}
+          {% set position = ((humidity - lower) / window_size) | float %}
+          {% set position_clamped = [[position, 0] | max, 1] | min %}
+          
+          {# Position contributes 0-50% fan speed #}
+          {% set position_factor = (position_clamped * 50) | int %}
+          
+          {# Rate contributes +20% per 1%/min (only when rising) #}
+          {% set rate_factor = [[rate * 20, 0] | max, 30] | min | int %}
+          
+          {# Final calculation #}
+          {{ [[min_fan + position_factor + rate_factor, 90] | min, min_fan] | max }}
+
+      - name: "MEV Final Fan Speed"
+        unique_id: mev_final_fan_speed
+        unit_of_measurement: "%"
+        icon: mdi:fan
+        state: >
           {% set aq = states('sensor.mev_air_quality_demand') | int(20) %}
-          {% if stage == 'critical' %}
-            {{ [90, aq] | max }}
-          {% elif stage == 'high' %}
-            {{ [70, aq] | max }}
-          {% elif stage == 'elevated' %}
-            {{ [aq + 20, 100] | min }}
-          {% else %}
-            {{ aq }}
-          {% endif %}
+          {% set humidity = states('sensor.mev_humidity_demand') | int(20) %}
+          {% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+          {{ [[aq, humidity, min_fan] | max, 100] | min }}
 ```
 
 **Configuration Location:**
@@ -295,261 +484,211 @@ homeassistant:
 
 ### Story 16.6: HA Automation Implementation
 
-**Main Automation: MEV Intelligent Control**
+**Main Automations: Fan-Speed-Triggered State Machine**
 
 ```yaml
 automation:
-  - alias: "MEV First Floor Intelligent Control"
-    id: mev_first_floor_intelligent_control
+  # ============================================================
+  # ESCALATION: FAN_ONLY → DEHUMIDIFYING
+  # Fan working hard (≥70%) but humidity still rising
+  # ============================================================
+  - alias: "MEV Escalate: Fan Only → Dehumidifying"
+    id: mev_escalate_to_dehumidifying
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.mev_final_fan_speed') | float(0) >= 
+             states('input_number.mev_escalation_fan_threshold') | float(70) and
+             states('sensor.first_floor_humidity_rate') | float(0) > 0 }}
+        for:
+          minutes: "{{ states('input_number.mev_escalation_delay_minutes') | int(5) }}"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "fan_only"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "dehumidifying"
+      - service: switch.turn_on
+        target:
+          entity_id: switch.first_floor_mev_dehumidifier
+      - service: system_log.write
+        data:
+          message: "MEV: Escalated to DEHUMIDIFYING (fan ≥70%, humidity rising)"
+          level: info
+
+  # ============================================================
+  # ESCALATION: DEHUMIDIFYING → COOLING
+  # Fan still maxed (≥80%) despite dehumidifier
+  # ============================================================
+  - alias: "MEV Escalate: Dehumidifying → Cooling"
+    id: mev_escalate_to_cooling
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.mev_final_fan_speed') | float(0) >= 
+             states('input_number.mev_escalation_fan_threshold_cooling') | float(80) and
+             states('sensor.first_floor_humidity_rate') | float(0) > 0 }}
+        for:
+          minutes: "{{ states('input_number.mev_escalation_delay_minutes') | int(5) }}"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "dehumidifying"
+      - condition: state
+        entity_id: binary_sensor.summer_mode
+        state: "on"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "cooling"
+      - service: switch.turn_on
+        target:
+          entity_id: switch.first_floor_mev_cooling
+      - service: system_log.write
+        data:
+          message: "MEV: Escalated to COOLING (dehumidifier not enough)"
+          level: warning
+
+  # ============================================================
+  # DE-ESCALATION: COOLING → DEHUMIDIFYING
+  # Humidity low AND fan coasting
+  # ============================================================
+  - alias: "MEV De-escalate: Cooling → Dehumidifying"
+    id: mev_deescalate_from_cooling
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.first_floor_max_humidity') | float(100) < 
+             states('input_number.mev_humidity_lower_bound') | float(40) and
+             states('sensor.mev_final_fan_speed') | float(100) < 
+             states('input_number.mev_deescalation_fan_threshold') | float(30) }}
+        for:
+          minutes: "{{ states('input_number.mev_deescalation_delay_minutes') | int(10) }}"
+      - platform: state
+        entity_id: binary_sensor.summer_mode
+        to: "off"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "cooling"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "dehumidifying"
+      - service: switch.turn_off
+        target:
+          entity_id: switch.first_floor_mev_cooling
+      - service: system_log.write
+        data:
+          message: "MEV: De-escalated to DEHUMIDIFYING (humidity < 40%, fan coasting)"
+          level: info
+
+  # ============================================================
+  # DE-ESCALATION: DEHUMIDIFYING → FAN_ONLY
+  # Humidity low AND fan coasting
+  # ============================================================
+  - alias: "MEV De-escalate: Dehumidifying → Fan Only"
+    id: mev_deescalate_from_dehumidifying
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.first_floor_max_humidity') | float(100) < 
+             states('input_number.mev_humidity_lower_bound') | float(40) and
+             states('sensor.mev_final_fan_speed') | float(100) < 
+             states('input_number.mev_deescalation_fan_threshold') | float(30) }}
+        for:
+          minutes: "{{ states('input_number.mev_deescalation_delay_minutes') | int(10) }}"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "dehumidifying"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "fan_only"
+      - service: switch.turn_off
+        target:
+          entity_id: switch.first_floor_mev_dehumidifier
+      - service: system_log.write
+        data:
+          message: "MEV: De-escalated to FAN_ONLY (humidity < 40%, fan coasting)"
+          level: info
+
+  # ============================================================
+  # FAN SPEED CONTROL - Continuous modulation
+  # ============================================================
+  - alias: "MEV Fan Speed Control"
+    id: mev_fan_speed_control
     mode: restart
     trigger:
-      # Air quality changes
       - platform: state
         entity_id:
-          - sensor.first_floor_max_co2
-          - sensor.first_floor_max_iaq
-      # Humidity changes
-      - platform: state
-        entity_id: sensor.first_floor_max_humidity
-      # Periodic check
+          - sensor.mev_final_fan_speed
+          - input_select.mev_humidity_state
       - platform: time_pattern
-        minutes: "/1"
-    
-    variables:
-      # Air quality demand
-      co2: "{{ states('sensor.first_floor_max_co2') | float(600) }}"
-      iaq: "{{ states('sensor.first_floor_max_iaq') | float(100) }}"
-      aq_demand: >
-        {% set co2_d = 90 if co2 > 1400 else 70 if co2 > 1000 else 50 if co2 > 800 else 35 if co2 > 600 else 20 %}
-        {% set iaq_d = 90 if iaq > 350 else 70 if iaq > 250 else 50 if iaq > 150 else 35 if iaq > 100 else 20 %}
-        {{ [co2_d, iaq_d] | max }}
-      
-      # Humidity
-      humidity: "{{ states('sensor.first_floor_max_humidity') | float(50) }}"
-      
-      # Current stage (from input_select or calculated)
-      humidity_stage: "{{ states('input_select.mev_humidity_stage') }}"
-      
-      # Summer mode
-      summer_mode: "{{ is_state('binary_sensor.summer_mode', 'on') }}"
-    
+        seconds: "/30"
     action:
-      - choose:
-          # Stage 3: Critical
-          - conditions:
-              - condition: template
-                value_template: "{{ humidity_stage == 'critical' }}"
-            sequence:
-              - service: number.set_value
-                target:
-                  entity_id: number.first_floor_mev_fan_speed
-                data:
-                  value: "{{ [90, aq_demand] | max }}"
-              - service: switch.turn_on
-                target:
-                  entity_id: switch.first_floor_mev_dehumidifier
-              # Cooling only in summer (with pump protection)
-              - if:
-                  - condition: template
-                    value_template: "{{ summer_mode }}"
-                  - condition: state
-                    entity_id: timer.mev_cooling_pump_min_off
-                    state: "idle"
-                then:
-                  - service: switch.turn_on
-                    target:
-                      entity_id: switch.first_floor_mev_cooling
-                  - service: timer.start
-                    target:
-                      entity_id: timer.mev_cooling_pump_min_on
-          
-          # Stage 2: High
-          - conditions:
-              - condition: template
-                value_template: "{{ humidity_stage == 'high' }}"
-            sequence:
-              - service: number.set_value
-                target:
-                  entity_id: number.first_floor_mev_fan_speed
-                data:
-                  value: "{{ [70, aq_demand] | max }}"
-              - service: switch.turn_on
-                target:
-                  entity_id: switch.first_floor_mev_dehumidifier
-              # Turn off cooling (with protection)
-              - if:
-                  - condition: state
-                    entity_id: timer.mev_cooling_pump_min_on
-                    state: "idle"
-                then:
-                  - service: switch.turn_off
-                    target:
-                      entity_id: switch.first_floor_mev_cooling
-                  - service: timer.start
-                    target:
-                      entity_id: timer.mev_cooling_pump_min_off
-          
-          # Stage 1: Elevated
-          - conditions:
-              - condition: template
-                value_template: "{{ humidity_stage == 'elevated' }}"
-            sequence:
-              - service: number.set_value
-                target:
-                  entity_id: number.first_floor_mev_fan_speed
-                data:
-                  value: "{{ [aq_demand + 20, aq_demand] | max | min(100) }}"
-              - service: switch.turn_off
-                target:
-                  entity_id: switch.first_floor_mev_dehumidifier
-              - service: switch.turn_off
-                target:
-                  entity_id: switch.first_floor_mev_cooling
-          
-          # Stage 0: Normal
-          - conditions:
-              - condition: template
-                value_template: "{{ humidity_stage == 'normal' }}"
-            sequence:
-              - service: number.set_value
-                target:
-                  entity_id: number.first_floor_mev_fan_speed
-                data:
-                  value: "{{ aq_demand }}"
-              - service: switch.turn_off
-                target:
-                  entity_id: switch.first_floor_mev_dehumidifier
-              - service: switch.turn_off
-                target:
-                  entity_id: switch.first_floor_mev_cooling
-```
-
-**Stage Transition Automations:**
-
-```yaml
-# Normal → Elevated (≥55% for 5min)
-automation:
-  - alias: "MEV Stage: Normal → Elevated"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.first_floor_max_humidity
-        above: 55
-        for:
-          minutes: 5
-    condition:
-      - condition: state
-        entity_id: input_select.mev_humidity_stage
-        state: "normal"
-    action:
-      - service: input_select.select_option
+      - service: number.set_value
         target:
-          entity_id: input_select.mev_humidity_stage
+          entity_id: number.first_floor_mev_fan_speed
         data:
-          option: "elevated"
-
-  # Elevated → High (≥65% for 10min)
-  - alias: "MEV Stage: Elevated → High"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.first_floor_max_humidity
-        above: 65
-        for:
-          minutes: 10
-    condition:
-      - condition: state
-        entity_id: input_select.mev_humidity_stage
-        state: "elevated"
-    action:
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.mev_humidity_stage
-        data:
-          option: "high"
-
-  # High → Critical (≥75% for 10min)
-  - alias: "MEV Stage: High → Critical"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.first_floor_max_humidity
-        above: 75
-        for:
-          minutes: 10
-    condition:
-      - condition: state
-        entity_id: input_select.mev_humidity_stage
-        state: "high"
-    action:
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.mev_humidity_stage
-        data:
-          option: "critical"
-
-  # De-escalation: Any stage → Normal (<55% for 10min from elevated, <60% for 15min from high, <65% for 20min from critical)
-  - alias: "MEV Stage: De-escalate to Normal"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.first_floor_max_humidity
-        below: 55
-        for:
-          minutes: 10
-    condition:
-      - condition: state
-        entity_id: input_select.mev_humidity_stage
-        state: "elevated"
-    action:
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.mev_humidity_stage
-        data:
-          option: "normal"
-
-  - alias: "MEV Stage: High → Normal"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.first_floor_max_humidity
-        below: 60
-        for:
-          minutes: 15
-    condition:
-      - condition: state
-        entity_id: input_select.mev_humidity_stage
-        state: "high"
-    action:
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.mev_humidity_stage
-        data:
-          option: "normal"
-
-  - alias: "MEV Stage: Critical → Normal"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.first_floor_max_humidity
-        below: 65
-        for:
-          minutes: 20
-    condition:
-      - condition: state
-        entity_id: input_select.mev_humidity_stage
-        state: "critical"
-    action:
-      - service: input_select.select_option
-        target:
-          entity_id: input_select.mev_humidity_stage
-        data:
-          option: "normal"
+          value: "{{ states('sensor.mev_final_fan_speed') | int(20) }}"
 ```
 
 ### Story 16.7: Dashboard & Diagnostics
 
 **Entities to expose:**
-- `input_select.mev_humidity_stage` - Current cascade stage
-- `sensor.mev_aq_demand` - Calculated air quality fan demand
-- `sensor.mev_final_fan_speed` - Actual commanded fan speed
-- `binary_sensor.mev_cooling_active` - Cooling pump state
-- `timer.mev_cooling_pump_min_on` - Pump protection timer
-- `timer.mev_cooling_pump_min_off` - Pump protection timer
+
+| Entity                                              | Type   | Description                                   |
+| --------------------------------------------------- | ------ | --------------------------------------------- |
+| `input_number.mev_humidity_upper_bound`             | number | Upper humidity bound (default 60%)            |
+| `input_number.mev_humidity_lower_bound`             | number | Lower humidity bound (default 40%)            |
+| `input_number.mev_escalation_fan_threshold`         | number | Fan % to trigger dehumidifier (70%)           |
+| `input_number.mev_escalation_fan_threshold_cooling` | number | Fan % to trigger cooling (80%)                |
+| `input_number.mev_deescalation_fan_threshold`       | number | Fan % for de-escalation (30%)                 |
+| `input_select.mev_humidity_state`                   | select | Current state: fan_only/dehumidifying/cooling |
+| `sensor.first_floor_humidity_rate`                  | sensor | Rate of humidity change (%/min)               |
+| `sensor.mev_air_quality_demand`                     | sensor | Air quality fan demand (%)                    |
+| `sensor.mev_humidity_demand`                        | sensor | Humidity-based fan demand (%)                 |
+| `sensor.mev_final_fan_speed`                        | sensor | Final commanded fan speed (%)                 |
+| `sensor.first_floor_max_humidity`                   | sensor | Maximum humidity across all rooms             |
+| `switch.first_floor_mev_dehumidifier`               | switch | Dehumidifier state                            |
+| `switch.first_floor_mev_cooling`                    | switch | Cooling pump state                            |
+
+**Dashboard Card Example:**
+```yaml
+type: entities
+title: MEV Humidity Control
+entities:
+  - entity: sensor.first_floor_max_humidity
+    name: Current Max Humidity
+  - entity: sensor.first_floor_humidity_rate
+    name: Rate of Change
+  - entity: input_select.mev_humidity_state
+    name: Control State
+  - type: divider
+  - entity: sensor.mev_final_fan_speed
+    name: Fan Speed
+  - entity: switch.first_floor_mev_dehumidifier
+    name: Dehumidifier
+  - entity: switch.first_floor_mev_cooling
+    name: Cooling Pump
+  - type: divider
+  - entity: input_number.mev_humidity_upper_bound
+    name: Upper Bound
+  - entity: input_number.mev_humidity_lower_bound
+    name: Lower Bound
+```
 
 ---
 
@@ -569,18 +708,22 @@ automation:
 ### Functional
 - [ ] Fan speed responds to CO₂ levels (test: breathe in closed room)
 - [ ] Fan speed responds to IAQ/VOC (test: cook something aromatic)
-- [ ] Humidity cascade triggers stages correctly
-- [ ] Dehumidifier activates at Stage 2
-- [ ] Cooling pump activates at Stage 3 (summer mode only)
-- [ ] Pump protection prevents cycling <5min ON / <10min OFF
+- [ ] Fan speed modulates based on position in 40-60% humidity window
+- [ ] Fan speed increases with positive humidity rate of change
+- [ ] State machine escalates FAN_ONLY → DEHUMIDIFYING when fan ≥70% for 5min AND rate > 0
+- [ ] State machine escalates DEHUMIDIFYING → COOLING when fan ≥80% for 5min AND rate > 0 (summer only)
+- [ ] State machine de-escalates when humidity < 40% AND fan < 30% for 10min
+- [ ] Minimum 20% fan speed maintained at all times
+- [ ] All thresholds configurable via HA input_numbers
 
 ### Safety
 - [ ] Cooling pump never activates in Winter mode
-- [ ] Pump protection timers work correctly
-- [ ] System degrades gracefully if sensors unavailable
+- [ ] System degrades gracefully if sensors unavailable (defaults to 20% fan)
+- [ ] No equipment oscillation due to time delays
 
 ### Integration
-- [ ] All diagnostic entities visible in HA
+- [ ] All configuration entities visible and editable in HA
+- [ ] All diagnostic sensors visible in HA
 - [ ] Dashboard shows current state clearly
 - [ ] Alarm notifications still work (Epic 6)
 
@@ -588,28 +731,33 @@ automation:
 
 ## Risks & Mitigations
 
-| Risk                  | Likelihood | Impact | Mitigation                          |
-| --------------------- | ---------- | ------ | ----------------------------------- |
-| Sensor unavailability | Low        | Medium | Fallback to safe defaults (40% fan) |
-| Pump short-cycling    | Low        | High   | Timer-based protection              |
-| Stage oscillation     | Medium     | Low    | Hysteresis in thresholds            |
-| Over-ventilation      | Low        | Low    | Max fan speed caps                  |
+| Risk                   | Likelihood | Impact | Mitigation                                           |
+| ---------------------- | ---------- | ------ | ---------------------------------------------------- |
+| Sensor unavailability  | Low        | Medium | Fallback to safe defaults (20% fan, rate=0)          |
+| Rate calculation noise | Medium     | Low    | 5-minute rolling window smooths spikes               |
+| State oscillation      | Low        | Low    | Time-based delays (5min escalate, 10min de-escalate) |
+| Over-ventilation       | Low        | Low    | Proportional control minimizes fan speed             |
+| Equipment wear         | Low        | Medium | Fan-speed signal prevents unnecessary cycling        |
 
 ---
 
 ## Definition of Done
 
 - [ ] Air quality path working (CO₂ + IAQ → fan speed)
-- [ ] Humidity cascade state machine working
-- [ ] Dehumidifier activates at correct stage
-- [ ] Cooling integration with pump protection working
+- [ ] Humidity rate sensor calculating correctly
+- [ ] Fan-speed-triggered state machine working
+- [ ] Fan speed modulates based on humidity window position + rate
+- [ ] Dehumidifier activates when fan high + humidity rising
+- [ ] Cooling pump activates when fan maxed + humidity still rising (summer only)
+- [ ] De-escalation works when humidity low + fan coasting
+- [ ] All HA configuration entities created and working
 - [ ] Dashboard shows all diagnostic info
 - [ ] Documentation complete
 - [ ] Testing checklist passed
 
 ---
 
-## Appendix: Brainstorming Session Summary
+## Appendix A: Brainstorming Session Summary
 
 This epic emerged from a structured brainstorming session (January 14, 2026) that explored:
 
@@ -617,7 +765,43 @@ This epic emerged from a structured brainstorming session (January 14, 2026) tha
 2. **Humidity Management:** Identified 3-tier escalation (fan → dehumidifier → cooling coil)
 3. **Cooling Integration:** Clarified that relay directly controls circulation pump to HP buffer
 4. **Buffer Availability:** Simplified to "assume available in Summer Mode"
-5. **Pump Protection:** Agreed on 5min ON / 10min OFF minimums
-6. **Humidity Scope:** All 8 rooms (bedrooms impact radiant cooling effectiveness)
+5. **Humidity Scope:** All 8 rooms (bedrooms impact radiant cooling effectiveness)
 
 Key insight: MEV cooling integration is a **dehumidification tool**, not just ventilation—it draws chilled water through a coil to condense moisture from the air.
+
+---
+
+## Appendix B: Humidity Control Evolution (January 15, 2026)
+
+The humidity control approach evolved through several iterations:
+
+### v1: Threshold-Based Stages (Original)
+- Fixed thresholds: ≥55% → Elevated, ≥65% → High, ≥75% → Critical
+- **Problem:** Reactive, not proactive; treated equipment as emergency escalation
+
+### v2-v3: Rate-Based Control
+- Trigger equipment based on humidity rate of change
+- **Problem:** In Milan summer, dehumidifier/cooling are normal operation, not exceptions
+
+### v4: Threshold + Rate Hybrid
+- Equipment ON/OFF based on humidity thresholds, fan modulated by rate
+- **Problem:** Still treated equipment as exceptional
+
+### v5: Fan-Speed-Triggered State Machine (Final)
+- **Key insight:** Fan speed is both the control AND the escalation signal
+- Simple 40-60% humidity window
+- **Escalate** when fan working hard (≥70%) but losing the battle (rate > 0)
+- **De-escalate** when humidity low (<40%) AND fan coasting (<30%)
+- **Night behavior:** Organic de-escalation as ambient humidity drops
+- **MEV intelligence:** Trust internal air exchange optimization
+
+### MEV System Understanding
+
+The MEV is more sophisticated than a simple extract fan:
+- Variable outside air vent (fresh vs recirculated)
+- Internal logic comparing inside/outside humidity
+- Up to 90% heat recovery via exchanger
+- Built-in dehumidifier for recirculated air
+- Cooling coil for HP chilled water integration
+
+This means we can trust the MEV to optimize air exchange internally, and focus our automation on **when to use each capability level** (fan only → +dehumidifier → +cooling).
