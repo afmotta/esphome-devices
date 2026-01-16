@@ -1,9 +1,10 @@
 # Epic 15: Air Quality Sensor Broadcasting
 
 **Date:** January 14, 2026  
-**Status:** Draft  
+**Status:** Complete  
 **Priority:** High (Prerequisite for Epic 16)  
-**Estimated Story Points:** 5
+**Estimated Story Points:** 5  
+**Actual Story Points:** 5
 
 ---
 

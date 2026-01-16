@@ -37,6 +37,133 @@ binary_sensor:
              id(pid_radiant_camera_ospiti_is_active);
 
 sensor:
+  # ============================================================================
+  # CO₂ Receivers (from room sensor ESP32s via UDP)
+  # ============================================================================
+  - platform: packet_transport
+    id: bagno_grande_co2
+    provider: room-sensor-bagno-grande
+    internal: true
+
+  - platform: packet_transport
+    id: bagno_ospiti_co2
+    provider: room-sensor-bagno-ospiti
+    internal: true
+
+  - platform: packet_transport
+    id: bagno_padronale_co2
+    provider: room-sensor-bagno-padronale
+    internal: true
+
+  - platform: packet_transport
+    id: camera_nord_co2
+    provider: room-sensor-camera-nord
+    internal: true
+
+  - platform: packet_transport
+    id: camera_sud_co2
+    provider: room-sensor-camera-sud
+    internal: true
+
+  - platform: packet_transport
+    id: camera_ospiti_co2
+    provider: room-sensor-camera-ospiti
+    internal: true
+
+  - platform: packet_transport
+    id: camera_padronale_co2
+    provider: room-sensor-camera-padronale
+    internal: true
+
+  - platform: packet_transport
+    id: lavanderia_co2
+    provider: room-sensor-lavanderia
+    internal: true
+
+  # ============================================================================
+  # IAQ Receivers (from room sensor ESP32s via UDP)
+  # ============================================================================
+  - platform: packet_transport
+    id: bagno_grande_iaq
+    provider: room-sensor-bagno-grande
+    internal: true
+
+  - platform: packet_transport
+    id: bagno_ospiti_iaq
+    provider: room-sensor-bagno-ospiti
+    internal: true
+
+  - platform: packet_transport
+    id: bagno_padronale_iaq
+    provider: room-sensor-bagno-padronale
+    internal: true
+
+  - platform: packet_transport
+    id: camera_nord_iaq
+    provider: room-sensor-camera-nord
+    internal: true
+
+  - platform: packet_transport
+    id: camera_sud_iaq
+    provider: room-sensor-camera-sud
+    internal: true
+
+  - platform: packet_transport
+    id: camera_ospiti_iaq
+    provider: room-sensor-camera-ospiti
+    internal: true
+
+  - platform: packet_transport
+    id: camera_padronale_iaq
+    provider: room-sensor-camera-padronale
+    internal: true
+
+  - platform: packet_transport
+    id: lavanderia_iaq
+    provider: room-sensor-lavanderia
+    internal: true
+
+  # ============================================================================
+  # Air Quality Aggregation (Max of all rooms)
+  # ============================================================================
+  - platform: combination
+    id: first_floor_max_co2
+    name: "Max CO₂ Primo Piano"
+    type: max
+    unit_of_measurement: "ppm"
+    device_class: "carbon_dioxide"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    sources:
+      - source: bagno_grande_co2
+      - source: bagno_ospiti_co2
+      - source: bagno_padronale_co2
+      - source: camera_nord_co2
+      - source: camera_sud_co2
+      - source: camera_ospiti_co2
+      - source: camera_padronale_co2
+      - source: lavanderia_co2
+
+  - platform: combination
+    id: first_floor_max_iaq
+    name: "Max IAQ Primo Piano"
+    type: max
+    state_class: "measurement"
+    accuracy_decimals: 0
+    sources:
+      - source: bagno_grande_iaq
+      - source: bagno_ospiti_iaq
+      - source: bagno_padronale_iaq
+      - source: camera_nord_iaq
+      - source: camera_sud_iaq
+      - source: camera_ospiti_iaq
+      - source: camera_padronale_iaq
+      - source: lavanderia_iaq
+
+  # ============================================================================
+  # Temperature/Humidity Infrastructure Sensors
+  # ============================================================================
+
   # Effective safe margin with HA fallback
   # Uses HA input_number if available, otherwise fallback to default
   - platform: template

@@ -2151,3 +2151,7 @@ packet_transport:
         broadcast_id: "${room_slug}_room_temp"
       - id: scd40_rh
         broadcast_id: "${room_slug}_room_humidity"
+      - id: scd_co2
+        broadcast_id: "${room_slug}_co2"
+      - id: iaq
+        broadcast_id: "${room_slug}_iaq"
