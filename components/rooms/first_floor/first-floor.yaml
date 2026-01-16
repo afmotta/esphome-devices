@@ -160,6 +160,26 @@ sensor:
       - source: camera_padronale_iaq
       - source: lavanderia_iaq
 
+  # Max Humidity for MEV Cascade Control
+  - platform: combination
+    id: first_floor_max_humidity
+    name: "First Floor Max Humidity"
+    type: max
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: "measurement"
+    accuracy_decimals: 0
+    icon: "mdi:water-percent"
+    sources:
+      - source: bagno_grande_room_humidity_abstracted
+      - source: bagno_ospiti_room_humidity_abstracted
+      - source: bagno_padronale_room_humidity_abstracted
+      - source: camera_nord_room_humidity_abstracted
+      - source: camera_sud_room_humidity_abstracted
+      - source: camera_ospiti_room_humidity_abstracted
+      - source: camera_padronale_room_humidity_abstracted
+      - source: lavanderia_room_humidity_abstracted
+
   # ============================================================================
   # Temperature/Humidity Infrastructure Sensors
   # ============================================================================
