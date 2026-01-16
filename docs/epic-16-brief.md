@@ -57,38 +57,38 @@ The MEV is an intelligent heat-recovery ventilation unit with:
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  PATH A: AIR QUALITY (always active)                               │
-│  ├── Inputs: first_floor_max_co2, first_floor_max_iaq             │
-│  ├── Output: Fan Speed Demand (20-90%)                            │
-│  └── Mapping: CO₂/IAQ levels → proportional fan demand            │
+│  ├── Inputs: first_floor_max_co2, first_floor_max_iaq              │
+│  ├── Output: Fan Speed Demand (20-90%)                             │
+│  └── Mapping: CO₂/IAQ levels → proportional fan demand             │
 │                                                                    │
 │  PATH B: HUMIDITY CONTROL (fan-speed-triggered)                    │
-│  ├── Window: 40-60% (both configurable via HA)                    │
-│  ├── Goal: Keep humidity in window with MINIMUM equipment         │
+│  ├── Window: 40-60% (both configurable via HA)                     │
+│  ├── Goal: Keep humidity in window with MINIMUM equipment          │
 │  │                                                                 │
-│  │  FAN SPEED = Primary control AND escalation signal             │
-│  │  ├── Modulates based on position in 40-60% window + rate       │
-│  │  ├── High fan + rising humidity = escalate equipment           │
-│  │  └── Low fan + low humidity = de-escalate equipment            │
+│  │  FAN SPEED = Primary control AND escalation signal              │
+│  │  ├── Modulates based on position in 40-60% window + rate        │
+│  │  ├── High fan + rising humidity = escalate equipment            │
+│  │  └── Low fan + low humidity = de-escalate equipment             │
 │  │                                                                 │
 │  │  STATES:                                                        │
-│  │  ┌───────────┐     ┌──────────────┐     ┌───────────┐          │
-│  │  │  FAN_ONLY │────▶│ DEHUMIDIFYING│────▶│  COOLING  │          │
-│  │  └───────────┘◀────└──────────────┘◀────└───────────┘          │
+│  │  ┌───────────┐     ┌──────────────┐     ┌───────────┐           │
+│  │  │  FAN_ONLY │────▶│ DEHUMIDIFYING│────▶│  COOLING  │           │
+│  │  └───────────┘◀────└──────────────┘◀────└───────────┘           │
 │  │                                                                 │
 │  │  ESCALATION (fan working hard, losing battle):                  │
-│  │  ├── Fan ≥ 70% for 5min AND rate > 0 → add Dehumidifier        │
-│  │  └── Fan ≥ 80% for 5min AND rate > 0 → add Cooling (summer)    │
+│  │  ├── Fan ≥ 70% for 5min AND rate > 0 → add Dehumidifier         │
+│  │  └── Fan ≥ 80% for 5min AND rate > 0 → add Cooling (summer)     │
 │  │                                                                 │
 │  │  DE-ESCALATION (humidity low, fan coasting):                    │
-│  │  ├── Humidity < 40% AND fan < 30% for 10min → remove Cooling   │
-│  │  └── Humidity < 40% AND fan < 30% for 10min → remove Dehumid   │
+│  │  ├── Humidity < 40% AND fan < 30% for 10min → remove Cooling    │
+│  │  └── Humidity < 40% AND fan < 30% for 10min → remove Dehumid    │
 │  │                                                                 │
 │  └── Night: Organic de-escalation as ambient humidity drops        │
 │                                                                    │
 │  FINAL OUTPUT:                                                     │
-│  ├── Fan Speed = max(Path A demand, Path B demand, 20%)           │
-│  ├── Dehumidifier = DEHUMIDIFYING or COOLING state                │
-│  └── Cooling Pump = COOLING state AND Summer Mode                 │
+│  ├── Fan Speed = max(Path A demand, Path B demand, 20%)            │
+│  ├── Dehumidifier = DEHUMIDIFYING or COOLING state                 │
+│  └── Cooling Pump = COOLING state AND Summer Mode                  │
 │                                                                    │
 └────────────────────────────────────────────────────────────────────┘
 ```
