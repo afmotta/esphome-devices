@@ -11,6 +11,18 @@ packages:
       sensor_id: first_floor_any_zone_open
       relay_id: relay_3
       output_id: analog_output_2
+  first_floor_mev: !include
+    file: ../../mev.yaml
+    vars:
+      mev_slug: "first_floor_mev"
+      mev_name: "VMC Primo Piano"
+      power_relay: relay_18
+      mode_relay: relay_19
+      dehumidifier_relay: relay_20
+      cooling_relay: relay_21
+      fan_speed_output: analog_output_7
+      alarm_input: di1
+      humidity_sensor: first_floor_max_humidity
   bagno_grande: !include bagno_grande.yaml
   bagno_ospiti: !include bagno_ospiti.yaml
   bagno_padronale: !include bagno_padronale.yaml
@@ -159,6 +171,26 @@ sensor:
       - source: camera_ospiti_iaq
       - source: camera_padronale_iaq
       - source: lavanderia_iaq
+
+  # Max Humidity for MEV Cascade Control
+  - platform: combination
+    id: first_floor_max_humidity
+    name: "First Floor Max Humidity"
+    type: max
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: "measurement"
+    accuracy_decimals: 0
+    icon: "mdi:water-percent"
+    sources:
+      - source: bagno_grande_room_humidity_abstracted
+      - source: bagno_ospiti_room_humidity_abstracted
+      - source: bagno_padronale_room_humidity_abstracted
+      - source: camera_nord_room_humidity_abstracted
+      - source: camera_sud_room_humidity_abstracted
+      - source: camera_ospiti_room_humidity_abstracted
+      - source: camera_padronale_room_humidity_abstracted
+      - source: lavanderia_room_humidity_abstracted
 
   # ============================================================================
   # Temperature/Humidity Infrastructure Sensors

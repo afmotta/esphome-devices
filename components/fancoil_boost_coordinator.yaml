@@ -41,6 +41,17 @@
 #   room_name: Human-readable room name (e.g., "Soggiorno")
 # ============================================================================
 
+packages:
+  temp_trend: !include
+    file: trend_sensor.yaml
+    vars:
+      sensor_id: ${room_slug}_temp_trend
+      source_sensor: ${room_slug}_room_temp_abstracted
+      sensor_name: "${room_name} Temperature Trend"
+      unit_of_measurement: "°C/min"
+      accuracy_decimals: "3"
+      internal: "true"
+
 defaults:
   min_time_in_state_seconds: 600 # 10 minutes
   humidity_hysteresis: 5.0 # % RH dead band (symmetric around threshold)
@@ -62,10 +73,6 @@ globals:
   - id: ${room_slug}_saturated_start_time
     type: uint32_t
     initial_value: "0"
-  # Predictive boost: previous temperature for trend detection
-  - id: ${room_slug}_prev_temperature
-    type: float
-    initial_value: "NAN"
 
 # Diagnostic sensors for monitoring
 binary_sensor:
@@ -138,13 +145,15 @@ sensor:
     name: "${room_name} Radiant Output"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    icon: "mdi:percent"
+    icon: mdi:percent
     lambda: |-
       // Get PID COOL output (0-1 range for cooling)
       float output = id(pid_radiant_${room_slug}_cool).state;
       if (std::isnan(output)) return 0.0;
       return output * 100.0;
     update_interval: 30s
+
+# Coordinator logic - runs every 30 seconds for responsive predictive boost
 
 # Coordinator logic - runs every 30 seconds for responsive predictive boost
 # Epic 14: Independent per-room evaluation
@@ -160,7 +169,6 @@ interval:
             }
             // Reset predictive tracking
             id(${room_slug}_saturated_start_time) = 0;
-            id(${room_slug}_prev_temperature) = NAN;
             return;
           }
 
@@ -219,11 +227,9 @@ interval:
           // ================================================================
           // Only trigger predictive boost if temp is NOT decreasing
           // This prevents premature boost when radiant IS working, just slowly
-          float prev_temp = id(${room_slug}_prev_temperature);
-          bool temp_not_decreasing = std::isnan(prev_temp) || current_temp >= (prev_temp - 0.1);
-
-          // Update previous temperature for next iteration
-          id(${room_slug}_prev_temperature) = current_temp;
+          float trend = id(${room_slug}_temp_trend).state;
+          // Trend > -0.005°C/min is considered "not making progress" (effectively flat or rising)
+          bool temp_not_decreasing = std::isnan(trend) || trend >= -0.005;
 
           // ================================================================
           // BOOST ACTIVATION LOGIC
