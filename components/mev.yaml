@@ -25,85 +25,41 @@
 #   humidity_sensor: Sensor ID for humidity input
 
 packages:
-  humidity_trend: !include
-    file: trend_sensor.yaml
-    vars:
-      sensor_id: ${mev_slug}_humidity_rate
-      source_sensor: ${humidity_sensor}
-      sensor_name: "${mev_name} Humidity Rate"
-      unit_of_measurement: "%/min"
-      window_size: "15"
-
-  co2_trend: !include
-    file: trend_sensor.yaml
-    vars:
-      sensor_id: ${mev_slug}_co2_rate
-      source_sensor: first_floor_max_co2
-      sensor_name: "${mev_name} CO2 Rate"
-      unit_of_measurement: "ppm/min"
-      window_size: "15"
-
-  iaq_trend: !include
-    file: trend_sensor.yaml
-    vars:
-      sensor_id: ${mev_slug}_iaq_rate
-      source_sensor: first_floor_max_iaq
-      sensor_name: "${mev_name} IAQ Rate"
-      unit_of_measurement: "IAQ/min"
-      window_size: "15"
-
   co2_demand: !include
     file: proportional_demand_sensor.yaml
     vars:
-      sensor_id: ${mev_slug}_co2_demand
-      sensor_name: "${mev_name} CO2 Demand"
+      demand_slug: co2
+      demand_name: CO2
+      unit_of_measurement: ppm
       source_sensor_id: first_floor_max_co2
       min_val_id: ${mev_slug}_min_fan_speed
-      lower_bound_id: ${mev_slug}_co2_lower
-      upper_bound_id: ${mev_slug}_co2_upper
-      rate_sensor_id: ${mev_slug}_co2_rate
       rate_multiplier: "0.05"
       icon: mdi:molecule-co2
 
   iaq_demand: !include
     file: proportional_demand_sensor.yaml
     vars:
-      sensor_id: ${mev_slug}_iaq_demand
-      sensor_name: "${mev_name} IAQ Demand"
+      demand_slug: iaq
+      demand_name: IAQ
+      unit_of_measurement: IAQ
       source_sensor_id: first_floor_max_iaq
       min_val_id: ${mev_slug}_min_fan_speed
-      lower_bound_id: ${mev_slug}_iaq_lower
-      upper_bound_id: ${mev_slug}_iaq_upper
-      rate_sensor_id: ${mev_slug}_iaq_rate
       rate_multiplier: "2.0"
       icon: mdi:air-filter
 
   humidity_demand: !include
     file: proportional_demand_sensor.yaml
     vars:
-      sensor_id: ${mev_slug}_humidity_demand
-      sensor_name: "${mev_name} Humidity Demand"
+      demand_slug: humidity
+      demand_name: Humidity
       source_sensor_id: ${humidity_sensor}
       min_val_id: ${mev_slug}_min_fan_speed
-      lower_bound_id: ${mev_slug}_lower_bound
-      upper_bound_id: ${mev_slug}_upper_bound
-      rate_sensor_id: ${mev_slug}_humidity_rate
       rate_multiplier: "20.0"
       icon: mdi:water-percent
 
 # Sensor imports and calculations
 sensor:
   # Import configuration from HA (Settings -> Helpers) - Story 16.5
-  - platform: homeassistant
-    entity_id: input_number.mev_humidity_upper_bound
-    id: ${mev_slug}_upper_bound
-    internal: true
-
-  - platform: homeassistant
-    entity_id: input_number.mev_humidity_lower_bound
-    id: ${mev_slug}_lower_bound
-    internal: true
-
   - platform: homeassistant
     entity_id: input_number.mev_escalation_fan_threshold
     id: ${mev_slug}_escalation_threshold
@@ -127,26 +83,6 @@ sensor:
   - platform: homeassistant
     entity_id: input_number.mev_deescalation_delay_minutes
     id: ${mev_slug}_deescalation_delay
-    internal: true
-
-  - platform: homeassistant
-    entity_id: input_number.mev_co2_lower_bound
-    id: ${mev_slug}_co2_lower
-    internal: true
-
-  - platform: homeassistant
-    entity_id: input_number.mev_co2_upper_bound
-    id: ${mev_slug}_co2_upper
-    internal: true
-
-  - platform: homeassistant
-    entity_id: input_number.mev_iaq_lower_bound
-    id: ${mev_slug}_iaq_lower
-    internal: true
-
-  - platform: homeassistant
-    entity_id: input_number.mev_iaq_upper_bound
-    id: ${mev_slug}_iaq_upper
     internal: true
 
   # MEV Final Fan Speed (%) - Story 16.4
@@ -216,7 +152,7 @@ interval:
 
           float esc_thresh = id(${mev_slug}_escalation_threshold).state;
           float deesc_thresh = id(${mev_slug}_deescalation_threshold).state;
-          float lower_bound = id(${mev_slug}_lower_bound).state;
+          float lower_bound = id(${mev_slug}_humidity_lower).state;
           float esc_delay = id(${mev_slug}_escalation_delay).state;
           float deesc_delay = id(${mev_slug}_deescalation_delay).state;
 
