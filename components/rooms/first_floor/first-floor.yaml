@@ -11,6 +11,18 @@ packages:
       sensor_id: first_floor_any_zone_open
       relay_id: relay_3
       output_id: analog_output_2
+  first_floor_mev: !include
+    file: ../../mev.yaml
+    vars:
+      mev_slug: "first_floor_mev"
+      mev_name: "VMC Primo Piano"
+      power_relay: relay_18
+      mode_relay: relay_19
+      dehumidifier_relay: relay_20
+      cooling_relay: relay_21
+      fan_speed_output: analog_output_7
+      alarm_input: di1
+      humidity_sensor: first_floor_max_humidity
   bagno_grande: !include bagno_grande.yaml
   bagno_ospiti: !include bagno_ospiti.yaml
   bagno_padronale: !include bagno_padronale.yaml

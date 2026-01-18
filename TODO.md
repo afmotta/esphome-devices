@@ -18,12 +18,14 @@ TODO:
 IN PROGRESS:
 
 DONE:
+DONE:
 - dividire il fancoil boost tra soggiorno e cucina [EPIC-14]
 - gestire fancoil per umidità
 - margine di sicurezza per dew point regolabile da home assistant
 - attualmente la temperatura di mandata basata su dew point è calcolata due volte: una per il sensore di minima temperatura di mandata, una per il controllo della valvola miscelatrice. Unificare la logica in un unico punto.
 - aggiungere una logica per evitare che durante l'autotune dei radianti il sistema entri in boost mode
-- Gestione VMC (MEV)
-- - Integrazione con sensori di qualità dell'aria (CO2, VOC, PM2.5)
-- - Logica di controllo della VMC basata sulla qualità dell'aria interna
-- - Coordinamento tra riscaldamento/raffreddamento e VMC per ottimizzare il comfort e l'efficienza energetica
+- Gestione VMC (MEV) [EPIC-16]
+- - Integrazione con sensori di qualità dell'aria (CO2, VOC, PM2.5) [DONE]
+- - Logica di controllo della VMC basata sulla qualità dell'aria interna [DONE]
+- - Coordinamento tra riscaldamento/raffreddamento e VMC per ottimizzare il comfort e l'efficienza energetica [DONE]
+- - Calcolo rateo umidità e state machine 3-stati su ESPHome [DONE]

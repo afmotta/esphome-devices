@@ -10,15 +10,345 @@
 # - 1 DAC output for 0-10V fan speed control (uses existing DAC from board config)
 # - 1 binary sensor for alarm monitoring (uses existing input from board config)
 #
+# Sensors:
+# - Humidity rate calculation (rolling window, %/min)
+#
 # Required vars:
-#   mev_slug: Device slug for entity IDs (e.g., "mev_primo_piano")
-#   mev_name: Friendly name prefix (e.g., "MEV Primo Piano")
+#   mev_slug: Device slug for entity IDs (e.g., "first_floor_mev")
+#   mev_name: Friendly name prefix (e.g., "VMC Primo Piano")
 #   power_relay: Relay ID for main power (e.g., relay_1)
 #   mode_relay: Relay ID for winter/summer mode (e.g., relay_2)
 #   dehumidifier_relay: Relay ID for dehumidifier (e.g., relay_3)
 #   cooling_relay: Relay ID for cooling integration (e.g., relay_4)
 #   fan_speed_output: DAC output ID from board config (e.g., dac_1)
 #   alarm_input: Binary sensor input ID from board config (e.g., input_1)
+#   humidity_sensor: Sensor ID for humidity input
+
+# Globals for humidity rate calculation (circular buffer)
+globals:
+  - id: ${mev_slug}_humidity_history_times
+    type: std::vector<float>
+    restore_value: no
+    initial_value: "std::vector<float>()"
+
+  - id: ${mev_slug}_humidity_history_values
+    type: std::vector<float>
+    restore_value: no
+    initial_value: "std::vector<float>()"
+
+# Sensor imports and calculations
+sensor:
+  # Import configuration from HA (Settings -> Helpers) - Story 16.5
+  - platform: homeassistant
+    entity_id: input_number.mev_rate_window_minutes
+    id: ${mev_slug}_rate_window
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_humidity_upper_bound
+    id: ${mev_slug}_upper_bound
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_humidity_lower_bound
+    id: ${mev_slug}_lower_bound
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_escalation_fan_threshold
+    id: ${mev_slug}_escalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_deescalation_fan_threshold
+    id: ${mev_slug}_deescalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_minimum_fan_speed
+    id: ${mev_slug}_min_fan_speed
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_escalation_delay_minutes
+    id: ${mev_slug}_escalation_delay
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_deescalation_delay_minutes
+    id: ${mev_slug}_deescalation_delay
+    internal: true
+
+  - platform: homeassistant
+    entity_id: binary_sensor.summer_mode
+    id: summer_mode
+    internal: true
+
+  # Humidity rate calculation (%/min) - Story 16.3
+  - platform: template
+    name: "${mev_name} Humidity Rate"
+    id: ${mev_slug}_humidity_rate
+    unit_of_measurement: "%/min"
+    accuracy_decimals: 2
+    state_class: measurement
+    icon: mdi:trending-up
+    update_interval: 60s
+    lambda: |-
+      // Get current humidity and window size
+      float current = id(${humidity_sensor}).state;
+      float window_minutes = id(${mev_slug}_rate_window).state;
+
+      // Validate inputs
+      if (isnan(current) || isnan(window_minutes) || window_minutes <= 0) {
+        return 0.0;
+      }
+
+      // Get current time (seconds since boot)
+      float current_time = millis() / 1000.0;
+
+      // Add current reading to history
+      id(${mev_slug}_humidity_history_times).push_back(current_time);
+      id(${mev_slug}_humidity_history_values).push_back(current);
+
+      // Prune old readings (keep only those within window)
+      float cutoff_time = current_time - (window_minutes * 60.0);
+      size_t valid_start = 0;
+      for (size_t i = 0; i < id(${mev_slug}_humidity_history_times).size(); i++) {
+        if (id(${mev_slug}_humidity_history_times)[i] >= cutoff_time) {
+          valid_start = i;
+          break;
+        }
+      }
+
+      // Remove old entries
+      if (valid_start > 0) {
+        id(${mev_slug}_humidity_history_times).erase(
+          id(${mev_slug}_humidity_history_times).begin(),
+          id(${mev_slug}_humidity_history_times).begin() + valid_start
+        );
+        id(${mev_slug}_humidity_history_values).erase(
+          id(${mev_slug}_humidity_history_values).begin(),
+          id(${mev_slug}_humidity_history_values).begin() + valid_start
+        );
+      }
+
+      // Need at least 2 readings to calculate rate
+      if (id(${mev_slug}_humidity_history_times).size() < 2) {
+        return 0.0;
+      }
+
+      // Calculate rate: (current - oldest) / time_elapsed_minutes
+      float oldest_value = id(${mev_slug}_humidity_history_values).front();
+      float oldest_time = id(${mev_slug}_humidity_history_times).front();
+      float time_elapsed_minutes = (current_time - oldest_time) / 60.0;      if (time_elapsed_minutes <= 0) {
+        return 0.0;
+      }
+
+      return (current - oldest_value) / time_elapsed_minutes;
+
+  # MEV CO2 Demand (%)
+  - platform: template
+    name: "${mev_name} CO2 Demand"
+    id: ${mev_slug}_co2_demand
+    unit_of_measurement: "%"
+    icon: mdi:molecule-co2
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      float co2 = id(first_floor_max_co2).state;
+      if (isnan(co2)) return 20.0f;
+
+      if (co2 > 1400) return 90.0f;
+      if (co2 > 1000) return 70.0f;
+      if (co2 > 800) return 50.0f;
+      if (co2 > 600) return 35.0f;
+      return 20.0f;
+
+  # MEV IAQ Demand (%)
+  - platform: template
+    name: "${mev_name} IAQ Demand"
+    id: ${mev_slug}_iaq_demand
+    unit_of_measurement: "%"
+    icon: mdi:air-filter
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      float iaq = id(first_floor_max_iaq).state;
+      if (isnan(iaq)) return 20.0f;
+
+      if (iaq > 350) return 90.0f;
+      if (iaq > 250) return 70.0f;
+      if (iaq > 150) return 50.0f;
+      if (iaq > 100) return 35.0f;
+      return 20.0f;
+
+  # MEV Humidity Demand (%) - Story 16.4
+  - platform: template
+    name: "${mev_name} Humidity Demand"
+    id: ${mev_slug}_humidity_demand
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      float humidity = id(${humidity_sensor}).state;
+      float rate = id(${mev_slug}_humidity_rate).state;
+      float upper = id(${mev_slug}_upper_bound).state;
+      float lower = id(${mev_slug}_lower_bound).state;
+      float min_fan = id(${mev_slug}_min_fan_speed).state;
+
+      if (isnan(humidity) || isnan(rate) || isnan(upper) || isnan(lower) || isnan(min_fan)) {
+        return 20.0f;
+      }
+
+      // Position in window (0-1)
+      float window_size = upper - lower;
+      float position = (window_size > 0) ? (humidity - lower) / window_size : 0;
+      position = std::max(0.0f, std::min(1.0f, position));
+
+      // Position factor (0-50%)
+      float position_factor = position * 50.0f;
+
+      // Rate factor (+20% per 1%/min, capped at 30%)
+      float rate_factor = std::max(0.0f, std::min(30.0f, rate * 20.0f));
+
+      return std::min(90.0f, std::max(min_fan, min_fan + position_factor + rate_factor));
+
+  # MEV Final Fan Speed (%) - Story 16.4
+  - platform: template
+    name: "${mev_name} Final Fan Speed"
+    id: ${mev_slug}_final_fan_speed
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-3
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      float co2 = id(${mev_slug}_co2_demand).state;
+      float iaq = id(${mev_slug}_iaq_demand).state;
+      float humidity = id(${mev_slug}_humidity_demand).state;
+      float min_fan = id(${mev_slug}_min_fan_speed).state;
+
+      if (isnan(co2)) co2 = 20.0f;
+      if (isnan(iaq)) iaq = 20.0f;
+      if (isnan(humidity)) humidity = 20.0f;
+      if (isnan(min_fan)) min_fan = 20.0f;
+
+      float final_speed = std::max({co2, iaq, humidity, min_fan});
+      return std::min(100.0f, final_speed);
+    on_value:
+      then:
+        - number.set:
+            id: ${mev_slug}_fan_speed
+            value: !lambda "return x;"
+
+# Humidity Cascade States - Story 16.4
+select:
+  - platform: template
+    name: "${mev_name} Humidity State"
+    id: ${mev_slug}_humidity_state
+    options:
+      - "Fan Only"
+      - "Dehumidifying"
+      - "Cooling"
+    initial_option: "Fan Only"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - lambda: |-
+          if (x == "Fan Only") {
+            id(${mev_slug}_dehumidifier).turn_off();
+            id(${mev_slug}_cooling).turn_off();
+          } else if (x == "Dehumidifying") {
+            id(${mev_slug}_dehumidifier).turn_on();
+            id(${mev_slug}_cooling).turn_off();
+          } else if (x == "Cooling") {
+            id(${mev_slug}_dehumidifier).turn_on();
+            id(${mev_slug}_cooling).turn_on();
+          }
+
+# Transition Logic - Story 16.4
+interval:
+  - interval: 1min
+    then:
+      - lambda: |-
+          static int escalation_counter = 0;
+          static int deescalation_counter = 0;
+
+          float final_fan = id(${mev_slug}_final_fan_speed).state;
+          float rate = id(${mev_slug}_humidity_rate).state;
+          float humidity = id(${humidity_sensor}).state;
+          auto current_state = id(${mev_slug}_humidity_state).state;
+
+          float esc_thresh = id(${mev_slug}_escalation_threshold).state;
+          float deesc_thresh = id(${mev_slug}_deescalation_threshold).state;
+          float lower_bound = id(${mev_slug}_lower_bound).state;
+          float esc_delay = id(${mev_slug}_escalation_delay).state;
+          float deesc_delay = id(${mev_slug}_deescalation_delay).state;
+
+          if (isnan(final_fan) || isnan(rate) || isnan(humidity) || isnan(esc_thresh)) return;
+
+          bool escalation_active = false;
+          bool deescalation_active = false;
+
+          // Escalation
+          if (current_state == "Fan Only") {
+            if (final_fan >= esc_thresh && rate > 0.0f) {
+              escalation_counter++;
+              escalation_active = true;
+              if (escalation_counter >= (int)esc_delay) {
+                id(${mev_slug}_humidity_state).make_call().set_option("Dehumidifying");
+                escalation_counter = 0;
+                deescalation_counter = 0;
+                ESP_LOGI("mev", "Escalated to Dehumidifying");
+              }
+            }
+          } else if (current_state == "Dehumidifying") {
+            bool summer = id(summer_mode).state;
+            if (summer && final_fan >= esc_thresh && rate > 0.0f) {
+              escalation_counter++;
+              escalation_active = true;
+              if (escalation_counter >= (int)esc_delay) {
+                id(${mev_slug}_humidity_state).make_call().set_option("Cooling");
+                escalation_counter = 0;
+                deescalation_counter = 0;
+                ESP_LOGI("mev", "Escalated to Cooling");
+              }
+            }
+          }
+
+          // De-escalation
+          if (current_state == "Cooling") {
+            bool summer = id(summer_mode).state;
+            if (!summer || (humidity < lower_bound && final_fan < deesc_thresh)) {
+               deescalation_counter++;
+               deescalation_active = true;
+               if (deescalation_counter >= (int)deesc_delay) {
+                 id(${mev_slug}_humidity_state).make_call().set_option("Dehumidifying");
+                 escalation_counter = 0;
+                 deescalation_counter = 0;
+                 ESP_LOGI("mev", "De-escalated to Dehumidifying");
+               }
+            }
+          } else if (current_state == "Dehumidifying") {
+            if (humidity < lower_bound && final_fan < deesc_thresh) {
+               deescalation_counter++;
+               deescalation_active = true;
+               if (deescalation_counter >= (int)deesc_delay) {
+                 id(${mev_slug}_humidity_state).make_call().set_option("Fan Only");
+                 escalation_counter = 0;
+                 deescalation_counter = 0;
+                 ESP_LOGI("mev", "De-escalated to Fan Only");
+               }
+            }
+          }
+
+          // Reset counters when direction changes or neither is active
+          if (!escalation_active) {
+            escalation_counter = 0;
+          }
+          if (!deescalation_active) {
+            deescalation_counter = 0;
+          }
 
 # Number entity for fan speed percentage control (0-100%)
 # Maps to 0-10V DAC output (linear: 0%=0V, 100%=10V)
