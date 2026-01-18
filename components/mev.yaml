@@ -84,7 +84,7 @@ sensor:
       float co2 = id(first_floor_max_co2).state;
       if (isnan(co2)) return 20.0f;
 
-      if (co2 > 1400) return 90.0f;
+      if (co2 > 1400) return 100.0f;
       if (co2 > 1000) return 70.0f;
       if (co2 > 800) return 50.0f;
       if (co2 > 600) return 35.0f;
@@ -102,7 +102,7 @@ sensor:
       float iaq = id(first_floor_max_iaq).state;
       if (isnan(iaq)) return 20.0f;
 
-      if (iaq > 350) return 90.0f;
+      if (iaq > 350) return 100.0f;
       if (iaq > 250) return 70.0f;
       if (iaq > 150) return 50.0f;
       if (iaq > 100) return 35.0f;
@@ -135,10 +135,12 @@ sensor:
       // Position factor (0-50%)
       float position_factor = position * 50.0f;
 
-      // Rate factor (+20% per 1%/min, capped at 30%)
-      float rate_factor = std::max(0.0f, std::min(30.0f, rate * 20.0f));
+      // Rate factor (+20% per 1%/min)
+      // Cap is dynamic: shared budget remaining to reach 100% after min_fan and position (max 50%)
+      float rate_cap = std::max(0.0f, 100.0f - min_fan - 50.0f);
+      float rate_factor = std::max(0.0f, std::min(rate_cap, rate * 20.0f));
 
-      return std::min(90.0f, std::max(min_fan, min_fan + position_factor + rate_factor));
+      return std::min(100.0f, std::max(min_fan, min_fan + position_factor + rate_factor));
 
   # MEV Final Fan Speed (%) - Story 16.4
   - platform: template
