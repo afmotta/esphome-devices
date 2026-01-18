@@ -24,26 +24,19 @@
 #   alarm_input: Binary sensor input ID from board config (e.g., input_1)
 #   humidity_sensor: Sensor ID for humidity input
 
-# Globals for humidity rate calculation (circular buffer)
-globals:
-  - id: ${mev_slug}_humidity_history_times
-    type: std::vector<float>
-    restore_value: no
-    initial_value: "std::vector<float>()"
-
-  - id: ${mev_slug}_humidity_history_values
-    type: std::vector<float>
-    restore_value: no
-    initial_value: "std::vector<float>()"
+packages:
+  humidity_trend: !include
+    file: trend_sensor.yaml
+    vars:
+      sensor_id: ${mev_slug}_humidity_rate
+      source_sensor: ${humidity_sensor}
+      sensor_name: "${mev_name} Humidity Rate"
+      unit_of_measurement: "%/min"
+      window_size: "15"
 
 # Sensor imports and calculations
 sensor:
   # Import configuration from HA (Settings -> Helpers) - Story 16.5
-  - platform: homeassistant
-    entity_id: input_number.mev_rate_window_minutes
-    id: ${mev_slug}_rate_window
-    internal: true
-
   - platform: homeassistant
     entity_id: input_number.mev_humidity_upper_bound
     id: ${mev_slug}_upper_bound
@@ -78,73 +71,6 @@ sensor:
     entity_id: input_number.mev_deescalation_delay_minutes
     id: ${mev_slug}_deescalation_delay
     internal: true
-
-  - platform: homeassistant
-    entity_id: binary_sensor.summer_mode
-    id: summer_mode
-    internal: true
-
-  # Humidity rate calculation (%/min) - Story 16.3
-  - platform: template
-    name: "${mev_name} Humidity Rate"
-    id: ${mev_slug}_humidity_rate
-    unit_of_measurement: "%/min"
-    accuracy_decimals: 2
-    state_class: measurement
-    icon: mdi:trending-up
-    update_interval: 60s
-    lambda: |-
-      // Get current humidity and window size
-      float current = id(${humidity_sensor}).state;
-      float window_minutes = id(${mev_slug}_rate_window).state;
-
-      // Validate inputs
-      if (isnan(current) || isnan(window_minutes) || window_minutes <= 0) {
-        return 0.0;
-      }
-
-      // Get current time (seconds since boot)
-      float current_time = millis() / 1000.0;
-
-      // Add current reading to history
-      id(${mev_slug}_humidity_history_times).push_back(current_time);
-      id(${mev_slug}_humidity_history_values).push_back(current);
-
-      // Prune old readings (keep only those within window)
-      float cutoff_time = current_time - (window_minutes * 60.0);
-      size_t valid_start = 0;
-      for (size_t i = 0; i < id(${mev_slug}_humidity_history_times).size(); i++) {
-        if (id(${mev_slug}_humidity_history_times)[i] >= cutoff_time) {
-          valid_start = i;
-          break;
-        }
-      }
-
-      // Remove old entries
-      if (valid_start > 0) {
-        id(${mev_slug}_humidity_history_times).erase(
-          id(${mev_slug}_humidity_history_times).begin(),
-          id(${mev_slug}_humidity_history_times).begin() + valid_start
-        );
-        id(${mev_slug}_humidity_history_values).erase(
-          id(${mev_slug}_humidity_history_values).begin(),
-          id(${mev_slug}_humidity_history_values).begin() + valid_start
-        );
-      }
-
-      // Need at least 2 readings to calculate rate
-      if (id(${mev_slug}_humidity_history_times).size() < 2) {
-        return 0.0;
-      }
-
-      // Calculate rate: (current - oldest) / time_elapsed_minutes
-      float oldest_value = id(${mev_slug}_humidity_history_values).front();
-      float oldest_time = id(${mev_slug}_humidity_history_times).front();
-      float time_elapsed_minutes = (current_time - oldest_time) / 60.0;      if (time_elapsed_minutes <= 0) {
-        return 0.0;
-      }
-
-      return (current - oldest_value) / time_elapsed_minutes;
 
   # MEV CO2 Demand (%)
   - platform: template
