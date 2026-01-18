@@ -48,43 +48,43 @@ The system trusts PID controllers to know actual room needs. Mode transitions ar
 │              THREE-TIER SEASONAL MODE SELECTION                    │
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  TIER 1: CALENDAR GATE (Hard Locks)                               │
-│  ├── Dec 1 - Feb 28 → HEAT mode LOCKED                            │
-│  ├── Jun 1 - Aug 31 → COOL mode LOCKED                            │
-│  ├── Mar 1 - May 31 → Evaluate (shoulder)                         │
-│  └── Sep 1 - Nov 30 → Evaluate (shoulder)                         │
+│  TIER 1: CALENDAR GATE (Hard Locks)                                │
+│  ├── Dec 1 - Feb 28 → HEAT mode LOCKED                             │
+│  ├── Jun 1 - Aug 31 → COOL mode LOCKED                             │
+│  ├── Mar 1 - May 31 → Evaluate (shoulder)                          │
+│  └── Sep 1 - Nov 30 → Evaluate (shoulder)                          │
 │                                                                    │
-│  TIER 2: WEATHER INTELLIGENCE (Phase 2 - Shoulder Seasons)        │
-│  ├── 24h forecast high temperature                                │
-│  ├── ≥26°C → Cooling likely needed                                │
-│  ├── ≤14°C → Heating likely needed                                │
-│  └── 15-25°C → Dead band (SANITARY_ONLY guidance)                 │
+│  TIER 2: WEATHER INTELLIGENCE (Phase 2 - Shoulder Seasons)         │
+│  ├── 24h forecast high temperature                                 │
+│  ├── ≥26°C → Cooling likely needed                                 │
+│  ├── ≤14°C → Heating likely needed                                 │
+│  └── 15-25°C → Dead band (SANITARY_ONLY guidance)                  │
 │                                                                    │
-│  TIER 3: DEMAND-DRIVEN TRANSITIONS (Shoulder Seasons)             │
-│  ├── CRITICAL: Demand ALWAYS wins over forecast                   │
-│  ├── Any PID requests HEAT → Switch to HEAT mode                  │
-│  ├── Any PID requests COOL → Switch to COOL mode                  │
-│  └── No automatic return to SANITARY (stays until opposite)       │
+│  TIER 3: DEMAND-DRIVEN TRANSITIONS (Shoulder Seasons)              │
+│  ├── CRITICAL: Demand ALWAYS wins over forecast                    │
+│  ├── Any PID requests HEAT → Switch to HEAT mode                   │
+│  ├── Any PID requests COOL → Switch to COOL mode                   │
+│  └── No automatic return to SANITARY (stays until opposite)        │
 │                                                                    │
 │  STATE MACHINE:                                                    │
 │                                                                    │
-│       WINTER (Dec-Feb)              SUMMER (Jun-Aug)              │
-│    ┌─────────────────┐           ┌─────────────────┐              │
-│    │  HEAT (locked)  │           │  COOL (locked)  │              │
-│    └─────────────────┘           └─────────────────┘              │
+│       WINTER (Dec-Feb)              SUMMER (Jun-Aug)               │
+│    ┌─────────────────┐           ┌─────────────────┐               │
+│    │  HEAT (locked)  │           │  COOL (locked)  │               │
+│    └─────────────────┘           └─────────────────┘               │
 │                                                                    │
 │            SHOULDER SEASONS (Mar-May, Sep-Nov)                     │
-│    ┌─────────────────────────────────────────────┐                │
-│    │             SANITARY_ONLY                   │                │
-│    │          (initial state)                    │                │
-│    └──────────┬─────────────────┬────────────────┘                │
+│    ┌─────────────────────────────────────────────┐                 │
+│    │             SANITARY_ONLY                   │                 │
+│    │          (initial state)                    │                 │
+│    └──────────┬─────────────────┬────────────────┘                 │
 │               │                 │                                  │
-│    PID HEAT   │                 │  PID COOL                       │
-│    request    ▼                 ▼  request                        │
-│    ┌──────────────┐   ┌──────────────┐                            │
-│    │    HEAT      │◀─▶│    COOL      │                            │
-│    │ (stays here) │   │ (stays here) │                            │
-│    └──────────────┘   └──────────────┘                            │
+│    PID HEAT   │                 │  PID COOL                        │
+│    request    ▼                 ▼  request                         │
+│    ┌──────────────┐   ┌──────────────┐                             │
+│    │    HEAT      │◀─▶│    COOL      │                             │
+│    │ (stays here) │   │ (stays here) │                             │
+│    └──────────────┘   └──────────────┘                             │
 │         Direct transitions (no SANITARY stop)                      │
 │                                                                    │
 └────────────────────────────────────────────────────────────────────┘
@@ -92,33 +92,33 @@ The system trusts PID controllers to know actual room needs. Mode transitions ar
 
 ### Key Design Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| **Winter behavior** | Hard lock to HEAT (Dec-Feb) | PIDs handle warm days via reduced output |
-| **Summer behavior** | Hard lock to COOL (Jun-Aug) | Milan summers always need cooling available |
-| **Shoulder behavior** | Evaluate with demand override | Maximum flexibility for variable weather |
-| **Cooling threshold** | 26°C forecast (Phase 2) | Milan climate - warm but not extreme |
-| **Heating threshold** | 14°C forecast (Phase 2) | Below typical comfort range |
-| **Dead band** | SANITARY_ONLY | Let rooms coast naturally |
-| **Dead band override** | Demand wins | Trust PIDs; they know room needs |
-| **Mode transitions** | On PID request | No proactive switching |
-| **Return to SANITARY** | Never automatic | Only switch when opposite mode needed |
-| **Pre-conditioning** | None | HP is fast (minutes to condition buffer) |
-| **Implementation** | Home Assistant Automations | HA orchestrates, ESPHome PIDs expose state |
+| Decision               | Choice                        | Rationale                                   |
+| ---------------------- | ----------------------------- | ------------------------------------------- |
+| **Winter behavior**    | Hard lock to HEAT (Dec-Feb)   | PIDs handle warm days via reduced output    |
+| **Summer behavior**    | Hard lock to COOL (Jun-Aug)   | Milan summers always need cooling available |
+| **Shoulder behavior**  | Evaluate with demand override | Maximum flexibility for variable weather    |
+| **Cooling threshold**  | 26°C forecast (Phase 2)       | Milan climate - warm but not extreme        |
+| **Heating threshold**  | 14°C forecast (Phase 2)       | Below typical comfort range                 |
+| **Dead band**          | SANITARY_ONLY                 | Let rooms coast naturally                   |
+| **Dead band override** | Demand wins                   | Trust PIDs; they know room needs            |
+| **Mode transitions**   | On PID request                | No proactive switching                      |
+| **Return to SANITARY** | Never automatic               | Only switch when opposite mode needed       |
+| **Pre-conditioning**   | None                          | HP is fast (minutes to condition buffer)    |
+| **Implementation**     | Home Assistant Automations    | HA orchestrates, ESPHome PIDs expose state  |
 
 ---
 
 ## User Stories
 
-| Story | Title | Points | Priority | Phase |
-|-------|-------|--------|----------|-------|
-| 17.1 | HP Mode State Management | 2 | High | MVP |
-| 17.2 | Calendar Gate Automations | 2 | High | MVP |
-| 17.3 | PID Demand Detection | 2 | High | MVP |
-| 17.4 | Demand-Driven Mode Transitions | 3 | High | MVP |
-| 17.5 | Dashboard & Diagnostics | 1 | Medium | MVP |
-| 17.6 | Weather Forecast Integration | 2 | Medium | Phase 2 |
-| 17.7 | Override Detection & Logging | 1 | Low | Phase 2 |
+| Story | Title                          | Points | Priority | Phase   |
+| ----- | ------------------------------ | ------ | -------- | ------- |
+| 17.1  | HP Mode State Management       | 2      | High     | MVP     |
+| 17.2  | Calendar Gate Automations      | 2      | High     | MVP     |
+| 17.3  | PID Demand Detection           | 2      | High     | MVP     |
+| 17.4  | Demand-Driven Mode Transitions | 3      | High     | MVP     |
+| 17.5  | Dashboard & Diagnostics        | 1      | Medium   | MVP     |
+| 17.6  | Weather Forecast Integration   | 2      | Medium   | Phase 2 |
+| 17.7  | Override Detection & Logging   | 1      | Low      | Phase 2 |
 
 **MVP Total: 10 Story Points**  
 **Phase 2 Total: 3 Story Points**  
@@ -446,11 +446,11 @@ cards:
     content: |
       ## 🔥❄️ Heat Pump Mode
       
-      | Property | Value |
-      |----------|-------|
-      | **Current Mode** | {{ states('input_select.hp_mode') }} |
-      | **Reason** | {{ states('input_select.hp_mode_reason') }} |
-      | **Season** | {% if now().month in [12, 1, 2] %}Winter (locked){% elif now().month in [6, 7, 8] %}Summer (locked){% elif now().month in [3, 4, 5] %}Spring (shoulder){% else %}Autumn (shoulder){% endif %} |
+      | Property         | Value                                                                                                                                                                                         |
+      | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+      | **Current Mode** | {{ states('input_select.hp_mode') }}                                                                                                                                                          |
+      | **Reason**       | {{ states('input_select.hp_mode_reason') }}                                                                                                                                                   |
+      | **Season**       | {% if now().month in [12, 1, 2] %}Winter (locked){% elif now().month in [6, 7, 8] %}Summer (locked){% elif now().month in [3, 4, 5] %}Spring (shoulder){% else %}Autumn (shoulder){% endif %} |
       
   - type: entities
     title: Mode Control
@@ -624,34 +624,34 @@ template:
 
 ## Risks & Mitigations
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| PID hvac_action unreliable | Mode transitions delayed | Low | Test with actual PIDs; fall back to output % |
-| Multi-board latency | Slow demand detection | Low | HA state triggers are fast; consider UDP if needed |
-| Manual override forgotten | Mode stuck wrong | Medium | Dashboard clearly shows current mode/reason |
-| HP mode integration missing | Can't control HP | High | Verify existing HP integration before starting |
+| Risk                        | Impact                   | Likelihood | Mitigation                                         |
+| --------------------------- | ------------------------ | ---------- | -------------------------------------------------- |
+| PID hvac_action unreliable  | Mode transitions delayed | Low        | Test with actual PIDs; fall back to output %       |
+| Multi-board latency         | Slow demand detection    | Low        | HA state triggers are fast; consider UDP if needed |
+| Manual override forgotten   | Mode stuck wrong         | Medium     | Dashboard clearly shows current mode/reason        |
+| HP mode integration missing | Can't control HP         | High       | Verify existing HP integration before starting     |
 
 ---
 
 ## Success Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Manual interventions | 0 per year | Count manual mode changes |
-| Mode transition accuracy | >95% | Review transitions vs conditions |
-| Calendar lock compliance | 100% | Verify mode during core seasons |
-| System availability | 100% | No automation failures |
+| Metric                   | Target     | Measurement                      |
+| ------------------------ | ---------- | -------------------------------- |
+| Manual interventions     | 0 per year | Count manual mode changes        |
+| Mode transition accuracy | >95%       | Review transitions vs conditions |
+| Calendar lock compliance | 100%       | Verify mode during core seasons  |
+| System availability      | 100%       | No automation failures           |
 
 ---
 
 ## Implementation Timeline
 
-| Week | Stories | Milestone |
-|------|---------|-----------|
-| 1 | 17.1, 17.2 | State management + calendar gates |
-| 2 | 17.3, 17.4 | PID detection + demand transitions |
-| 3 | 17.5 | Dashboard + MVP complete |
-| 4+ | 17.6, 17.7 | Phase 2 weather intelligence |
+| Week | Stories    | Milestone                          |
+| ---- | ---------- | ---------------------------------- |
+| 1    | 17.1, 17.2 | State management + calendar gates  |
+| 2    | 17.3, 17.4 | PID detection + demand transitions |
+| 3    | 17.5       | Dashboard + MVP complete           |
+| 4+   | 17.6, 17.7 | Phase 2 weather intelligence       |
 
 **Target MVP Completion:** February 15, 2026 (before Mar 1 shoulder season)
 
@@ -678,13 +678,13 @@ To find all PID entities for Story 17.3, run in HA Developer Tools → Template:
 
 ### C. Rejected Alternatives
 
-| Alternative | Reason Rejected |
-|-------------|-----------------|
-| Pure calendar-based | Too constricted for unusual weather |
-| Pure temperature-driven | Outdoor temp misleading |
-| Automatic return to SANITARY | Creates mode churn |
-| Forecast as hard gate | Too rigid; demand should override |
-| Pre-conditioning buffer | HP is fast enough without it |
+| Alternative                  | Reason Rejected                     |
+| ---------------------------- | ----------------------------------- |
+| Pure calendar-based          | Too constricted for unusual weather |
+| Pure temperature-driven      | Outdoor temp misleading             |
+| Automatic return to SANITARY | Creates mode churn                  |
+| Forecast as hard gate        | Too rigid; demand should override   |
+| Pre-conditioning buffer      | HP is fast enough without it        |
 
 ---
 
