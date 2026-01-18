@@ -34,6 +34,63 @@ packages:
       unit_of_measurement: "%/min"
       window_size: "15"
 
+  co2_trend: !include
+    file: trend_sensor.yaml
+    vars:
+      sensor_id: ${mev_slug}_co2_rate
+      source_sensor: first_floor_max_co2
+      sensor_name: "${mev_name} CO2 Rate"
+      unit_of_measurement: "ppm/min"
+      window_size: "15"
+
+  iaq_trend: !include
+    file: trend_sensor.yaml
+    vars:
+      sensor_id: ${mev_slug}_iaq_rate
+      source_sensor: first_floor_max_iaq
+      sensor_name: "${mev_name} IAQ Rate"
+      unit_of_measurement: "IAQ/min"
+      window_size: "15"
+
+  co2_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      sensor_id: ${mev_slug}_co2_demand
+      sensor_name: "${mev_name} CO2 Demand"
+      source_sensor_id: first_floor_max_co2
+      min_val_id: ${mev_slug}_min_fan_speed
+      lower_bound_id: ${mev_slug}_co2_lower
+      upper_bound_id: ${mev_slug}_co2_upper
+      rate_sensor_id: ${mev_slug}_co2_rate
+      rate_multiplier: "0.05"
+      icon: mdi:molecule-co2
+
+  iaq_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      sensor_id: ${mev_slug}_iaq_demand
+      sensor_name: "${mev_name} IAQ Demand"
+      source_sensor_id: first_floor_max_iaq
+      min_val_id: ${mev_slug}_min_fan_speed
+      lower_bound_id: ${mev_slug}_iaq_lower
+      upper_bound_id: ${mev_slug}_iaq_upper
+      rate_sensor_id: ${mev_slug}_iaq_rate
+      rate_multiplier: "2.0"
+      icon: mdi:air-filter
+
+  humidity_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      sensor_id: ${mev_slug}_humidity_demand
+      sensor_name: "${mev_name} Humidity Demand"
+      source_sensor_id: ${humidity_sensor}
+      min_val_id: ${mev_slug}_min_fan_speed
+      lower_bound_id: ${mev_slug}_lower_bound
+      upper_bound_id: ${mev_slug}_upper_bound
+      rate_sensor_id: ${mev_slug}_humidity_rate
+      rate_multiplier: "20.0"
+      icon: mdi:water-percent
+
 # Sensor imports and calculations
 sensor:
   # Import configuration from HA (Settings -> Helpers) - Story 16.5
@@ -72,75 +129,25 @@ sensor:
     id: ${mev_slug}_deescalation_delay
     internal: true
 
-  # MEV CO2 Demand (%)
-  - platform: template
-    name: "${mev_name} CO2 Demand"
-    id: ${mev_slug}_co2_demand
-    unit_of_measurement: "%"
-    icon: mdi:molecule-co2
-    accuracy_decimals: 0
-    update_interval: 60s
-    lambda: |-
-      float co2 = id(first_floor_max_co2).state;
-      if (isnan(co2)) return 20.0f;
+  - platform: homeassistant
+    entity_id: input_number.mev_co2_lower_bound
+    id: ${mev_slug}_co2_lower
+    internal: true
 
-      if (co2 > 1400) return 100.0f;
-      if (co2 > 1000) return 70.0f;
-      if (co2 > 800) return 50.0f;
-      if (co2 > 600) return 35.0f;
-      return 20.0f;
+  - platform: homeassistant
+    entity_id: input_number.mev_co2_upper_bound
+    id: ${mev_slug}_co2_upper
+    internal: true
 
-  # MEV IAQ Demand (%)
-  - platform: template
-    name: "${mev_name} IAQ Demand"
-    id: ${mev_slug}_iaq_demand
-    unit_of_measurement: "%"
-    icon: mdi:air-filter
-    accuracy_decimals: 0
-    update_interval: 60s
-    lambda: |-
-      float iaq = id(first_floor_max_iaq).state;
-      if (isnan(iaq)) return 20.0f;
+  - platform: homeassistant
+    entity_id: input_number.mev_iaq_lower_bound
+    id: ${mev_slug}_iaq_lower
+    internal: true
 
-      if (iaq > 350) return 100.0f;
-      if (iaq > 250) return 70.0f;
-      if (iaq > 150) return 50.0f;
-      if (iaq > 100) return 35.0f;
-      return 20.0f;
-
-  # MEV Humidity Demand (%) - Story 16.4
-  - platform: template
-    name: "${mev_name} Humidity Demand"
-    id: ${mev_slug}_humidity_demand
-    unit_of_measurement: "%"
-    icon: mdi:water-percent
-    accuracy_decimals: 0
-    update_interval: 60s
-    lambda: |-
-      float humidity = id(${humidity_sensor}).state;
-      float rate = id(${mev_slug}_humidity_rate).state;
-      float upper = id(${mev_slug}_upper_bound).state;
-      float lower = id(${mev_slug}_lower_bound).state;
-      float min_fan = id(${mev_slug}_min_fan_speed).state;
-
-      if (isnan(humidity) || isnan(rate) || isnan(upper) || isnan(lower) || isnan(min_fan)) {
-        return 20.0f;
-      }
-
-      // Position in window (0-1)
-      float window_size = upper - lower;
-      float position = (window_size > 0) ? (humidity - lower) / window_size : 0;
-      position = std::max(0.0f, std::min(1.0f, position));
-
-      // Position factor (0-50%)
-      float position_factor = position * 50.0f;
-
-      // Rate factor (+20% per 1%/min)
-      // Cap is dynamic: shared budget remaining to reach 100% after min_fan and position (max 50%)
-      float rate_cap = std::max(0.0f, 100.0f - min_fan - 50.0f);
-      float rate_factor = std::max(0.0f, std::min(rate_cap, rate * 20.0f));
-
-      return std::min(100.0f, std::max(min_fan, min_fan + position_factor + rate_factor));
+  - platform: homeassistant
+    entity_id: input_number.mev_iaq_upper_bound
+    id: ${mev_slug}_iaq_upper
+    internal: true
 
   # MEV Final Fan Speed (%) - Story 16.4
   - platform: template
@@ -205,7 +212,7 @@ interval:
           float final_fan = id(${mev_slug}_final_fan_speed).state;
           float rate = id(${mev_slug}_humidity_rate).state;
           float humidity = id(${humidity_sensor}).state;
-          auto current_state = id(${mev_slug}_humidity_state).state;
+          auto current_state = id(${mev_slug}_humidity_state).current_option();
 
           float esc_thresh = id(${mev_slug}_escalation_threshold).state;
           float deesc_thresh = id(${mev_slug}_deescalation_threshold).state;

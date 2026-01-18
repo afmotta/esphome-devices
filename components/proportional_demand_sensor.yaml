@@ -1,0 +1,62 @@
+# Component: proportional_demand_sensor.yaml
+# Purpose: Calculates demand (0-100%) based on a sensor value and configurable bounds.
+#
+# Required vars:
+#   - sensor_id
+#   - sensor_name
+#   - source_sensor_id
+#   - lower_bound_id
+#   - upper_bound_id
+#   - min_val_id
+#
+# Optional vars:
+#   - rate_sensor_id: Sensor tracking rate of change (e.g. %/min)
+#   - rate_multiplier: Multiplier for the rate boost (default: 0.0)
+#   - unit_of_measurement: default "%"
+#   - icon: default "mdi:gauge"
+#   - accuracy_decimals: default 0
+#   - fallback_value: Value to return on error (default: 20.0)
+
+defaults:
+  rate_sensor_id: "" # Handled in lambda
+  rate_multiplier: "0.0"
+  unit_of_measurement: "%"
+  icon: "mdi:gauge"
+  accuracy_decimals: "0"
+  fallback_value: "20.0"
+
+sensor:
+  - platform: template
+    id: ${sensor_id}
+    name: "${sensor_name}"
+    unit_of_measurement: "${unit_of_measurement}"
+    icon: "${icon}"
+    accuracy_decimals: ${accuracy_decimals}
+    update_interval: 60s
+    lambda: |-
+      float val = id(${source_sensor_id}).state;
+      float min_fan = id(${min_val_id}).state;
+      float lower = id(${lower_bound_id}).state;
+      float upper = id(${upper_bound_id}).state;
+
+      if (isnan(val) || isnan(min_fan) || isnan(lower) || isnan(upper) || (upper <= lower)) {
+        return ${fallback_value}f;
+      }
+
+      // Base proportional demand
+      float position = (val - lower) / (upper - lower);
+      position = std::max(0.0f, std::min(1.0f, position));
+      float base_demand = min_fan + (position * (100.0f - min_fan));
+
+      // Optional Rate boost
+      float boost = 0.0f;
+      float multiplier = (float)${rate_multiplier};
+      if (multiplier > 0.0f) {
+        // Use the identifier directly if provided
+        float rate = id(${rate_sensor_id}).state;
+        if (!isnan(rate)) {
+          boost = std::max(0.0f, rate * multiplier);
+        }
+      }
+
+      return std::min(100.0f, base_demand + boost);
