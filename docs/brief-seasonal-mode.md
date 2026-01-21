@@ -19,7 +19,7 @@
 The existing HVAC control system uses a binary `summer_mode` switch that must be manually toggled to change the heat pump's operating mode between heating (buffer hot) and cooling (buffer cold). This creates several issues:
 
 1. **Human Error:** Forgetting to switch modes leads to discomfort (house too hot in spring because still in HEAT mode)
-2. **Inflexibility:** Binary switch can't handle shoulder seasons (March-May, September-November) where needs vary day-to-day
+2. **Inflexibility:** Binary switch can't handle shoulder seasons (Mid April-May, September-Mid October) where needs vary day-to-day
 3. **Reactive Response:** Mode changes happen after discomfort is noticed, not proactively
 4. **Mental Load:** Homeowner must track weather patterns and remember to adjust settings
 
@@ -48,7 +48,7 @@ The system is operational now with manual switching. This improvement enables tr
 
 A layered approach that uses:
 
-1. **Tier 1 - Calendar Gate:** Hard locks for core seasons (Dec-Feb → HEAT, Jun-Aug → COOL)
+1. **Tier 1 - Calendar Gate:** Hard locks for core seasons (Oct 15 - Apr 15 → HEAT, Jun-Aug → COOL)
 2. **Tier 2 - Weather Intelligence:** 24-hour temperature forecast guidance during shoulder seasons
 3. **Tier 3 - Demand-Driven Transitions:** PID requests trigger actual mode changes
 
@@ -129,8 +129,8 @@ A fully autonomous seasonal mode system that:
 
 ### Core Features (Must Have)
 
-- **Calendar Gate Implementation:** Automations that hard-lock HEAT (Dec-Feb) and COOL (Jun-Aug)
-- **Shoulder Season Entry:** Automations that set SANITARY_ONLY on Mar 1 and Sep 1
+- **Calendar Gate Implementation:** Automations that hard-lock HEAT (Oct 15 - Apr 15) and COOL (Jun-Aug)
+- **Shoulder Season Entry:** Automations that set SANITARY_ONLY on Apr 15 and Sep 1
 - **Demand-Driven HEAT Transition:** Automation triggered by any PID requesting heating action
 - **Demand-Driven COOL Transition:** Automation triggered by any PID requesting cooling action
 - **HP Mode Input Select:** `input_select.hp_mode` with HEAT/COOL/SANITARY_ONLY options
@@ -149,12 +149,13 @@ A fully autonomous seasonal mode system that:
 ### MVP Success Criteria
 
 The MVP is successful when:
-1. System automatically enters HEAT mode on Dec 1 without intervention
+1. System automatically enters HEAT mode on Oct 15 without intervention
 2. System automatically enters COOL mode on Jun 1 without intervention
 3. During shoulder seasons, first PID heating request triggers HEAT mode
 4. During shoulder seasons, first PID cooling request triggers COOL mode
 5. Mode stays locked until opposite demand or season change
 6. Dashboard shows current mode and reason
+7. System exits HEAT mode and enters Spring shoulder on Apr 15
 
 ---
 

@@ -49,10 +49,10 @@ The system trusts PID controllers to know actual room needs. Mode transitions ar
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  TIER 1: CALENDAR GATE (Hard Locks)                                │
-│  ├── Dec 1 - Feb 28 → HEAT mode LOCKED                             │
+│  ├── Oct 15 - Apr 15 → HEAT mode LOCKED                            │
 │  ├── Jun 1 - Aug 31 → COOL mode LOCKED                             │
-│  ├── Mar 1 - May 31 → Evaluate (shoulder)                          │
-│  └── Sep 1 - Nov 30 → Evaluate (shoulder)                          │
+│  ├── Apr 16 - May 31 → Evaluate (shoulder)                         │
+│  └── Sep 1 - Oct 14 → Evaluate (shoulder)                          │
 │                                                                    │
 │  TIER 2: WEATHER INTELLIGENCE (Phase 2 - Shoulder Seasons)         │
 │  ├── 24h forecast high temperature                                 │
@@ -68,12 +68,12 @@ The system trusts PID controllers to know actual room needs. Mode transitions ar
 │                                                                    │
 │  STATE MACHINE:                                                    │
 │                                                                    │
-│       WINTER (Dec-Feb)              SUMMER (Jun-Aug)               │
+│       WINTER (Oct 15 - Apr 15)      SUMMER (Jun-Aug)               │
 │    ┌─────────────────┐           ┌─────────────────┐               │
 │    │  HEAT (locked)  │           │  COOL (locked)  │               │
 │    └─────────────────┘           └─────────────────┘               │
 │                                                                    │
-│            SHOULDER SEASONS (Mar-May, Sep-Nov)                     │
+│            SHOULDER SEASONS (Apr 16 - May 31, Sep 1 - Oct 14)      │
 │    ┌─────────────────────────────────────────────┐                 │
 │    │             SANITARY_ONLY                   │                 │
 │    │          (initial state)                    │                 │
@@ -94,9 +94,9 @@ The system trusts PID controllers to know actual room needs. Mode transitions ar
 
 | Decision               | Choice                        | Rationale                                   |
 | ---------------------- | ----------------------------- | ------------------------------------------- |
-| **Winter behavior**    | Hard lock to HEAT (Dec-Feb)   | PIDs handle warm days via reduced output    |
-| **Summer behavior**    | Hard lock to COOL (Jun-Aug)   | Milan summers always need cooling available |
-| **Shoulder behavior**  | Evaluate with demand override | Maximum flexibility for variable weather    |
+| **Winter behavior**    | Hard lock to HEAT (Oct 15 - Apr 15) | PIDs handle warm days via reduced output    |
+| **Summer behavior**    | Hard lock to COOL (Jun-Aug)         | Milan summers always need cooling available |
+| **Shoulder behavior**  | Evaluate with demand override       | Maximum flexibility for variable weather    |
 | **Cooling threshold**  | 26°C forecast (Phase 2)       | Milan climate - warm but not extreme        |
 | **Heating threshold**  | 14°C forecast (Phase 2)       | Below typical comfort range                 |
 | **Dead band**          | SANITARY_ONLY                 | Let rooms coast naturally                   |
@@ -169,16 +169,16 @@ input_select:
 
 **Description:** Implement automations that enforce hard locks during core seasons and reset to SANITARY_ONLY when entering shoulder seasons.
 
-**Automation 1: Winter Lock (Dec 1)**
+**Automation 1: Winter Lock (Oct 15)**
 ```yaml
-alias: "HP Mode - Winter Lock (Dec 1)"
+alias: "HP Mode - Winter Lock (Oct 15)"
 description: "Lock heat pump to HEAT mode for winter season"
 trigger:
   - platform: time
     at: "00:01:00"
 condition:
   - condition: template
-    value_template: "{{ now().month == 12 and now().day == 1 }}"
+    value_template: "{{ now().month == 10 and now().day == 15 }}"
 action:
   - service: input_select.select_option
     target:
@@ -193,7 +193,7 @@ action:
   - service: notify.persistent_notification
     data:
       title: "HP Mode: Winter Lock"
-      message: "Heat pump locked to HEAT mode for winter season (Dec-Feb)"
+      message: "Heat pump locked to HEAT mode for winter season (Oct 15 - Apr 15)"
 mode: single
 ```
 
@@ -225,16 +225,16 @@ action:
 mode: single
 ```
 
-**Automation 3: Spring Shoulder Entry (Mar 1)**
+**Automation 3: Spring Shoulder Entry (Apr 15)**
 ```yaml
-alias: "HP Mode - Spring Shoulder Entry (Mar 1)"
+alias: "HP Mode - Spring Shoulder Entry (Apr 15)"
 description: "Enter shoulder season - set to SANITARY_ONLY"
 trigger:
   - platform: time
     at: "00:01:00"
 condition:
   - condition: template
-    value_template: "{{ now().month == 3 and now().day == 1 }}"
+    value_template: "{{ now().month == 4 and now().day == 15 }}"
 action:
   - service: input_select.select_option
     target:
@@ -282,9 +282,9 @@ mode: single
 ```
 
 **Acceptance Criteria:**
-- [ ] Dec 1 automation sets mode to HEAT with CALENDAR_LOCK reason
+- [ ] Oct 15 automation sets mode to HEAT with CALENDAR_LOCK reason
 - [ ] Jun 1 automation sets mode to COOL with CALENDAR_LOCK reason
-- [ ] Mar 1 automation sets mode to SANITARY_ONLY
+- [ ] Apr 15 automation sets mode to SANITARY_ONLY
 - [ ] Sep 1 automation sets mode to SANITARY_ONLY
 - [ ] Each transition generates a persistent notification
 - [ ] Automations only fire once per day (mode: single)
@@ -363,7 +363,7 @@ condition:
         state: "HEAT"
   - condition: template
     value_template: >
-      {{ now().month in [3, 4, 5, 9, 10, 11] }}
+      {{ now().month in [4, 5, 9, 10] }}
 action:
   - service: input_select.select_option
     target:
@@ -398,7 +398,7 @@ condition:
         state: "COOL"
   - condition: template
     value_template: >
-      {{ now().month in [3, 4, 5, 9, 10, 11] }}
+      {{ now().month in [4, 5, 9, 10] }}
 action:
   - service: input_select.select_option
     target:
@@ -418,7 +418,7 @@ mode: single
 ```
 
 **Key Design Points:**
-- Automations only fire during shoulder months (Mar-May, Sep-Nov)
+- Automations only fire during shoulder months (Apr-May, Sep-Oct)
 - No automation returns to SANITARY_ONLY (stays in mode until opposite requested)
 - Direct HEAT↔COOL transitions are allowed (no SANITARY stop required)
 - Persistent notifications provide audit trail
@@ -426,7 +426,7 @@ mode: single
 **Acceptance Criteria:**
 - [ ] First PID heating request during shoulder season triggers HEAT mode
 - [ ] First PID cooling request during shoulder season triggers COOL mode
-- [ ] Automations do NOT fire during core seasons (Dec-Feb, Jun-Aug)
+- [ ] Automations do NOT fire during core seasons (Oct 15 - Apr 15, Jun-Aug)
 - [ ] Mode stays locked after demand transition (no return to SANITARY)
 - [ ] Direct HEAT→COOL transition works when opposite demand occurs
 - [ ] Each transition generates a persistent notification
@@ -450,7 +450,7 @@ cards:
       | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
       | **Current Mode** | {{ states('input_select.hp_mode') }}                                                                                                                                                          |
       | **Reason**       | {{ states('input_select.hp_mode_reason') }}                                                                                                                                                   |
-      | **Season**       | {% if now().month in [12, 1, 2] %}Winter (locked){% elif now().month in [6, 7, 8] %}Summer (locked){% elif now().month in [3, 4, 5] %}Spring (shoulder){% else %}Autumn (shoulder){% endif %} |
+      | **Season**       | {% set m = now().month %}{% set d = now().day %}{% if (m == 10 and d >= 15) or m in [11, 12, 1, 2, 3] or (m == 4 and d < 15) %}Winter (locked){% elif m in [6, 7, 8] %}Summer (locked){% elif (m == 4 and d >= 15) or m == 5 %}Spring (shoulder){% else %}Autumn (shoulder){% endif %} |
       
   - type: entities
     title: Mode Control
@@ -593,9 +593,9 @@ template:
 - [ ] Verify options can be selected via UI
 
 ### Story 17.2: Calendar Gate Automations
-- [ ] Test Dec 1 automation (use time trigger test or temporarily change condition)
+- [ ] Test Oct 15 automation (use time trigger test or temporarily change condition)
 - [ ] Test Jun 1 automation
-- [ ] Test Mar 1 automation
+- [ ] Test Apr 15 automation
 - [ ] Test Sep 1 automation
 - [ ] Verify notifications appear
 
@@ -653,7 +653,7 @@ template:
 | 3    | 17.5       | Dashboard + MVP complete           |
 | 4+   | 17.6, 17.7 | Phase 2 weather intelligence       |
 
-**Target MVP Completion:** February 15, 2026 (before Mar 1 shoulder season)
+**Target MVP Completion:** April 1, 2026 (before Apr 15 shoulder season)
 
 ---
 

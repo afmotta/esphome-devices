@@ -23,10 +23,10 @@ The current `summer_mode` binary switch requires manual intervention to toggle b
 
 | Period | Behavior | Rationale |
 |--------|----------|-----------|
-| **Dec 1 - Feb 28** | HEAT mode locked | Core winter; PIDs handle warm days internally |
-| **Mar 1 - May 31** | Evaluate | Spring shoulder season |
+| **Oct 15 - Apr 15** | HEAT mode locked | Core winter; PIDs handle warm days internally |
+| **Apr 16 - May 31** | Evaluate | Spring shoulder season |
 | **Jun 1 - Aug 31** | COOL mode locked | Core summer; full humidity logic active |
-| **Sep 1 - Nov 30** | Evaluate | Autumn shoulder season |
+| **Sep 1 - Oct 14** | Evaluate | Autumn shoulder season |
 
 ### Tier 2: Weather Intelligence (24h Forecast)
 
@@ -60,7 +60,7 @@ Applies only during **Evaluate** periods (shoulder seasons):
 ## State Machine
 
 ```
-                         WINTER (Dec 1 - Feb 28)
+                         WINTER (Oct 15 - Apr 15)
                     ┌─────────────────────────────┐
                     │      HEAT (locked)          │
                     │  Calendar hard lock         │
@@ -73,7 +73,7 @@ Applies only during **Evaluate** periods (shoulder seasons):
                     │  Full humidity logic active │
                     └─────────────────────────────┘
                     
-              SHOULDER SEASONS (Mar-May, Sep-Nov)
+              SHOULDER SEASONS (Apr 16 - May 31, Sep 1 - Oct 14)
     ┌────────────────────────────────────────────────┐
     │                                                │
     │              SANITARY_ONLY                     │
@@ -126,16 +126,16 @@ Applies only during **Evaluate** periods (shoulder seasons):
 ## Automation Logic (Pseudocode)
 
 ```yaml
-# Winter Lock (Dec 1 - Feb 28)
-- trigger: date is Dec 1
+# Winter Lock (Oct 15 - Apr 15)
+- trigger: date is Oct 15
   action: set hp_mode to HEAT, set hp_mode_reason to CALENDAR_LOCK
 
 # Summer Lock (Jun 1 - Aug 31)
 - trigger: date is Jun 1
   action: set hp_mode to COOL, set hp_mode_reason to CALENDAR_LOCK
 
-# Exit Winter Lock → Spring Shoulder (Mar 1)
-- trigger: date is Mar 1
+# Exit Winter Lock → Spring Shoulder (Apr 15)
+- trigger: date is Apr 15
   action: set hp_mode to SANITARY_ONLY, set hp_mode_reason to CALENDAR_LOCK
 
 # Exit Summer Lock → Autumn Shoulder (Sep 1)
@@ -146,7 +146,7 @@ Applies only during **Evaluate** periods (shoulder seasons):
 - trigger: any PID action == HEATING
   condition: 
     - hp_mode != HEAT
-    - current month in [Mar, Apr, May, Sep, Oct, Nov]  # Shoulder only
+    - current month in [Apr, May, Sep, Oct]  # Shoulder only
   action:
     - set hp_mode to HEAT
     - set hp_mode_reason to DEMAND
