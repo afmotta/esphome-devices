@@ -92,19 +92,133 @@ The system trusts PID controllers to know actual room needs. Mode transitions ar
 
 ### Key Design Decisions
 
-| Decision               | Choice                        | Rationale                                   |
-| ---------------------- | ----------------------------- | ------------------------------------------- |
-| **Winter behavior**    | Hard lock to HEAT (Oct 15 - Apr 15) | PIDs handle warm days via reduced output    |
-| **Summer behavior**    | Hard lock to COOL (Jun-Aug)         | Milan summers always need cooling available |
-| **Shoulder behavior**  | Evaluate with demand override       | Maximum flexibility for variable weather    |
-| **Cooling threshold**  | 26°C forecast (Phase 2)       | Milan climate - warm but not extreme        |
-| **Heating threshold**  | 14°C forecast (Phase 2)       | Below typical comfort range                 |
-| **Dead band**          | SANITARY_ONLY                 | Let rooms coast naturally                   |
-| **Dead band override** | Demand wins                   | Trust PIDs; they know room needs            |
-| **Mode transitions**   | On PID request                | No proactive switching                      |
-| **Return to SANITARY** | Never automatic               | Only switch when opposite mode needed       |
-| **Pre-conditioning**   | None                          | HP is fast (minutes to condition buffer)    |
-| **Implementation**     | Home Assistant Automations    | HA orchestrates, ESPHome PIDs expose state  |
+| Decision               | Choice                              | Rationale                                        |
+| ---------------------- | ----------------------------------- | ------------------------------------------------ |
+| **Winter behavior**    | Hard lock to HEAT (Oct 15 - Apr 15) | PIDs handle warm days via reduced output         |
+| **Summer behavior**    | Hard lock to COOL (Jun-Aug)         | Milan summers always need cooling available      |
+| **Shoulder behavior**  | Evaluate with demand override       | Maximum flexibility for variable weather         |
+| **Cooling threshold**  | 26°C forecast (Phase 2)             | Milan climate - warm but not extreme             |
+| **Heating threshold**  | 14°C forecast (Phase 2)             | Below typical comfort range                      |
+| **Dead band**          | SANITARY_ONLY                       | Let rooms coast naturally                        |
+| **Dead band override** | Demand wins                         | Trust PIDs; they know room needs                 |
+| **Mode transitions**   | On PID request                      | No proactive switching                           |
+| **Return to SANITARY** | Never automatic                     | Only switch when opposite mode needed            |
+| **Pre-conditioning**   | None                                | HP is fast (minutes to condition buffer)         |
+| **Implementation**     | ESPHome (Central Brain)             | ESPHome orchestrates via seasonal_mode component |
+
+---
+
+## User Stories
+
+| Story | Title                           | Points | Priority | Phase   |
+| ----- | ------------------------------- | ------ | -------- | ------- |
+| 17.1  | HP Mode State Management (ESP)  | 2      | High     | MVP     |
+| 17.2  | Calendar Gate Logic (ESP)       | 2      | High     | MVP     |
+| 17.3  | PID Demand Aggregation (ESP)    | 2      | High     | MVP     |
+| 17.4  | Demand-Driven Transitions (ESP) | 3      | High     | MVP     |
+| 17.5  | Dashboard & Diagnostics         | 1      | Medium   | MVP     |
+| 17.6  | Weather Forecast Integration    | 2      | Medium   | Phase 2 |
+| 17.7  | Override Detection & Logging    | 1      | Low      | Phase 2 |
+
+**MVP Total: 10 Story Points**  
+**Phase 2 Total: 3 Story Points**  
+**Epic Total: 13 Story Points**
+
+---
+
+## Technical Specification
+
+### Story 17.1: HP Mode State Management
+
+**Description:** Move mode tracking to ESPHome using `select` and `text_sensor` components. This ensures the system operates even if Home Assistant is unavailable.
+
+**ESPHome Components (`components/seasonal_mode.yaml`):**
+
+```yaml
+select:
+  - name: "Heat Pump Mode"
+    id: hp_mode
+    options:
+      - "HEAT"
+      - "COOL"
+      - "SANITARY_ONLY"
+    icon: mdi:heat-pump
+    on_value:
+      then:
+        - script.execute: apply_hp_mode_to_all_pids
+
+text_sensor:
+  - name: "Heat Pump Mode Reason"
+    id: hp_mode_reason
+    icon: mdi:information-outline
+```
+
+**Acceptance Criteria:**
+- [ ] `select.hp_mode` created in ESPHome
+- [ ] `text_sensor.hp_mode_reason` created in ESPHome
+- [ ] Both entities exposed to Home Assistant via API
+- [ ] State persists across reboots (`restore_value: true`)
+
+---
+
+### Story 17.2: Calendar Gate Logic
+
+**Description:** Implement seasonal hard locks within ESPHome using the internal hardware RTC (`pcf85063_time`) for autonomy.
+
+**ESPHome Logic (Tier 1):**
+
+```yaml
+# Winter Lock: Oct 15 - Apr 15
+if ((m == 10 && d >= 15) || m > 10 || m < 4 || (m == 4 && d < 15)) {
+  id(hp_mode).make_selection("HEAT");
+  id(hp_mode_reason).publish_state("CALENDAR_LOCK");
+}
+# Summer Lock: Jun 1 - Aug 31
+else if (m >= 6 && m <= 8) {
+  id(hp_mode).make_selection("COOL");
+  id(hp_mode_reason).publish_state("CALENDAR_LOCK");
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Logic runs periodically in ESPHome
+- [ ] Correctly identifies Oct 15 - Apr 15 as Winter (HEAT)
+- [ ] Correctly identifies Jun 1 - Aug 31 as Summer (COOL)
+- [ ] Transitions generate log messages and update reason
+
+---
+
+### Story 17.3: PID Demand Aggregation
+
+**Description:** Aggregate demand from all radiant and fancoil PIDs within ESPHome to trigger shoulder season transitions.
+
+**ESPHome Sensors:**
+- `any_pid_requesting_heat`: OR logic of all `pid_..._is_heating` sensors
+- `any_pid_requesting_cool`: OR logic of all `pid_..._is_cooling` sensors
+
+**Acceptance Criteria:**
+- [ ] `any_pid_requesting_heat` turns ON when any PID reports `heating` action
+- [ ] `any_pid_requesting_cool` turns ON when any PID reports `cooling` action
+- [ ] Fast local response (<1s) to demand changes
+
+---
+
+### Story 17.4: Demand-Driven Mode Transitions
+
+**Description:** Implement the Tier 3 transition logic and mode application to PIDs.
+
+**Mode Application Logic:**
+When `hp_mode` changes, ESPHome must update all climate entities:
+- `HEAT` → set PIDs to `HEAT` mode
+- `COOL` → set PIDs to `COOL` (or `OFF` if heat-only)
+- `SANITARY_ONLY` → set PIDs to `OFF`
+
+**Acceptance Criteria:**
+- [ ] Shoulder season transitions (Demand wins) implemented in ESPHome
+- [ ] All PIDs correctly updated when mode changes
+- [ ] Heat-only radiant zones (bathrooms) correctly disabled during cooling mode
+- [ ] Local control verified without HA connection
+
 
 ---
 
@@ -281,13 +395,46 @@ action:
 mode: single
 ```
 
+### Story 17.5: Dashboard & Diagnostics
+
+**Description:** Create a dashboard card showing current HP mode, reason, and PID demand state (sourcing from ESPHome entities).
+
+**Dashboard Card (Markdown + Entities):**
+
+```yaml
+type: vertical-stack
+cards:
+  - type: markdown
+    content: |
+      ## 🔥❄️ Heat Pump Mode
+      
+      | Property         | Value                                                                                                                                                                                                                                                                                  |
+      | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+      | **Current Mode** | {{ states('select.heat_pump_mode') }}                                                                                                                                                                                                                                                  |
+      | **Reason**       | {{ states('text_sensor.heat_pump_mode_reason') }}                                                                                                                                                                                                                                      |
+      | **Season**       | {% set m = now().month %}{% set d = now().day %}{% if (m == 10 and d >= 15) or m in [11, 12, 1, 2, 3] or (m == 4 and d < 15) %}Winter (locked){% elif m in [6, 7, 8] %}Summer (locked){% elif (m == 4 and d >= 15) or m == 5 %}Spring (shoulder){% else %}Autumn (shoulder){% endif %} |
+      
+  - type: entities
+    title: Mode Control
+    entities:
+      - entity: select.heat_pump_mode
+        name: Heat Pump Mode
+      - entity: text_sensor.heat_pump_mode_reason
+        name: Mode Reason
+      - type: divider
+      - entity: binary_sensor.any_pid_requesting_heat
+        name: PID Heat Demand
+      - entity: binary_sensor.any_pid_requesting_cool
+        name: PID Cool Demand
+```
+
 **Acceptance Criteria:**
-- [ ] Oct 15 automation sets mode to HEAT with CALENDAR_LOCK reason
-- [ ] Jun 1 automation sets mode to COOL with CALENDAR_LOCK reason
-- [ ] Apr 15 automation sets mode to SANITARY_ONLY
-- [ ] Sep 1 automation sets mode to SANITARY_ONLY
-- [ ] Each transition generates a persistent notification
-- [ ] Automations only fire once per day (mode: single)
+- [ ] Dashboard shows current mode from ESPHome
+- [ ] Dashboard shows reason from ESPHome
+- [ ] Dashboard shows current season classification
+- [ ] PID demand sensors visible
+- [ ] Manual mode override possible via dropdown (calls ESPHome select)
+
 
 ---
 
@@ -446,10 +593,10 @@ cards:
     content: |
       ## 🔥❄️ Heat Pump Mode
       
-      | Property         | Value                                                                                                                                                                                         |
-      | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-      | **Current Mode** | {{ states('input_select.hp_mode') }}                                                                                                                                                          |
-      | **Reason**       | {{ states('input_select.hp_mode_reason') }}                                                                                                                                                   |
+      | Property         | Value                                                                                                                                                                                                                                                                                  |
+      | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+      | **Current Mode** | {{ states('input_select.hp_mode') }}                                                                                                                                                                                                                                                   |
+      | **Reason**       | {{ states('input_select.hp_mode_reason') }}                                                                                                                                                                                                                                            |
       | **Season**       | {% set m = now().month %}{% set d = now().day %}{% if (m == 10 and d >= 15) or m in [11, 12, 1, 2, 3] or (m == 4 and d < 15) %}Winter (locked){% elif m in [6, 7, 8] %}Summer (locked){% elif (m == 4 and d >= 15) or m == 5 %}Spring (shoulder){% else %}Autumn (shoulder){% endif %} |
       
   - type: entities

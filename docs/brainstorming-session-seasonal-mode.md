@@ -21,22 +21,22 @@ The current `summer_mode` binary switch requires manual intervention to toggle b
 
 ### Tier 1: Calendar Gate (Hard Locks)
 
-| Period | Behavior | Rationale |
-|--------|----------|-----------|
+| Period              | Behavior         | Rationale                                     |
+| ------------------- | ---------------- | --------------------------------------------- |
 | **Oct 15 - Apr 15** | HEAT mode locked | Core winter; PIDs handle warm days internally |
-| **Apr 16 - May 31** | Evaluate | Spring shoulder season |
-| **Jun 1 - Aug 31** | COOL mode locked | Core summer; full humidity logic active |
-| **Sep 1 - Oct 14** | Evaluate | Autumn shoulder season |
+| **Apr 16 - May 31** | Evaluate         | Spring shoulder season                        |
+| **Jun 1 - Aug 31**  | COOL mode locked | Core summer; full humidity logic active       |
+| **Sep 1 - Oct 14**  | Evaluate         | Autumn shoulder season                        |
 
 ### Tier 2: Weather Intelligence (24h Forecast)
 
 Applies only during **Evaluate** periods (shoulder seasons):
 
-| Forecast High | Guidance |
-|---------------|----------|
-| ≥ 26°C | Cooling likely needed |
-| ≤ 14°C | Heating likely needed |
-| 15-25°C | Dead band (coast) |
+| Forecast High | Guidance              |
+| ------------- | --------------------- |
+| ≥ 26°C        | Cooling likely needed |
+| ≤ 14°C        | Heating likely needed |
+| 15-25°C       | Dead band (coast)     |
 
 **MVP Implementation:** Temperature forecast only (via HA weather integration)
 
@@ -101,25 +101,36 @@ Applies only during **Evaluate** periods (shoulder seasons):
 
 ---
 
-## Configuration Entities (Home Assistant)
+## Configuration Entities (ESPHome)
 
-### Input Numbers
-| Entity | Default | Range | Purpose |
-|--------|---------|-------|---------|
-| `input_number.hp_cooling_threshold` | 26 | 20-35 | Forecast temp for "cooling likely" |
-| `input_number.hp_heating_threshold` | 14 | 5-20 | Forecast temp for "heating likely" |
-
-### Input Selects
-| Entity | Options | Purpose |
-|--------|---------|---------|
-| `input_select.hp_mode` | HEAT, COOL, SANITARY_ONLY | Current operating mode |
-| `input_select.hp_mode_reason` | CALENDAR_LOCK, DEMAND, MANUAL | Why current mode was selected |
+### Selects
+| Entity                       | Options                       | Purpose                        |
+| ---------------------------- | ----------------------------- | ------------------------------ |
+| `select.hp_mode`             | HEAT, COOL, SANITARY_ONLY     | Current operating mode (Brain) |
+| `text_sensor.hp_mode_reason` | CALENDAR_LOCK, DEMAND, MANUAL | Why current mode was selected  |
 
 ### Sensors (Diagnostic)
-| Entity | Purpose |
-|--------|---------|
-| `sensor.hp_forecast_guidance` | What forecast suggests (HEAT/COOL/NEUTRAL) |
-| `binary_sensor.hp_mode_override_active` | True if demand overrode forecast guidance |
+| Entity                                  | Purpose                          |
+| --------------------------------------- | -------------------------------- |
+| `sensor.hp_forecast_guidance`           | What forecast suggests (from HA) |
+| `binary_sensor.any_pid_requesting_heat` | Global heat demand aggregation   |
+| `binary_sensor.any_pid_requesting_cool` | Global cool demand aggregation   |
+
+---
+
+## ESPHome Implementation (Tier 1 & 3)
+
+The logic is moved from Home Assistant to ESPHome for autonomy. The coordinator runs on the `climate-control` device.
+
+```yaml
+# Winter Lock (Oct 15 - Apr 15)
+- if: Oct 15 <= date < Apr 15
+  then: set hp_mode to HEAT, set hp_mode_reason to CALENDAR_LOCK
+
+# Demand-Driven (Shoulder Seasons Only)
+- if: any_pid_requesting_heat == ON and in_shoulder_season
+  then: set hp_mode to HEAT, set hp_mode_reason to DEMAND
+```
 
 ---
 
@@ -167,32 +178,32 @@ Applies only during **Evaluate** periods (shoulder seasons):
 
 ## Design Decisions Summary
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Winter behavior | Hard lock to HEAT (Dec-Feb) | PIDs handle warm days via reduced output |
-| Summer behavior | Hard lock to COOL (Jun-Aug) | Milan summers always need cooling available |
-| Shoulder behavior | Evaluate with demand override | Maximum flexibility |
-| Cooling threshold | 26°C | Milan climate - warm but not extreme |
-| Heating threshold | 14°C | Below typical comfort range |
-| Dead band | SANITARY_ONLY | Let rooms coast naturally |
-| Dead band override | Demand wins | Trust PIDs; they know room needs |
-| Mode transitions | On PID request | No proactive switching |
-| Return to SANITARY | Never automatic | Only switch when opposite mode needed |
-| Pre-conditioning | None | HP is fast (minutes to condition buffer) |
-| Forecast window | 24 hours | Daily planning horizon |
+| Decision           | Choice                        | Rationale                                   |
+| ------------------ | ----------------------------- | ------------------------------------------- |
+| Winter behavior    | Hard lock to HEAT (Dec-Feb)   | PIDs handle warm days via reduced output    |
+| Summer behavior    | Hard lock to COOL (Jun-Aug)   | Milan summers always need cooling available |
+| Shoulder behavior  | Evaluate with demand override | Maximum flexibility                         |
+| Cooling threshold  | 26°C                          | Milan climate - warm but not extreme        |
+| Heating threshold  | 14°C                          | Below typical comfort range                 |
+| Dead band          | SANITARY_ONLY                 | Let rooms coast naturally                   |
+| Dead band override | Demand wins                   | Trust PIDs; they know room needs            |
+| Mode transitions   | On PID request                | No proactive switching                      |
+| Return to SANITARY | Never automatic               | Only switch when opposite mode needed       |
+| Pre-conditioning   | None                          | HP is fast (minutes to condition buffer)    |
+| Forecast window    | 24 hours                      | Daily planning horizon                      |
 
 ---
 
 ## Rejected Alternatives
 
-| Alternative | Reason Rejected |
-|-------------|-----------------|
-| Pure calendar-based | "Too constricted" - can't handle unusual weather |
-| Pure temperature-driven | "Outdoor temp may be misleading" - doesn't reflect building state |
-| Proactive mode switching | Not needed - HP conditions buffer in minutes |
-| Automatic return to SANITARY | Creates unnecessary mode churn |
-| Forecast as hard gate | Too rigid - demand should override when needed |
-| Summer as "evaluate" | Milan summers reliably need cooling; no benefit to evaluate |
+| Alternative                  | Reason Rejected                                                   |
+| ---------------------------- | ----------------------------------------------------------------- |
+| Pure calendar-based          | "Too constricted" - can't handle unusual weather                  |
+| Pure temperature-driven      | "Outdoor temp may be misleading" - doesn't reflect building state |
+| Proactive mode switching     | Not needed - HP conditions buffer in minutes                      |
+| Automatic return to SANITARY | Creates unnecessary mode churn                                    |
+| Forecast as hard gate        | Too rigid - demand should override when needed                    |
+| Summer as "evaluate"         | Milan summers reliably need cooling; no benefit to evaluate       |
 
 ---
 
@@ -220,12 +231,12 @@ Applies only during **Evaluate** periods (shoulder seasons):
 
 ## Success Metrics
 
-| Metric | Target |
-|--------|--------|
-| Manual interventions | Zero (fully automated) |
-| Mode transition accuracy | >95% appropriate for conditions |
-| Comfort complaints | None related to wrong mode |
-| Energy efficiency | No degradation vs manual switching |
+| Metric                   | Target                             |
+| ------------------------ | ---------------------------------- |
+| Manual interventions     | Zero (fully automated)             |
+| Mode transition accuracy | >95% appropriate for conditions    |
+| Comfort complaints       | None related to wrong mode         |
+| Energy efficiency        | No degradation vs manual switching |
 
 ---
 

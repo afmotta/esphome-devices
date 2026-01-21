@@ -6,19 +6,5 @@ climate:
   - id: !extend pid_radiant_${room_slug}
     cool_output: radiant_output_${room_slug}
 
-# Summer mode handler: automatically switch between HEAT and COOL modes
-binary_sensor:
-  - id: !extend summer_mode
-    on_state:
-      then:
-        - if:
-            condition:
-              lambda: "return x;" # x = true means summer
-            then:
-              - climate.control:
-                  id: pid_radiant_${room_slug}
-                  mode: "COOL"
-            else:
-              - climate.control:
-                  id: pid_radiant_${room_slug}
-                  mode: "HEAT"
+# Summer mode handling is now centralized in components/seasonal_mode.yaml
+# and the device-level apply_hp_mode_to_all_pids script.
