@@ -103,38 +103,3 @@ binary_sensor:
              id(pid_fancoil_cucina_is_cooling).state ||
              id(pid_fancoil_locale_tecnico_is_cooling).state ||
              id(pid_fancoil_sottotetto_is_cooling).state;
-
-script:
-  - id: !extend apply_hp_mode_to_all_pids
-    then:
-      - lambda: |-
-          std::string mode_str = id(hp_mode).state;
-
-          auto set_mode = [&](climate::PIDClimate* climate_obj, bool supports_cooling) {
-              auto call = climate_obj->make_call();
-              if (mode_str == "SANITARY_ONLY") {
-                  call.set_mode(climate::CLIMATE_MODE_OFF);
-              } else if (mode_str == "COOL") {
-                  call.set_mode(supports_cooling ? climate::CLIMATE_MODE_COOL : climate::CLIMATE_MODE_OFF);
-              } else {
-                  call.set_mode(climate::CLIMATE_MODE_HEAT);
-              }
-              call.perform();
-          };
-
-          set_mode(id(pid_radiant_soggiorno), true);
-          set_mode(id(pid_radiant_cucina), true);
-          set_mode(id(pid_radiant_bagno_terra), false);
-          set_mode(id(pid_radiant_anticamera), true);
-          set_mode(id(pid_radiant_bagno_grande), false);
-          set_mode(id(pid_radiant_bagno_ospiti), false);
-          set_mode(id(pid_radiant_bagno_padronale), false);
-          set_mode(id(pid_radiant_camera_nord), true);
-          set_mode(id(pid_radiant_camera_sud), true);
-          set_mode(id(pid_radiant_camera_ospiti), true);
-          set_mode(id(pid_radiant_camera_padronale), true);
-          set_mode(id(pid_radiant_lavanderia), false);
-          set_mode(id(pid_fancoil_soggiorno), true);
-          set_mode(id(pid_fancoil_cucina), true);
-          set_mode(id(pid_fancoil_locale_tecnico), true);
-          set_mode(id(pid_fancoil_sottotetto), true);

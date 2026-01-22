@@ -6,5 +6,18 @@ climate:
   - id: !extend pid_radiant_${room_slug}
     cool_output: radiant_output_${room_slug}
 
-# Summer mode handling is now centralized in components/seasonal_mode.yaml
-# and the device-level apply_hp_mode_to_all_pids script.
+# Seasonal mode handler: automatically switch PID mode based on global hp_mode
+select:
+  - id: !extend hp_mode
+    on_value:
+      then:
+        - lambda: |-
+            auto call = id(pid_radiant_${room_slug}).make_call();
+            if (x == "COOL") {
+              call.set_mode(climate::CLIMATE_MODE_COOL);
+            } else if (x == "HEAT") {
+              call.set_mode(climate::CLIMATE_MODE_HEAT);
+            } else {
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+            }
+            call.perform();

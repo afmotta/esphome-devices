@@ -5,24 +5,22 @@
 # Tier 3: Demand-Driven Transitions (Shoulder Seasons) - PID heat/cool requests
 
 select:
-  - name: "Heat Pump Mode"
+  - platform: template
+    name: "Heat Pump Mode"
     id: hp_mode
     options:
       - "HEAT"
       - "COOL"
       - "SANITARY_ONLY"
     icon: mdi:heat-pump
-    initial_value: "SANITARY_ONLY"
+    optimistic: true
     restore_value: true
-    on_value:
-      then:
-        - script.execute: apply_hp_mode_to_all_pids
 
 text_sensor:
-  - name: "Heat Pump Mode Reason"
+  - platform: template
+    name: "Heat Pump Mode Reason"
     id: hp_mode_reason
     icon: mdi:information-outline
-    initial_value: "INITIALIZING"
 
 binary_sensor:
   # Compatibility sensor for existing components
@@ -31,7 +29,7 @@ binary_sensor:
     name: "Summer Mode"
     internal: true
     lambda: |-
-      return id(hp_mode).state == "COOL";
+      return id(hp_mode).current_option() == "COOL";
 
   # Global demand sensors - implementation provided in device file
   - platform: template
@@ -45,13 +43,6 @@ binary_sensor:
     device_class: cold
 
 script:
-  - id: apply_hp_mode_to_all_pids
-    mode: restart
-    then:
-      - lambda: |-
-          ESP_LOGI("seasonal_mode", "Applying Heat Pump Mode: %s", id(hp_mode).state.c_str());
-          // PID mode changes are handled in the device file via script extension
-
   - id: check_calendar_gates
     then:
       - lambda: |-
@@ -59,21 +50,25 @@ script:
           if (!time.is_valid()) return;
           int m = time.month;
           int d = time.day_of_month;
-          
+
           // Winter Lock: Oct 15 - Apr 15
           bool in_winter = (m == 10 && d >= 15) || m > 10 || m < 4 || (m == 4 && d < 15);
           // Summer Lock: Jun 1 - Aug 31
           bool in_summer = (m >= 6 && m <= 8);
-          
+
           if (in_winter) {
-             if (id(hp_mode).state != "HEAT") {
-                id(hp_mode).make_selection("HEAT");
+             if (id(hp_mode).current_option() != "HEAT") {
+                auto call = id(hp_mode).make_call();
+                call.set_option("HEAT");
+                call.perform();
                 id(hp_mode_reason).publish_state("CALENDAR_LOCK");
                 ESP_LOGI("seasonal_mode", "Winter Lock: HEAT");
              }
           } else if (in_summer) {
-             if (id(hp_mode).state != "COOL") {
-                id(hp_mode).make_selection("COOL");
+             if (id(hp_mode).current_option() != "COOL") {
+                auto call = id(hp_mode).make_call();
+                call.set_option("COOL");
+                call.perform();
                 id(hp_mode_reason).publish_state("CALENDAR_LOCK");
                 ESP_LOGI("seasonal_mode", "Summer Lock: COOL");
              }
@@ -81,8 +76,10 @@ script:
              // Shoulder Transition entry points (reset to SANITARY_ONLY once at the start)
              if ((m == 4 && d == 15 && time.hour == 0 && time.minute == 0) || 
                  (m == 9 && d == 1 && time.hour == 0 && time.minute == 0)) {
-                if (id(hp_mode).state != "SANITARY_ONLY") {
-                   id(hp_mode).make_selection("SANITARY_ONLY");
+                if (id(hp_mode).current_option() != "SANITARY_ONLY") {
+                   auto call = id(hp_mode).make_call();
+                   call.set_option("SANITARY_ONLY");
+                   call.perform();
                    id(hp_mode_reason).publish_state("CALENDAR_LOCK");
                 }
              }
@@ -95,17 +92,21 @@ script:
           if (!time.is_valid()) return;
           int m = time.month;
           int d = time.day_of_month;
-          
+
           // Shoulder periods: Apr 15 - May 31, Sep 1 - Oct 14
           bool is_shoulder = (m == 4 && d >= 15) || (m == 5) || (m == 9) || (m == 10 && d < 15);
-          
+
           if (is_shoulder) {
-            if (id(any_pid_requesting_heat).state && id(hp_mode).state != "HEAT") {
-              id(hp_mode).make_selection("HEAT");
+            if (id(any_pid_requesting_heat).state && id(hp_mode).current_option() != "HEAT") {
+              auto call = id(hp_mode).make_call();
+              call.set_option("HEAT");
+              call.perform();
               id(hp_mode_reason).publish_state("DEMAND");
               ESP_LOGI("seasonal_mode", "Demand Transition: HEAT");
-            } else if (id(any_pid_requesting_cool).state && id(hp_mode).state != "COOL") {
-              id(hp_mode).make_selection("COOL");
+            } else if (id(any_pid_requesting_cool).state && id(hp_mode).current_option() != "COOL") {
+              auto call = id(hp_mode).make_call();
+              call.set_option("COOL");
+              call.perform();
               id(hp_mode_reason).publish_state("DEMAND");
               ESP_LOGI("seasonal_mode", "Demand Transition: COOL");
             }
