@@ -237,6 +237,211 @@
 
 ---
 
+## Story 17.6: Weather Forecast Integration (Phase 2)
+
+### Home Assistant Configuration Setup
+- [ ] Copy configuration from `docs/epic-17-ha-weather-config.yaml`
+- [ ] Add input_number section to configuration.yaml (or packages)
+- [ ] Add template sensors section to configuration.yaml (or templates)
+- [ ] Replace `weather.home` with your actual weather entity ID
+- [ ] Restart Home Assistant
+- [ ] Verify no configuration errors
+
+### Input Number Entities
+- [ ] `input_number.hp_cooling_threshold` visible in HA
+- [ ] Default value: 26°C
+- [ ] Slider range: 20-35°C with 0.5°C steps
+- [ ] `input_number.hp_heating_threshold` visible in HA
+- [ ] Default value: 14°C
+- [ ] Slider range: 5-20°C with 0.5°C steps
+- [ ] Both sliders adjustable via UI
+
+### Forecast Guidance Sensor
+- [ ] `sensor.hp_forecast_guidance` visible in HA
+- [ ] Shows one of: HEAT, COOL, or SANITARY_ONLY
+- [ ] Updates when thresholds are adjusted
+- [ ] Updates when weather forecast changes
+
+### Forecast High Temperature Sensor
+- [ ] `sensor.hp_forecast_high_temperature` visible in HA
+- [ ] Shows forecast high in °C
+- [ ] Updates with weather integration updates
+
+### Forecast Logic Verification
+
+**Test Scenario 1: Hot Day Forecast**
+1. [ ] Set forecast high to 28°C (above cooling threshold)
+2. [ ] Verify `sensor.hp_forecast_guidance` = "COOL"
+3. [ ] Adjust cooling threshold to 30°C
+4. [ ] Verify guidance changes to "SANITARY_ONLY"
+
+**Test Scenario 2: Cold Day Forecast**
+1. [ ] Set forecast high to 12°C (below heating threshold)
+2. [ ] Verify `sensor.hp_forecast_guidance` = "HEAT"
+3. [ ] Adjust heating threshold to 10°C
+4. [ ] Verify guidance changes to "SANITARY_ONLY"
+
+**Test Scenario 3: Dead Band**
+1. [ ] Set forecast high to 20°C (between thresholds)
+2. [ ] Verify `sensor.hp_forecast_guidance` = "SANITARY_ONLY"
+
+### Dashboard Display
+- [ ] Navigate to "Seasonal Mode" dashboard tab
+- [ ] Verify "Weather Forecast Guidance" section visible
+- [ ] Forecast guidance sensor displays correctly
+- [ ] Forecast high temperature sensor displays correctly
+- [ ] Cooling threshold slider visible and functional
+- [ ] Heating threshold slider visible and functional
+- [ ] Gauge displays forecast high with color coding
+- [ ] Forecast thresholds documentation visible
+
+### Tier 2 vs Tier 3 Priority (Critical Test)
+
+**Test: PID Demand Overrides Forecast**
+**Test Period:** Shoulder season only (Apr 16-May 31 or Sep 1-Oct 14)
+
+1. [ ] Set forecast to suggest COOL (forecast high = 28°C)
+2. [ ] Verify `sensor.hp_forecast_guidance` = "COOL"
+3. [ ] Trigger heating demand via PID (raise setpoint)
+4. [ ] Verify mode changes to HEAT (not COOL)
+5. [ ] Verify reason = "DEMAND" (not following forecast)
+6. [ ] Confirm PID demand (Tier 3) overrides forecast (Tier 2)
+
+**Test: Forecast is Informational Only**
+1. [ ] During shoulder season, forecast suggests HEAT
+2. [ ] No PID demand active
+3. [ ] Verify mode does NOT automatically change to HEAT
+4. [ ] Forecast guidance is purely informational
+
+### Shoulder Season Detection
+- [ ] Verify `sensor.hp_forecast_guidance` attribute `is_shoulder_season` = true during Apr 16-May 31
+- [ ] Verify `is_shoulder_season` = true during Sep 1-Oct 14
+- [ ] Verify `is_shoulder_season` = false during Winter Lock
+- [ ] Verify `is_shoulder_season` = false during Summer Lock
+
+### Sensor Attributes
+- [ ] `forecast_high` attribute shows temperature value
+- [ ] `cooling_threshold` attribute matches input_number value
+- [ ] `heating_threshold` attribute matches input_number value
+- [ ] `dead_band_range` attribute shows range (e.g., "14 - 26°C")
+- [ ] `guidance_active` attribute indicates if shoulder season
+
+### Integration with Existing System
+- [ ] Forecast guidance does not interfere with calendar gates
+- [ ] Forecast guidance does not interfere with PID demand transitions
+- [ ] Manual mode override still works as expected
+- [ ] Dashboard remains responsive with new sensors
+
+---
+
+## Story 17.7: Override Detection & Logging (Phase 2)
+
+### Home Assistant Configuration Setup
+- [ ] Copy configuration from `docs/epic-17-ha-override-detection-config.yaml`
+- [ ] Add template binary_sensor section to configuration.yaml (or templates)
+- [ ] Requires Story 17.6 weather forecast configuration already installed
+- [ ] Restart Home Assistant
+- [ ] Verify no configuration errors
+
+### Override Detection Binary Sensor
+- [ ] `binary_sensor.hp_mode_override_active` visible in HA
+- [ ] Sensor has device_class: problem
+- [ ] Sensor icon: mdi:alert-circle
+- [ ] Sensor state updates when conditions change
+
+### Override Detection Logic
+
+**Test Scenario 1: Heating Override (Normal Behavior)**
+**Test Period:** Shoulder season only
+
+1. [ ] Set forecast to suggest COOL (forecast high = 28°C)
+2. [ ] Verify `sensor.hp_forecast_guidance` = "COOL"
+3. [ ] Trigger heating demand via PID (raise setpoint)
+4. [ ] Verify mode changes to HEAT with reason = "DEMAND"
+5. [ ] Verify `binary_sensor.hp_mode_override_active` = ON
+6. [ ] Check attribute `override_type` = "Heating despite cooling forecast"
+7. [ ] Check attribute `explanation` describes this is normal behavior
+
+**Test Scenario 2: Cooling Override (Normal Behavior)**
+**Test Period:** Shoulder season only
+
+1. [ ] Set forecast to suggest HEAT (forecast high = 12°C)
+2. [ ] Verify `sensor.hp_forecast_guidance` = "HEAT"
+3. [ ] Trigger cooling demand via PID (lower setpoint)
+4. [ ] Verify mode changes to COOL with reason = "DEMAND"
+5. [ ] Verify `binary_sensor.hp_mode_override_active` = ON
+6. [ ] Check attribute `override_type` = "Cooling despite heating forecast"
+
+**Test Scenario 3: No Override (Mode Matches Forecast)**
+1. [ ] Set forecast to suggest COOL (forecast high = 28°C)
+2. [ ] Trigger cooling demand via PID
+3. [ ] Verify mode = COOL with reason = "DEMAND"
+4. [ ] Verify `binary_sensor.hp_mode_override_active` = OFF
+5. [ ] Mode matches forecast guidance, no override
+
+**Test Scenario 4: Calendar Lock (No Override Detection)**
+1. [ ] During Winter Lock (Oct 15 - Apr 15)
+2. [ ] Mode = HEAT with reason = "CALENDAR_LOCK"
+3. [ ] Forecast suggests COOL
+4. [ ] Verify `binary_sensor.hp_mode_override_active` = OFF
+5. [ ] Override detection only applies to DEMAND, not CALENDAR_LOCK
+
+**Test Scenario 5: Manual Override (No Override Detection)**
+1. [ ] During shoulder season
+2. [ ] Manually set mode = HEAT
+3. [ ] Reason = "MANUAL"
+4. [ ] Forecast suggests COOL
+5. [ ] Verify `binary_sensor.hp_mode_override_active` = OFF
+6. [ ] Override detection only applies to DEMAND, not MANUAL
+
+### Sensor Attributes Verification
+- [ ] `current_mode` attribute shows current heat pump mode
+- [ ] `forecast_guidance` attribute shows forecast suggestion
+- [ ] `mode_reason` attribute shows DEMAND/CALENDAR_LOCK/MANUAL
+- [ ] `override_type` attribute describes the conflict
+- [ ] `forecast_high` attribute shows temperature
+- [ ] `season` attribute shows current season
+- [ ] `pid_heat_demand` attribute shows heating demand state
+- [ ] `pid_cool_demand` attribute shows cooling demand state
+- [ ] `explanation` attribute provides human-readable text
+
+### Dashboard Display
+- [ ] Navigate to "Seasonal Mode" dashboard tab
+- [ ] Verify "Override Detection & Diagnostics" section visible
+- [ ] Override Active entity displays correctly
+- [ ] Conditional card appears when override is active
+- [ ] All attribute values display in conditional card
+- [ ] Documentation explains override is normal behavior
+
+### Override History Graph
+- [ ] Override Detection History graph displays correctly
+- [ ] Shows `binary_sensor.hp_mode_override_active` over 24 hours
+- [ ] Shows `sensor.hp_forecast_guidance` for correlation
+- [ ] Graph updates as override state changes
+
+### Understanding Normal Override Behavior
+**Important:** Override detection turning ON is NORMAL, not an error
+
+- [ ] Understand that high override frequency is expected
+- [ ] Confirm PIDs know actual room needs better than forecast
+- [ ] Verify Tier 3 (Demand) is designed to override Tier 2 (Forecast)
+- [ ] Override is the system working correctly, not a problem
+
+### Use Cases Validation
+- [ ] Diagnostic: Can identify when and why demand overrides forecast
+- [ ] Analytics: Can track override frequency over time
+- [ ] Tuning: Can use data to adjust forecast thresholds if needed
+- [ ] Debugging: Can confirm Tier 3 > Tier 2 priority works correctly
+
+### Integration with Existing System
+- [ ] Override detection does not interfere with mode transitions
+- [ ] Override detection does not interfere with PID demand
+- [ ] Override detection does not interfere with calendar gates
+- [ ] Override detection is purely informational (no automation)
+- [ ] Dashboard remains responsive with new sensor
+
+---
+
 ## Edge Cases & Stress Tests
 
 ### Rapid Mode Changes
@@ -318,26 +523,24 @@ When system is working correctly, you should see:
 - [ ] **Calendar lock compliance:** 100% (correct mode during core seasons)
 - [ ] **System availability:** 100% (no automation failures)
 
-### MVP Completion Checklist
-- [ ] Story 17.1: HP Mode State Management ✅
-- [ ] Story 17.2: Calendar Gate Logic ✅
-- [ ] Story 17.3: PID Demand Aggregation ✅
-- [ ] Story 17.4: Demand-Driven Transitions ✅
-- [ ] Story 17.5: Dashboard & Diagnostics ✅
+### Epic 17 Completion Checklist
 
----
+**MVP Stories (Phase 1):**
+- [x] Story 17.1: HP Mode State Management ✅
+- [x] Story 17.2: Calendar Gate Logic ✅
+- [x] Story 17.3: PID Demand Aggregation ✅
+- [x] Story 17.4: Demand-Driven Transitions ✅
+- [x] Story 17.5: Dashboard & Diagnostics ✅
 
-## Known Limitations (Phase 2 Features Not Yet Implemented)
-
-- [ ] Weather forecast integration (Story 17.6)
-- [ ] Override detection & logging (Story 17.7)
-
-These features are planned for Phase 2 and will add weather intelligence to shoulder season mode selection.
+**Phase 2 Stories:**
+- [x] Story 17.6: Weather Forecast Integration ✅ (January 22, 2026)
+- [x] Story 17.7: Override Detection & Logging ✅ (January 22, 2026)
 
 ---
 
 ## Sign-off
 
+### MVP Testing (Stories 17.1-17.5)
 - [ ] All calendar gates tested at boundary dates
 - [ ] All PID demand aggregation scenarios tested
 - [ ] All demand-driven transitions tested
@@ -348,6 +551,34 @@ These features are planned for Phase 2 and will add weather intelligence to shou
 - [ ] No regressions in existing functionality
 - [ ] ESPHome logs show correct seasonal mode messages
 
+### Phase 2 Testing (Story 17.6 - Weather Forecast)
+- [ ] Home Assistant weather configuration installed
+- [ ] Forecast guidance sensors visible in HA
+- [ ] Configurable threshold input numbers functional
+- [ ] Dashboard displays forecast guidance
+- [ ] Forecast logic verified (HEAT/COOL/SANITARY_ONLY thresholds)
+- [ ] PID demand confirmed to override forecast (Tier 3 > Tier 2)
+- [ ] Forecast guidance confirmed as informational only
+- [ ] Shoulder season detection working correctly
+
+### Phase 2 Testing (Story 17.7 - Override Detection)
+- [ ] Home Assistant override detection configuration installed
+- [ ] Override detection binary sensor visible in HA
+- [ ] Override sensor detects heating despite cooling forecast
+- [ ] Override sensor detects cooling despite heating forecast
+- [ ] Override sensor OFF when mode matches forecast
+- [ ] Override sensor OFF during calendar lock (CALENDAR_LOCK reason)
+- [ ] Override sensor OFF during manual override (MANUAL reason)
+- [ ] All sensor attributes provide correct diagnostic information
+- [ ] Dashboard displays override status and details
+- [ ] Override history graph tracks frequency over time
+- [ ] Confirmed override is normal behavior, not an error
+
 **Tested by:** ________________
 **Date:** ________________
-**Epic 17 MVP Status:** COMPLETE ✅
+
+**Implementation Status:**
+- **Epic 17 MVP (Stories 17.1-17.5):** COMPLETE ✅
+- **Phase 2 Story 17.6:** COMPLETE ✅
+- **Phase 2 Story 17.7:** COMPLETE ✅
+- **Overall Epic 17:** 100% COMPLETE (13/13 story points) 🎉

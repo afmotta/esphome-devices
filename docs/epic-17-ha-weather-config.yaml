@@ -1,0 +1,148 @@
+# Epic 17 Story 17.6: Weather Forecast Integration
+# Phase 2 - Home Assistant Configuration
+#
+# PURPOSE: Adds weather intelligence to seasonal mode selection during shoulder seasons
+# TIER 2: Provides forecast guidance that can be overridden by PID demand (Tier 3)
+#
+# INSTALLATION:
+# 1. Copy the input_number section to configuration.yaml or split into packages
+# 2. Copy the template section to configuration.yaml or templates folder
+# 3. Ensure you have a working weather integration (e.g., Met.no, OpenWeatherMap)
+# 4. Replace 'weather.home' with your actual weather entity ID
+# 5. Restart Home Assistant
+#
+# REQUIREMENTS:
+# - Home Assistant 2024.1 or later
+# - Working weather integration with forecast support
+# - ESPHome seasonal_mode.yaml (Stories 17.1-17.5) already deployed
+#
+# VERSION: 1.0
+# DATE: January 22, 2026
+
+# ==============================================================================
+# INPUT NUMBERS - Configurable Temperature Thresholds
+# ==============================================================================
+# These thresholds determine when forecast guidance suggests cooling or heating
+# Tuned for Milan climate but can be adjusted for your location
+
+input_number:
+  # Cooling Threshold: When forecast high reaches this temp, suggest COOL mode
+  hp_cooling_threshold:
+    name: "HP Cooling Threshold"
+    min: 20
+    max: 35
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-high
+    initial: 26
+    mode: slider
+
+  # Heating Threshold: When forecast high drops below this, suggest HEAT mode
+  hp_heating_threshold:
+    name: "HP Heating Threshold"
+    min: 5
+    max: 20
+    step: 0.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-low
+    initial: 14
+    mode: slider
+
+# ==============================================================================
+# TEMPLATE SENSORS - Forecast Guidance
+# ==============================================================================
+# Creates a sensor that shows what mode the weather forecast suggests
+# This is GUIDANCE ONLY - PID demand always wins (Tier 3 > Tier 2)
+
+template:
+  - sensor:
+      # Main forecast guidance sensor
+      - name: "HP Forecast Guidance"
+        unique_id: hp_forecast_guidance
+        icon: mdi:weather-partly-cloudy
+        state: >
+          {# Get 24h forecast high temperature #}
+          {% set forecast_high = state_attr('weather.home', 'forecast')[0].temperature | float(20) %}
+
+          {# Get configurable thresholds #}
+          {% set cool_thresh = states('input_number.hp_cooling_threshold') | float(26) %}
+          {% set heat_thresh = states('input_number.hp_heating_threshold') | float(14) %}
+
+          {# Determine guidance based on thresholds #}
+          {% if forecast_high >= cool_thresh %}
+            COOL
+          {% elif forecast_high <= heat_thresh %}
+            HEAT
+          {% else %}
+            SANITARY_ONLY
+          {% endif %}
+        attributes:
+          forecast_high: >
+            {{ state_attr('weather.home', 'forecast')[0].temperature | float(20) }}
+          cooling_threshold: >
+            {{ states('input_number.hp_cooling_threshold') | float(26) }}
+          heating_threshold: >
+            {{ states('input_number.hp_heating_threshold') | float(14) }}
+          dead_band_range: >
+            {{ states('input_number.hp_heating_threshold') | float(14) }} - {{ states('input_number.hp_cooling_threshold') | float(26) }}°C
+          is_shoulder_season: >
+            {# Check if currently in shoulder season #}
+            {% set m = now().month %}
+            {% set d = now().day %}
+            {% set is_spring = (m == 4 and d >= 15) or (m == 5) %}
+            {% set is_autumn = (m == 9) or (m == 10 and d < 15) %}
+            {{ is_spring or is_autumn }}
+          guidance_active: >
+            {# Guidance only applies during shoulder seasons #}
+            {% set m = now().month %}
+            {% set d = now().day %}
+            {% set is_spring = (m == 4 and d >= 15) or (m == 5) %}
+            {% set is_autumn = (m == 9) or (m == 10 and d < 15) %}
+            {{ is_spring or is_autumn }}
+
+      # Helper sensor: Forecast high temperature (easier to display)
+      - name: "HP Forecast High Temperature"
+        unique_id: hp_forecast_high_temp
+        icon: mdi:thermometer
+        unit_of_measurement: "°C"
+        state: >
+          {{ state_attr('weather.home', 'forecast')[0].temperature | float(20) }}
+        attributes:
+          forecast_date: >
+            {{ state_attr('weather.home', 'forecast')[0].datetime }}
+
+# ==============================================================================
+# USAGE NOTES
+# ==============================================================================
+#
+# Weather Entity Configuration:
+# - Replace 'weather.home' with your actual weather entity
+# - Common weather platforms: Met.no, OpenWeatherMap, AccuWeather, etc.
+# - Ensure forecast attribute is available (most integrations provide this)
+#
+# Threshold Tuning:
+# - Default cooling threshold: 26°C (Milan climate)
+# - Default heating threshold: 14°C (Milan climate)
+# - Dead band: 15-25°C → suggests SANITARY_ONLY mode
+# - Adjust based on your climate and preferences
+#
+# Forecast Guidance Logic:
+# - COOL: Forecast high ≥ 26°C → Cooling likely needed
+# - HEAT: Forecast high ≤ 14°C → Heating likely needed
+# - SANITARY_ONLY: Forecast high 15-25°C → Dead band (let system coast)
+#
+# Demand Override (Tier 3):
+# - PID demand ALWAYS overrides forecast guidance
+# - If any PID requests heating → System goes to HEAT (regardless of forecast)
+# - If any PID requests cooling → System goes to COOL (regardless of forecast)
+# - Forecast guidance is purely informational for shoulder seasons
+#
+# Shoulder Season Only:
+# - Guidance is only relevant during shoulder seasons (Apr 16-May 31, Sep 1-Oct 14)
+# - During Winter Lock (Oct 15-Apr 15): Mode forced to HEAT by calendar gate
+# - During Summer Lock (Jun 1-Aug 31): Mode forced to COOL by calendar gate
+#
+# Related Documentation:
+# - docs/epic-17-brief.md: Full specification
+# - docs/ha-dashboard-config.yaml: Dashboard configuration
+# - components/seasonal_mode.yaml: ESPHome implementation
