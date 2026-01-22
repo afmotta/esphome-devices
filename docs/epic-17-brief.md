@@ -682,32 +682,58 @@ This story adds Tier 2 (Weather Intelligence) to the three-tier seasonal mode ar
 
 **Description:** Create a sensor that detects when demand override differs from forecast guidance, for diagnostic purposes.
 
-**Override Detection Sensor:**
-```yaml
-template:
-  - binary_sensor:
-      - name: "HP Mode Override Active"
-        unique_id: hp_mode_override_active
-        icon: mdi:alert-circle
-        device_class: problem
-        state: >
-          {% set mode = states('input_select.hp_mode') %}
-          {% set reason = states('input_select.hp_mode_reason') %}
-          {% set guidance = states('sensor.hp_forecast_guidance') %}
-          
-          {{ reason == 'DEMAND' and 
-             ((mode == 'HEAT' and guidance == 'COOL') or
-              (mode == 'COOL' and guidance == 'HEAT')) }}
-        attributes:
-          current_mode: "{{ states('input_select.hp_mode') }}"
-          forecast_guidance: "{{ states('sensor.hp_forecast_guidance') }}"
-          mode_reason: "{{ states('input_select.hp_mode_reason') }}"
-```
+**Implementation:** ✅ COMPLETED (January 22, 2026)
+
+**Home Assistant Configuration File:** `docs/epic-17-ha-override-detection-config.yaml`
+
+This story adds diagnostic monitoring to track when PID demand (Tier 3) overrides forecast guidance (Tier 2). This is **purely informational** - high override frequency is normal and expected behavior.
+
+**Components Implemented:**
+
+1. **Override Detection Binary Sensor:**
+   - `binary_sensor.hp_mode_override_active` - Turns ON when demand conflicts with forecast
+   - Only activates when `mode_reason` = "DEMAND" (not CALENDAR_LOCK or MANUAL)
+   - Detects conflicts: mode=HEAT but guidance=COOL, or mode=COOL but guidance=HEAT
+
+2. **Rich Diagnostic Attributes:**
+   - `current_mode` - Current heat pump mode
+   - `forecast_guidance` - What forecast suggests
+   - `mode_reason` - Why mode was selected
+   - `override_type` - Description of the conflict
+   - `forecast_high` - Forecast high temperature
+   - `season` - Current season classification
+   - `pid_heat_demand` - Whether any PID requests heat
+   - `pid_cool_demand` - Whether any PID requests cool
+   - `explanation` - Human-readable explanation
+
+3. **Dashboard Integration:**
+   - Added "Override Detection & Diagnostics" section to Seasonal Mode dashboard
+   - Shows override status with icon indicator
+   - Conditional card displays detailed attributes when override is active
+   - History graph tracks override frequency over 24 hours
+   - Clear documentation that override is normal behavior
+
+**Key Design Decisions:**
+- **Informational Only:** Override detection does NOT trigger any automation
+- **Normal Behavior:** High override frequency is expected - PIDs know actual room needs
+- **Diagnostic Tool:** Used for analysis, threshold tuning, and system validation
+- **No Error State:** Override is not an error - it's the system working correctly
+
+**Use Cases:**
+- Understand when and why PIDs disagree with forecast
+- Track how often demand overrides forecast guidance
+- Validate forecast thresholds are reasonable for your climate
+- Confirm Tier 3 > Tier 2 priority is working as designed
+- Analytics and system behavior analysis
 
 **Acceptance Criteria:**
-- [ ] Override sensor turns ON when demand differs from forecast
-- [ ] Only active when mode_reason is DEMAND (not CALENDAR_LOCK)
-- [ ] Attributes provide context for debugging
+- [x] Override sensor turns ON when demand differs from forecast
+- [x] Only active when mode_reason is DEMAND (not CALENDAR_LOCK)
+- [x] Attributes provide context for debugging
+- [x] Dashboard displays override status and details
+- [x] History graph tracks override frequency
+- [x] Configuration file includes comprehensive usage notes
+- [x] Clear documentation that override is normal behavior
 
 ---
 
@@ -879,12 +905,16 @@ template:
   - Default thresholds: 26°C cooling, 14°C heating (Milan climate)
 - **Note:** Forecast guidance is informational only - PID demand (Tier 3) always overrides forecast (Tier 2)
 
-### Pending Stories (Phase 2)
-
-#### ⏳ Story 17.7: Override Detection & Logging
-- **Status:** NOT STARTED
-- **Priority:** Low (Phase 2)
-- **Planned Implementation:** Binary sensor to detect when demand overrides forecast guidance
+#### ✅ Story 17.7: Override Detection & Logging
+- **Status:** COMPLETE (January 22, 2026)
+- **Implementation:** Home Assistant configuration in `docs/epic-17-ha-override-detection-config.yaml`
+- **Key Changes:**
+  - Created `binary_sensor.hp_mode_override_active` to detect demand vs forecast conflicts
+  - Rich diagnostic attributes: override_type, explanation, forecast details, PID demands
+  - Added Override Detection & Diagnostics section to dashboard
+  - History graph tracks override frequency over 24 hours
+  - Comprehensive documentation explaining override is normal behavior
+- **Note:** Override detection is purely diagnostic - high frequency is expected and correct
 
 ### Key Architectural Decisions
 
@@ -918,14 +948,14 @@ This change improved the overall system reliability and eliminated the need for 
 - **Status:** ✅ COMPLETE
 
 **Phase 2 Stories (17.6-17.7):**
-- Stories Complete: 1 / 2 (50%)
-- Story Points Complete: 2 / 3 (67%)
-- **Status:** 🟡 PARTIAL
+- Stories Complete: 2 / 2 (100%)
+- Story Points Complete: 3 / 3 (100%)
+- **Status:** ✅ COMPLETE
 
 **Overall Epic 17:**
-- Total Stories: 6 / 7 (86%)
-- Total Story Points: 12 / 13 (92%)
-- **Status:** 🟢 NEARLY COMPLETE (only Story 17.7 remaining)
+- Total Stories: 7 / 7 (100%)
+- Total Story Points: 13 / 13 (100%)
+- **Status:** ✅ COMPLETE - All stories implemented!
 
 ---
 

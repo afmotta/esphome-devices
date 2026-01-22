@@ -512,6 +512,68 @@ views:
               Guidance only applies during shoulder seasons.
 
       # ============================================================================
+      # OVERRIDE DETECTION (Phase 2 - Story 17.7)
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Override Detection & Diagnostics (Phase 2)
+              Detects when PID demand overrides forecast guidance.
+              **Note:** Override is NORMAL behavior - PIDs know actual room needs.
+
+          - type: entities
+            title: Override Status
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.hp_mode_override_active
+                name: "Override Active"
+                icon: mdi:alert-circle
+
+          - type: conditional
+            conditions:
+              - entity: binary_sensor.hp_mode_override_active
+                state: "on"
+            card:
+              type: entities
+              title: Override Details
+              show_header_toggle: false
+              entities:
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: override_type
+                  name: "Override Type"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: current_mode
+                  name: "Current Mode"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: forecast_guidance
+                  name: "Forecast Guidance"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: forecast_high
+                  name: "Forecast High"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: explanation
+                  name: "Explanation"
+
+          - type: markdown
+            content: |
+              **Override Detection Logic:**
+              - ON: PID demand differs from forecast guidance
+              - OFF: Mode matches guidance OR not demand-driven
+
+              **This is NORMAL:** PIDs know actual room conditions better than forecast.
+              High override frequency is expected and correct behavior.
+
+      # ============================================================================
       # CALENDAR GATES
       # ============================================================================
       - type: markdown
@@ -546,6 +608,14 @@ views:
         entities:
           - entity: binary_sensor.climate_control_any_pid_requesting_heat
           - entity: binary_sensor.climate_control_any_pid_requesting_cool
+        hours_to_show: 24
+        refresh_interval: 60
+
+      - type: history-graph
+        title: Override Detection History (24 Hours)
+        entities:
+          - entity: binary_sensor.hp_mode_override_active
+          - entity: sensor.hp_forecast_guidance
         hours_to_show: 24
         refresh_interval: 60
 
