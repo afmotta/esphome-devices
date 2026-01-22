@@ -623,61 +623,58 @@ Copy the "Seasonal Mode" view from `docs/ha-dashboard-config.yaml` into your Hom
 
 **Description:** Add weather forecast guidance to show what the forecast suggests during shoulder seasons.
 
-**Required Input Numbers:**
-```yaml
-input_number:
-  hp_cooling_threshold:
-    name: "HP Cooling Threshold"
-    min: 20
-    max: 35
-    step: 1
-    unit_of_measurement: "°C"
-    icon: mdi:thermometer-high
-    initial: 26
+**Implementation:** ✅ COMPLETED (January 22, 2026)
 
-  hp_heating_threshold:
-    name: "HP Heating Threshold"
-    min: 5
-    max: 20
-    step: 1
-    unit_of_measurement: "°C"
-    icon: mdi:thermometer-low
-    initial: 14
-```
+**Home Assistant Configuration File:** `docs/epic-17-ha-weather-config.yaml`
 
-**Forecast Guidance Sensor:**
-```yaml
-template:
-  - sensor:
-      - name: "HP Forecast Guidance"
-        unique_id: hp_forecast_guidance
-        icon: mdi:weather-partly-cloudy
-        state: >
-          {% set forecast_high = state_attr('weather.home', 'forecast')[0].temperature | float(20) %}
-          {% set cool_thresh = states('input_number.hp_cooling_threshold') | float(26) %}
-          {% set heat_thresh = states('input_number.hp_heating_threshold') | float(14) %}
-          
-          {% if forecast_high >= cool_thresh %}
-            COOL
-          {% elif forecast_high <= heat_thresh %}
-            HEAT
-          {% else %}
-            NEUTRAL
-          {% endif %}
-        attributes:
-          forecast_high: >
-            {{ state_attr('weather.home', 'forecast')[0].temperature | float(20) }}
-          cooling_threshold: >
-            {{ states('input_number.hp_cooling_threshold') | float(26) }}
-          heating_threshold: >
-            {{ states('input_number.hp_heating_threshold') | float(14) }}
-```
+This story adds Tier 2 (Weather Intelligence) to the three-tier seasonal mode architecture. The forecast guidance is **informational only** - PID demand (Tier 3) always wins.
+
+**Components Implemented:**
+
+1. **Configurable Threshold Input Numbers:**
+   - `input_number.hp_cooling_threshold` (default: 26°C) - When forecast reaches this, suggests COOL
+   - `input_number.hp_heating_threshold` (default: 14°C) - When forecast drops below this, suggests HEAT
+   - Both adjustable via sliders (0.5°C steps)
+
+2. **Forecast Guidance Sensors:**
+   - `sensor.hp_forecast_guidance` - Shows HEAT/COOL/SANITARY_ONLY based on 24h forecast high
+   - `sensor.hp_forecast_high_temperature` - Helper sensor displaying forecast high temp
+   - Includes attributes: forecast_high, thresholds, dead_band_range, is_shoulder_season, guidance_active
+
+3. **Forecast Logic:**
+   - Forecast high ≥26°C → Suggests COOL mode
+   - Forecast high ≤14°C → Suggests HEAT mode
+   - Forecast high 15-25°C → Suggests SANITARY_ONLY (dead band)
+   - Only applies during shoulder seasons (Apr 16-May 31, Sep 1-Oct 14)
+
+4. **Dashboard Integration:**
+   - Added "Weather Forecast Guidance" section to Seasonal Mode dashboard
+   - Displays forecast guidance, forecast high, and configurable thresholds
+   - Gauge showing forecast high with color-coded severity
+   - Clear documentation that PID demand overrides forecast
+
+**Installation:**
+1. Copy configuration from `docs/epic-17-ha-weather-config.yaml` to Home Assistant
+2. Replace `weather.home` with your actual weather entity ID
+3. Restart Home Assistant
+4. Configure thresholds via Lovelace or Developer Tools
+5. Dashboard automatically shows forecast guidance
+
+**Key Design Decisions:**
+- **Guidance Only:** Forecast does NOT automatically change mode - it's purely informational
+- **PID Override:** Demand (Tier 3) always wins over forecast (Tier 2)
+- **Shoulder Season Only:** Guidance only relevant when calendar gates aren't active
+- **Dead Band:** 15-25°C range suggests SANITARY_ONLY to avoid mode churn
+- **Milan Climate:** Default thresholds tuned for Milan but fully configurable
 
 **Acceptance Criteria:**
-- [ ] Forecast guidance sensor created
-- [ ] Shows HEAT/COOL/NEUTRAL based on 24h forecast
-- [ ] Thresholds configurable via input_number
-- [ ] Attributes expose raw values for debugging
+- [x] Forecast guidance sensor created
+- [x] Shows HEAT/COOL/SANITARY_ONLY based on 24h forecast
+- [x] Thresholds configurable via input_number
+- [x] Attributes expose raw values for debugging
+- [x] Dashboard displays forecast guidance
+- [x] Documentation explains Tier 2 vs Tier 3 priority
+- [x] Configuration file includes detailed usage notes
 
 ---
 
@@ -870,12 +867,19 @@ template:
   - `components/seasonal_mode.yaml` - Added season classification sensor
   - `docs/ha-dashboard-config.yaml` - Added Seasonal Mode dashboard view
 
-### Pending Stories (Phase 2)
+#### ✅ Story 17.6: Weather Forecast Integration
+- **Status:** COMPLETE (January 22, 2026)
+- **Implementation:** Home Assistant configuration in `docs/epic-17-ha-weather-config.yaml`
+- **Key Changes:**
+  - Created `input_number.hp_cooling_threshold` and `input_number.hp_heating_threshold` for configurable thresholds
+  - Created `sensor.hp_forecast_guidance` showing HEAT/COOL/SANITARY_ONLY suggestion based on 24h forecast
+  - Created `sensor.hp_forecast_high_temperature` helper sensor
+  - Added Weather Forecast Guidance section to dashboard
+  - Comprehensive documentation and usage notes
+  - Default thresholds: 26°C cooling, 14°C heating (Milan climate)
+- **Note:** Forecast guidance is informational only - PID demand (Tier 3) always overrides forecast (Tier 2)
 
-#### ⏳ Story 17.6: Weather Forecast Integration
-- **Status:** NOT STARTED
-- **Priority:** Medium (Phase 2)
-- **Planned Implementation:** Home Assistant template sensors for 24h forecast guidance
+### Pending Stories (Phase 2)
 
 #### ⏳ Story 17.7: Override Detection & Logging
 - **Status:** NOT STARTED
@@ -906,14 +910,22 @@ This change improved the overall system reliability and eliminated the need for 
 - [ ] Full seasonal cycle testing (requires waiting for actual dates)
 - [ ] Long-term reliability monitoring (ongoing)
 
-### MVP Status
+### Implementation Status Summary
 
-**Stories Complete:** 5 / 5 (100%)
-**Story Points Complete:** 10 / 10 (100%)
-**Phase 2 Stories:** 0 / 2 (0%)
-**Phase 2 Story Points:** 0 / 3 (0%)
+**MVP Stories (17.1-17.5):**
+- Stories Complete: 5 / 5 (100%)
+- Story Points Complete: 10 / 10 (100%)
+- **Status:** ✅ COMPLETE
 
-**Epic 17 MVP is COMPLETE** ✅
+**Phase 2 Stories (17.6-17.7):**
+- Stories Complete: 1 / 2 (50%)
+- Story Points Complete: 2 / 3 (67%)
+- **Status:** 🟡 PARTIAL
+
+**Overall Epic 17:**
+- Total Stories: 6 / 7 (86%)
+- Total Story Points: 12 / 13 (92%)
+- **Status:** 🟢 NEARLY COMPLETE (only Story 17.7 remaining)
 
 ---
 
