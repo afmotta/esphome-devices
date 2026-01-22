@@ -22,6 +22,32 @@ text_sensor:
     id: hp_mode_reason
     icon: mdi:information-outline
 
+  - platform: template
+    name: "Season Classification"
+    id: season_classification
+    icon: mdi:calendar-range
+    update_interval: 1min
+    lambda: |-
+      auto time = id(pcf85063_time).now();
+      if (!time.is_valid()) return {"Unknown"};
+      int m = time.month;
+      int d = time.day_of_month;
+
+      // Winter Lock: Oct 15 - Apr 15
+      bool in_winter = (m == 10 && d >= 15) || m > 10 || m < 4 || (m == 4 && d < 15);
+      // Summer Lock: Jun 1 - Aug 31
+      bool in_summer = (m >= 6 && m <= 8);
+      // Spring Shoulder: Apr 15 - May 31
+      bool in_spring_shoulder = (m == 4 && d >= 15) || (m == 5);
+      // Autumn Shoulder: Sep 1 - Oct 14
+      bool in_autumn_shoulder = (m == 9) || (m == 10 && d < 15);
+
+      if (in_winter) return {"Winter Lock"};
+      if (in_summer) return {"Summer Lock"};
+      if (in_spring_shoulder) return {"Spring Shoulder"};
+      if (in_autumn_shoulder) return {"Autumn Shoulder"};
+      return {"Unknown"};
+
 binary_sensor:
   # Compatibility sensor for existing components
   - platform: template
