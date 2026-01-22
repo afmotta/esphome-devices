@@ -352,6 +352,190 @@ views:
         refresh_interval: 60
 
   # ==============================================================================
+  # SEASONAL MODE AUTOMATION (EPIC 17)
+  # ==============================================================================
+  - title: Seasonal Mode
+    path: seasonal-mode
+    icon: mdi:calendar-sync
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## 🔄 Three-Tier Seasonal Mode Selection
+          Automated heat pump mode selection - eliminates manual seasonal switching
+
+          **Architecture:**
+          - **Tier 1**: Calendar Gates (Hard Locks)
+          - **Tier 2**: Weather Intelligence (Phase 2 - Future)
+          - **Tier 3**: Demand-Driven Transitions (PID Requests)
+
+      # ============================================================================
+      # CURRENT MODE STATUS
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Current Mode Status
+
+          - type: entities
+            title: Heat Pump Mode
+            show_header_toggle: false
+            entities:
+              - entity: select.climate_control_heat_pump_mode
+                name: "Heat Pump Mode"
+                icon: mdi:heat-pump
+
+              - entity: text_sensor.climate_control_heat_pump_mode_reason
+                name: "Mode Reason"
+                icon: mdi:information-outline
+
+              - entity: text_sensor.climate_control_season_classification
+                name: "Season Classification"
+                icon: mdi:calendar-range
+
+          - type: glance
+            title: Mode Quick View
+            show_state: true
+            entities:
+              - entity: select.climate_control_heat_pump_mode
+                name: Current Mode
+              - entity: text_sensor.climate_control_season_classification
+                name: Season
+              - entity: text_sensor.climate_control_heat_pump_mode_reason
+                name: Reason
+
+      # ============================================================================
+      # PID DEMAND STATUS
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### PID Demand Aggregation
+              Shows which zones are requesting heating or cooling
+
+          - type: entities
+            title: Global Demand Status
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.climate_control_any_pid_requesting_heat
+                name: "Any PID Requesting Heat"
+                icon: mdi:radiator
+
+              - entity: binary_sensor.climate_control_any_pid_requesting_cool
+                name: "Any PID Requesting Cool"
+                icon: mdi:snowflake
+
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: binary_sensor.climate_control_any_pid_requesting_heat
+                name: Heating Demand
+                min: 0
+                max: 1
+                severity:
+                  green: 0
+                  red: 1
+                needle: true
+
+              - type: gauge
+                entity: binary_sensor.climate_control_any_pid_requesting_cool
+                name: Cooling Demand
+                min: 0
+                max: 1
+                severity:
+                  green: 0
+                  blue: 1
+                needle: true
+
+      # ============================================================================
+      # CALENDAR GATES
+      # ============================================================================
+      - type: markdown
+        content: |
+          ### Calendar Gate Schedule
+          **Winter Lock**: Oct 15 - Apr 15 → HEAT mode (locked)
+          **Summer Lock**: Jun 1 - Aug 31 → COOL mode (locked)
+          **Spring Shoulder**: Apr 16 - May 31 → Evaluate mode
+          **Autumn Shoulder**: Sep 1 - Oct 14 → Evaluate mode
+
+          During shoulder seasons, PID demand drives mode transitions.
+
+      # ============================================================================
+      # MODE HISTORY
+      # ============================================================================
+      - type: history-graph
+        title: Heat Pump Mode History (24 Hours)
+        entities:
+          - entity: select.climate_control_heat_pump_mode
+        hours_to_show: 24
+        refresh_interval: 60
+
+      - type: history-graph
+        title: Mode Reason History (24 Hours)
+        entities:
+          - entity: text_sensor.climate_control_heat_pump_mode_reason
+        hours_to_show: 24
+        refresh_interval: 60
+
+      - type: history-graph
+        title: PID Demand History (24 Hours)
+        entities:
+          - entity: binary_sensor.climate_control_any_pid_requesting_heat
+          - entity: binary_sensor.climate_control_any_pid_requesting_cool
+        hours_to_show: 24
+        refresh_interval: 60
+
+      # ============================================================================
+      # MANUAL OVERRIDE
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Manual Override
+              Use this to temporarily override the automated mode selection.
+              Mode will remain until calendar gate forces a change or PID demand in shoulder season.
+
+          - type: entities
+            title: Manual Mode Control
+            show_header_toggle: false
+            entities:
+              - entity: select.climate_control_heat_pump_mode
+                name: "Override Mode"
+                icon: mdi:hand-back-right
+
+      # ============================================================================
+      # SYSTEM BEHAVIOR
+      # ============================================================================
+      - type: markdown
+        content: |
+          ### System Behavior
+
+          **Calendar Lock (CALENDAR_LOCK)**
+          - System automatically sets mode based on calendar dates
+          - Winter: Forces HEAT mode
+          - Summer: Forces COOL mode
+
+          **Demand Transition (DEMAND)**
+          - During shoulder seasons only
+          - Any PID requesting heat → Switch to HEAT
+          - Any PID requesting cool → Switch to COOL
+          - No automatic return to SANITARY_ONLY
+          - Direct HEAT↔COOL transitions allowed
+
+          **Manual Override (MANUAL)**
+          - User manually changed the mode
+          - Will be overridden by calendar gates
+          - Can be overridden by demand during shoulder seasons
+
+          **Success Metrics**
+          - Manual interventions: 0 per year (fully automated)
+          - Mode transition accuracy: >95%
+          - Calendar lock compliance: 100%
+
+  # ==============================================================================
   # DIAGNOSTIC METRICS TAB
   # ==============================================================================
   - title: Diagnostics
