@@ -1,8 +1,8 @@
 # Home Assistant Monitoring Dashboard for ESPHome Climate Control
 # Purpose: Real-time visibility into Modbus system health, sensor failover, and climate control
 # Installation: Copy this YAML into Home Assistant → Settings → Dashboards → Raw Configuration Editor
-# Version: 1.0
-# Date: October 22, 2025
+# Version: 2.0 - Updated for single ESP32-S3 device architecture
+# Date: January 23, 2026
 
 title: ESPHome Climate Control - System Monitor
 path: esphome-climate-monitor
@@ -21,111 +21,75 @@ views:
           - type: markdown
             content: |
               ## 🏠 System Health Overview
-              Real-time status of all ESPHome climate control devices
+              Single ESP32-S3 device managing all floors and appliances
 
           - type: entities
             title: Device Status
             show_header_toggle: false
             entities:
-              # Master Controller
-              - entity: binary_sensor.gruppo_miscelazione_status
-                name: "Master Controller (gruppo-miscelazione)"
+              # Main Climate Control Device
+              - entity: binary_sensor.climate_control_status
+                name: "Climate Control (ESP32-S3)"
                 icon: mdi:server
-              - entity: sensor.gruppo_miscelazione_uptime
+              - entity: sensor.climate_control_uptime
                 name: "  ↳ Uptime"
-              - entity: sensor.gruppo_miscelazione_wifi_signal
+              - entity: sensor.climate_control_wifi_signal
                 name: "  ↳ WiFi Signal"
-
-              # Ground Floor Slave
-              - entity: binary_sensor.distribuzione_piano_terra_status
-                name: "Ground Floor Slave (piano-terra)"
-                icon: mdi:server-network
-              - entity: sensor.distribuzione_piano_terra_uptime
-                name: "  ↳ Uptime"
-              - entity: sensor.distribuzione_piano_terra_wifi_signal
-                name: "  ↳ WiFi Signal"
-
-              # First Floor Slave
-              - entity: binary_sensor.distribuzione_primo_piano_status
-                name: "First Floor Slave (primo-piano)"
-                icon: mdi:server-network
-              - entity: sensor.distribuzione_primo_piano_uptime
-                name: "  ↳ Uptime"
-              - entity: sensor.distribuzione_primo_piano_wifi_signal
-                name: "  ↳ WiFi Signal"
+              - entity: sensor.climate_control_ip_address
+                name: "  ↳ IP Address"
 
           - type: horizontal-stack
             cards:
               - type: gauge
-                entity: sensor.gruppo_miscelazione_modbus_master_status
-                name: Master Modbus
-                min: 0
-                max: 1
+                entity: sensor.climate_control_wifi_signal
+                name: WiFi Signal
+                min: -90
+                max: -30
                 severity:
-                  green: 1
-                  yellow: 0
-                  red: 0
+                  red: -90
+                  yellow: -70
+                  green: -50
 
               - type: gauge
-                entity: sensor.distribuzione_piano_terra_modbus_slave_active
-                name: Ground Floor Modbus
+                entity: sensor.climate_control_uptime
+                name: Uptime (hours)
                 min: 0
-                max: 1
-                severity:
-                  green: 1
-                  yellow: 0
-                  red: 0
-
-              - type: gauge
-                entity: sensor.distribuzione_primo_piano_modbus_slave_active
-                name: First Floor Modbus
-                min: 0
-                max: 1
-                severity:
-                  green: 1
-                  yellow: 0
-                  red: 0
+                max: 720
+                needle: true
 
       # ============================================================================
-      # MODBUS COMMUNICATION HEALTH
+      # MODBUS PERIPHERAL BOARDS
       # ============================================================================
       - type: vertical-stack
         cards:
           - type: markdown
             content: |
-              ## 📡 RS485 Modbus Communication
-              Monitor Modbus RTU bus health and error rates
+              ## 📡 RS485 Modbus Peripheral Boards
+              ESP32-S3 controls analog outputs and relays via Modbus RTU
 
           - type: entities
-            title: Modbus Metrics
+            title: Modbus Peripheral Status
             show_header_toggle: false
             entities:
-              - entity: sensor.gruppo_miscelazione_modbus_communication_errors
-                name: "Master Communication Errors"
-                icon: mdi:alert-circle
+              - entity: binary_sensor.climate_control_analog_outputs_board_1_online
+                name: "Analog Outputs Board 1 (0x1)"
+                icon: mdi:gauge
 
-              - entity: text_sensor.gruppo_miscelazione_last_successful_modbus_poll
-                name: "Last Successful Poll"
-                icon: mdi:clock-check
+              - entity: binary_sensor.climate_control_relay_board_1_online
+                name: "Relay Board 1 (0x2)"
+                icon: mdi:electric-switch
 
-              - entity: sensor.gruppo_miscelazione_register_100
-                name: "Register 100 (Supply Temp)"
-                icon: mdi:thermometer
+              - entity: binary_sensor.climate_control_relay_board_2_online
+                name: "Relay Board 2 (0x3)"
+                icon: mdi:electric-switch
 
-              - entity: sensor.gruppo_miscelazione_register_200
-                name: "Register 200 (Climate Mode)"
-                icon: mdi:hvac
-
-              - entity: sensor.gruppo_miscelazione_register_300
-                name: "Register 300 (Master Heartbeat)"
-                icon: mdi:heart-pulse
-
-          - type: history-graph
-            title: Master Heartbeat (Should Increment)
-            entities:
-              - entity: sensor.gruppo_miscelazione_register_300
-            hours_to_show: 1
-            refresh_interval: 10
+          - type: markdown
+            content: |
+              **Modbus Architecture:**
+              - ESP32-S3 acts as Modbus master
+              - Analog Outputs Board 1 (addr 0x1): Valve control
+              - Relay Board 1 (addr 0x2): Pump/appliance control
+              - Relay Board 2 (addr 0x3): Additional appliances
 
       # ============================================================================
       # ROOM SENSOR STATUS (Ground Floor)
@@ -352,6 +316,337 @@ views:
         refresh_interval: 60
 
   # ==============================================================================
+  # SEASONAL MODE AUTOMATION (EPIC 17)
+  # ==============================================================================
+  - title: Seasonal Mode
+    path: seasonal-mode
+    icon: mdi:calendar-sync
+    badges: []
+    cards:
+      - type: markdown
+        content: |
+          ## 🔄 Three-Tier Seasonal Mode Selection
+          Automated heat pump mode selection - eliminates manual seasonal switching
+
+          **Architecture:**
+          - **Tier 1**: Calendar Gates (Hard Locks)
+          - **Tier 2**: Weather Intelligence (Phase 2 - Future)
+          - **Tier 3**: Demand-Driven Transitions (PID Requests)
+
+      # ============================================================================
+      # CURRENT MODE STATUS
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Current Mode Status
+
+          - type: entities
+            title: Heat Pump Mode
+            show_header_toggle: false
+            entities:
+              - entity: select.climate_control_heat_pump_mode
+                name: "Heat Pump Mode"
+                icon: mdi:heat-pump
+
+              - entity: text_sensor.climate_control_heat_pump_mode_reason
+                name: "Mode Reason"
+                icon: mdi:information-outline
+
+              - entity: text_sensor.climate_control_season_classification
+                name: "Season Classification"
+                icon: mdi:calendar-range
+
+          - type: glance
+            title: Mode Quick View
+            show_state: true
+            entities:
+              - entity: select.climate_control_heat_pump_mode
+                name: Current Mode
+              - entity: text_sensor.climate_control_season_classification
+                name: Season
+              - entity: text_sensor.climate_control_heat_pump_mode_reason
+                name: Reason
+
+      # ============================================================================
+      # PID DEMAND STATUS
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### PID Demand Aggregation
+              Shows which zones are requesting heating or cooling
+
+          - type: entities
+            title: Global Demand Status
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.climate_control_any_pid_requesting_heat
+                name: "Any PID Requesting Heat"
+                icon: mdi:radiator
+
+              - entity: binary_sensor.climate_control_any_pid_requesting_cool
+                name: "Any PID Requesting Cool"
+                icon: mdi:snowflake
+
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: binary_sensor.climate_control_any_pid_requesting_heat
+                name: Heating Demand
+                min: 0
+                max: 1
+                severity:
+                  green: 0
+                  red: 1
+                needle: true
+
+              - type: gauge
+                entity: binary_sensor.climate_control_any_pid_requesting_cool
+                name: Cooling Demand
+                min: 0
+                max: 1
+                severity:
+                  green: 0
+                  blue: 1
+                needle: true
+
+      # ============================================================================
+      # WEATHER FORECAST GUIDANCE (Phase 2 - Story 17.6)
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Weather Forecast Guidance (Phase 2)
+              Shows what mode the 24h forecast suggests during shoulder seasons.
+              **Note:** PID demand always overrides forecast guidance.
+
+          - type: entities
+            title: Forecast Guidance
+            show_header_toggle: false
+            entities:
+              - entity: sensor.hp_forecast_guidance
+                name: "Forecast Suggests"
+                icon: mdi:weather-partly-cloudy
+
+              - entity: sensor.hp_forecast_high_temperature
+                name: "Forecast High"
+                icon: mdi:thermometer
+
+              - type: divider
+
+              - entity: input_number.hp_cooling_threshold
+                name: "Cooling Threshold"
+                icon: mdi:thermometer-high
+
+              - entity: input_number.hp_heating_threshold
+                name: "Heating Threshold"
+                icon: mdi:thermometer-low
+
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: sensor.hp_forecast_high_temperature
+                name: Forecast High
+                min: 0
+                max: 40
+                needle: true
+                severity:
+                  green: 15
+                  yellow: 20
+                  orange: 26
+                  red: 30
+
+              - type: entity
+                entity: sensor.hp_forecast_guidance
+                name: Forecast Guidance
+                icon: mdi:weather-partly-cloudy
+
+          - type: markdown
+            content: |
+              **Forecast Thresholds:**
+              - ≥26°C → Suggests COOL mode
+              - ≤14°C → Suggests HEAT mode
+              - 15-25°C → Suggests SANITARY_ONLY (dead band)
+
+              **Important:** PID demand (Tier 3) always overrides forecast guidance (Tier 2).
+              Guidance only applies during shoulder seasons.
+
+      # ============================================================================
+      # OVERRIDE DETECTION (Phase 2 - Story 17.7)
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Override Detection & Diagnostics (Phase 2)
+              Detects when PID demand overrides forecast guidance.
+              **Note:** Override is NORMAL behavior - PIDs know actual room needs.
+
+          - type: entities
+            title: Override Status
+            show_header_toggle: false
+            entities:
+              - entity: binary_sensor.hp_mode_override_active
+                name: "Override Active"
+                icon: mdi:alert-circle
+
+          - type: conditional
+            conditions:
+              - entity: binary_sensor.hp_mode_override_active
+                state: "on"
+            card:
+              type: entities
+              title: Override Details
+              show_header_toggle: false
+              entities:
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: override_type
+                  name: "Override Type"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: current_mode
+                  name: "Current Mode"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: forecast_guidance
+                  name: "Forecast Guidance"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: forecast_high
+                  name: "Forecast High"
+
+                - type: attribute
+                  entity: binary_sensor.hp_mode_override_active
+                  attribute: explanation
+                  name: "Explanation"
+
+          - type: markdown
+            content: |
+              **Override Detection Logic:**
+              - ON: PID demand differs from forecast guidance
+              - OFF: Mode matches guidance OR not demand-driven
+
+              **This is NORMAL:** PIDs know actual room conditions better than forecast.
+              High override frequency is expected and correct behavior.
+
+      # ============================================================================
+      # CALENDAR GATES
+      # ============================================================================
+      - type: markdown
+        content: |
+          ### Calendar Gate Schedule
+          **Winter Lock**: Oct 15 - Apr 15 → HEAT mode (locked)
+          **Summer Lock**: Jun 1 - Aug 31 → COOL mode (locked)
+          **Spring Shoulder**: Apr 16 - May 31 → Evaluate mode
+          **Autumn Shoulder**: Sep 1 - Oct 14 → Evaluate mode
+
+          During shoulder seasons, PID demand drives mode transitions.
+
+      # ============================================================================
+      # MODE HISTORY
+      # ============================================================================
+      - type: history-graph
+        title: Heat Pump Mode History (24 Hours)
+        entities:
+          - entity: select.climate_control_heat_pump_mode
+        hours_to_show: 24
+        refresh_interval: 60
+
+      - type: history-graph
+        title: Mode Reason History (24 Hours)
+        entities:
+          - entity: text_sensor.climate_control_heat_pump_mode_reason
+        hours_to_show: 24
+        refresh_interval: 60
+
+      - type: history-graph
+        title: PID Demand History (24 Hours)
+        entities:
+          - entity: binary_sensor.climate_control_any_pid_requesting_heat
+          - entity: binary_sensor.climate_control_any_pid_requesting_cool
+        hours_to_show: 24
+        refresh_interval: 60
+
+      - type: history-graph
+        title: Override Detection History (24 Hours)
+        entities:
+          - entity: binary_sensor.hp_mode_override_active
+          - entity: sensor.hp_forecast_guidance
+        hours_to_show: 24
+        refresh_interval: 60
+
+      # ============================================================================
+      # MANUAL OVERRIDE
+      # ============================================================================
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ### Manual Override
+              Use this to temporarily override the automated mode selection.
+              Mode will remain until calendar gate forces a change or PID demand in shoulder season.
+
+          - type: entities
+            title: Manual Mode Control
+            show_header_toggle: false
+            entities:
+              - entity: select.climate_control_heat_pump_mode
+                name: "Override Mode"
+                icon: mdi:hand-back-right
+
+      # ============================================================================
+      # SYSTEM BEHAVIOR
+      # ============================================================================
+      - type: markdown
+        content: |
+          ### System Behavior
+
+          **Three-Tier Architecture:**
+          1. **Tier 1: Calendar Gates** (Highest Priority)
+          2. **Tier 2: Weather Forecast Guidance** (Phase 2)
+          3. **Tier 3: Demand-Driven Transitions** (Overrides Tier 2)
+
+          **Calendar Lock (CALENDAR_LOCK)**
+          - System automatically sets mode based on calendar dates
+          - Winter: Forces HEAT mode (Oct 15 - Apr 15)
+          - Summer: Forces COOL mode (Jun 1 - Aug 31)
+          - Highest priority - overrides everything
+
+          **Weather Forecast Guidance (Phase 2)**
+          - Provides mode suggestion based on 24h forecast high
+          - Only applies during shoulder seasons
+          - ≥26°C → Suggests COOL
+          - ≤14°C → Suggests HEAT
+          - 15-25°C → Suggests SANITARY_ONLY
+          - **Note:** This is informational only - PID demand always wins
+
+          **Demand Transition (DEMAND)**
+          - During shoulder seasons only
+          - Any PID requesting heat → Switch to HEAT
+          - Any PID requesting cool → Switch to COOL
+          - **ALWAYS overrides forecast guidance**
+          - No automatic return to SANITARY_ONLY
+          - Direct HEAT↔COOL transitions allowed
+
+          **Manual Override (MANUAL)**
+          - User manually changed the mode
+          - Will be overridden by calendar gates (Tier 1)
+          - Can be overridden by demand during shoulder seasons (Tier 3)
+
+          **Success Metrics**
+          - Manual interventions: 0 per year (fully automated)
+          - Mode transition accuracy: >95%
+          - Calendar lock compliance: 100%
+
+  # ==============================================================================
   # DIAGNOSTIC METRICS TAB
   # ==============================================================================
   - title: Diagnostics
@@ -362,93 +657,91 @@ views:
       - type: markdown
         content: |
           ## 📊 System Diagnostics
-          Performance metrics, memory usage, and system health
+          Performance metrics, memory usage, and system health for ESP32-S3
 
       - type: entities
-        title: Master Controller (gruppo-miscelazione)
+        title: Climate Control Device (ESP32-S3)
         show_header_toggle: false
         entities:
-          - entity: sensor.gruppo_miscelazione_cpu_usage
+          - entity: sensor.climate_control_cpu_usage
             name: "CPU Usage"
             icon: mdi:cpu-64-bit
 
-          - entity: sensor.gruppo_miscelazione_memory_free
+          - entity: sensor.climate_control_memory_free
             name: "Free Memory"
             icon: mdi:memory
 
-          - entity: sensor.gruppo_miscelazione_uptime
+          - entity: sensor.climate_control_uptime
             name: "Uptime"
             icon: mdi:clock-outline
 
-          - entity: sensor.gruppo_miscelazione_wifi_signal
+          - entity: sensor.climate_control_wifi_signal
             name: "WiFi RSSI"
             icon: mdi:wifi
 
-      - type: entities
-        title: Ground Floor Slave (distribuzione-piano-terra)
-        show_header_toggle: false
-        entities:
-          - entity: sensor.distribuzione_piano_terra_cpu_usage
-            name: "CPU Usage"
-            icon: mdi:cpu-64-bit
+          - entity: sensor.climate_control_ip_address
+            name: "IP Address"
+            icon: mdi:network
 
-          - entity: sensor.distribuzione_piano_terra_memory_free
-            name: "Free Memory"
-            icon: mdi:memory
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.climate_control_cpu_usage
+            name: CPU Usage
+            min: 0
+            max: 100
+            unit: "%"
+            severity:
+              green: 0
+              yellow: 50
+              red: 80
 
-          - entity: sensor.distribuzione_piano_terra_uptime
-            name: "Uptime"
-            icon: mdi:clock-outline
-
-          - entity: sensor.distribuzione_piano_terra_wifi_signal
-            name: "WiFi RSSI"
-            icon: mdi:wifi
-
-      - type: entities
-        title: First Floor Slave (distribuzione-primo-piano)
-        show_header_toggle: false
-        entities:
-          - entity: sensor.distribuzione_primo_piano_cpu_usage
-            name: "CPU Usage"
-            icon: mdi:cpu-64-bit
-
-          - entity: sensor.distribuzione_primo_piano_memory_free
-            name: "Free Memory"
-            icon: mdi:memory
-
-          - entity: sensor.distribuzione_primo_piano_uptime
-            name: "Uptime"
-            icon: mdi:clock-outline
-
-          - entity: sensor.distribuzione_primo_piano_wifi_signal
-            name: "WiFi RSSI"
-            icon: mdi:wifi
+          - type: gauge
+            entity: sensor.climate_control_memory_free
+            name: Free Memory
+            min: 0
+            max: 512
+            unit: "KB"
+            severity:
+              red: 0
+              yellow: 50
+              green: 100
 
       - type: history-graph
         title: Memory Usage Trend (24 Hours)
         entities:
-          - entity: sensor.gruppo_miscelazione_memory_free
-          - entity: sensor.distribuzione_piano_terra_memory_free
-          - entity: sensor.distribuzione_primo_piano_memory_free
+          - entity: sensor.climate_control_memory_free
         hours_to_show: 24
         refresh_interval: 300
 
       - type: history-graph
         title: WiFi Signal Strength (24 Hours)
         entities:
-          - entity: sensor.gruppo_miscelazione_wifi_signal
-          - entity: sensor.distribuzione_piano_terra_wifi_signal
-          - entity: sensor.distribuzione_primo_piano_wifi_signal
+          - entity: sensor.climate_control_wifi_signal
+        hours_to_show: 24
+        refresh_interval: 300
+
+      - type: history-graph
+        title: CPU Usage (24 Hours)
+        entities:
+          - entity: sensor.climate_control_cpu_usage
         hours_to_show: 24
         refresh_interval: 300
 # ==============================================================================
 # NOTES FOR CUSTOMIZATION
 # ==============================================================================
 #
-# Entity Name Adjustments:
-# - Replace entity names based on your actual ESPHome device names
-# - Entity IDs follow pattern: {device_name}_{sensor_name}
-# - Example: binary_sensor.gruppo_miscelazione_status
+# Architecture:
+# - Single ESP32-S3 device (climate-control) manages entire system
+# - Modbus peripheral boards: Analog outputs (0x1), Relays (0x2, 0x3)
+# - Room sensors communicate via UDP packet transport
+# - All floors (ground, first, second) managed by single controller
+#
+# Entity Name Pattern:
+# - Main device: climate_control_{sensor_name}
+# - Room sensors: {room_name}_room_{temperature|humidity}
+# - Climate entities: climate.{room_name}_{heat|cool}
+# - Example: binary_sensor.climate_control_status
 #
 # Adding More Zones:
 # - Copy zone card structure (Soggiorno, Cucina, etc.)
@@ -462,12 +755,11 @@ views:
 #
 # Performance Thresholds:
 # - CPU usage: Alert if >50% sustained
-# - Memory free: Alert if <50KB
+# - Memory free: Alert if <50KB (ESP32-S3 has limited RAM)
 # - WiFi RSSI: Alert if <-80 dBm
-# - Modbus errors: Alert if >10 errors/hour
+# - Modbus peripheral offline: Alert immediately
 #
 # Related Documentation:
-# - docs/modbus-register-map.md: Register definitions
-# - docs/deployment-guide.md: Deployment procedures
-# - docs/architecture-diagram.md: System architecture
-# - docs/sensor-technology-selection.md: Sensor failover strategy
+# - devices/climate-control.yaml: Main device configuration
+# - components/seasonal_mode.yaml: Seasonal mode automation
+# - components/rooms/: Room-specific configurations

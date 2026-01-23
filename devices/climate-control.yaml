@@ -37,6 +37,7 @@ packages:
   ground_floor: !include ../components/rooms/ground_floor/ground-floor.yaml
   first_floor: !include ../components/rooms/first_floor/first-floor.yaml
   second_floor: !include ../components/rooms/second_floor/second-floor.yaml
+  seasonal_mode: !include ../components/seasonal_mode.yaml
 
 udp:
   id: udp_packet_transport
@@ -70,8 +71,35 @@ one_wire:
     id: one_wire_01
 
 binary_sensor:
-  - platform: homeassistant
-    name: "Summer Mode"
-    entity_id: binary_sensor.summer_mode
-    id: summer_mode
-    internal: true
+  - id: !extend any_pid_requesting_heat
+    lambda: |-
+      return id(pid_radiant_soggiorno_is_heating).state ||
+             id(pid_radiant_cucina_is_heating).state ||
+             id(pid_radiant_bagno_terra_is_heating).state ||
+             id(pid_radiant_anticamera_is_heating).state ||
+             id(pid_radiant_bagno_grande_is_heating).state ||
+             id(pid_radiant_bagno_ospiti_is_heating).state ||
+             id(pid_radiant_bagno_padronale_is_heating).state ||
+             id(pid_radiant_camera_nord_is_heating).state ||
+             id(pid_radiant_camera_sud_is_heating).state ||
+             id(pid_radiant_camera_ospiti_is_heating).state ||
+             id(pid_radiant_camera_padronale_is_heating).state ||
+             id(pid_radiant_lavanderia_is_heating).state ||
+             id(pid_fancoil_soggiorno_is_heating).state ||
+             id(pid_fancoil_cucina_is_heating).state ||
+             id(pid_fancoil_locale_tecnico_is_heating).state ||
+             id(pid_fancoil_sottotetto_is_heating).state;
+
+  - id: !extend any_pid_requesting_cool
+    lambda: |-
+      return id(pid_radiant_soggiorno_is_cooling).state ||
+             id(pid_radiant_cucina_is_cooling).state ||
+             id(pid_radiant_anticamera_is_cooling).state ||
+             id(pid_radiant_camera_nord_is_cooling).state ||
+             id(pid_radiant_camera_sud_is_cooling).state ||
+             id(pid_radiant_camera_ospiti_is_cooling).state ||
+             id(pid_radiant_camera_padronale_is_cooling).state ||
+             id(pid_fancoil_soggiorno_is_cooling).state ||
+             id(pid_fancoil_cucina_is_cooling).state ||
+             id(pid_fancoil_locale_tecnico_is_cooling).state ||
+             id(pid_fancoil_sottotetto_is_cooling).state;

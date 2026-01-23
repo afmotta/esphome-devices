@@ -1,0 +1,178 @@
+# Epic 17 Story 17.7: Override Detection & Logging
+# Phase 2 - Home Assistant Configuration
+#
+# PURPOSE: Diagnostic sensor to detect when PID demand overrides forecast guidance
+# This is purely for monitoring and debugging - the system works correctly without it
+#
+# INSTALLATION:
+# 1. Copy the template section to configuration.yaml or templates folder
+# 2. Requires Story 17.6 (weather forecast integration) to be installed first
+# 3. Restart Home Assistant
+#
+# REQUIREMENTS:
+# - Home Assistant 2024.1 or later
+# - Story 17.6 weather forecast configuration already installed
+# - ESPHome seasonal_mode.yaml (Stories 17.1-17.5) already deployed
+#
+# VERSION: 1.0
+# DATE: January 22, 2026
+
+# ==============================================================================
+# TEMPLATE BINARY SENSOR - Override Detection
+# ==============================================================================
+# Detects when actual mode (set by PID demand) differs from forecast guidance
+# This is a diagnostic tool to understand when Tier 3 overrides Tier 2
+
+template:
+  - binary_sensor:
+      # Override detection sensor
+      - name: "HP Mode Override Active"
+        unique_id: hp_mode_override_active
+        icon: mdi:alert-circle
+        device_class: problem
+        state: >
+          {# Get current system state #}
+          {% set mode = states('select.climate_control_heat_pump_mode') %}
+          {% set reason = states('text_sensor.climate_control_heat_pump_mode_reason') %}
+          {% set guidance = states('sensor.hp_forecast_guidance') %}
+
+          {# Override is active when: #}
+          {# 1. Mode reason is DEMAND (not CALENDAR_LOCK or MANUAL) #}
+          {# 2. Current mode conflicts with forecast guidance #}
+          {% set is_demand = (reason == 'DEMAND') %}
+          {% set heat_override = (mode == 'HEAT' and guidance == 'COOL') %}
+          {% set cool_override = (mode == 'COOL' and guidance == 'HEAT') %}
+
+          {{ is_demand and (heat_override or cool_override) }}
+        attributes:
+          # Current system state
+          current_mode: >
+            {{ states('select.climate_control_heat_pump_mode') }}
+          forecast_guidance: >
+            {{ states('sensor.hp_forecast_guidance') }}
+          mode_reason: >
+            {{ states('text_sensor.climate_control_heat_pump_mode_reason') }}
+
+          # Conflict details
+          override_type: >
+            {% set mode = states('select.climate_control_heat_pump_mode') %}
+            {% set guidance = states('sensor.hp_forecast_guidance') %}
+            {% set reason = states('text_sensor.climate_control_heat_pump_mode_reason') %}
+
+            {% if reason != 'DEMAND' %}
+              None (not demand-driven)
+            {% elif mode == 'HEAT' and guidance == 'COOL' %}
+              Heating despite cooling forecast
+            {% elif mode == 'COOL' and guidance == 'HEAT' %}
+              Cooling despite heating forecast
+            {% else %}
+              None (mode matches guidance)
+            {% endif %}
+
+          # Contextual information
+          forecast_high: >
+            {{ states('sensor.hp_forecast_high_temperature') }}°C
+          season: >
+            {{ states('text_sensor.climate_control_season_classification') }}
+          pid_heat_demand: >
+            {{ states('binary_sensor.climate_control_any_pid_requesting_heat') }}
+          pid_cool_demand: >
+            {{ states('binary_sensor.climate_control_any_pid_requesting_cool') }}
+
+          # Explanation
+          explanation: >
+            {% set mode = states('select.climate_control_heat_pump_mode') %}
+            {% set guidance = states('sensor.hp_forecast_guidance') %}
+            {% set reason = states('text_sensor.climate_control_heat_pump_mode_reason') %}
+
+            {% if reason != 'DEMAND' %}
+              Override detection only applies when mode reason is DEMAND
+            {% elif mode == 'HEAT' and guidance == 'COOL' %}
+              PID requested heating even though forecast suggests cooling. This is normal - PIDs know actual room needs better than forecast.
+            {% elif mode == 'COOL' and guidance == 'HEAT' %}
+              PID requested cooling even though forecast suggests heating. This is normal - PIDs know actual room needs better than forecast.
+            {% else %}
+              Current mode matches forecast guidance. No override detected.
+            {% endif %}
+
+# ==============================================================================
+# USAGE NOTES
+# ==============================================================================
+#
+# What This Sensor Does:
+# - Detects when PID demand (Tier 3) overrides forecast guidance (Tier 2)
+# - Only activates when mode_reason = "DEMAND"
+# - Does NOT activate during CALENDAR_LOCK (calendar gates have priority)
+# - Does NOT activate during MANUAL override
+#
+# When Override is Detected:
+# - Binary sensor turns ON
+# - This is NORMAL BEHAVIOR - not an error or problem
+# - PID controllers know actual room conditions better than forecast
+# - Tier 3 (Demand) is designed to override Tier 2 (Forecast)
+#
+# Example Scenarios:
+#
+# Scenario 1: Heating Override
+# - Forecast high: 28°C → Guidance suggests COOL
+# - PID detects room is cold (thermal mass, shade, etc.)
+# - PID requests heating → Mode = HEAT, Reason = DEMAND
+# - Override sensor: ON (heating despite cooling forecast)
+# - This is CORRECT behavior - trust the PID
+#
+# Scenario 2: Cooling Override
+# - Forecast high: 12°C → Guidance suggests HEAT
+# - PID detects room is hot (solar gain, internal heat, etc.)
+# - PID requests cooling → Mode = COOL, Reason = DEMAND
+# - Override sensor: ON (cooling despite heating forecast)
+# - This is CORRECT behavior - trust the PID
+#
+# Scenario 3: No Override
+# - Forecast high: 28°C → Guidance suggests COOL
+# - PID requests cooling → Mode = COOL, Reason = DEMAND
+# - Override sensor: OFF (mode matches guidance)
+#
+# Scenario 4: Calendar Lock (No Override Detection)
+# - Winter Lock active → Mode = HEAT, Reason = CALENDAR_LOCK
+# - Forecast suggests COOL
+# - Override sensor: OFF (calendar lock, not demand)
+#
+# Use Cases:
+# - Diagnostics: Understand when and why demand overrides forecast
+# - Analytics: Track how often PIDs disagree with forecast
+# - Tuning: Validate forecast thresholds are reasonable
+# - Debugging: Confirm Tier 3 > Tier 2 priority is working
+#
+# Important Notes:
+# - Override detection is NOT an error condition
+# - High override frequency is normal and expected
+# - The system is designed for demand to override forecast
+# - This sensor is purely informational/diagnostic
+#
+# Sensor Attributes:
+# - current_mode: Current heat pump mode (HEAT/COOL/SANITARY_ONLY)
+# - forecast_guidance: What forecast suggests (HEAT/COOL/SANITARY_ONLY)
+# - mode_reason: Why mode was selected (DEMAND/CALENDAR_LOCK/MANUAL)
+# - override_type: Description of the conflict
+# - forecast_high: Forecast high temperature
+# - season: Current season classification
+# - pid_heat_demand: Whether any PID is requesting heat
+# - pid_cool_demand: Whether any PID is requesting cool
+# - explanation: Human-readable explanation of current state
+#
+# Dashboard Usage:
+# - Add to Seasonal Mode dashboard for monitoring
+# - Create history graph to track override frequency
+# - Use attributes in notifications (optional)
+#
+# Automation Ideas (Optional):
+# - Log override events to database for analysis
+# - Send notification when override first detected (once per day)
+# - Track override duration and frequency
+# - Use for forecast threshold tuning
+#
+# Related Documentation:
+# - docs/epic-17-brief.md: Full specification
+# - docs/epic-17-ha-weather-config.yaml: Weather forecast configuration
+# - docs/ha-dashboard-config.yaml: Dashboard configuration
+# - components/seasonal_mode.yaml: ESPHome implementation

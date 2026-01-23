@@ -6,19 +6,18 @@ climate:
   - id: !extend pid_radiant_${room_slug}
     cool_output: radiant_output_${room_slug}
 
-# Summer mode handler: automatically switch between HEAT and COOL modes
-binary_sensor:
-  - id: !extend summer_mode
-    on_state:
+# Seasonal mode handler: automatically switch PID mode based on global hp_mode
+select:
+  - id: !extend hp_mode
+    on_value:
       then:
-        - if:
-            condition:
-              lambda: "return x;" # x = true means summer
-            then:
-              - climate.control:
-                  id: pid_radiant_${room_slug}
-                  mode: "COOL"
-            else:
-              - climate.control:
-                  id: pid_radiant_${room_slug}
-                  mode: "HEAT"
+        - lambda: |-
+            auto call = id(pid_radiant_${room_slug}).make_call();
+            if (x == "COOL") {
+              call.set_mode(climate::CLIMATE_MODE_COOL);
+            } else if (x == "HEAT") {
+              call.set_mode(climate::CLIMATE_MODE_HEAT);
+            } else {
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+            }
+            call.perform();

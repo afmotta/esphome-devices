@@ -73,3 +73,18 @@ output:
 climate:
   - id: !extend pid_radiant_${room_slug}
     heat_output: radiant_output_${room_slug}
+
+# Seasonal mode handler: automatically switch PID mode based on global hp_mode
+# Heat-only zones are disabled during COOL mode
+select:
+  - id: !extend hp_mode
+    on_value:
+      then:
+        - lambda: |-
+            auto call = id(pid_radiant_${room_slug}).make_call();
+            if (x == "HEAT") {
+              call.set_mode(climate::CLIMATE_MODE_HEAT);
+            } else {
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+            }
+            call.perform();
