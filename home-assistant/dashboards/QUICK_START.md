@@ -24,6 +24,7 @@ Edit `/config/configuration.yaml`:
 lovelace:
   mode: yaml
   dashboards:
+    # Main dashboard - only this one shows in sidebar
     climate-overview:
       mode: yaml
       title: Climate Control
@@ -31,34 +32,37 @@ lovelace:
       show_in_sidebar: true
       filename: esphome-devices/home-assistant/dashboards/climate-overview.yaml
 
+    # All other dashboards - navigation only (hidden from sidebar)
     ground-floor:
       mode: yaml
       title: Ground Floor
       icon: mdi:home-floor-0
-      show_in_sidebar: true
+      show_in_sidebar: false
       filename: esphome-devices/home-assistant/dashboards/ground-floor.yaml
 
     first-floor:
       mode: yaml
       title: First Floor
       icon: mdi:home-floor-1
-      show_in_sidebar: true
+      show_in_sidebar: false
       filename: esphome-devices/home-assistant/dashboards/first-floor.yaml
 
     second-floor:
       mode: yaml
       title: Second Floor
       icon: mdi:home-floor-2
-      show_in_sidebar: true
+      show_in_sidebar: false
       filename: esphome-devices/home-assistant/dashboards/second-floor.yaml
 
     system-monitoring:
       mode: yaml
       title: System Monitoring
       icon: mdi:monitor-dashboard
-      show_in_sidebar: true
+      show_in_sidebar: false
       filename: esphome-devices/home-assistant/dashboards/system-monitoring.yaml
 ```
+
+**Navigation Hierarchy**: Climate Control (sidebar) → Floor Dashboards → Room Dashboards
 
 ### Step 3: Create Input Numbers (2 minutes)
 
@@ -186,10 +190,14 @@ Settings → System → Restart
 
 ### Step 5: Verify
 
-1. Check sidebar for new dashboard entries
-2. Navigate to **Climate Control** dashboard
+1. Check sidebar - you should see **only one new entry**: "Climate Control"
+2. Click "Climate Control" in sidebar to open the main dashboard
 3. Verify entities are showing data (not "unavailable")
-4. Test navigation to floor and room dashboards
+4. Test navigation buttons to floor dashboards
+5. Test navigation from floor → room dashboards
+6. Use "Back" buttons to navigate back up the hierarchy
+
+**Important**: Only the main "Climate Control" dashboard appears in the sidebar. All floor dashboards, room dashboards, and system monitoring are accessed via navigation buttons within the dashboard hierarchy.
 
 ---
 
@@ -234,18 +242,23 @@ Settings → System → Restart
 
 ## Dashboard Tour
 
-### Main Dashboard (climate-overview)
+### Main Dashboard (Climate Control - in sidebar)
+
+**Location**: Home Assistant sidebar → "Climate Control"
 
 **What you'll see**:
 - Current heat pump mode (HEAT/COOL/SANITARY_ONLY)
 - Season classification
 - All room temperatures at a glance
-- Quick access to floors
+- Navigation buttons to all floors and system monitoring
 
 **What to do here**:
 - Daily temperature check
 - Change heat pump mode (select dropdown)
-- Navigate to specific floors or rooms
+- Navigate to specific floors (click buttons)
+- Access system monitoring
+
+**This is your entry point** - all other dashboards are accessed from here.
 
 ### Floor Dashboards
 

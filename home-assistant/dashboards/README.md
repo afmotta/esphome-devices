@@ -75,6 +75,7 @@ home-assistant/dashboards/
    lovelace:
      mode: yaml
      dashboards:
+       # Main dashboard - shows in sidebar
        climate-overview:
          mode: yaml
          title: Climate Control
@@ -82,34 +83,38 @@ home-assistant/dashboards/
          show_in_sidebar: true
          filename: /config/esphome-devices/home-assistant/dashboards/climate-overview.yaml
 
+       # Floor dashboards - navigation only (not in sidebar)
        ground-floor:
          mode: yaml
          title: Ground Floor
          icon: mdi:home-floor-0
-         show_in_sidebar: true
+         show_in_sidebar: false
          filename: /config/esphome-devices/home-assistant/dashboards/ground-floor.yaml
 
        first-floor:
          mode: yaml
          title: First Floor
          icon: mdi:home-floor-1
-         show_in_sidebar: true
+         show_in_sidebar: false
          filename: /config/esphome-devices/home-assistant/dashboards/first-floor.yaml
 
        second-floor:
          mode: yaml
          title: Second Floor
          icon: mdi:home-floor-2
-         show_in_sidebar: true
+         show_in_sidebar: false
          filename: /config/esphome-devices/home-assistant/dashboards/second-floor.yaml
 
+       # System monitoring - navigation only (not in sidebar)
        system-monitoring:
          mode: yaml
          title: System Monitoring
          icon: mdi:monitor-dashboard
-         show_in_sidebar: true
+         show_in_sidebar: false
          filename: /config/esphome-devices/home-assistant/dashboards/system-monitoring.yaml
    ```
+
+   **Note**: Only the main "Climate Control" dashboard appears in the sidebar. All other dashboards are accessed via navigation buttons within the dashboard hierarchy.
 
 2. **Copy dashboard files to Home Assistant**:
 
@@ -142,9 +147,9 @@ For individual dashboards or testing:
 
 ## Dashboard Descriptions
 
-### 1. Climate Overview (`climate-overview.yaml`)
+### Climate Overview (`climate-overview.yaml`)
 
-**Main entry point** for the entire system.
+**Main entry point** for the entire system. **This is the only dashboard shown in the Home Assistant sidebar.**
 
 **Sections**:
 - System Status: Heat pump mode, season classification, global demand
@@ -155,7 +160,13 @@ For individual dashboards or testing:
 
 **Use Case**: Daily monitoring, quick temperature checks, system mode verification
 
-### 2. Ground Floor Dashboard (`ground-floor.yaml`)
+**Access**: Home Assistant sidebar → Climate Control
+
+---
+
+### Ground Floor Dashboard (`ground-floor.yaml`)
+
+**Navigation only** (not in sidebar) - Access from Climate Overview → "Ground Floor" button
 
 **5 zones**: Soggiorno, Cucina, Bagno, Anticamera, Locale Tecnico
 
@@ -168,7 +179,13 @@ For individual dashboards or testing:
 
 **Use Case**: Monitor ground floor climate, adjust mixing valve, manage boost system
 
-### 3. First Floor Dashboard (`first-floor.yaml`)
+**Access**: Climate Overview → "Ground Floor" button
+
+---
+
+### First Floor Dashboard (`first-floor.yaml`)
+
+**Navigation only** (not in sidebar) - Access from Climate Overview → "First Floor" button
 
 **8 zones**: 4 Bedrooms, 3 Bathrooms, Laundry Room
 
@@ -181,7 +198,13 @@ For individual dashboards or testing:
 
 **Use Case**: Monitor first floor, control MEV ventilation, check air quality (CO₂/IAQ)
 
-### 4. Second Floor Dashboard (`second-floor.yaml`)
+**Access**: Climate Overview → "First Floor" button
+
+---
+
+### Second Floor Dashboard (`second-floor.yaml`)
+
+**Navigation only** (not in sidebar) - Access from Climate Overview → "Second Floor" button
 
 **1 zone**: Sottotetto (Attic)
 
@@ -193,7 +216,38 @@ For individual dashboards or testing:
 
 **Use Case**: Monitor attic climate (fancoil-only zone)
 
-### 5. Room Dashboards (`rooms/*/*.yaml`)
+**Access**: Climate Overview → "Second Floor" button
+
+---
+
+### System Monitoring Dashboard (`system-monitoring.yaml`)
+
+**Navigation only** (not in sidebar) - Access from Climate Overview → "System Monitoring" button
+
+**Technical diagnostics dashboard** for advanced users.
+
+**Sections**:
+- ESPHome Device Status: Connection, uptime, WiFi signal
+- Modbus Communication: Status of relay boards and analog output boards
+- Ground Floor Relays: Individual relay switches (pumps, valves)
+- First Floor Relays: Individual relay switches (pumps, valves, MEV)
+- Analog Outputs (0-10V DAC): Mixing valves, fancoil speeds, MEV fan speed
+- Mixing Valve Controllers: PID controls for supply temperature
+- Pump Status: Radiant and fancoil pump states
+- Sensor Failover Status: Active vs. Modbus vs. HA fallback sensors
+- Dallas Temperature Sensors: 1-Wire supply temperature sensors
+- System Configuration: HA input_number values (thresholds, margins, delays)
+- All PID Controllers: Active status grid for all 13+ PIDs
+- Boost Status: Fancoil boost triggers and reasons
+- System Health Charts: Supply temps, dew points, air quality trends
+
+**Use Case**: Troubleshooting, hardware verification, system health monitoring
+
+**Access**: Climate Overview → "System Monitoring" button
+
+---
+
+### Room Dashboards (`rooms/*/*.yaml`)
 
 Each room has a detailed dashboard with:
 
@@ -214,27 +268,6 @@ Each room has a detailed dashboard with:
 - **Sottotetto**: Fancoil only
 
 **Use Case**: Deep dive into specific room, diagnose issues, tune PID parameters
-
-### 6. System Monitoring (`system-monitoring.yaml`)
-
-**Technical diagnostics dashboard** for advanced users.
-
-**Sections**:
-- ESPHome Device Status: Connection, uptime, WiFi signal
-- Modbus Communication: Status of relay boards and analog output boards
-- Ground Floor Relays: Individual relay switches (pumps, valves)
-- First Floor Relays: Individual relay switches (pumps, valves, MEV)
-- Analog Outputs (0-10V DAC): Mixing valves, fancoil speeds, MEV fan speed
-- Mixing Valve Controllers: PID controls for supply temperature
-- Pump Status: Radiant and fancoil pump states
-- Sensor Failover Status: Active vs. Modbus vs. HA fallback sensors
-- Dallas Temperature Sensors: 1-Wire supply temperature sensors
-- System Configuration: HA input_number values (thresholds, margins, delays)
-- All PID Controllers: Active status grid for all 13+ PIDs
-- Boost Status: Fancoil boost triggers and reasons
-- System Health Charts: Supply temps, dew points, air quality trends
-
-**Use Case**: Troubleshooting, hardware verification, system health monitoring
 
 ---
 
@@ -453,32 +486,45 @@ Examples:
 
 ## Navigation Flow
 
+### Sidebar Access
+
+**Only the main Climate Overview dashboard appears in the Home Assistant sidebar.** All other dashboards are accessed via navigation buttons, creating a clean hierarchical structure:
+
 ```
-Climate Overview (Main Entry)
-├─> Ground Floor Dashboard
-│   ├─> Soggiorno (detailed)
-│   ├─> Cucina (detailed)
-│   ├─> Bagno Terra (detailed)
-│   ├─> Anticamera (detailed)
-│   └─> Locale Tecnico (detailed)
-│
-├─> First Floor Dashboard
-│   ├─> Camera Nord (detailed)
-│   ├─> Camera Sud (detailed)
-│   ├─> Camera Ospiti (detailed)
-│   ├─> Camera Padronale (detailed)
-│   ├─> Bagno Grande (detailed)
-│   ├─> Bagno Ospiti (detailed)
-│   ├─> Bagno Padronale (detailed)
-│   └─> Lavanderia (detailed)
-│
-├─> Second Floor Dashboard
-│   └─> Sottotetto (detailed)
-│
-└─> System Monitoring Dashboard
+[Sidebar] Climate Control (Main Entry)
+    │
+    ├─> Ground Floor Dashboard
+    │   ├─> Soggiorno (detailed)
+    │   ├─> Cucina (detailed)
+    │   ├─> Bagno Terra (detailed)
+    │   ├─> Anticamera (detailed)
+    │   └─> Locale Tecnico (detailed)
+    │
+    ├─> First Floor Dashboard
+    │   ├─> Camera Nord (detailed)
+    │   ├─> Camera Sud (detailed)
+    │   ├─> Camera Ospiti (detailed)
+    │   ├─> Camera Padronale (detailed)
+    │   ├─> Bagno Grande (detailed)
+    │   ├─> Bagno Ospiti (detailed)
+    │   ├─> Bagno Padronale (detailed)
+    │   └─> Lavanderia (detailed)
+    │
+    ├─> Second Floor Dashboard
+    │   └─> Sottotetto (detailed)
+    │
+    └─> System Monitoring Dashboard
 ```
 
+### Navigation Pattern
+
+1. **Start**: Click "Climate Control" in sidebar
+2. **Navigate down**: Click floor/room buttons to drill into details
+3. **Navigate up**: Use "Back" buttons to return to parent dashboard
+4. **Direct access**: Bookmark specific dashboard URLs for quick access
+
 Each room dashboard has a "Back" button to return to its floor dashboard.
+Each floor dashboard has a "Back to Overview" button to return to the main dashboard.
 
 ---
 

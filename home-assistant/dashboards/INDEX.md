@@ -5,15 +5,40 @@ Complete listing of all Home Assistant dashboards for the climate control system
 ## Summary
 
 - **Total Dashboards**: 19
-- **Main Dashboards**: 5 (shown in sidebar)
-- **Room Dashboards**: 14 (navigation only)
+- **Sidebar Dashboard**: 1 (Climate Overview only)
+- **Navigation Dashboards**: 4 (floor + system monitoring)
+- **Room Dashboards**: 14 (deep navigation)
 - **Format**: YAML (Home Assistant Lovelace)
+
+## Navigation Hierarchy
+
+```
+[Sidebar] Climate Control
+    ├─> Ground Floor Dashboard
+    │   ├─> Soggiorno
+    │   ├─> Cucina
+    │   ├─> Bagno Terra
+    │   ├─> Anticamera
+    │   └─> Locale Tecnico
+    ├─> First Floor Dashboard
+    │   ├─> Camera Nord
+    │   ├─> Camera Sud
+    │   ├─> Camera Ospiti
+    │   ├─> Camera Padronale
+    │   ├─> Bagno Grande
+    │   ├─> Bagno Ospiti
+    │   ├─> Bagno Padronale
+    │   └─> Lavanderia
+    ├─> Second Floor Dashboard
+    │   └─> Sottotetto
+    └─> System Monitoring Dashboard
+```
 
 ---
 
-## Main Dashboards (Sidebar)
+## Sidebar Dashboard
 
-### 1. Climate Overview
+### Climate Overview (Main Entry Point)
 **File**: `climate-overview.yaml`
 **Path**: `/lovelace/climate-overview`
 **Icon**: `mdi:home-thermometer`
@@ -28,7 +53,9 @@ Complete listing of all Home Assistant dashboards for the climate control system
 
 ---
 
-### 2. Ground Floor
+## Navigation Dashboards
+
+### Ground Floor
 **File**: `ground-floor.yaml`
 **Path**: `/lovelace/ground-floor`
 **Icon**: `mdi:home-floor-0`
@@ -50,7 +77,7 @@ Complete listing of all Home Assistant dashboards for the climate control system
 
 ---
 
-### 3. First Floor
+### First Floor
 **File**: `first-floor.yaml`
 **Path**: `/lovelace/first-floor`
 **Icon**: `mdi:home-floor-1`
@@ -76,7 +103,7 @@ Complete listing of all Home Assistant dashboards for the climate control system
 
 ---
 
-### 4. Second Floor
+### Second Floor
 **File**: `second-floor.yaml`
 **Path**: `/lovelace/second-floor`
 **Icon**: `mdi:home-floor-2`
@@ -93,7 +120,7 @@ Complete listing of all Home Assistant dashboards for the climate control system
 
 ---
 
-### 5. System Monitoring
+### System Monitoring
 **File**: `system-monitoring.yaml`
 **Path**: `/lovelace/system-monitoring`
 **Icon**: `mdi:monitor-dashboard`
