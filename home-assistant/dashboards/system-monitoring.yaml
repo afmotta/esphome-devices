@@ -1,0 +1,521 @@
+# System Monitoring & Diagnostics Dashboard
+# Technical view for monitoring hardware, relays, sensors, and system health
+
+title: System Monitoring
+path: system-monitoring
+icon: mdi:monitor-dashboard
+type: sections
+
+sections:
+  # ===========================================================================
+  # Navigation
+  # ===========================================================================
+  - type: grid
+    cards:
+      - type: button
+        name: Back to Overview
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/climate-overview
+
+  # ===========================================================================
+  # ESPHome Device Status
+  # ===========================================================================
+  - type: grid
+    title: ESPHome Device Status
+    columns: 3
+    cards:
+      - type: tile
+        entity: binary_sensor.climate_control_status
+        name: Climate Control Board
+        icon: mdi:chip
+
+      - type: tile
+        entity: sensor.climate_control_uptime
+        name: Uptime
+        icon: mdi:clock-outline
+
+      - type: tile
+        entity: sensor.climate_control_wifi_signal
+        name: WiFi Signal
+        icon: mdi:wifi
+
+  # ===========================================================================
+  # Modbus Communication Status
+  # ===========================================================================
+  - type: grid
+    title: Modbus Communication
+    columns: 3
+    cards:
+      - type: tile
+        entity: binary_sensor.relay_board_1_status
+        name: Relay Board 1 (0x02)
+        icon: mdi:ethernet
+
+      - type: tile
+        entity: binary_sensor.relay_board_2_status
+        name: Relay Board 2 (0x03)
+        icon: mdi:ethernet
+
+      - type: tile
+        entity: binary_sensor.analog_outputs_board_1_status
+        name: Analog Outputs (0x01)
+        icon: mdi:ethernet
+
+  # ===========================================================================
+  # Ground Floor Relays (Board 1)
+  # ===========================================================================
+  - type: grid
+    title: Ground Floor Relays (Board 1 - 0x02)
+    columns: 4
+    cards:
+      - type: tile
+        entity: switch.relay_1
+        name: Relay 1 - GF Radiant Pump
+        icon: mdi:pump
+
+      - type: tile
+        entity: switch.relay_2
+        name: Relay 2 - GF Fancoil Pump
+        icon: mdi:pump
+
+      - type: tile
+        entity: switch.relay_9
+        name: Relay 9 - Soggiorno Radiant
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_10
+        name: Relay 10 - Cucina Radiant
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_11
+        name: Relay 11 - Bagno Terra Radiant
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_12
+        name: Relay 12 - Anticamera Radiant
+        icon: mdi:valve
+
+  # ===========================================================================
+  # First Floor Relays (Board 2)
+  # ===========================================================================
+  - type: grid
+    title: First Floor Relays (Board 2 - 0x03)
+    columns: 4
+    cards:
+      - type: tile
+        entity: switch.relay_3
+        name: Relay 3 - FF Radiant Pump
+        icon: mdi:pump
+
+      - type: tile
+        entity: switch.relay_13
+        name: Relay 13 - Camera Nord
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_14
+        name: Relay 14 - Camera Sud
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_15
+        name: Relay 15 - Camera Ospiti
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_16
+        name: Relay 16 - Camera Padronale
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_17
+        name: Relay 17 - Bagno Grande
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.relay_18
+        name: Relay 18 - MEV Power
+        icon: mdi:fan
+
+      - type: tile
+        entity: switch.relay_19
+        name: Relay 19 - MEV Mode
+        icon: mdi:cog
+
+      - type: tile
+        entity: switch.relay_20
+        name: Relay 20 - MEV Dehumidifier
+        icon: mdi:water-remove
+
+      - type: tile
+        entity: switch.relay_21
+        name: Relay 21 - MEV Cooling
+        icon: mdi:snowflake
+
+  # ===========================================================================
+  # Analog Outputs (0-10V DAC)
+  # ===========================================================================
+  - type: grid
+    title: Analog Outputs (0-10V DAC)
+    columns: 3
+    cards:
+      - type: tile
+        entity: number.analog_output_1
+        name: DAC 1 - GF Mixing Valve
+        icon: mdi:valve
+
+      - type: tile
+        entity: number.analog_output_2
+        name: DAC 2 - FF Mixing Valve
+        icon: mdi:valve
+
+      - type: tile
+        entity: number.analog_output_3
+        name: DAC 3 - Soggiorno Fancoil
+        icon: mdi:fan
+
+      - type: tile
+        entity: number.analog_output_4
+        name: DAC 4 - Cucina Fancoil
+        icon: mdi:fan
+
+      - type: tile
+        entity: number.analog_output_5
+        name: DAC 5 - Locale Tecnico Fancoil
+        icon: mdi:fan
+
+      - type: tile
+        entity: number.analog_output_6
+        name: DAC 6 - Sottotetto Fancoil
+        icon: mdi:fan
+
+      - type: tile
+        entity: number.analog_output_7
+        name: DAC 7 - MEV Fan Speed
+        icon: mdi:fan-speed-3
+
+  # ===========================================================================
+  # Mixing Valve Controllers
+  # ===========================================================================
+  - type: grid
+    title: Mixing Valve PID Controllers
+    columns: 2
+    cards:
+      - type: thermostat
+        entity: climate.pid_mixing_valve_radiante_piano_terra
+        name: Ground Floor Mixing Valve
+        features:
+          - type: climate-hvac-modes
+
+      - type: tile
+        entity: sensor.radiante_piano_terra_supply_temp
+        name: GF Supply Temperature
+        icon: mdi:thermometer-water
+
+      - type: tile
+        entity: sensor.ground_floor_supply_temp_minimum
+        name: GF Min Supply Temp
+        icon: mdi:thermometer-chevron-down
+
+      - type: thermostat
+        entity: climate.pid_mixing_valve_primo_piano
+        name: First Floor Mixing Valve
+        features:
+          - type: climate-hvac-modes
+
+      - type: tile
+        entity: sensor.primo_piano_supply_temp
+        name: FF Supply Temperature
+        icon: mdi:thermometer-water
+
+      - type: tile
+        entity: sensor.first_floor_supply_temp_minimum
+        name: FF Min Supply Temp
+        icon: mdi:thermometer-chevron-down
+
+  # ===========================================================================
+  # Pump Status
+  # ===========================================================================
+  - type: grid
+    title: Pump Status
+    columns: 3
+    cards:
+      - type: tile
+        entity: binary_sensor.ground_floor_radiant_any_zone_open
+        name: GF Radiant Pump
+        icon: mdi:pump
+
+      - type: tile
+        entity: binary_sensor.ground_floor_any_fancoil_zone_open
+        name: GF Fancoil Pump
+        icon: mdi:pump
+
+      - type: tile
+        entity: binary_sensor.first_floor_any_zone_open
+        name: FF Radiant Pump
+        icon: mdi:pump
+
+  # ===========================================================================
+  # Sensor Failover Status
+  # ===========================================================================
+  - type: grid
+    title: Sensor Failover Status (Sample Rooms)
+    columns: 2
+    cards:
+      # Soggiorno
+      - type: tile
+        entity: sensor.soggiorno_room_temp_abstracted
+        name: Soggiorno Temp (Active)
+        icon: mdi:thermometer-check
+
+      - type: tile
+        entity: sensor.soggiorno_modbus_temp
+        name: Soggiorno Modbus Temp
+        icon: mdi:thermometer-bluetooth
+
+      - type: tile
+        entity: sensor.room_soggiorno_temperature
+        name: Soggiorno HA Temp (Fallback)
+        icon: mdi:home-assistant
+
+      # Camera Nord
+      - type: tile
+        entity: sensor.camera_nord_room_temp_abstracted
+        name: Camera Nord Temp (Active)
+        icon: mdi:thermometer-check
+
+      - type: tile
+        entity: sensor.camera_nord_modbus_temp
+        name: Camera Nord Modbus Temp
+        icon: mdi:thermometer-bluetooth
+
+      - type: tile
+        entity: sensor.room_camera_nord_temperature
+        name: Camera Nord HA Temp (Fallback)
+        icon: mdi:home-assistant
+
+  # ===========================================================================
+  # Dallas Temperature Sensors (1-Wire)
+  # ===========================================================================
+  - type: grid
+    title: Dallas Temperature Sensors (Supply Temp)
+    columns: 2
+    cards:
+      - type: tile
+        entity: sensor.radiante_piano_terra_supply_temp
+        name: Ground Floor Supply
+        icon: mdi:thermometer-water
+
+      - type: tile
+        entity: sensor.primo_piano_supply_temp
+        name: First Floor Supply
+        icon: mdi:thermometer-water
+
+  # ===========================================================================
+  # System Configuration Values
+  # ===========================================================================
+  - type: grid
+    title: System Configuration (Input Numbers from HA)
+    columns: 2
+    cards:
+      - type: tile
+        entity: input_number.ground_floor_safe_margin
+        name: GF Safe Margin
+        icon: mdi:shield-half-full
+
+      - type: tile
+        entity: input_number.ground_floor_fancoil_boost_threshold
+        name: GF Boost Threshold
+        icon: mdi:thermometer-alert
+
+      - type: tile
+        entity: input_number.ground_floor_fancoil_humidity_threshold
+        name: GF Humidity Threshold
+        icon: mdi:water-percent-alert
+
+      - type: tile
+        entity: input_number.ground_floor_predictive_boost_minutes
+        name: GF Predictive Boost Min
+        icon: mdi:timer-alert
+
+      - type: tile
+        entity: input_number.first_floor_safe_margin
+        name: FF Safe Margin
+        icon: mdi:shield-half-full
+
+      - type: tile
+        entity: input_number.mev_escalation_fan_threshold
+        name: MEV Escalation Threshold
+        icon: mdi:fan-alert
+
+      - type: tile
+        entity: input_number.mev_minimum_fan_speed
+        name: MEV Min Fan Speed
+        icon: mdi:fan-speed-1
+
+      - type: tile
+        entity: input_number.mev_escalation_delay_minutes
+        name: MEV Escalation Delay
+        icon: mdi:timer
+
+  # ===========================================================================
+  # All PID Controllers Status
+  # ===========================================================================
+  - type: grid
+    title: All PID Controllers - Active Status
+    columns: 4
+    cards:
+      # Ground Floor Radiant
+      - type: tile
+        entity: binary_sensor.pid_radiant_soggiorno_is_active
+        name: Soggiorno Radiant
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_cucina_is_active
+        name: Cucina Radiant
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_bagno_terra_is_active
+        name: Bagno Terra Radiant
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_anticamera_is_active
+        name: Anticamera Radiant
+        icon: mdi:radiator
+
+      # Ground Floor Fancoil
+      - type: tile
+        entity: binary_sensor.pid_fancoil_soggiorno_is_active
+        name: Soggiorno Fancoil
+        icon: mdi:fan
+
+      - type: tile
+        entity: binary_sensor.pid_fancoil_cucina_is_active
+        name: Cucina Fancoil
+        icon: mdi:fan
+
+      - type: tile
+        entity: binary_sensor.pid_fancoil_locale_tecnico_is_active
+        name: Locale Tecnico Fancoil
+        icon: mdi:fan
+
+      # First Floor Radiant
+      - type: tile
+        entity: binary_sensor.pid_radiant_camera_nord_is_active
+        name: Camera Nord
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_camera_sud_is_active
+        name: Camera Sud
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_camera_ospiti_is_active
+        name: Camera Ospiti
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_camera_padronale_is_active
+        name: Camera Padronale
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_bagno_grande_is_active
+        name: Bagno Grande
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_bagno_ospiti_is_active
+        name: Bagno Ospiti
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_bagno_padronale_is_active
+        name: Bagno Padronale
+        icon: mdi:radiator
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_lavanderia_is_active
+        name: Lavanderia
+        icon: mdi:radiator
+
+      # Second Floor
+      - type: tile
+        entity: binary_sensor.pid_fancoil_sottotetto_is_active
+        name: Sottotetto Fancoil
+        icon: mdi:fan
+
+  # ===========================================================================
+  # Boost Status
+  # ===========================================================================
+  - type: grid
+    title: Fancoil Boost Status
+    columns: 2
+    cards:
+      - type: tile
+        entity: binary_sensor.soggiorno_boost_active
+        name: Soggiorno Boost
+        icon: mdi:rocket-launch
+
+      - type: tile
+        entity: sensor.soggiorno_boost_trigger_reason
+        name: Soggiorno Boost Reason
+        icon: mdi:information
+
+      - type: tile
+        entity: binary_sensor.cucina_boost_active
+        name: Cucina Boost
+        icon: mdi:rocket-launch
+
+      - type: tile
+        entity: sensor.cucina_boost_trigger_reason
+        name: Cucina Boost Reason
+        icon: mdi:information
+
+  # ===========================================================================
+  # System Health Charts
+  # ===========================================================================
+  - type: grid
+    title: System Health - Historical
+    cards:
+      - type: history-graph
+        title: Mixing Valve Supply Temperatures
+        hours_to_show: 24
+        entities:
+          - entity: sensor.radiante_piano_terra_supply_temp
+            name: Ground Floor
+          - entity: sensor.primo_piano_supply_temp
+            name: First Floor
+          - entity: sensor.ground_floor_supply_temp_minimum
+            name: GF Minimum
+          - entity: sensor.first_floor_supply_temp_minimum
+            name: FF Minimum
+
+      - type: history-graph
+        title: Dew Points
+        hours_to_show: 24
+        entities:
+          - entity: sensor.max_dew_point_piano_terra
+            name: GF Max Dew Point
+          - entity: sensor.max_dew_point_primo_piano
+            name: FF Max Dew Point
+
+      - type: history-graph
+        title: Air Quality (First Floor)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.max_co_primo_piano
+            name: Max CO₂
+          - entity: sensor.max_iaq_primo_piano
+            name: Max IAQ
+          - entity: sensor.first_floor_max_humidity
+            name: Max Humidity

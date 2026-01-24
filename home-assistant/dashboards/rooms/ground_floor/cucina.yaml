@@ -1,0 +1,114 @@
+# Cucina (Kitchen) - Detailed Room Dashboard
+# Ground Floor
+# Heating: Radiant Floor
+# Cooling: Radiant Floor (primary) + Fancoil (boost)
+
+title: Cucina
+path: cucina
+icon: mdi:chef-hat
+type: sections
+
+sections:
+  - type: grid
+    cards:
+      - type: button
+        name: Back to Ground Floor
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/ground-floor
+
+  # Room Environment
+  - type: grid
+    title: Room Environment
+    columns: 3
+    cards:
+      - type: tile
+        entity: sensor.cucina_room_temp_abstracted
+        name: Temperature
+        icon: mdi:thermometer
+
+      - type: tile
+        entity: sensor.cucina_room_humidity_abstracted
+        name: Humidity
+        icon: mdi:water-percent
+
+      - type: tile
+        entity: sensor.cucina_dew_point
+        name: Dew Point
+        icon: mdi:water-thermometer
+
+  # Radiant Floor Control
+  - type: grid
+    title: Radiant Floor Heating/Cooling
+    cards:
+      - type: thermostat
+        entity: climate.pid_radiant_cucina
+        name: Radiant Control
+        features:
+          - type: climate-hvac-modes
+          - type: climate-preset-modes
+
+      - type: tile
+        entity: switch.relay_10
+        name: Radiant Zone Valve
+        icon: mdi:valve
+
+      - type: tile
+        entity: binary_sensor.pid_radiant_cucina_is_active
+        name: Zone Active
+        icon: mdi:radiator
+
+      - type: tile
+        entity: sensor.pid_radiant_cucina_output_value
+        name: PID Output
+        icon: mdi:percent
+
+  # Fancoil Boost System
+  - type: grid
+    title: Fancoil Boost System
+    cards:
+      - type: thermostat
+        entity: climate.pid_fancoil_cucina
+        name: Fancoil Control
+
+      - type: tile
+        entity: number.fancoil_cucina_speed
+        name: Fan Speed (0-10V)
+        icon: mdi:fan-speed-3
+
+      - type: tile
+        entity: binary_sensor.cucina_boost_active
+        name: Boost Active
+        icon: mdi:rocket-launch
+
+      - type: tile
+        entity: sensor.cucina_boost_trigger_reason
+        name: Boost Trigger Reason
+        icon: mdi:information
+
+  # Auto-tune
+  - type: grid
+    title: PID Auto-tune
+    cards:
+      - type: tile
+        entity: button.autotune_pid_radiant_cucina
+        name: Auto-tune Radiant
+        icon: mdi:tune-variant
+
+      - type: tile
+        entity: button.autotune_pid_fancoil_cucina
+        name: Auto-tune Fancoil
+        icon: mdi:tune-variant
+
+  # Historical Data
+  - type: grid
+    title: Historical Data
+    cards:
+      - type: history-graph
+        title: Temperature & Humidity Trend
+        hours_to_show: 24
+        entities:
+          - entity: sensor.cucina_room_temp_abstracted
+          - entity: sensor.cucina_room_humidity_abstracted
+          - entity: sensor.cucina_dew_point

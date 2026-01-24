@@ -1,0 +1,95 @@
+# Second Floor (Secondo Piano) Dashboard
+# 1 zone: Sottotetto (Attic)
+
+title: Second Floor
+path: second-floor
+icon: mdi:home-floor-2
+type: sections
+
+sections:
+  # ===========================================================================
+  # Floor System Status
+  # ===========================================================================
+  - type: grid
+    title: Floor System Status
+    cards:
+      - type: button
+        name: Back to Overview
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/climate-overview
+
+      - type: button
+        name: Sottotetto
+        icon: mdi:home-roof
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/sottotetto
+        entity: climate.pid_fancoil_sottotetto
+        show_state: true
+
+  # ===========================================================================
+  # Room Status
+  # ===========================================================================
+  - type: grid
+    title: Sottotetto - Quick Status
+    columns: 3
+    cards:
+      - type: tile
+        entity: sensor.sottotetto_room_temp_abstracted
+        name: Temperature
+        icon: mdi:thermometer
+
+      - type: tile
+        entity: sensor.sottotetto_room_humidity_abstracted
+        name: Humidity
+        icon: mdi:water-percent
+
+      - type: tile
+        entity: binary_sensor.pid_fancoil_sottotetto_is_active
+        name: Fancoil Active
+        icon: mdi:fan
+
+  # ===========================================================================
+  # Fancoil Control
+  # ===========================================================================
+  - type: grid
+    title: Fancoil System
+    cards:
+      - type: thermostat
+        entity: climate.pid_fancoil_sottotetto
+        name: Fancoil Control
+        features:
+          - type: climate-hvac-modes
+          - type: climate-preset-modes
+
+      - type: tile
+        entity: number.fancoil_sottotetto_speed
+        name: Fan Speed (0-10V)
+        icon: mdi:fan-speed-3
+
+      - type: tile
+        entity: binary_sensor.pid_fancoil_sottotetto_is_active
+        name: Fancoil Active
+        icon: mdi:fan
+
+      - type: tile
+        entity: sensor.pid_fancoil_sottotetto_output_value
+        name: PID Output
+        icon: mdi:percent
+
+  # ===========================================================================
+  # Historical Data
+  # ===========================================================================
+  - type: grid
+    title: Historical Data
+    cards:
+      - type: history-graph
+        title: Temperature & Humidity Trend
+        hours_to_show: 24
+        entities:
+          - entity: sensor.sottotetto_room_temp_abstracted
+            name: Temperature
+          - entity: sensor.sottotetto_room_humidity_abstracted
+            name: Humidity
