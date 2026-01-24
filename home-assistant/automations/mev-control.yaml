@@ -1,0 +1,217 @@
+# MEV Control Automations (Epic 16)
+# First Floor MEV Intelligent Control - Fan-Speed-Triggered State Machine
+#
+# PURPOSE: Intelligent humidity and air quality control for mechanical ventilation
+# ARCHITECTURE:
+#   - Path A: Air Quality (CO2 + VOC/IAQ) drives baseline ventilation
+#   - Path B: Humidity Control uses fan-speed-triggered state machine
+#
+# STATES: FAN_ONLY -> DEHUMIDIFYING -> COOLING
+# TRANSITIONS: Based on fan speed + humidity rate of change
+#
+# VERSION: 1.0
+# DATE: January 15, 2026
+# SOURCE: Epic 16 Brief
+
+automation:
+  # ==============================================================================
+  # ESCALATION AUTOMATIONS
+  # Fan working hard but losing the humidity battle
+  # ==============================================================================
+
+  # ---------------------------------------------------------------------------
+  # FAN_ONLY -> DEHUMIDIFYING
+  # Fan >= 70% for 5min AND humidity still rising
+  # ---------------------------------------------------------------------------
+  - alias: "MEV Escalate: Fan Only -> Dehumidifying"
+    id: mev_escalate_to_dehumidifying
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.mev_final_fan_speed') | float(0) >=
+             states('input_number.mev_escalation_fan_threshold') | float(70) and
+             states('sensor.first_floor_humidity_rate') | float(0) > 0 }}
+        for:
+          minutes: "{{ states('input_number.mev_escalation_delay_minutes') | int(5) }}"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "fan_only"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "dehumidifying"
+      - service: switch.turn_on
+        target:
+          entity_id: switch.first_floor_mev_dehumidifier
+      - service: system_log.write
+        data:
+          message: "MEV: Escalated to DEHUMIDIFYING (fan >=70%, humidity rising)"
+          level: info
+
+  # ---------------------------------------------------------------------------
+  # DEHUMIDIFYING -> COOLING
+  # Fan >= 80% for 5min despite dehumidifier (summer only)
+  # ---------------------------------------------------------------------------
+  - alias: "MEV Escalate: Dehumidifying -> Cooling"
+    id: mev_escalate_to_cooling
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.mev_final_fan_speed') | float(0) >=
+             states('input_number.mev_escalation_fan_threshold_cooling') | float(80) and
+             states('sensor.first_floor_humidity_rate') | float(0) > 0 }}
+        for:
+          minutes: "{{ states('input_number.mev_escalation_delay_minutes') | int(5) }}"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "dehumidifying"
+      - condition: state
+        entity_id: binary_sensor.summer_mode
+        state: "on"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "cooling"
+      - service: switch.turn_on
+        target:
+          entity_id: switch.first_floor_mev_cooling
+      - service: system_log.write
+        data:
+          message: "MEV: Escalated to COOLING (dehumidifier not enough)"
+          level: warning
+
+  # ==============================================================================
+  # DE-ESCALATION AUTOMATIONS
+  # Humidity low AND fan coasting
+  # ==============================================================================
+
+  # ---------------------------------------------------------------------------
+  # COOLING -> DEHUMIDIFYING
+  # Humidity < 40% AND fan < 30% for 10min, OR summer mode ends
+  # ---------------------------------------------------------------------------
+  - alias: "MEV De-escalate: Cooling -> Dehumidifying"
+    id: mev_deescalate_from_cooling
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.first_floor_max_humidity') | float(100) <
+             states('input_number.mev_humidity_lower_bound') | float(40) and
+             states('sensor.mev_final_fan_speed') | float(100) <
+             states('input_number.mev_deescalation_fan_threshold') | float(30) }}
+        for:
+          minutes: "{{ states('input_number.mev_deescalation_delay_minutes') | int(10) }}"
+      - platform: state
+        entity_id: binary_sensor.summer_mode
+        to: "off"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "cooling"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "dehumidifying"
+      - service: switch.turn_off
+        target:
+          entity_id: switch.first_floor_mev_cooling
+      - service: system_log.write
+        data:
+          message: "MEV: De-escalated to DEHUMIDIFYING (humidity < 40%, fan coasting)"
+          level: info
+
+  # ---------------------------------------------------------------------------
+  # DEHUMIDIFYING -> FAN_ONLY
+  # Humidity < 40% AND fan < 30% for 10min
+  # ---------------------------------------------------------------------------
+  - alias: "MEV De-escalate: Dehumidifying -> Fan Only"
+    id: mev_deescalate_from_dehumidifying
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.first_floor_max_humidity') | float(100) <
+             states('input_number.mev_humidity_lower_bound') | float(40) and
+             states('sensor.mev_final_fan_speed') | float(100) <
+             states('input_number.mev_deescalation_fan_threshold') | float(30) }}
+        for:
+          minutes: "{{ states('input_number.mev_deescalation_delay_minutes') | int(10) }}"
+    condition:
+      - condition: state
+        entity_id: input_select.mev_humidity_state
+        state: "dehumidifying"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.mev_humidity_state
+        data:
+          option: "fan_only"
+      - service: switch.turn_off
+        target:
+          entity_id: switch.first_floor_mev_dehumidifier
+      - service: system_log.write
+        data:
+          message: "MEV: De-escalated to FAN_ONLY (humidity < 40%, fan coasting)"
+          level: info
+
+  # ==============================================================================
+  # FAN SPEED CONTROL
+  # Continuous modulation based on air quality and humidity
+  # ==============================================================================
+
+  - alias: "MEV Fan Speed Control"
+    id: mev_fan_speed_control
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.mev_final_fan_speed
+          - input_select.mev_humidity_state
+      - platform: time_pattern
+        seconds: "/30"
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.first_floor_mev_fan_speed
+        data:
+          value: "{{ states('sensor.mev_final_fan_speed') | int(20) }}"
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+#
+# State Machine:
+#   FAN_ONLY <-> DEHUMIDIFYING <-> COOLING
+#
+# Escalation Triggers (fan working hard, losing battle):
+#   - Fan >= 70% for 5min AND rate > 0 -> add Dehumidifier
+#   - Fan >= 80% for 5min AND rate > 0 -> add Cooling (summer only)
+#
+# De-escalation Triggers (humidity low, fan coasting):
+#   - Humidity < 40% AND fan < 30% for 10min -> remove equipment
+#
+# Key Principle:
+#   Fan speed is both the CONTROL variable (modulates to maintain humidity)
+#   AND the ESCALATION signal (high fan + rising = add equipment)
+#
+# Entity Dependencies:
+#   - sensor.mev_final_fan_speed (see templates/mev-control.yaml)
+#   - sensor.first_floor_humidity_rate (see templates/mev-control.yaml)
+#   - sensor.first_floor_max_humidity (from ESPHome)
+#   - input_select.mev_humidity_state (see helpers/mev-control.yaml)
+#   - input_number.mev_* (see helpers/mev-control.yaml)
+#   - switch.first_floor_mev_dehumidifier (from ESPHome)
+#   - switch.first_floor_mev_cooling (from ESPHome)
+#   - number.first_floor_mev_fan_speed (from ESPHome)
+#   - binary_sensor.summer_mode (system-wide)
+#
+# Related Documentation:
+#   - templates/mev-control.yaml: Template sensors
+#   - helpers/mev-control.yaml: Input helpers
+#   - components/mev.yaml: ESPHome implementation

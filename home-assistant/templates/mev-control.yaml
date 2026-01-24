@@ -1,0 +1,164 @@
+# MEV Control Template Sensors (Epic 16)
+# First Floor MEV Intelligent Control - Demand Calculation
+#
+# PURPOSE: Calculate air quality and humidity-based fan speed demands
+# ARCHITECTURE:
+#   - Air Quality Demand: CO2 + VOC/IAQ -> proportional fan speed
+#   - Humidity Demand: Position in 40-60% window + rate of change
+#   - Final Fan Speed: max(air quality, humidity, minimum)
+#
+# INSTALLATION:
+#   1. Copy template section to configuration.yaml or templates folder
+#   2. Ensure ESPHome sensors are available (first_floor_max_humidity, etc.)
+#   3. Create input_number helpers (see helpers/mev-control.yaml)
+#   4. Restart Home Assistant
+#
+# VERSION: 1.0
+# DATE: January 15, 2026
+# SOURCE: Epic 16 Brief
+
+template:
+  # ==============================================================================
+  # HUMIDITY RATE CALCULATION
+  # Rolling rate of change for fan speed modulation
+  # ==============================================================================
+
+  - trigger:
+      - platform: time_pattern
+        minutes: "/1"
+    sensor:
+      - name: "First Floor Humidity Rate"
+        unique_id: first_floor_humidity_rate
+        unit_of_measurement: "%/min"
+        state_class: measurement
+        icon: mdi:trending-up
+        state: >
+          {% set window = states('input_number.mev_rate_window_minutes') | int(5) %}
+          {% set current = states('sensor.first_floor_max_humidity') | float(none) %}
+          {% set history = state_attr('sensor.first_floor_humidity_rate', 'history') | default([]) %}
+
+          {# Add current reading to history #}
+          {% set ns = namespace(hist = history + [{'time': now().timestamp(), 'value': current}]) %}
+
+          {# Keep only readings within window #}
+          {% set cutoff = now().timestamp() - (window * 60) %}
+          {% set ns.hist = ns.hist | selectattr('time', '>=', cutoff) | list %}
+
+          {# Calculate rate if we have enough data #}
+          {% if ns.hist | length >= 2 and current is not none %}
+            {% set oldest = ns.hist | first %}
+            {% set dt_min = (now().timestamp() - oldest.time) / 60 %}
+            {% if dt_min > 0 %}
+              {{ ((current - oldest.value) / dt_min) | round(2) }}
+            {% else %}
+              0
+            {% endif %}
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          history: >
+            {% set window = states('input_number.mev_rate_window_minutes') | int(5) %}
+            {% set current = states('sensor.first_floor_max_humidity') | float(none) %}
+            {% set history = state_attr('sensor.first_floor_humidity_rate', 'history') | default([]) %}
+            {% set cutoff = now().timestamp() - (window * 60) %}
+            {{ (history + [{'time': now().timestamp(), 'value': current}])
+               | selectattr('time', '>=', cutoff) | list }}
+
+  # ==============================================================================
+  # DEMAND CALCULATION SENSORS
+  # ==============================================================================
+
+  - sensor:
+      # -------------------------------------------------------------------------
+      # Air Quality Demand
+      # Maps CO2 and IAQ levels to fan speed demand
+      # -------------------------------------------------------------------------
+      - name: "MEV Air Quality Demand"
+        unique_id: mev_aq_demand
+        unit_of_measurement: "%"
+        icon: mdi:fan
+        state: >
+          {% set co2 = states('sensor.first_floor_max_co2') | float(600) %}
+          {% set iaq = states('sensor.first_floor_max_iaq') | float(100) %}
+          {% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+
+          {# CO2 mapping: <600=min, 600-800=35%, 800-1000=50%, 1000-1400=70%, >1400=90% #}
+          {% set co2_d = 90 if co2 > 1400 else 70 if co2 > 1000 else 50 if co2 > 800 else 35 if co2 > 600 else min_fan %}
+
+          {# IAQ mapping: <100=min, 100-150=35%, 150-250=50%, 250-350=70%, >350=90% #}
+          {% set iaq_d = 90 if iaq > 350 else 70 if iaq > 250 else 50 if iaq > 150 else 35 if iaq > 100 else min_fan %}
+
+          {{ [co2_d, iaq_d] | max }}
+
+      # -------------------------------------------------------------------------
+      # Humidity Demand
+      # Position in 40-60% window + rate of change contribution
+      # -------------------------------------------------------------------------
+      - name: "MEV Humidity Demand"
+        unique_id: mev_humidity_demand
+        unit_of_measurement: "%"
+        icon: mdi:water-percent
+        state: >
+          {% set upper = states('input_number.mev_humidity_upper_bound') | float(60) %}
+          {% set lower = states('input_number.mev_humidity_lower_bound') | float(40) %}
+          {% set humidity = states('sensor.first_floor_max_humidity') | float(50) %}
+          {% set rate = states('sensor.first_floor_humidity_rate') | float(0) %}
+          {% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+
+          {# Position in the humidity window (0% at lower, 100% at upper) #}
+          {% set window_size = upper - lower %}
+          {% set position = ((humidity - lower) / window_size) | float %}
+          {% set position_clamped = [[position, 0] | max, 1] | min %}
+
+          {# Position contributes 0-50% fan speed #}
+          {% set position_factor = (position_clamped * 50) | int %}
+
+          {# Rate contributes +20% per 1%/min (only when rising) #}
+          {% set rate_factor = [[rate * 20, 0] | max, 30] | min | int %}
+
+          {# Final calculation #}
+          {{ [[min_fan + position_factor + rate_factor, 90] | min, min_fan] | max }}
+
+      # -------------------------------------------------------------------------
+      # Final Fan Speed
+      # Maximum of all demands, clamped to valid range
+      # -------------------------------------------------------------------------
+      - name: "MEV Final Fan Speed"
+        unique_id: mev_final_fan_speed
+        unit_of_measurement: "%"
+        icon: mdi:fan
+        state: >
+          {% set aq = states('sensor.mev_air_quality_demand') | int(20) %}
+          {% set humidity = states('sensor.mev_humidity_demand') | int(20) %}
+          {% set min_fan = states('input_number.mev_minimum_fan_speed') | int(20) %}
+          {{ [[aq, humidity, min_fan] | max, 100] | min }}
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+#
+# Air Quality Thresholds:
+#   CO2 (ppm):  <600=Excellent, 600-800=Good, 800-1000=Moderate, 1000-1400=Poor, >1400=Bad
+#   IAQ Index:  <100=Excellent, 100-150=Good, 150-250=Moderate, 250-350=Poor, >350=Bad
+#   Fan Demand:     20%            35%             50%              70%          90%
+#
+# Humidity Control Formula:
+#   - Position Factor: 0-50% based on position in 40-60% window
+#   - Rate Factor: +20% per 1%/min (only positive rates, capped at +30%)
+#   - Total: min_fan + position_factor + rate_factor
+#
+# Key Principle:
+#   Fan speed is both the CONTROL variable (modulates to maintain humidity)
+#   AND the ESCALATION signal (high fan + rising = add equipment)
+#
+# Entity Dependencies:
+#   - sensor.first_floor_max_humidity (from ESPHome)
+#   - sensor.first_floor_max_co2 (from ESPHome)
+#   - sensor.first_floor_max_iaq (from ESPHome)
+#   - input_number.mev_* (see helpers/mev-control.yaml)
+#
+# Related Files:
+#   - helpers/mev-control.yaml: Input number configuration
+#   - automations/mev-control.yaml: State machine automations
+#   - components/mev.yaml: ESPHome implementation

@@ -1,0 +1,157 @@
+# MEV Control Helpers (Epic 16)
+# Input Helpers for First Floor MEV Intelligent Control
+#
+# PURPOSE: Runtime configurable parameters for MEV humidity and air quality control
+# INSTALLATION:
+#   1. Copy to configuration.yaml or create as package
+#   2. Restart Home Assistant
+#   3. Configure via Settings > Devices & Services > Helpers
+#
+# VERSION: 1.0
+# DATE: January 15, 2026
+# SOURCE: Epic 16 Brief
+
+# ==============================================================================
+# INPUT NUMBERS - Runtime Configurable Parameters
+# ==============================================================================
+
+input_number:
+  # -------------------------------------------------------------------------
+  # Humidity Window Bounds
+  # -------------------------------------------------------------------------
+  mev_humidity_upper_bound:
+    name: "MEV Humidity Upper Bound"
+    min: 50
+    max: 70
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:water-percent-alert
+    initial: 60
+
+  mev_humidity_lower_bound:
+    name: "MEV Humidity Lower Bound"
+    min: 30
+    max: 50
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+    initial: 40
+
+  # -------------------------------------------------------------------------
+  # Fan Thresholds for Escalation/De-escalation
+  # -------------------------------------------------------------------------
+  mev_escalation_fan_threshold:
+    name: "MEV Escalation Fan Threshold (Dehumidifier)"
+    min: 50
+    max: 90
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan-alert
+    initial: 70
+
+  mev_escalation_fan_threshold_cooling:
+    name: "MEV Escalation Fan Threshold (Cooling)"
+    min: 60
+    max: 95
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan-alert
+    initial: 80
+
+  mev_deescalation_fan_threshold:
+    name: "MEV De-escalation Fan Threshold"
+    min: 20
+    max: 50
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan-off
+    initial: 30
+
+  # -------------------------------------------------------------------------
+  # Timing Parameters
+  # -------------------------------------------------------------------------
+  mev_escalation_delay_minutes:
+    name: "MEV Escalation Delay"
+    min: 2
+    max: 10
+    step: 1
+    unit_of_measurement: "min"
+    icon: mdi:timer
+    initial: 5
+
+  mev_deescalation_delay_minutes:
+    name: "MEV De-escalation Delay"
+    min: 5
+    max: 20
+    step: 1
+    unit_of_measurement: "min"
+    icon: mdi:timer
+    initial: 10
+
+  # -------------------------------------------------------------------------
+  # Rate Calculation Window
+  # -------------------------------------------------------------------------
+  mev_rate_window_minutes:
+    name: "MEV Rate Calculation Window"
+    min: 2
+    max: 10
+    step: 1
+    unit_of_measurement: "min"
+    icon: mdi:timer-sand
+    initial: 5
+
+  # -------------------------------------------------------------------------
+  # Minimum Fan Speed (Continuous Air Exchange)
+  # -------------------------------------------------------------------------
+  mev_minimum_fan_speed:
+    name: "MEV Minimum Fan Speed"
+    min: 10
+    max: 40
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:fan
+    initial: 20
+
+# ==============================================================================
+# INPUT SELECT - State Machine State
+# ==============================================================================
+
+input_select:
+  mev_humidity_state:
+    name: "MEV Humidity Control State"
+    options:
+      - fan_only
+      - dehumidifying
+      - cooling
+    initial: fan_only
+    icon: mdi:state-machine
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+#
+# Humidity Window:
+#   - Lower Bound (40%): Target low humidity for de-escalation
+#   - Upper Bound (60%): Target high humidity for escalation trigger
+#   - Goal: Keep humidity within 40-60% range
+#
+# Escalation Thresholds:
+#   - Dehumidifier (70%): Fan working hard but losing humidity battle
+#   - Cooling (80%): Dehumidifier not enough, needs cooling coil
+#
+# De-escalation Threshold:
+#   - Fan < 30%: System is coasting, can remove equipment
+#
+# Timing:
+#   - Escalation Delay (5min): Prevent premature equipment activation
+#   - De-escalation Delay (10min): Ensure stability before removing equipment
+#
+# State Machine:
+#   FAN_ONLY -> DEHUMIDIFYING -> COOLING
+#   - Escalate: fan high + humidity rising
+#   - De-escalate: humidity low + fan coasting
+#
+# Related Files:
+#   - templates/mev-control.yaml: Template sensors
+#   - automations/mev-control.yaml: State machine automations
+#   - components/mev.yaml: ESPHome implementation

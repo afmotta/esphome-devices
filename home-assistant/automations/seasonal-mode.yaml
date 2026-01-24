@@ -1,0 +1,236 @@
+# Seasonal Mode Automations (Epic 17)
+# Three-Tier Seasonal Mode Selection
+#
+# PURPOSE: Automated heat pump mode selection that eliminates manual seasonal switching
+# ARCHITECTURE:
+#   - Tier 1: Calendar Gates (Hard Locks) - Highest Priority
+#   - Tier 2: Weather Forecast Guidance (Informational)
+#   - Tier 3: Demand-Driven Transitions (PID Requests)
+#
+# NOTE: MVP implementation moved core logic to ESPHome (components/seasonal_mode.yaml)
+# These automations are kept for reference and optional HA-based orchestration.
+#
+# VERSION: 1.0
+# DATE: January 22, 2026
+# SOURCE: Epic 17 Brief
+
+# ==============================================================================
+# CALENDAR GATE AUTOMATIONS (TIER 1)
+# Hard locks during core seasons
+# ==============================================================================
+
+automation:
+  # ---------------------------------------------------------------------------
+  # Winter Lock (Oct 15 - Apr 15)
+  # ---------------------------------------------------------------------------
+  - alias: "HP Mode - Winter Lock (Oct 15)"
+    id: hp_mode_winter_lock
+    description: "Lock heat pump to HEAT mode for winter season"
+    trigger:
+      - platform: time
+        at: "00:01:00"
+    condition:
+      - condition: template
+        value_template: "{{ now().month == 10 and now().day == 15 }}"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode
+        data:
+          option: "HEAT"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode_reason
+        data:
+          option: "CALENDAR_LOCK"
+      - service: notify.persistent_notification
+        data:
+          title: "HP Mode: Winter Lock"
+          message: "Heat pump locked to HEAT mode for winter season (Oct 15 - Apr 15)"
+    mode: single
+
+  # ---------------------------------------------------------------------------
+  # Summer Lock (Jun 1 - Aug 31)
+  # ---------------------------------------------------------------------------
+  - alias: "HP Mode - Summer Lock (Jun 1)"
+    id: hp_mode_summer_lock
+    description: "Lock heat pump to COOL mode for summer season"
+    trigger:
+      - platform: time
+        at: "00:01:00"
+    condition:
+      - condition: template
+        value_template: "{{ now().month == 6 and now().day == 1 }}"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode
+        data:
+          option: "COOL"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode_reason
+        data:
+          option: "CALENDAR_LOCK"
+      - service: notify.persistent_notification
+        data:
+          title: "HP Mode: Summer Lock"
+          message: "Heat pump locked to COOL mode for summer season (Jun-Aug)"
+    mode: single
+
+  # ---------------------------------------------------------------------------
+  # Spring Shoulder Entry (Apr 15)
+  # ---------------------------------------------------------------------------
+  - alias: "HP Mode - Spring Shoulder Entry (Apr 15)"
+    id: hp_mode_spring_shoulder
+    description: "Enter shoulder season - set to SANITARY_ONLY"
+    trigger:
+      - platform: time
+        at: "00:01:00"
+    condition:
+      - condition: template
+        value_template: "{{ now().month == 4 and now().day == 15 }}"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode
+        data:
+          option: "SANITARY_ONLY"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode_reason
+        data:
+          option: "CALENDAR_LOCK"
+      - service: notify.persistent_notification
+        data:
+          title: "HP Mode: Spring Shoulder"
+          message: "Entering spring shoulder season - mode will follow PID demand"
+    mode: single
+
+  # ---------------------------------------------------------------------------
+  # Autumn Shoulder Entry (Sep 1)
+  # ---------------------------------------------------------------------------
+  - alias: "HP Mode - Autumn Shoulder Entry (Sep 1)"
+    id: hp_mode_autumn_shoulder
+    description: "Enter shoulder season - set to SANITARY_ONLY"
+    trigger:
+      - platform: time
+        at: "00:01:00"
+    condition:
+      - condition: template
+        value_template: "{{ now().month == 9 and now().day == 1 }}"
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode
+        data:
+          option: "SANITARY_ONLY"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode_reason
+        data:
+          option: "CALENDAR_LOCK"
+      - service: notify.persistent_notification
+        data:
+          title: "HP Mode: Autumn Shoulder"
+          message: "Entering autumn shoulder season - mode will follow PID demand"
+    mode: single
+
+  # ==============================================================================
+  # DEMAND-DRIVEN TRANSITIONS (TIER 3)
+  # During shoulder seasons, PID demand triggers mode switches
+  # ==============================================================================
+
+  # ---------------------------------------------------------------------------
+  # Demand Switch to HEAT
+  # ---------------------------------------------------------------------------
+  - alias: "HP Mode - Demand Switch to HEAT"
+    id: hp_mode_demand_heat
+    description: "Switch to HEAT when any PID requests heating (shoulder seasons only)"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.any_pid_requesting_heat
+        to: "on"
+    condition:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: input_select.hp_mode
+            state: "HEAT"
+      - condition: template
+        value_template: >
+          {{ now().month in [4, 5, 9, 10] }}
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode
+        data:
+          option: "HEAT"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode_reason
+        data:
+          option: "DEMAND"
+      - service: notify.persistent_notification
+        data:
+          title: "HP Mode: Demand Switch"
+          message: "Switched to HEAT mode - PID requested heating"
+    mode: single
+
+  # ---------------------------------------------------------------------------
+  # Demand Switch to COOL
+  # ---------------------------------------------------------------------------
+  - alias: "HP Mode - Demand Switch to COOL"
+    id: hp_mode_demand_cool
+    description: "Switch to COOL when any PID requests cooling (shoulder seasons only)"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.any_pid_requesting_cool
+        to: "on"
+    condition:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: input_select.hp_mode
+            state: "COOL"
+      - condition: template
+        value_template: >
+          {{ now().month in [4, 5, 9, 10] }}
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode
+        data:
+          option: "COOL"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.hp_mode_reason
+        data:
+          option: "DEMAND"
+      - service: notify.persistent_notification
+        data:
+          title: "HP Mode: Demand Switch"
+          message: "Switched to COOL mode - PID requested cooling"
+    mode: single
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+#
+# Key Design Points:
+# - Calendar gates fire at 00:01 on transition dates
+# - Demand automations only fire during shoulder months (Apr-May, Sep-Oct)
+# - No automation returns to SANITARY_ONLY (stays in mode until opposite requested)
+# - Direct HEAT<->COOL transitions are allowed (no SANITARY stop required)
+# - Persistent notifications provide audit trail
+#
+# Entity Dependencies:
+# - input_select.hp_mode (see helpers/seasonal-mode.yaml)
+# - input_select.hp_mode_reason (see helpers/seasonal-mode.yaml)
+# - binary_sensor.any_pid_requesting_heat (from ESPHome or templates/seasonal-mode.yaml)
+# - binary_sensor.any_pid_requesting_cool (from ESPHome or templates/seasonal-mode.yaml)
+#
+# Related Documentation:
+# - components/seasonal_mode.yaml: ESPHome implementation (primary)
+# - templates/seasonal-mode.yaml: PID demand detection sensors
+# - helpers/seasonal-mode.yaml: Input select helpers

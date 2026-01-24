@@ -1,0 +1,214 @@
+# Climate Control Automations (Epic 5 & 8)
+# Room Climate Resume and Emergency Alert Automations
+#
+# PURPOSE: Handle climate control resume after condition clears and emergency alerts
+# ARCHITECTURE:
+#   - Coordinator monitors condition states (emergency, window, occupancy)
+#   - HA automation resumes climate when conditions clear
+#   - Emergency alerts notify on sensor failures
+#
+# VERSION: 1.0
+# DATE: October 31, 2025
+# SOURCE: Epic 8 Coordinator Design, Epic 5 HA-Only Sensors
+
+automation:
+  # ==============================================================================
+  # CLIMATE RESUME AUTOMATIONS (Epic 8)
+  # Resume PID control after all conditions clear
+  # ==============================================================================
+
+  # ---------------------------------------------------------------------------
+  # Resume Climate After Conditions Clear
+  # Monitors coordinator status and resumes when "Normal (All Clear)"
+  # ---------------------------------------------------------------------------
+  - alias: "Resume Climate After Conditions Clear - Soggiorno"
+    id: resume_climate_soggiorno
+    trigger:
+      - platform: state
+        entity_id: text_sensor.soggiorno_coordinator_status
+        to: "Normal (All Clear)"
+        for: "00:00:30"
+    action:
+      - service: climate.set_hvac_mode
+        target:
+          entity_id: climate.soggiorno_pid
+        data:
+          hvac_mode: >
+            {% if is_state('input_select.hp_mode', 'HEAT') %}
+              heat
+            {% elif is_state('input_select.hp_mode', 'COOL') %}
+              cool
+            {% else %}
+              off
+            {% endif %}
+      - service: system_log.write
+        data:
+          message: "Soggiorno: Climate resumed after conditions cleared"
+          level: info
+
+  # Add similar automations for each room:
+  # - Resume Climate After Conditions Clear - Cucina
+  # - Resume Climate After Conditions Clear - Bagno
+  # - Resume Climate After Conditions Clear - Camera Nord
+  # - etc.
+
+  # ==============================================================================
+  # EMERGENCY ALERT AUTOMATIONS (Epic 5)
+  # Alert on sensor failures and emergency conditions
+  # ==============================================================================
+
+  # ---------------------------------------------------------------------------
+  # HVAC Emergency Alert
+  # Notifies when any zone enters emergency mode due to sensor failure
+  # ---------------------------------------------------------------------------
+  - alias: "HVAC Emergency Alert"
+    id: hvac_emergency_alert
+    trigger:
+      # Ground Floor
+      - platform: state
+        entity_id: text_sensor.soggiorno_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.cucina_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.bagno_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.anticamera_sensor_state
+        to: "Emergency"
+      # First Floor
+      - platform: state
+        entity_id: text_sensor.bagno_grande_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.bagno_ospiti_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.bagno_padronale_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.camera_nord_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.camera_sud_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.camera_ospiti_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.camera_padronale_sensor_state
+        to: "Emergency"
+      - platform: state
+        entity_id: text_sensor.lavanderia_sensor_state
+        to: "Emergency"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "HVAC Emergency"
+          message: >
+            {{ trigger.to_state.name }} in EMERGENCY mode - sensor unavailable for >3 minutes
+          data:
+            priority: high
+            ttl: 0
+            tag: "hvac-emergency"
+      - service: persistent_notification.create
+        data:
+          title: "HVAC Emergency Alert"
+          message: >
+            **{{ trigger.to_state.name }}** entered EMERGENCY mode.
+
+            Sensor data has been unavailable for more than 3 minutes.
+            PID controller has been shut down for safety.
+
+            Please check:
+            1. Sensor connectivity
+            2. Home Assistant integration status
+            3. WiFi/network connectivity
+
+  # ---------------------------------------------------------------------------
+  # HVAC Emergency Recovery Alert
+  # Notifies when a zone recovers from emergency mode
+  # ---------------------------------------------------------------------------
+  - alias: "HVAC Emergency Recovery Alert"
+    id: hvac_emergency_recovery
+    trigger:
+      # Ground Floor
+      - platform: state
+        entity_id: text_sensor.soggiorno_sensor_state
+        from: "Emergency"
+        to: "Active"
+      - platform: state
+        entity_id: text_sensor.cucina_sensor_state
+        from: "Emergency"
+        to: "Active"
+      # Add other rooms as needed
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "HVAC Recovery"
+          message: >
+            {{ trigger.to_state.name }} recovered from emergency - sensor restored
+          data:
+            priority: normal
+            tag: "hvac-emergency"
+      - service: persistent_notification.dismiss
+        data:
+          notification_id: "hvac_emergency"
+
+  # ==============================================================================
+  # MEV ALARM NOTIFICATION (Epic 6)
+  # Alert on MEV system alarms
+  # ==============================================================================
+
+  - alias: "MEV Alarm Notification"
+    id: mev_alarm_notification
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.mev_primo_piano_alarm
+        to: "on"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "MEV System Alarm"
+          message: "First floor ventilation system has triggered an alarm. Check immediately."
+          data:
+            priority: high
+            ttl: 0
+      - service: persistent_notification.create
+        data:
+          title: "MEV System Alarm"
+          message: "Check first floor MEV unit - alarm condition detected"
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+#
+# Coordinator Status Values:
+#   - "Normal (All Clear)" - All conditions normal, climate can operate
+#   - "Shutdown: Emergency (Active)" - Sensor failed, PID OFF
+#   - "Shutdown: Emergency (Recovering)" - Sensor restored, waiting for stability
+#   - "Shutdown: Window (Active)" - Window open, PID OFF
+#   - "Shutdown: Window (Recovering)" - Window closed, waiting for stability
+#
+# Resume Strategy (MVP):
+#   - Coordinator forces PID OFF when conditions trigger
+#   - HA automation resumes PID when conditions clear
+#   - HA knows desired climate mode better than ESPHome
+#
+# Emergency Timeline:
+#   - Sensor fails: immediate detection
+#   - 3 minutes: Emergency mode triggered, PID shutdown
+#   - Sensor recovery: 60 second stability period before resume
+#
+# Entity Dependencies:
+#   - text_sensor.{room}_coordinator_status (from ESPHome)
+#   - text_sensor.{room}_sensor_state (from ESPHome)
+#   - climate.{room}_pid (from ESPHome)
+#   - input_select.hp_mode (see helpers/seasonal-mode.yaml)
+#   - binary_sensor.mev_primo_piano_alarm (from ESPHome)
+#
+# Related Documentation:
+#   - Epic 8: Coordinator State Machine Engine Design
+#   - Epic 5: HA-Only Sensors with Emergency Shutdown
+#   - Epic 6: MEV Integration Guide

@@ -1,0 +1,210 @@
+# Seasonal Mode Template Sensors (Epic 17)
+# Weather Forecast Integration and Override Detection
+#
+# PURPOSE: Tier 2 weather intelligence for seasonal mode selection
+# NOTE: PID demand (Tier 3) always overrides forecast guidance (Tier 2)
+#
+# INSTALLATION:
+#   1. Copy template section to configuration.yaml or templates folder
+#   2. Ensure you have a working weather integration
+#   3. Replace 'weather.home' with your actual weather entity ID
+#   4. Restart Home Assistant
+#
+# REQUIREMENTS:
+#   - Home Assistant 2024.1 or later
+#   - Working weather integration with forecast support
+#   - ESPHome seasonal_mode.yaml already deployed
+#
+# VERSION: 1.0
+# DATE: January 22, 2026
+# SOURCE: Epic 17 Stories 17.3, 17.6, 17.7
+
+template:
+  # ==============================================================================
+  # PID DEMAND DETECTION (Story 17.3)
+  # Aggregate demand from all PID controllers
+  # ==============================================================================
+
+  - binary_sensor:
+      - name: "Any PID Requesting Heat"
+        unique_id: any_pid_requesting_heat
+        icon: mdi:fire
+        device_class: heat
+        state: >
+          {{
+            is_state_attr('climate.pid_radiant_soggiorno', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_radiant_cucina', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_radiant_bagno_grande', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_fancoil_camera_nord', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_fancoil_camera_sud', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_fancoil_camera_ospiti', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_fancoil_camera_padronale', 'hvac_action', 'heating') or
+            is_state_attr('climate.pid_fancoil_lavanderia', 'hvac_action', 'heating')
+          }}
+
+      - name: "Any PID Requesting Cool"
+        unique_id: any_pid_requesting_cool
+        icon: mdi:snowflake
+        device_class: cold
+        state: >
+          {{
+            is_state_attr('climate.pid_radiant_soggiorno', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_radiant_cucina', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_radiant_bagno_grande', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_fancoil_camera_nord', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_fancoil_camera_sud', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_fancoil_camera_ospiti', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_fancoil_camera_padronale', 'hvac_action', 'cooling') or
+            is_state_attr('climate.pid_fancoil_lavanderia', 'hvac_action', 'cooling')
+          }}
+
+  # ==============================================================================
+  # WEATHER FORECAST GUIDANCE (Story 17.6)
+  # Shows what mode the 24h forecast suggests
+  # ==============================================================================
+
+  - sensor:
+      # Main forecast guidance sensor
+      - name: "HP Forecast Guidance"
+        unique_id: hp_forecast_guidance
+        icon: mdi:weather-partly-cloudy
+        state: >
+          {# Get 24h forecast high temperature #}
+          {% set forecast_high = state_attr('weather.home', 'forecast')[0].temperature | float(20) %}
+
+          {# Get configurable thresholds #}
+          {% set cool_thresh = states('input_number.hp_cooling_threshold') | float(26) %}
+          {% set heat_thresh = states('input_number.hp_heating_threshold') | float(14) %}
+
+          {# Determine guidance based on thresholds #}
+          {% if forecast_high >= cool_thresh %}
+            COOL
+          {% elif forecast_high <= heat_thresh %}
+            HEAT
+          {% else %}
+            SANITARY_ONLY
+          {% endif %}
+        attributes:
+          forecast_high: >
+            {{ state_attr('weather.home', 'forecast')[0].temperature | float(20) }}
+          cooling_threshold: >
+            {{ states('input_number.hp_cooling_threshold') | float(26) }}
+          heating_threshold: >
+            {{ states('input_number.hp_heating_threshold') | float(14) }}
+          dead_band_range: >
+            {{ states('input_number.hp_heating_threshold') | float(14) }} - {{ states('input_number.hp_cooling_threshold') | float(26) }}C
+          is_shoulder_season: >
+            {% set m = now().month %}
+            {% set d = now().day %}
+            {% set is_spring = (m == 4 and d >= 15) or (m == 5) %}
+            {% set is_autumn = (m == 9) or (m == 10 and d < 15) %}
+            {{ is_spring or is_autumn }}
+          guidance_active: >
+            {% set m = now().month %}
+            {% set d = now().day %}
+            {% set is_spring = (m == 4 and d >= 15) or (m == 5) %}
+            {% set is_autumn = (m == 9) or (m == 10 and d < 15) %}
+            {{ is_spring or is_autumn }}
+
+      # Helper sensor: Forecast high temperature
+      - name: "HP Forecast High Temperature"
+        unique_id: hp_forecast_high_temp
+        icon: mdi:thermometer
+        unit_of_measurement: "C"
+        state: >
+          {{ state_attr('weather.home', 'forecast')[0].temperature | float(20) }}
+        attributes:
+          forecast_date: >
+            {{ state_attr('weather.home', 'forecast')[0].datetime }}
+
+  # ==============================================================================
+  # OVERRIDE DETECTION (Story 17.7)
+  # Detects when PID demand overrides forecast guidance
+  # ==============================================================================
+
+  - binary_sensor:
+      - name: "HP Mode Override Active"
+        unique_id: hp_mode_override_active
+        icon: mdi:alert-circle
+        device_class: problem
+        state: >
+          {# Get current system state #}
+          {% set mode = states('select.climate_control_heat_pump_mode') %}
+          {% set reason = states('text_sensor.climate_control_heat_pump_mode_reason') %}
+          {% set guidance = states('sensor.hp_forecast_guidance') %}
+
+          {# Override is active when: #}
+          {# 1. Mode reason is DEMAND (not CALENDAR_LOCK or MANUAL) #}
+          {# 2. Current mode conflicts with forecast guidance #}
+          {% set is_demand = (reason == 'DEMAND') %}
+          {% set heat_override = (mode == 'HEAT' and guidance == 'COOL') %}
+          {% set cool_override = (mode == 'COOL' and guidance == 'HEAT') %}
+
+          {{ is_demand and (heat_override or cool_override) }}
+        attributes:
+          current_mode: >
+            {{ states('select.climate_control_heat_pump_mode') }}
+          forecast_guidance: >
+            {{ states('sensor.hp_forecast_guidance') }}
+          mode_reason: >
+            {{ states('text_sensor.climate_control_heat_pump_mode_reason') }}
+          override_type: >
+            {% set mode = states('select.climate_control_heat_pump_mode') %}
+            {% set guidance = states('sensor.hp_forecast_guidance') %}
+            {% set reason = states('text_sensor.climate_control_heat_pump_mode_reason') %}
+
+            {% if reason != 'DEMAND' %}
+              None (not demand-driven)
+            {% elif mode == 'HEAT' and guidance == 'COOL' %}
+              Heating despite cooling forecast
+            {% elif mode == 'COOL' and guidance == 'HEAT' %}
+              Cooling despite heating forecast
+            {% else %}
+              None (mode matches guidance)
+            {% endif %}
+          forecast_high: >
+            {{ states('sensor.hp_forecast_high_temperature') }}C
+          season: >
+            {{ states('text_sensor.climate_control_season_classification') }}
+          pid_heat_demand: >
+            {{ states('binary_sensor.climate_control_any_pid_requesting_heat') }}
+          pid_cool_demand: >
+            {{ states('binary_sensor.climate_control_any_pid_requesting_cool') }}
+          explanation: >
+            {% set mode = states('select.climate_control_heat_pump_mode') %}
+            {% set guidance = states('sensor.hp_forecast_guidance') %}
+            {% set reason = states('text_sensor.climate_control_heat_pump_mode_reason') %}
+
+            {% if reason != 'DEMAND' %}
+              Override detection only applies when mode reason is DEMAND
+            {% elif mode == 'HEAT' and guidance == 'COOL' %}
+              PID requested heating even though forecast suggests cooling. This is normal - PIDs know actual room needs better than forecast.
+            {% elif mode == 'COOL' and guidance == 'HEAT' %}
+              PID requested cooling even though forecast suggests heating. This is normal - PIDs know actual room needs better than forecast.
+            {% else %}
+              Current mode matches forecast guidance. No override detected.
+            {% endif %}
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+#
+# Weather Entity Configuration:
+#   - Replace 'weather.home' with your actual weather entity
+#   - Common platforms: Met.no, OpenWeatherMap, AccuWeather
+#   - Ensure forecast attribute is available
+#
+# Threshold Tuning:
+#   - Default cooling threshold: 26C (Milan climate)
+#   - Default heating threshold: 14C (Milan climate)
+#   - Dead band: 15-25C -> suggests SANITARY_ONLY
+#
+# Override Detection:
+#   - Override is NORMAL behavior - PIDs know actual room needs
+#   - High override frequency is expected and correct
+#   - Used for diagnostics and threshold tuning
+#
+# Related Files:
+#   - helpers/seasonal-mode.yaml: Input number thresholds
+#   - automations/seasonal-mode.yaml: Calendar gate automations
+#   - components/seasonal_mode.yaml: ESPHome implementation
