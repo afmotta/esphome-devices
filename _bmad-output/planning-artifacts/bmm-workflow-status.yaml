@@ -1,0 +1,78 @@
+# Workflow Status - ESPHome Devices Project
+
+# This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
+# Implementation phase is tracked separately in sprint-status.yaml
+
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/product-brief.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+generated: "2026-01-24T08:26:00Z"
+project: "esphome-devices"
+project_type: "brownfield"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "{project-root}/_bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml"
+
+workflow_status:
+  # Phase 0: Documentation (Completed - project already documented)
+  document-project: "_bmad-output/planning-artifacts/architecture.md"
+
+  # Phase 1: Analysis (Completed)
+  brainstorm-project: "_bmad-output/planning-artifacts/brainstorming-session-results.md"
+  research: "optional"
+  product-brief: "_bmad-output/planning-artifacts/product-brief.md"
+
+  # Phase 2: Planning (Completed)
+  prd: "_bmad-output/planning-artifacts/prd.md"
+  create-ux-design: "skipped"  # No UI component in this project
+
+  # Phase 3: Solutioning (Completed)
+  create-architecture: "_bmad-output/planning-artifacts/architecture.md"
+  create-epics-and-stories: "_bmad-output/implementation-artifacts/epic-1-modbus-coordination.md"
+  test-design: "optional"
+  implementation-readiness: "completed"
+
+  # Phase 4: Implementation (In Progress)
+  sprint-planning: "in-progress"
+
+# Additional Project Context
+notes: |
+  Project has been successfully migrated from BMAD v4 to v6.
+  
+  Key artifacts migrated:
+  - PRD from docs/prd.md
+  - Product Brief from docs/brief.md
+  - Architecture documents
+  - Multiple epics (Epic 1-17) with completion reports
+  - Brainstorming session results
+  
+  Current state: Active implementation of multiple epics for a production ESPHome-based
+  home climate control system. The project has completed initial analysis, planning, and
+  architecture phases and is in active development with ongoing epic implementations.
+
+epic_status: |
+  Completed Epics:
+  - Epic 1: RS485 Modbus board-to-board communication (COMPLETED)
+  - Epic 5: HA-only sensors with emergency shutdown (COMPLETED)
+  - Epic 6: MEV integration (COMPLETED)
+  - Epic 7: Window detection (COMPLETED)
+  - Epic 8: Condition interface (COMPLETED)
+  - Epic 10: UDP zone activity (COMPLETED)
+  - Epic 13: First floor implementation (COMPLETED)
+  - Epic 14: Relay optimization (COMPLETED)
+  
+  In Progress:
+  - Epic 17: Seasonal mode automation (IN PLANNING)
+  
+  Future:
+  - Epic 15: Mixing group optimization
+  - Epic 16: Advanced features
