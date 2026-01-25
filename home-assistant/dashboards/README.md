@@ -66,7 +66,60 @@ home-assistant/dashboards/
 
 ## Installation
 
-### Method 1: YAML Mode (Recommended for this setup)
+### ⚡ Quick Start (Recommended)
+
+**Use the API installation script** for the fastest, easiest setup with no Home Assistant restart required:
+
+```bash
+cd /path/to/esphome-devices/home-assistant/dashboards
+
+# Create a long-lived access token in HA first (Profile → Long-Lived Access Tokens)
+
+python3 install-dashboards.py \
+    --url http://homeassistant.local:8123 \
+    --token YOUR_LONG_LIVED_TOKEN
+```
+
+✅ **Done!** Dashboards appear immediately in your Home Assistant sidebar.
+
+📖 **Full API installation guide**: See [API_INSTALLATION.md](API_INSTALLATION.md)
+
+---
+
+### Method 1: API Installation (Recommended)
+
+**Benefits**:
+- ✅ No configuration.yaml edits required
+- ✅ No Home Assistant restart needed
+- ✅ Dashboards appear immediately
+- ✅ UI-editable in Home Assistant
+- ✅ Perfect for automated deployments
+
+**Prerequisites**:
+- Home Assistant running and accessible
+- Long-lived access token (create in HA Profile)
+- Python 3 with PyYAML (`pip3 install pyyaml`)
+
+**Installation**:
+```bash
+python3 install-dashboards.py --url http://homeassistant.local:8123 --token YOUR_TOKEN
+```
+
+**Alternative (Bash)**:
+```bash
+./install-dashboards.sh http://homeassistant.local:8123 YOUR_TOKEN
+```
+
+📖 **Complete guide**: [API_INSTALLATION.md](API_INSTALLATION.md)
+
+---
+
+### Method 2: YAML Mode (For version control)
+
+**Benefits**:
+- Version-controlled dashboards
+- Infrastructure-as-code approach
+- Exact control over config files
 
 1. **Enable YAML mode in Home Assistant**:
 

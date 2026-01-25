@@ -2,7 +2,58 @@
 
 Fast setup guide for getting your dashboards up and running.
 
-## 5-Minute Setup
+## ⚡ Fastest Method (2 Minutes) - API Installation
+
+**No configuration files to edit. No restart required.**
+
+### Step 1: Get Access Token (30 seconds)
+
+1. Open Home Assistant
+2. Click your **profile** (bottom left)
+3. Scroll to **"Long-Lived Access Tokens"**
+4. Click **"Create Token"**
+5. Name it "Dashboard Installer"
+6. **Copy the token** (starts with `eyJ0eXAi...`)
+
+### Step 2: Run Installation Script (30 seconds)
+
+```bash
+cd /path/to/esphome-devices/home-assistant/dashboards
+
+python3 install-dashboards.py \
+    --url http://homeassistant.local:8123 \
+    --token YOUR_TOKEN_HERE
+```
+
+**Output:**
+```
+Installing dashboards...
+✓ Climate Control installed successfully
+✓ Ground Floor installed successfully
+✓ First Floor installed successfully
+✓ Second Floor installed successfully
+✓ System Monitoring installed successfully
+
+✓ All dashboards installed successfully!
+Access at: http://homeassistant.local:8123/lovelace/climate-overview
+```
+
+### Step 3: Done!
+
+Open Home Assistant → Click "Climate Control" in sidebar → Start using!
+
+✅ **All 5 main dashboards installed**
+✅ **No restart needed**
+✅ **Immediately accessible**
+✅ **UI-editable**
+
+📖 **Full API guide**: [API_INSTALLATION.md](API_INSTALLATION.md)
+
+---
+
+## 📋 Alternative: Manual YAML Setup (5 Minutes)
+
+For users who prefer YAML configuration or want version-controlled dashboards.
 
 ### Step 1: Copy Files (1 minute)
 
