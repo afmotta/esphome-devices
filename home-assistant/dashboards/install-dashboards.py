@@ -67,15 +67,55 @@ class DashboardInstaller:
         )
 
         try:
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 return json.loads(response.read().decode('utf-8'))
         except urllib.error.HTTPError as e:
             print(f"HTTP Error {e.code}: {e.reason}")
-            print(f"Response: {e.read().decode('utf-8')}")
+            try:
+                print(f"Response: {e.read().decode('utf-8')}")
+            except:
+                pass
             raise
         except urllib.error.URLError as e:
-            print(f"URL Error: {e.reason}")
+            print()
+            print("=" * 70)
+            print("ERROR: Cannot connect to Home Assistant")
+            print("=" * 70)
+            print()
+            print(f"URL: {url}")
+            print(f"Error: {e.reason}")
+            print()
+            print("Troubleshooting steps:")
+            print()
+            print("1. Verify Home Assistant is running:")
+            print("   - Open your browser and go to your HA URL")
+            print("   - You should see the Home Assistant login page")
+            print()
+            print("2. Check the URL format:")
+            print("   - Should be: http://homeassistant.local:8123")
+            print("   - Or use IP: http://192.168.1.X:8123")
+            print("   - Include http:// or https://")
+            print("   - Include port number (usually :8123)")
+            print()
+            print("3. Test connection from command line:")
+            print(f"   curl {self.ha_url}/api/")
+            print()
+            print("4. Common issues:")
+            print("   - Using 'homeassistant.local' may not work on all networks")
+            print("   - Try using the IP address instead")
+            print("   - Check firewall settings")
+            print("   - Ensure you're on the same network as Home Assistant")
+            print()
+            print("=" * 70)
             raise
+
+    def test_connection(self) -> bool:
+        """Test connection to Home Assistant"""
+        try:
+            response = self._api_request('GET', '')
+            return True
+        except:
+            return False
 
     def load_dashboard_yaml(self, filepath: Path) -> Dict[str, Any]:
         """Load dashboard YAML file and convert to Lovelace config"""
@@ -222,6 +262,16 @@ def main():
     print(f"Home Assistant URL: {args.url}")
     print("-" * 60)
 
+    # Test connection first
+    print("Testing connection to Home Assistant...")
+    try:
+        installer._api_request('GET', '')
+        print("✓ Connection successful")
+    except Exception as e:
+        print("\n✗ Connection failed - cannot proceed with installation")
+        sys.exit(1)
+
+    print()
     results = installer.install_all_dashboards(args.dashboards_dir)
 
     print("-" * 60)
