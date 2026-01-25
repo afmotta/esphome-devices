@@ -8,6 +8,7 @@ eliminating the need to edit configuration.yaml and restart HA.
 Requirements:
 - Home Assistant running and accessible
 - Long-lived access token (create in HA profile)
+- PyYAML library (install: pip3 install pyyaml)
 
 Usage:
     python3 install-dashboards.py --url http://homeassistant.local:8123 --token YOUR_TOKEN
@@ -21,7 +22,28 @@ from pathlib import Path
 from typing import Dict, Any
 import urllib.request
 import urllib.error
-import yaml
+
+# Check for PyYAML before proceeding
+try:
+    import yaml
+except ImportError:
+    print("=" * 70)
+    print("ERROR: PyYAML library not found")
+    print("=" * 70)
+    print()
+    print("This script requires the PyYAML library to parse dashboard files.")
+    print()
+    print("To install PyYAML, run one of the following commands:")
+    print()
+    print("  pip3 install pyyaml")
+    print("  python3 -m pip install pyyaml")
+    print()
+    print("On some systems you may need:")
+    print("  pip install pyyaml")
+    print("  sudo pip3 install pyyaml")
+    print()
+    print("=" * 70)
+    sys.exit(1)
 
 
 class DashboardInstaller:

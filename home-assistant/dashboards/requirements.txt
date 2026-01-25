@@ -1,0 +1,4 @@
+# Python dependencies for dashboard installation scripts
+
+# YAML parser for loading dashboard configurations
+PyYAML>=6.0

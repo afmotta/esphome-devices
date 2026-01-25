@@ -6,7 +6,21 @@ Fast setup guide for getting your dashboards up and running.
 
 **No configuration files to edit. No restart required.**
 
-### Step 1: Get Access Token (30 seconds)
+### Step 1: Install PyYAML (20 seconds)
+
+**First time only** - install the required Python library:
+
+```bash
+cd /path/to/esphome-devices/home-assistant/dashboards
+pip3 install -r requirements.txt
+```
+
+Or directly:
+```bash
+pip3 install pyyaml
+```
+
+### Step 2: Get Access Token (30 seconds)
 
 1. Open Home Assistant
 2. Click your **profile** (bottom left)
@@ -15,7 +29,7 @@ Fast setup guide for getting your dashboards up and running.
 5. Name it "Dashboard Installer"
 6. **Copy the token** (starts with `eyJ0eXAi...`)
 
-### Step 2: Run Installation Script (30 seconds)
+### Step 3: Run Installation Script (30 seconds)
 
 ```bash
 cd /path/to/esphome-devices/home-assistant/dashboards
@@ -38,7 +52,7 @@ Installing dashboards...
 Access at: http://homeassistant.local:8123/lovelace/climate-overview
 ```
 
-### Step 3: Done!
+### Step 4: Done!
 
 Open Home Assistant → Click "Climate Control" in sidebar → Start using!
 
@@ -48,6 +62,18 @@ Open Home Assistant → Click "Climate Control" in sidebar → Start using!
 ✅ **UI-editable**
 
 📖 **Full API guide**: [API_INSTALLATION.md](API_INSTALLATION.md)
+
+---
+
+### ⚠️ If you get "PyYAML library not found" error
+
+The script will show a clear error message with installation instructions. Just run:
+
+```bash
+pip3 install pyyaml
+```
+
+Then re-run the installation script. See [API_INSTALLATION.md](API_INSTALLATION.md) for more troubleshooting.
 
 ---
 

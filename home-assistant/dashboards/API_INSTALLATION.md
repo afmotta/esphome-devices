@@ -31,20 +31,47 @@ Create a token in Home Assistant:
 
 ⚠️ **Save this token securely** - You won't be able to see it again!
 
-### 3. Install Dependencies
+### 3. Install Python Dependencies
 
-**For Python script:**
+**⚠️ REQUIRED for Python script:**
+
+The script needs PyYAML to parse dashboard configuration files.
+
+**Option 1: Install from requirements.txt (Recommended)**
+```bash
+cd /path/to/esphome-devices/home-assistant/dashboards
+pip3 install -r requirements.txt
+```
+
+**Option 2: Install directly**
 ```bash
 pip3 install pyyaml
-# or
+```
+
+**Alternative commands if the above doesn't work:**
+```bash
+# Try with python3 -m pip
 python3 -m pip install pyyaml
+
+# On some systems
+pip install pyyaml
+
+# With sudo (if needed)
+sudo pip3 install pyyaml
+```
+
+**Verify installation:**
+```bash
+python3 -c "import yaml; print('PyYAML installed successfully')"
 ```
 
 **For Bash script:**
 ```bash
 # curl is usually pre-installed
-# Verify:
 curl --version
+
+# PyYAML still required (used internally)
+pip3 install pyyaml
 
 # Optional (for pretty output):
 sudo apt-get install jq  # Debian/Ubuntu
@@ -59,9 +86,14 @@ brew install jq          # macOS
 
 **Advantages**: Better error handling, cross-platform, detailed output
 
+**Step 1: Install PyYAML**
 ```bash
 cd /path/to/esphome-devices/home-assistant/dashboards
+pip3 install -r requirements.txt
+```
 
+**Step 2: Run installation**
+```bash
 python3 install-dashboards.py \
     --url http://homeassistant.local:8123 \
     --token eyJ0eXAiOiJKV1QiLCJhbGc...YOUR_TOKEN_HERE
@@ -256,15 +288,57 @@ curl http://homeassistant.local:8123/api/
 1. Create a new long-lived access token in HA
 2. Use the new token in the script
 
-### Error: "ModuleNotFoundError: No module named 'yaml'"
+### Error: "ModuleNotFoundError: No module named 'yaml'" or "ERROR: PyYAML library not found"
 
-**Cause**: PyYAML not installed
+**Cause**: PyYAML library not installed
 
-**Fix**:
+**Fix (try in this order):**
+
+**1. Install from requirements.txt (Recommended):**
+```bash
+cd /path/to/esphome-devices/home-assistant/dashboards
+pip3 install -r requirements.txt
+```
+
+**2. Install directly:**
 ```bash
 pip3 install pyyaml
-# or
+```
+
+**3. Alternative methods:**
+```bash
+# Try with python3 -m pip
 python3 -m pip install pyyaml
+
+# Try with just pip (some systems)
+pip install pyyaml
+
+# With sudo if you get permission errors
+sudo pip3 install pyyaml
+
+# On Debian/Ubuntu, install via apt
+sudo apt-get install python3-yaml
+```
+
+**4. Verify installation:**
+```bash
+python3 -c "import yaml; print('PyYAML version:', yaml.__version__)"
+```
+
+**5. If still failing, check your Python environment:**
+```bash
+# Check which Python you're using
+which python3
+python3 --version
+
+# Check where pip installs packages
+pip3 show pyyaml
+
+# You might need to use a virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install pyyaml
+python install-dashboards.py --url ... --token ...
 ```
 
 ### Error: "Failed to parse YAML"
