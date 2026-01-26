@@ -2,84 +2,9 @@
 
 Fast setup guide for getting your dashboards up and running.
 
-## ⚡ Fastest Method (2 Minutes) - API Installation
+## ⚡ Recommended Method (5 Minutes) - YAML Mode
 
-**No configuration files to edit. No restart required.**
-
-### Step 1: Install PyYAML (20 seconds)
-
-**First time only** - install the required Python library:
-
-```bash
-cd /path/to/esphome-devices/home-assistant/dashboards
-pip3 install -r requirements.txt
-```
-
-Or directly:
-```bash
-pip3 install pyyaml
-```
-
-### Step 2: Get Access Token (30 seconds)
-
-1. Open Home Assistant
-2. Click your **profile** (bottom left)
-3. Scroll to **"Long-Lived Access Tokens"**
-4. Click **"Create Token"**
-5. Name it "Dashboard Installer"
-6. **Copy the token** (starts with `eyJ0eXAi...`)
-
-### Step 3: Run Installation Script (30 seconds)
-
-```bash
-cd /path/to/esphome-devices/home-assistant/dashboards
-
-python3 install-dashboards.py \
-    --url http://homeassistant.local:8123 \
-    --token YOUR_TOKEN_HERE
-```
-
-**Output:**
-```
-Installing dashboards...
-✓ Climate Control installed successfully
-✓ Ground Floor installed successfully
-✓ First Floor installed successfully
-✓ Second Floor installed successfully
-✓ System Monitoring installed successfully
-
-✓ All dashboards installed successfully!
-Access at: http://homeassistant.local:8123/lovelace/climate-overview
-```
-
-### Step 4: Done!
-
-Open Home Assistant → Click "Climate Control" in sidebar → Start using!
-
-✅ **All 5 main dashboards installed**
-✅ **No restart needed**
-✅ **Immediately accessible**
-✅ **UI-editable**
-
-📖 **Full API guide**: [API_INSTALLATION.md](API_INSTALLATION.md)
-
----
-
-### ⚠️ If you get "PyYAML library not found" error
-
-The script will show a clear error message with installation instructions. Just run:
-
-```bash
-pip3 install pyyaml
-```
-
-Then re-run the installation script. See [API_INSTALLATION.md](API_INSTALLATION.md) for more troubleshooting.
-
----
-
-## 📋 Alternative: Manual YAML Setup (5 Minutes)
-
-For users who prefer YAML configuration or want version-controlled dashboards.
+**Note**: Home Assistant's dashboard API only works for UI-created dashboards, not for loading YAML configurations. The API installation scripts included in this directory are therefore not functional. Use YAML mode instead.
 
 ### Step 1: Copy Files (1 minute)
 

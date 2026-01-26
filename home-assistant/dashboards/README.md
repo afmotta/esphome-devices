@@ -68,58 +68,75 @@ home-assistant/dashboards/
 
 ### ⚡ Quick Start (Recommended)
 
-**Use the API installation script** for the fastest, easiest setup with no Home Assistant restart required:
+**Use YAML mode** for the easiest setup with version-controlled dashboards:
 
-```bash
-cd /path/to/esphome-devices/home-assistant/dashboards
+1. **Copy dashboard files to Home Assistant:**
+   ```bash
+   # Copy to your Home Assistant config directory
+   cp -r /path/to/esphome-devices/home-assistant/dashboards /config/esphome-devices/home-assistant/
+   ```
 
-# Create a long-lived access token in HA first (Profile → Long-Lived Access Tokens)
+2. **Edit `configuration.yaml`** and add:
+   ```yaml
+   lovelace:
+     mode: yaml
+     dashboards:
+       climate-overview:
+         mode: yaml
+         title: Climate Control
+         icon: mdi:home-thermometer
+         show_in_sidebar: true
+         filename: /config/esphome-devices/home-assistant/dashboards/climate-overview.yaml
 
-python3 install-dashboards.py \
-    --url http://homeassistant.local:8123 \
-    --token YOUR_LONG_LIVED_TOKEN
-```
+       ground-floor:
+         mode: yaml
+         title: Ground Floor
+         icon: mdi:home-floor-0
+         show_in_sidebar: false
+         filename: /config/esphome-devices/home-assistant/dashboards/ground-floor.yaml
 
-✅ **Done!** Dashboards appear immediately in your Home Assistant sidebar.
+       first-floor:
+         mode: yaml
+         title: First Floor
+         icon: mdi:home-floor-1
+         show_in_sidebar: false
+         filename: /config/esphome-devices/home-assistant/dashboards/first-floor.yaml
 
-📖 **Full API installation guide**: See [API_INSTALLATION.md](API_INSTALLATION.md)
+       second-floor:
+         mode: yaml
+         title: Second Floor
+         icon: mdi:home-floor-2
+         show_in_sidebar: false
+         filename: /config/esphome-devices/home-assistant/dashboards/second-floor.yaml
+
+       system-monitoring:
+         mode: yaml
+         title: System Monitoring
+         icon: mdi:monitor-dashboard
+         show_in_sidebar: false
+         filename: /config/esphome-devices/home-assistant/dashboards/system-monitoring.yaml
+   ```
+
+3. **Restart Home Assistant**
+
+4. **Done!** Click "Climate Control" in the sidebar to access your dashboards.
+
+📖 **Full guide**: See sections below for detailed instructions and troubleshooting.
 
 ---
 
-### Method 1: API Installation (Recommended)
+### Method 1: YAML Mode (Recommended)
 
 **Benefits**:
-- ✅ No configuration.yaml edits required
-- ✅ No Home Assistant restart needed
-- ✅ Dashboards appear immediately
-- ✅ UI-editable in Home Assistant
-- ✅ Perfect for automated deployments
+- ✅ Version-controlled dashboards
+- ✅ Infrastructure-as-code approach
+- ✅ Exact control over config files
+- ✅ Easy to update via git pull
+- ✅ No API complications
 
-**Prerequisites**:
-- Home Assistant running and accessible
-- Long-lived access token (create in HA Profile)
-- Python 3 with PyYAML (`pip3 install pyyaml`)
+**Note**: Home Assistant's dashboard API only works for UI-created (storage mode) dashboards, not for loading YAML configurations programmatically. Therefore, YAML mode with configuration.yaml is the recommended approach for these dashboards.
 
-**Installation**:
-```bash
-python3 install-dashboards.py --url http://homeassistant.local:8123 --token YOUR_TOKEN
-```
-
-**Alternative (Bash)**:
-```bash
-./install-dashboards.sh http://homeassistant.local:8123 YOUR_TOKEN
-```
-
-📖 **Complete guide**: [API_INSTALLATION.md](API_INSTALLATION.md)
-
----
-
-### Method 2: YAML Mode (For version control)
-
-**Benefits**:
-- Version-controlled dashboards
-- Infrastructure-as-code approach
-- Exact control over config files
+**Steps:**
 
 1. **Enable YAML mode in Home Assistant**:
 
@@ -183,7 +200,13 @@ python3 install-dashboards.py --url http://homeassistant.local:8123 --token YOUR
 
 4. **Navigate** to the dashboards from the sidebar.
 
-### Method 2: Manual UI Mode Import
+---
+
+### Method 2: Manual UI Copy/Paste
+
+**Note about API Installation**: The included `install-dashboards.py` and `install-dashboards.sh` scripts were designed to use Home Assistant's REST API, but Home Assistant's dashboard API only supports creating storage-mode dashboards (UI-created), not loading YAML configurations. Therefore, these scripts are not functional for this use case. Use YAML mode (Method 1) instead.
+
+If you prefer UI mode and want to manually create dashboards:
 
 For individual dashboards or testing:
 

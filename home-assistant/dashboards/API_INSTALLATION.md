@@ -1,8 +1,24 @@
 # API Installation Guide
 
-Install dashboards via Home Assistant REST API instead of YAML configuration.
+## ⚠️ IMPORTANT NOTICE
 
-## Benefits of API Installation
+**This guide and the included API installation scripts are NOT FUNCTIONAL** for these dashboards.
+
+After verification, Home Assistant's REST API for dashboards (`/api/lovelace/dashboards`) only supports:
+- Creating **storage mode** dashboards (UI-created dashboards)
+- The API does **NOT** support loading YAML dashboard configurations
+
+Since these dashboards are designed as YAML configurations, they cannot be installed via the REST API.
+
+**Please use YAML mode installation instead** - see [README.md](README.md) or [QUICK_START.md](QUICK_START.md) for the correct installation method.
+
+---
+
+## Original Documentation (For Reference Only)
+
+The information below was based on an incorrect understanding of Home Assistant's dashboard API capabilities. It is preserved for reference but the scripts will not work as intended.
+
+## Benefits of API Installation (Not Applicable)
 
 ✅ **No configuration.yaml edits** - No need to modify Home Assistant config files
 ✅ **No restart required** - Dashboards appear immediately after installation
