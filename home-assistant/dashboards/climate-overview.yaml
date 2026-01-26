@@ -185,10 +185,109 @@ sections:
         icon: mdi:fan-speed-3
 
   # ===========================================================================
-  # Room Temperature Overview
+  # Temperature Trends - Visual Overview
   # ===========================================================================
   - type: grid
-    title: All Rooms - Temperature
+    title: Temperature Trends (24 Hours)
+    cards:
+      - type: history-graph
+        title: Ground Floor Temperature Trends
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_soggiorno_room_temp_abstracted
+            name: Soggiorno
+          - entity: sensor.climate_control_cucina_room_temp_abstracted
+            name: Cucina
+          - entity: sensor.climate_control_bagno_terra_room_temp_abstracted
+            name: Bagno
+          - entity: sensor.climate_control_anticamera_room_temp_abstracted
+            name: Anticamera
+          - entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
+            name: Locale Tecnico
+
+      - type: history-graph
+        title: First Floor Temperature Trends
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_camera_nord_room_temp_abstracted
+            name: Camera Nord
+          - entity: sensor.climate_control_camera_sud_room_temp_abstracted
+            name: Camera Sud
+          - entity: sensor.climate_control_camera_ospiti_room_temp_abstracted
+            name: Camera Ospiti
+          - entity: sensor.climate_control_camera_padronale_room_temp_abstracted
+            name: Camera Padronale
+
+      - type: history-graph
+        title: First Floor Bathrooms & Utility
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_bagno_grande_room_temp_abstracted
+            name: Bagno Grande
+          - entity: sensor.climate_control_bagno_ospiti_room_temp_abstracted
+            name: Bagno Ospiti
+          - entity: sensor.climate_control_bagno_padronale_room_temp_abstracted
+            name: Bagno Padronale
+          - entity: sensor.climate_control_lavanderia_room_temp_abstracted
+            name: Lavanderia
+
+  # ===========================================================================
+  # Humidity & Air Quality Trends
+  # ===========================================================================
+  - type: grid
+    title: Humidity & Air Quality Trends (24 Hours)
+    cards:
+      - type: history-graph
+        title: Floor Maximum Humidity
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_humidity_piano_terra
+            name: Ground Floor Max
+          - entity: sensor.climate_control_first_floor_max_humidity
+            name: First Floor Max
+
+      - type: history-graph
+        title: First Floor Air Quality
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_co_primo_piano
+            name: Max CO₂
+          - entity: sensor.climate_control_max_iaq_primo_piano
+            name: Max IAQ
+
+  # ===========================================================================
+  # System Performance Overview
+  # ===========================================================================
+  - type: grid
+    title: System Performance (24 Hours)
+    cards:
+      - type: history-graph
+        title: Mixing Valve Supply Temperatures
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_radiante_piano_terra_supply_temp
+            name: Ground Floor Supply
+          - entity: sensor.climate_control_primo_piano_supply_temp
+            name: First Floor Supply
+          - entity: sensor.climate_control_ground_floor_supply_temp_minimum
+            name: GF Min (Dew Protection)
+          - entity: sensor.climate_control_first_floor_supply_temp_minimum
+            name: FF Min (Dew Protection)
+
+      - type: history-graph
+        title: Dew Point Protection
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_dew_point_piano_terra
+            name: Ground Floor Max Dew Point
+          - entity: sensor.climate_control_max_dew_point_primo_piano
+            name: First Floor Max Dew Point
+
+  # ===========================================================================
+  # Room Temperature Overview (Current Values)
+  # ===========================================================================
+  - type: grid
+    title: All Rooms - Current Temperature
     columns: 3
     cards:
       # Ground Floor Rooms

@@ -283,3 +283,87 @@ sections:
         entity: sensor.climate_control_locale_tecnico_boost_trigger_reason
         name: Status
         icon: mdi:information
+
+  # ===========================================================================
+  # Temperature & Humidity Trends
+  # ===========================================================================
+  - type: grid
+    title: Temperature Trends (24 Hours)
+    cards:
+      - type: history-graph
+        title: All Room Temperatures
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_soggiorno_room_temp_abstracted
+            name: Soggiorno
+          - entity: sensor.climate_control_cucina_room_temp_abstracted
+            name: Cucina
+          - entity: sensor.climate_control_bagno_terra_room_temp_abstracted
+            name: Bagno
+          - entity: sensor.climate_control_anticamera_room_temp_abstracted
+            name: Anticamera
+          - entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
+            name: Locale Tecnico
+
+      - type: history-graph
+        title: Humidity & Dew Point Trends
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_humidity_piano_terra
+            name: Max Humidity
+          - entity: sensor.climate_control_max_dew_point_piano_terra
+            name: Max Dew Point
+
+  # ===========================================================================
+  # Radiant System Performance
+  # ===========================================================================
+  - type: grid
+    title: Radiant System Performance (24 Hours)
+    cards:
+      - type: history-graph
+        title: Supply Temperature & Limits
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_radiante_piano_terra_supply_temp
+            name: Actual Supply Temp
+          - entity: sensor.climate_control_ground_floor_supply_temp_minimum
+            name: Minimum (Dew Protection)
+          - entity: sensor.climate_control_max_dew_point_piano_terra
+            name: Max Dew Point
+
+      - type: history-graph
+        title: Zone Activity
+        hours_to_show: 24
+        entities:
+          - entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_active
+            name: Soggiorno
+          - entity: binary_sensor.climate_control_pid_radiant_cucina_is_active
+            name: Cucina
+          - entity: binary_sensor.climate_control_pid_radiant_bagno_terra_is_active
+            name: Bagno
+          - entity: binary_sensor.climate_control_pid_radiant_anticamera_is_active
+            name: Anticamera
+
+  # ===========================================================================
+  # Fancoil Boost Activity
+  # ===========================================================================
+  - type: grid
+    title: Fancoil Boost System (24 Hours)
+    cards:
+      - type: history-graph
+        title: Boost Activity
+        hours_to_show: 24
+        entities:
+          - entity: binary_sensor.climate_control_soggiorno_boost_active
+            name: Soggiorno Boost
+          - entity: binary_sensor.climate_control_cucina_boost_active
+            name: Cucina Boost
+
+      - type: history-graph
+        title: Temperature Error (Why Boost Activates)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_pid_radiant_soggiorno_error_value
+            name: Soggiorno Error
+          - entity: sensor.climate_control_pid_radiant_cucina_error_value
+            name: Cucina Error

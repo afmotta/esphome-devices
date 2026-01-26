@@ -237,10 +237,10 @@ sections:
         icon: mdi:home-assistant
 
   # ===========================================================================
-  # Historical Charts
+  # Historical Charts - 24 Hour View
   # ===========================================================================
   - type: grid
-    title: Historical Data
+    title: Historical Data (24 Hours)
     cards:
       - type: history-graph
         title: Temperature & Humidity Trend
@@ -254,12 +254,89 @@ sections:
             name: Dew Point
 
       - type: history-graph
-        title: PID Output & Activity
+        title: PID Output Values
         hours_to_show: 24
         entities:
           - entity: sensor.climate_control_pid_radiant_soggiorno_output_value
-            name: Radiant Output
+            name: Radiant Output %
           - entity: sensor.climate_control_pid_fancoil_soggiorno_output_value
-            name: Fancoil Output
+            name: Fancoil Output %
+
+      - type: history-graph
+        title: System Activity & Boost
+        hours_to_show: 24
+        entities:
+          - entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_active
+            name: Radiant Active
+          - entity: binary_sensor.climate_control_pid_fancoil_soggiorno_is_active
+            name: Fancoil Active
+          - entity: binary_sensor.climate_control_soggiorno_boost_active
+            name: Boost Active
+
+      - type: history-graph
+        title: PID Error & Temperature Offset
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_pid_radiant_soggiorno_error_value
+            name: Radiant Error
+          - entity: sensor.climate_control_pid_fancoil_soggiorno_error_value
+            name: Fancoil Error
+
+  # ===========================================================================
+  # PID Performance Analysis
+  # ===========================================================================
+  - type: grid
+    title: PID Performance Analysis (24 Hours)
+    cards:
+      - type: history-graph
+        title: Radiant PID Terms (P, I, D)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_pid_radiant_soggiorno_p_term
+            name: P Term
+          - entity: sensor.climate_control_pid_radiant_soggiorno_i_term
+            name: I Term
+          - entity: sensor.climate_control_pid_radiant_soggiorno_d_term
+            name: D Term
+
+      - type: history-graph
+        title: Fancoil PID Terms (P, I, D)
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_pid_fancoil_soggiorno_p_term
+            name: P Term
+          - entity: sensor.climate_control_pid_fancoil_soggiorno_i_term
+            name: I Term
+          - entity: sensor.climate_control_pid_fancoil_soggiorno_d_term
+            name: D Term
+
+  # ===========================================================================
+  # Weekly Trends
+  # ===========================================================================
+  - type: grid
+    title: Weekly Trends (7 Days)
+    cards:
+      - type: history-graph
+        title: Temperature Pattern (7 Days)
+        hours_to_show: 168
+        entities:
+          - entity: sensor.climate_control_soggiorno_room_temp_abstracted
+            name: Temperature
+
+      - type: history-graph
+        title: Humidity Pattern (7 Days)
+        hours_to_show: 168
+        entities:
+          - entity: sensor.climate_control_soggiorno_room_humidity_abstracted
+            name: Humidity
+          - entity: sensor.climate_control_soggiorno_dew_point
+            name: Dew Point
+
+      - type: history-graph
+        title: System Usage Pattern (7 Days)
+        hours_to_show: 168
+        entities:
+          - entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_active
+            name: Radiant Active
           - entity: binary_sensor.climate_control_soggiorno_boost_active
             name: Boost Active

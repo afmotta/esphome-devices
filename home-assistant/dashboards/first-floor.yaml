@@ -403,3 +403,132 @@ sections:
         entity: binary_sensor.climate_control_pid_radiant_lavanderia_is_active
         name: Radiant
         icon: mdi:radiator
+
+  # ===========================================================================
+  # Temperature Trends
+  # ===========================================================================
+  - type: grid
+    title: Temperature Trends (24 Hours)
+    cards:
+      - type: history-graph
+        title: Bedroom Temperatures
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_camera_nord_room_temp_abstracted
+            name: Camera Nord
+          - entity: sensor.climate_control_camera_sud_room_temp_abstracted
+            name: Camera Sud
+          - entity: sensor.climate_control_camera_ospiti_room_temp_abstracted
+            name: Camera Ospiti
+          - entity: sensor.climate_control_camera_padronale_room_temp_abstracted
+            name: Camera Padronale
+
+      - type: history-graph
+        title: Bathroom & Utility Temperatures
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_bagno_grande_room_temp_abstracted
+            name: Bagno Grande
+          - entity: sensor.climate_control_bagno_ospiti_room_temp_abstracted
+            name: Bagno Ospiti
+          - entity: sensor.climate_control_bagno_padronale_room_temp_abstracted
+            name: Bagno Padronale
+          - entity: sensor.climate_control_lavanderia_room_temp_abstracted
+            name: Lavanderia
+
+  # ===========================================================================
+  # Air Quality & Humidity Trends
+  # ===========================================================================
+  - type: grid
+    title: Air Quality & Humidity (24 Hours)
+    cards:
+      - type: history-graph
+        title: CO₂ & IAQ Levels
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_co_primo_piano
+            name: Max CO₂
+          - entity: sensor.climate_control_max_iaq_primo_piano
+            name: Max IAQ
+
+      - type: history-graph
+        title: Humidity Levels
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_first_floor_max_humidity
+            name: Max Humidity
+          - entity: sensor.climate_control_max_dew_point_primo_piano
+            name: Max Dew Point
+
+  # ===========================================================================
+  # MEV System Performance
+  # ===========================================================================
+  - type: grid
+    title: MEV System Performance (24 Hours)
+    cards:
+      - type: history-graph
+        title: MEV Fan Speed & Demand
+        hours_to_show: 24
+        entities:
+          - entity: number.climate_control_vmc_primo_piano_target_fan_speed
+            name: Target Fan Speed
+          - entity: sensor.climate_control_co2_demand
+            name: CO₂ Demand
+          - entity: sensor.climate_control_iaq_demand
+            name: IAQ Demand
+          - entity: sensor.climate_control_humidity_demand
+            name: Humidity Demand
+
+      - type: history-graph
+        title: MEV Mode & Status
+        hours_to_show: 24
+        entities:
+          - entity: switch.climate_control_vmc_primo_piano_power
+            name: Power Status
+          - entity: switch.climate_control_vmc_primo_piano_dehumidifier
+            name: Dehumidifier
+          - entity: binary_sensor.climate_control_vmc_primo_piano_alarm
+            name: Alarm
+
+  # ===========================================================================
+  # Radiant System Performance
+  # ===========================================================================
+  - type: grid
+    title: Radiant System Performance (24 Hours)
+    cards:
+      - type: history-graph
+        title: Supply Temperature & Limits
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_primo_piano_supply_temp
+            name: Actual Supply Temp
+          - entity: sensor.climate_control_first_floor_supply_temp_minimum
+            name: Minimum (Dew Protection)
+          - entity: sensor.climate_control_max_dew_point_primo_piano
+            name: Max Dew Point
+
+      - type: history-graph
+        title: Bedroom Zone Activity
+        hours_to_show: 24
+        entities:
+          - entity: binary_sensor.climate_control_pid_radiant_camera_nord_is_active
+            name: Camera Nord
+          - entity: binary_sensor.climate_control_pid_radiant_camera_sud_is_active
+            name: Camera Sud
+          - entity: binary_sensor.climate_control_pid_radiant_camera_ospiti_is_active
+            name: Camera Ospiti
+          - entity: binary_sensor.climate_control_pid_radiant_camera_padronale_is_active
+            name: Camera Padronale
+
+      - type: history-graph
+        title: Bathroom & Utility Zone Activity
+        hours_to_show: 24
+        entities:
+          - entity: binary_sensor.climate_control_pid_radiant_bagno_grande_is_active
+            name: Bagno Grande
+          - entity: binary_sensor.climate_control_pid_radiant_bagno_ospiti_is_active
+            name: Bagno Ospiti
+          - entity: binary_sensor.climate_control_pid_radiant_bagno_padronale_is_active
+            name: Bagno Padronale
+          - entity: binary_sensor.climate_control_pid_radiant_lavanderia_is_active
+            name: Lavanderia
