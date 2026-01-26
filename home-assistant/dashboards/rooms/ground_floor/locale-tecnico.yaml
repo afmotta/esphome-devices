@@ -23,17 +23,17 @@ sections:
     columns: 3
     cards:
       - type: tile
-        entity: sensor.locale_tecnico_room_temp_abstracted
+        entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
         name: Temperature
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.locale_tecnico_room_humidity_abstracted
+        entity: sensor.climate_control_locale_tecnico_room_humidity_abstracted
         name: Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.locale_tecnico_dew_point
+        entity: sensor.climate_control_locale_tecnico_dew_point
         name: Dew Point
         icon: mdi:water-thermometer
 
@@ -42,24 +42,24 @@ sections:
     title: Fancoil Heating/Cooling
     cards:
       - type: thermostat
-        entity: climate.pid_fancoil_locale_tecnico
+        entity: climate.climate_control_pid_fancoil_locale_tecnico
         name: Fancoil Control
         features:
           - type: climate-hvac-modes
           - type: climate-preset-modes
 
       - type: tile
-        entity: number.fancoil_locale_tecnico_speed
+        entity: number.climate_control_fancoil_locale_tecnico_speed
         name: Fan Speed (0-10V)
         icon: mdi:fan-speed-3
 
       - type: tile
-        entity: binary_sensor.pid_fancoil_locale_tecnico_is_active
+        entity: binary_sensor.climate_control_pid_fancoil_locale_tecnico_is_active
         name: Fancoil Active
         icon: mdi:fan
 
       - type: tile
-        entity: sensor.pid_fancoil_locale_tecnico_output_value
+        entity: sensor.climate_control_pid_fancoil_locale_tecnico_output_value
         name: PID Output
         icon: mdi:percent
 
@@ -68,7 +68,7 @@ sections:
     title: PID Auto-tune
     cards:
       - type: tile
-        entity: button.autotune_pid_fancoil_locale_tecnico
+        entity: button.climate_control_autotune_pid_fancoil_locale_tecnico
         name: Auto-tune Fancoil
         icon: mdi:tune-variant
 
@@ -80,6 +80,6 @@ sections:
         title: Temperature & Humidity Trend
         hours_to_show: 24
         entities:
-          - entity: sensor.locale_tecnico_room_temp_abstracted
-          - entity: sensor.locale_tecnico_room_humidity_abstracted
-          - entity: sensor.locale_tecnico_dew_point
+          - entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
+          - entity: sensor.climate_control_locale_tecnico_room_humidity_abstracted
+          - entity: sensor.climate_control_locale_tecnico_dew_point

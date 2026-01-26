@@ -21,17 +21,17 @@ sections:
           navigation_path: /lovelace/climate-overview
 
       - type: tile
-        entity: binary_sensor.ground_floor_radiant_any_zone_open
+        entity: binary_sensor.climate_control_ground_floor_radiant_any_zone_open
         name: Radiant System
         icon: mdi:radiator
 
       - type: tile
-        entity: binary_sensor.ground_floor_any_fancoil_zone_open
+        entity: binary_sensor.climate_control_ground_floor_any_fancoil_zone_open
         name: Fancoil System
         icon: mdi:fan
 
       - type: tile
-        entity: sensor.ground_floor_time_in_current_mode
+        entity: sensor.climate_control_ground_floor_time_in_current_mode
         name: Time in Mode
         icon: mdi:timer
 
@@ -43,33 +43,33 @@ sections:
     columns: 2
     cards:
       - type: thermostat
-        entity: climate.pid_mixing_valve_radiante_piano_terra
+        entity: climate.climate_control_pid_mixing_valve_radiante_piano_terra
         name: Mixing Valve Control
         features:
           - type: climate-hvac-modes
 
       - type: tile
-        entity: sensor.radiante_piano_terra_supply_temp
+        entity: sensor.climate_control_radiante_piano_terra_supply_temp
         name: Supply Temperature
         icon: mdi:thermometer-water
 
       - type: tile
-        entity: sensor.max_dew_point_piano_terra
+        entity: sensor.climate_control_max_dew_point_piano_terra
         name: Max Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: sensor.ground_floor_supply_temp_minimum
+        entity: sensor.climate_control_ground_floor_supply_temp_minimum
         name: Supply Temp Minimum
         icon: mdi:thermometer-chevron-down
 
       - type: tile
-        entity: sensor.max_humidity_piano_terra
+        entity: sensor.climate_control_max_humidity_piano_terra
         name: Max Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.effective_ground_floor_safe_margin
+        entity: sensor.climate_control_effective_ground_floor_safe_margin
         name: Safe Margin
         icon: mdi:shield-half-full
 
@@ -81,17 +81,17 @@ sections:
     columns: 2
     cards:
       - type: tile
-        entity: sensor.effective_fancoil_boost_threshold
+        entity: sensor.climate_control_effective_fancoil_boost_threshold
         name: Boost Threshold
         icon: mdi:thermometer-alert
 
       - type: tile
-        entity: sensor.effective_fancoil_humidity_threshold
+        entity: sensor.climate_control_effective_fancoil_humidity_threshold
         name: Humidity Threshold
         icon: mdi:water-percent-alert
 
       - type: tile
-        entity: sensor.effective_predictive_boost_minutes
+        entity: sensor.climate_control_effective_predictive_boost_minutes
         name: Predictive Boost Minutes
         icon: mdi:timer-alert
 
@@ -108,7 +108,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/soggiorno
-        entity: climate.pid_radiant_soggiorno
+        entity: climate.climate_control_pid_radiant_soggiorno
         show_state: true
 
       - type: button
@@ -117,7 +117,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/cucina
-        entity: climate.pid_radiant_cucina
+        entity: climate.climate_control_pid_radiant_cucina
         show_state: true
 
       - type: button
@@ -126,7 +126,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/bagno-terra
-        entity: climate.pid_radiant_bagno_terra
+        entity: climate.climate_control_pid_radiant_bagno_terra
         show_state: true
 
       - type: button
@@ -135,7 +135,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/anticamera
-        entity: climate.pid_radiant_anticamera
+        entity: climate.climate_control_pid_radiant_anticamera
         show_state: true
 
       - type: button
@@ -144,7 +144,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/locale-tecnico
-        entity: climate.pid_fancoil_locale_tecnico
+        entity: climate.climate_control_pid_fancoil_locale_tecnico
         show_state: true
 
   # ===========================================================================
@@ -156,130 +156,130 @@ sections:
     cards:
       # Soggiorno
       - type: tile
-        entity: sensor.soggiorno_room_temp_abstracted
+        entity: sensor.climate_control_soggiorno_room_temp_abstracted
         name: Soggiorno Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.soggiorno_room_humidity_abstracted
+        entity: sensor.climate_control_soggiorno_room_humidity_abstracted
         name: Soggiorno Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.soggiorno_dew_point
+        entity: sensor.climate_control_soggiorno_dew_point
         name: Soggiorno Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: binary_sensor.pid_radiant_soggiorno_is_active
+        entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_active
         name: Radiant
         icon: mdi:radiator
 
       - type: tile
-        entity: binary_sensor.soggiorno_boost_active
+        entity: binary_sensor.climate_control_soggiorno_boost_active
         name: Boost
         icon: mdi:rocket-launch
 
       # Cucina
       - type: tile
-        entity: sensor.cucina_room_temp_abstracted
+        entity: sensor.climate_control_cucina_room_temp_abstracted
         name: Cucina Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.cucina_room_humidity_abstracted
+        entity: sensor.climate_control_cucina_room_humidity_abstracted
         name: Cucina Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.cucina_dew_point
+        entity: sensor.climate_control_cucina_dew_point
         name: Cucina Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: binary_sensor.pid_radiant_cucina_is_active
+        entity: binary_sensor.climate_control_pid_radiant_cucina_is_active
         name: Radiant
         icon: mdi:radiator
 
       - type: tile
-        entity: binary_sensor.cucina_boost_active
+        entity: binary_sensor.climate_control_cucina_boost_active
         name: Boost
         icon: mdi:rocket-launch
 
       # Bagno
       - type: tile
-        entity: sensor.bagno_terra_room_temp_abstracted
+        entity: sensor.climate_control_bagno_terra_room_temp_abstracted
         name: Bagno Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.bagno_terra_room_humidity_abstracted
+        entity: sensor.climate_control_bagno_terra_room_humidity_abstracted
         name: Bagno Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.bagno_terra_dew_point
+        entity: sensor.climate_control_bagno_terra_dew_point
         name: Bagno Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: binary_sensor.pid_radiant_bagno_terra_is_active
+        entity: binary_sensor.climate_control_pid_radiant_bagno_terra_is_active
         name: Radiant
         icon: mdi:radiator
 
       - type: tile
-        entity: sensor.bagno_terra_boost_trigger_reason
+        entity: sensor.climate_control_bagno_terra_boost_trigger_reason
         name: Status
         icon: mdi:information
 
       # Anticamera
       - type: tile
-        entity: sensor.anticamera_room_temp_abstracted
+        entity: sensor.climate_control_anticamera_room_temp_abstracted
         name: Anticamera Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.anticamera_room_humidity_abstracted
+        entity: sensor.climate_control_anticamera_room_humidity_abstracted
         name: Anticamera Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.anticamera_dew_point
+        entity: sensor.climate_control_anticamera_dew_point
         name: Anticamera Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: binary_sensor.pid_radiant_anticamera_is_active
+        entity: binary_sensor.climate_control_pid_radiant_anticamera_is_active
         name: Radiant
         icon: mdi:radiator
 
       - type: tile
-        entity: sensor.anticamera_boost_trigger_reason
+        entity: sensor.climate_control_anticamera_boost_trigger_reason
         name: Status
         icon: mdi:information
 
       # Locale Tecnico
       - type: tile
-        entity: sensor.locale_tecnico_room_temp_abstracted
+        entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
         name: Locale Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.locale_tecnico_room_humidity_abstracted
+        entity: sensor.climate_control_locale_tecnico_room_humidity_abstracted
         name: Locale Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.locale_tecnico_dew_point
+        entity: sensor.climate_control_locale_tecnico_dew_point
         name: Locale Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: binary_sensor.pid_fancoil_locale_tecnico_is_active
+        entity: binary_sensor.climate_control_pid_fancoil_locale_tecnico_is_active
         name: Fancoil
         icon: mdi:fan
 
       - type: tile
-        entity: sensor.locale_tecnico_boost_trigger_reason
+        entity: sensor.climate_control_locale_tecnico_boost_trigger_reason
         name: Status
         icon: mdi:information

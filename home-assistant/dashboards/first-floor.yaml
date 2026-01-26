@@ -22,12 +22,12 @@ sections:
           navigation_path: /lovelace/climate-overview
 
       - type: tile
-        entity: binary_sensor.first_floor_any_zone_open
+        entity: binary_sensor.climate_control_first_floor_any_zone_open
         name: Radiant System
         icon: mdi:radiator
 
       - type: tile
-        entity: switch.vmc_primo_piano_power
+        entity: switch.climate_control_vmc_primo_piano_power
         name: MEV Power
         icon: mdi:fan
 
@@ -39,33 +39,33 @@ sections:
     columns: 2
     cards:
       - type: thermostat
-        entity: climate.pid_mixing_valve_primo_piano
+        entity: climate.climate_control_pid_mixing_valve_primo_piano
         name: Mixing Valve Control
         features:
           - type: climate-hvac-modes
 
       - type: tile
-        entity: sensor.primo_piano_supply_temp
+        entity: sensor.climate_control_primo_piano_supply_temp
         name: Supply Temperature
         icon: mdi:thermometer-water
 
       - type: tile
-        entity: sensor.max_dew_point_primo_piano
+        entity: sensor.climate_control_max_dew_point_primo_piano
         name: Max Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: sensor.first_floor_supply_temp_minimum
+        entity: sensor.climate_control_first_floor_supply_temp_minimum
         name: Supply Temp Minimum
         icon: mdi:thermometer-chevron-down
 
       - type: tile
-        entity: sensor.first_floor_max_humidity
+        entity: sensor.climate_control_first_floor_max_humidity
         name: Max Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.effective_first_floor_safe_margin
+        entity: sensor.climate_control_effective_first_floor_safe_margin
         name: Safe Margin
         icon: mdi:shield-half-full
 
@@ -78,64 +78,64 @@ sections:
     cards:
       # Control
       - type: tile
-        entity: switch.vmc_primo_piano_power
+        entity: switch.climate_control_vmc_primo_piano_power
         name: Power
         icon: mdi:power
 
       - type: tile
-        entity: switch.vmc_primo_piano_mode
+        entity: switch.climate_control_vmc_primo_piano_mode
         name: Winter/Summer Mode
         icon: mdi:weather-partly-cloudy
 
       - type: tile
-        entity: switch.vmc_primo_piano_dehumidifier
+        entity: switch.climate_control_vmc_primo_piano_dehumidifier
         name: Dehumidifier
         icon: mdi:water-remove
 
       - type: tile
-        entity: switch.vmc_primo_piano_cooling
+        entity: switch.climate_control_vmc_primo_piano_cooling
         name: Cooling Integration
         icon: mdi:snowflake
 
       - type: tile
-        entity: number.vmc_primo_piano_target_fan_speed
+        entity: number.climate_control_vmc_primo_piano_target_fan_speed
         name: Target Fan Speed
         icon: mdi:fan-speed-3
 
       - type: tile
-        entity: binary_sensor.vmc_primo_piano_alarm
+        entity: binary_sensor.climate_control_vmc_primo_piano_alarm
         name: Alarm Status
         icon: mdi:alarm-light
 
       # Air Quality Sensors
       - type: tile
-        entity: sensor.max_co_primo_piano
+        entity: sensor.climate_control_max_co_primo_piano
         name: Max CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: sensor.max_iaq_primo_piano
+        entity: sensor.climate_control_max_iaq_primo_piano
         name: Max IAQ
         icon: mdi:air-filter
 
       - type: tile
-        entity: sensor.first_floor_max_humidity
+        entity: sensor.climate_control_first_floor_max_humidity
         name: Max Humidity
         icon: mdi:water-percent
 
       # Demand Sensors
       - type: tile
-        entity: sensor.co2_demand
+        entity: sensor.climate_control_co2_demand
         name: CO₂ Demand
         icon: mdi:gauge
 
       - type: tile
-        entity: sensor.iaq_demand
+        entity: sensor.climate_control_iaq_demand
         name: IAQ Demand
         icon: mdi:gauge
 
       - type: tile
-        entity: sensor.humidity_demand
+        entity: sensor.climate_control_humidity_demand
         name: Humidity Demand
         icon: mdi:gauge
 
@@ -152,7 +152,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/camera-nord
-        entity: climate.pid_radiant_camera_nord
+        entity: climate.climate_control_pid_radiant_camera_nord
         show_state: true
 
       - type: button
@@ -161,7 +161,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/camera-sud
-        entity: climate.pid_radiant_camera_sud
+        entity: climate.climate_control_pid_radiant_camera_sud
         show_state: true
 
       - type: button
@@ -170,7 +170,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/camera-ospiti
-        entity: climate.pid_radiant_camera_ospiti
+        entity: climate.climate_control_pid_radiant_camera_ospiti
         show_state: true
 
       - type: button
@@ -179,7 +179,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/camera-padronale
-        entity: climate.pid_radiant_camera_padronale
+        entity: climate.climate_control_pid_radiant_camera_padronale
         show_state: true
 
   - type: grid
@@ -192,7 +192,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/bagno-grande
-        entity: climate.pid_radiant_bagno_grande
+        entity: climate.climate_control_pid_radiant_bagno_grande
         show_state: true
 
       - type: button
@@ -201,7 +201,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/bagno-ospiti
-        entity: climate.pid_radiant_bagno_ospiti
+        entity: climate.climate_control_pid_radiant_bagno_ospiti
         show_state: true
 
       - type: button
@@ -210,7 +210,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/bagno-padronale
-        entity: climate.pid_radiant_bagno_padronale
+        entity: climate.climate_control_pid_radiant_bagno_padronale
         show_state: true
 
       - type: button
@@ -219,7 +219,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/lavanderia
-        entity: climate.pid_radiant_lavanderia
+        entity: climate.climate_control_pid_radiant_lavanderia
         show_state: true
 
   # ===========================================================================
@@ -231,85 +231,85 @@ sections:
     cards:
       # Camera Nord
       - type: tile
-        entity: sensor.camera_nord_room_temp_abstracted
+        entity: sensor.climate_control_camera_nord_room_temp_abstracted
         name: Nord Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.camera_nord_room_humidity_abstracted
+        entity: sensor.climate_control_camera_nord_room_humidity_abstracted
         name: Nord Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.camera_nord_co2
+        entity: sensor.climate_control_camera_nord_co2
         name: Nord CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_camera_nord_is_active
+        entity: binary_sensor.climate_control_pid_radiant_camera_nord_is_active
         name: Radiant
         icon: mdi:radiator
 
       # Camera Sud
       - type: tile
-        entity: sensor.camera_sud_room_temp_abstracted
+        entity: sensor.climate_control_camera_sud_room_temp_abstracted
         name: Sud Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.camera_sud_room_humidity_abstracted
+        entity: sensor.climate_control_camera_sud_room_humidity_abstracted
         name: Sud Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.camera_sud_co2
+        entity: sensor.climate_control_camera_sud_co2
         name: Sud CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_camera_sud_is_active
+        entity: binary_sensor.climate_control_pid_radiant_camera_sud_is_active
         name: Radiant
         icon: mdi:radiator
 
       # Camera Ospiti
       - type: tile
-        entity: sensor.camera_ospiti_room_temp_abstracted
+        entity: sensor.climate_control_camera_ospiti_room_temp_abstracted
         name: Ospiti Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.camera_ospiti_room_humidity_abstracted
+        entity: sensor.climate_control_camera_ospiti_room_humidity_abstracted
         name: Ospiti Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.camera_ospiti_co2
+        entity: sensor.climate_control_camera_ospiti_co2
         name: Ospiti CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_camera_ospiti_is_active
+        entity: binary_sensor.climate_control_pid_radiant_camera_ospiti_is_active
         name: Radiant
         icon: mdi:radiator
 
       # Camera Padronale
       - type: tile
-        entity: sensor.camera_padronale_room_temp_abstracted
+        entity: sensor.climate_control_camera_padronale_room_temp_abstracted
         name: Padronale Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.camera_padronale_room_humidity_abstracted
+        entity: sensor.climate_control_camera_padronale_room_humidity_abstracted
         name: Padronale Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.camera_padronale_co2
+        entity: sensor.climate_control_camera_padronale_co2
         name: Padronale CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_camera_padronale_is_active
+        entity: binary_sensor.climate_control_pid_radiant_camera_padronale_is_active
         name: Radiant
         icon: mdi:radiator
 
@@ -322,84 +322,84 @@ sections:
     cards:
       # Bagno Grande
       - type: tile
-        entity: sensor.bagno_grande_room_temp_abstracted
+        entity: sensor.climate_control_bagno_grande_room_temp_abstracted
         name: Bagno Grande Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.bagno_grande_room_humidity_abstracted
+        entity: sensor.climate_control_bagno_grande_room_humidity_abstracted
         name: Bagno Grande Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.bagno_grande_co2
+        entity: sensor.climate_control_bagno_grande_co2
         name: Bagno Grande CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_bagno_grande_is_active
+        entity: binary_sensor.climate_control_pid_radiant_bagno_grande_is_active
         name: Radiant
         icon: mdi:radiator
 
       # Bagno Ospiti
       - type: tile
-        entity: sensor.bagno_ospiti_room_temp_abstracted
+        entity: sensor.climate_control_bagno_ospiti_room_temp_abstracted
         name: Bagno Ospiti Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.bagno_ospiti_room_humidity_abstracted
+        entity: sensor.climate_control_bagno_ospiti_room_humidity_abstracted
         name: Bagno Ospiti Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.bagno_ospiti_co2
+        entity: sensor.climate_control_bagno_ospiti_co2
         name: Bagno Ospiti CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_bagno_ospiti_is_active
+        entity: binary_sensor.climate_control_pid_radiant_bagno_ospiti_is_active
         name: Radiant
         icon: mdi:radiator
 
       # Bagno Padronale
       - type: tile
-        entity: sensor.bagno_padronale_room_temp_abstracted
+        entity: sensor.climate_control_bagno_padronale_room_temp_abstracted
         name: Bagno Padronale Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.bagno_padronale_room_humidity_abstracted
+        entity: sensor.climate_control_bagno_padronale_room_humidity_abstracted
         name: Bagno Padronale Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.bagno_padronale_co2
+        entity: sensor.climate_control_bagno_padronale_co2
         name: Bagno Padronale CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_bagno_padronale_is_active
+        entity: binary_sensor.climate_control_pid_radiant_bagno_padronale_is_active
         name: Radiant
         icon: mdi:radiator
 
       # Lavanderia
       - type: tile
-        entity: sensor.lavanderia_room_temp_abstracted
+        entity: sensor.climate_control_lavanderia_room_temp_abstracted
         name: Lavanderia Temp
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.lavanderia_room_humidity_abstracted
+        entity: sensor.climate_control_lavanderia_room_humidity_abstracted
         name: Lavanderia Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.lavanderia_co2
+        entity: sensor.climate_control_lavanderia_co2
         name: Lavanderia CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: binary_sensor.pid_radiant_lavanderia_is_active
+        entity: binary_sensor.climate_control_pid_radiant_lavanderia_is_active
         name: Radiant
         icon: mdi:radiator

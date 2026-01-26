@@ -29,17 +29,17 @@ sections:
     columns: 3
     cards:
       - type: tile
-        entity: sensor.soggiorno_room_temp_abstracted
+        entity: sensor.climate_control_soggiorno_room_temp_abstracted
         name: Temperature
         icon: mdi:thermometer
 
       - type: tile
-        entity: sensor.soggiorno_room_humidity_abstracted
+        entity: sensor.climate_control_soggiorno_room_humidity_abstracted
         name: Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.soggiorno_dew_point
+        entity: sensor.climate_control_soggiorno_dew_point
         name: Dew Point
         icon: mdi:water-thermometer
 
@@ -50,69 +50,69 @@ sections:
     title: Radiant Floor Heating/Cooling
     cards:
       - type: thermostat
-        entity: climate.pid_radiant_soggiorno
+        entity: climate.climate_control_pid_radiant_soggiorno
         name: Radiant Control
         features:
           - type: climate-hvac-modes
           - type: climate-preset-modes
 
       - type: tile
-        entity: switch.relay_9
+        entity: switch.climate_control_relay_9
         name: Radiant Zone Valve
         icon: mdi:valve
 
       - type: tile
-        entity: binary_sensor.pid_radiant_soggiorno_is_active
+        entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_active
         name: Zone Active
         icon: mdi:radiator
 
       - type: tile
-        entity: binary_sensor.pid_radiant_soggiorno_is_heating
+        entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_heating
         name: Heating
         icon: mdi:fire
 
       - type: tile
-        entity: binary_sensor.pid_radiant_soggiorno_is_cooling
+        entity: binary_sensor.climate_control_pid_radiant_soggiorno_is_cooling
         name: Cooling
         icon: mdi:snowflake
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_p_term
+        entity: sensor.climate_control_pid_radiant_soggiorno_p_term
         name: P Term
         icon: mdi:alpha-p-circle
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_i_term
+        entity: sensor.climate_control_pid_radiant_soggiorno_i_term
         name: I Term
         icon: mdi:alpha-i-circle
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_d_term
+        entity: sensor.climate_control_pid_radiant_soggiorno_d_term
         name: D Term
         icon: mdi:alpha-d-circle
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_output_value
+        entity: sensor.climate_control_pid_radiant_soggiorno_output_value
         name: PID Output
         icon: mdi:percent
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_error_value
+        entity: sensor.climate_control_pid_radiant_soggiorno_error_value
         name: Error
         icon: mdi:delta
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_kp
+        entity: sensor.climate_control_pid_radiant_soggiorno_kp
         name: Kp Gain
         icon: mdi:tune
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_ki
+        entity: sensor.climate_control_pid_radiant_soggiorno_ki
         name: Ki Gain
         icon: mdi:tune
 
       - type: tile
-        entity: sensor.pid_radiant_soggiorno_kd
+        entity: sensor.climate_control_pid_radiant_soggiorno_kd
         name: Kd Gain
         icon: mdi:tune
 
@@ -123,63 +123,63 @@ sections:
     title: Fancoil Boost System
     cards:
       - type: thermostat
-        entity: climate.pid_fancoil_soggiorno
+        entity: climate.climate_control_pid_fancoil_soggiorno
         name: Fancoil Control
         features:
           - type: climate-hvac-modes
 
       - type: tile
-        entity: number.fancoil_soggiorno_speed
+        entity: number.climate_control_fancoil_soggiorno_speed
         name: Fan Speed (0-10V)
         icon: mdi:fan-speed-3
 
       - type: tile
-        entity: binary_sensor.soggiorno_boost_active
+        entity: binary_sensor.climate_control_soggiorno_boost_active
         name: Boost Active
         icon: mdi:rocket-launch
 
       - type: tile
-        entity: sensor.soggiorno_boost_trigger_reason
+        entity: sensor.climate_control_soggiorno_boost_trigger_reason
         name: Boost Trigger Reason
         icon: mdi:information
 
       - type: tile
-        entity: binary_sensor.pid_fancoil_soggiorno_is_active
+        entity: binary_sensor.climate_control_pid_fancoil_soggiorno_is_active
         name: Fancoil Active
         icon: mdi:fan
 
       - type: tile
-        entity: binary_sensor.pid_fancoil_soggiorno_is_heating
+        entity: binary_sensor.climate_control_pid_fancoil_soggiorno_is_heating
         name: Fancoil Heating
         icon: mdi:fire
 
       - type: tile
-        entity: binary_sensor.pid_fancoil_soggiorno_is_cooling
+        entity: binary_sensor.climate_control_pid_fancoil_soggiorno_is_cooling
         name: Fancoil Cooling
         icon: mdi:snowflake
 
       - type: tile
-        entity: sensor.pid_fancoil_soggiorno_output_value
+        entity: sensor.climate_control_pid_fancoil_soggiorno_output_value
         name: Fancoil Output
         icon: mdi:percent
 
       - type: tile
-        entity: sensor.soggiorno_time_above_threshold
+        entity: sensor.climate_control_soggiorno_time_above_threshold
         name: Time Above Threshold
         icon: mdi:timer
 
       - type: tile
-        entity: sensor.soggiorno_radiant_output_level
+        entity: sensor.climate_control_soggiorno_radiant_output_level
         name: Radiant Output Level
         icon: mdi:gauge
 
       - type: tile
-        entity: binary_sensor.soggiorno_radiant_saturated
+        entity: binary_sensor.climate_control_soggiorno_radiant_saturated
         name: Radiant Saturated
         icon: mdi:alert-circle
 
       - type: tile
-        entity: sensor.soggiorno_time_radiant_saturated
+        entity: sensor.climate_control_soggiorno_time_radiant_saturated
         name: Time Saturated
         icon: mdi:timer-alert
 
@@ -190,12 +190,12 @@ sections:
     title: PID Auto-tune
     cards:
       - type: tile
-        entity: button.autotune_pid_radiant_soggiorno
+        entity: button.climate_control_autotune_pid_radiant_soggiorno
         name: Auto-tune Radiant
         icon: mdi:tune-variant
 
       - type: tile
-        entity: button.autotune_pid_fancoil_soggiorno
+        entity: button.climate_control_autotune_pid_fancoil_soggiorno
         name: Auto-tune Fancoil
         icon: mdi:tune-variant
 
@@ -207,32 +207,32 @@ sections:
     columns: 2
     cards:
       - type: tile
-        entity: sensor.soggiorno_room_temp_abstracted
+        entity: sensor.climate_control_soggiorno_room_temp_abstracted
         name: Temperature (Active)
         icon: mdi:thermometer-check
 
       - type: tile
-        entity: sensor.soggiorno_room_humidity_abstracted
+        entity: sensor.climate_control_soggiorno_room_humidity_abstracted
         name: Humidity (Active)
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.soggiorno_modbus_temp
+        entity: sensor.climate_control_soggiorno_modbus_temp
         name: Modbus Temperature
         icon: mdi:thermometer-bluetooth
 
       - type: tile
-        entity: sensor.soggiorno_modbus_humidity
+        entity: sensor.climate_control_soggiorno_modbus_humidity
         name: Modbus Humidity
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.room_soggiorno_temperature
+        entity: sensor.climate_control_room_soggiorno_temperature
         name: HA Temperature (Fallback)
         icon: mdi:home-assistant
 
       - type: tile
-        entity: sensor.room_soggiorno_humidity
+        entity: sensor.climate_control_room_soggiorno_humidity
         name: HA Humidity (Fallback)
         icon: mdi:home-assistant
 
@@ -246,20 +246,20 @@ sections:
         title: Temperature & Humidity Trend
         hours_to_show: 24
         entities:
-          - entity: sensor.soggiorno_room_temp_abstracted
+          - entity: sensor.climate_control_soggiorno_room_temp_abstracted
             name: Temperature
-          - entity: sensor.soggiorno_room_humidity_abstracted
+          - entity: sensor.climate_control_soggiorno_room_humidity_abstracted
             name: Humidity
-          - entity: sensor.soggiorno_dew_point
+          - entity: sensor.climate_control_soggiorno_dew_point
             name: Dew Point
 
       - type: history-graph
         title: PID Output & Activity
         hours_to_show: 24
         entities:
-          - entity: sensor.pid_radiant_soggiorno_output_value
+          - entity: sensor.climate_control_pid_radiant_soggiorno_output_value
             name: Radiant Output
-          - entity: sensor.pid_fancoil_soggiorno_output_value
+          - entity: sensor.climate_control_pid_fancoil_soggiorno_output_value
             name: Fancoil Output
-          - entity: binary_sensor.soggiorno_boost_active
+          - entity: binary_sensor.climate_control_soggiorno_boost_active
             name: Boost Active

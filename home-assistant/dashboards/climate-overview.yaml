@@ -15,31 +15,31 @@ sections:
     cards:
       # Heat Pump Mode & Season
       - type: tile
-        entity: select.heat_pump_mode
+        entity: select.climate_control_heat_pump_mode
         name: Heat Pump Mode
         icon: mdi:heat-pump
         show_entity_picture: false
         vertical: false
 
       - type: tile
-        entity: sensor.season_classification
+        entity: sensor.climate_control_season_classification
         name: Current Season
         icon: mdi:calendar-range
 
       - type: tile
-        entity: sensor.heat_pump_mode_reason
+        entity: sensor.climate_control_heat_pump_mode_reason
         name: Mode Reason
         icon: mdi:information-outline
 
       # Global Demand Indicators
       - type: tile
-        entity: binary_sensor.any_pid_requesting_heat
+        entity: binary_sensor.climate_control_any_pid_requesting_heat
         name: Heat Demand
         icon: mdi:fire
         color: red
 
       - type: tile
-        entity: binary_sensor.any_pid_requesting_cool
+        entity: binary_sensor.climate_control_any_pid_requesting_cool
         name: Cool Demand
         icon: mdi:snowflake
         color: blue
@@ -56,7 +56,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/ground-floor
-        entity: binary_sensor.ground_floor_radiant_any_zone_open
+        entity: binary_sensor.climate_control_ground_floor_radiant_any_zone_open
         show_state: true
         show_name: true
 
@@ -66,7 +66,7 @@ sections:
         tap_action:
           action: navigate
           navigation_path: /lovelace/first-floor
-        entity: binary_sensor.first_floor_any_zone_open
+        entity: binary_sensor.climate_control_first_floor_any_zone_open
         show_state: true
         show_name: true
 
@@ -95,43 +95,43 @@ sections:
     cards:
       # Radiant System
       - type: tile
-        entity: binary_sensor.ground_floor_radiant_any_zone_open
+        entity: binary_sensor.climate_control_ground_floor_radiant_any_zone_open
         name: Radiant Active
         icon: mdi:radiator
 
       - type: tile
-        entity: sensor.max_dew_point_piano_terra
+        entity: sensor.climate_control_max_dew_point_piano_terra
         name: Max Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: sensor.ground_floor_supply_temp_minimum
+        entity: sensor.climate_control_ground_floor_supply_temp_minimum
         name: Supply Temp Min
         icon: mdi:thermometer-water
 
       - type: tile
-        entity: sensor.max_humidity_piano_terra
+        entity: sensor.climate_control_max_humidity_piano_terra
         name: Max Humidity
         icon: mdi:water-percent
 
       # Fancoil System
       - type: tile
-        entity: binary_sensor.ground_floor_any_fancoil_zone_open
+        entity: binary_sensor.climate_control_ground_floor_any_fancoil_zone_open
         name: Fancoil Active
         icon: mdi:fan
 
       - type: tile
-        entity: sensor.effective_fancoil_boost_threshold
+        entity: sensor.climate_control_effective_fancoil_boost_threshold
         name: Boost Threshold
         icon: mdi:thermometer-alert
 
       - type: tile
-        entity: sensor.effective_fancoil_humidity_threshold
+        entity: sensor.climate_control_effective_fancoil_humidity_threshold
         name: Humidity Threshold
         icon: mdi:water-percent-alert
 
       - type: tile
-        entity: sensor.ground_floor_time_in_current_mode
+        entity: sensor.climate_control_ground_floor_time_in_current_mode
         name: Time in Mode
         icon: mdi:timer
 
@@ -144,43 +144,43 @@ sections:
     cards:
       # Radiant System
       - type: tile
-        entity: binary_sensor.first_floor_any_zone_open
+        entity: binary_sensor.climate_control_first_floor_any_zone_open
         name: Radiant Active
         icon: mdi:radiator
 
       - type: tile
-        entity: sensor.max_dew_point_primo_piano
+        entity: sensor.climate_control_max_dew_point_primo_piano
         name: Max Dew Point
         icon: mdi:water-thermometer
 
       - type: tile
-        entity: sensor.first_floor_supply_temp_minimum
+        entity: sensor.climate_control_first_floor_supply_temp_minimum
         name: Supply Temp Min
         icon: mdi:thermometer-water
 
       - type: tile
-        entity: sensor.first_floor_max_humidity
+        entity: sensor.climate_control_first_floor_max_humidity
         name: Max Humidity
         icon: mdi:water-percent
 
       # MEV System
       - type: tile
-        entity: switch.vmc_primo_piano_power
+        entity: switch.climate_control_vmc_primo_piano_power
         name: MEV Power
         icon: mdi:fan
 
       - type: tile
-        entity: sensor.max_co_primo_piano
+        entity: sensor.climate_control_max_co_primo_piano
         name: Max CO₂
         icon: mdi:molecule-co2
 
       - type: tile
-        entity: sensor.max_iaq_primo_piano
+        entity: sensor.climate_control_max_iaq_primo_piano
         name: Max IAQ
         icon: mdi:air-filter
 
       - type: tile
-        entity: number.vmc_primo_piano_target_fan_speed
+        entity: number.climate_control_vmc_primo_piano_target_fan_speed
         name: MEV Fan Speed
         icon: mdi:fan-speed-3
 
@@ -193,73 +193,73 @@ sections:
     cards:
       # Ground Floor Rooms
       - type: tile
-        entity: sensor.soggiorno_room_temp_abstracted
+        entity: sensor.climate_control_soggiorno_room_temp_abstracted
         name: Soggiorno
         icon: mdi:sofa
 
       - type: tile
-        entity: sensor.cucina_room_temp_abstracted
+        entity: sensor.climate_control_cucina_room_temp_abstracted
         name: Cucina
         icon: mdi:chef-hat
 
       - type: tile
-        entity: sensor.bagno_terra_room_temp_abstracted
+        entity: sensor.climate_control_bagno_terra_room_temp_abstracted
         name: Bagno Terra
         icon: mdi:toilet
 
       - type: tile
-        entity: sensor.anticamera_room_temp_abstracted
+        entity: sensor.climate_control_anticamera_room_temp_abstracted
         name: Anticamera
         icon: mdi:door
 
       - type: tile
-        entity: sensor.locale_tecnico_room_temp_abstracted
+        entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
         name: Locale Tecnico
         icon: mdi:toolbox
 
       # First Floor Rooms
       - type: tile
-        entity: sensor.camera_nord_room_temp_abstracted
+        entity: sensor.climate_control_camera_nord_room_temp_abstracted
         name: Camera Nord
         icon: mdi:bed
 
       - type: tile
-        entity: sensor.camera_sud_room_temp_abstracted
+        entity: sensor.climate_control_camera_sud_room_temp_abstracted
         name: Camera Sud
         icon: mdi:bed
 
       - type: tile
-        entity: sensor.camera_ospiti_room_temp_abstracted
+        entity: sensor.climate_control_camera_ospiti_room_temp_abstracted
         name: Camera Ospiti
         icon: mdi:bed
 
       - type: tile
-        entity: sensor.camera_padronale_room_temp_abstracted
+        entity: sensor.climate_control_camera_padronale_room_temp_abstracted
         name: Camera Padronale
         icon: mdi:bed-king
 
       - type: tile
-        entity: sensor.bagno_grande_room_temp_abstracted
+        entity: sensor.climate_control_bagno_grande_room_temp_abstracted
         name: Bagno Grande
         icon: mdi:toilet
 
       - type: tile
-        entity: sensor.bagno_ospiti_room_temp_abstracted
+        entity: sensor.climate_control_bagno_ospiti_room_temp_abstracted
         name: Bagno Ospiti
         icon: mdi:toilet
 
       - type: tile
-        entity: sensor.bagno_padronale_room_temp_abstracted
+        entity: sensor.climate_control_bagno_padronale_room_temp_abstracted
         name: Bagno Padronale
         icon: mdi:toilet
 
       - type: tile
-        entity: sensor.lavanderia_room_temp_abstracted
+        entity: sensor.climate_control_lavanderia_room_temp_abstracted
         name: Lavanderia
         icon: mdi:washing-machine
 
       # Second Floor
       - type: tile
-        entity: sensor.sottotetto_room_temp_abstracted
+        entity: sensor.climate_control_sottotetto_room_temp_abstracted
         name: Sottotetto
         icon: mdi:home-roof
