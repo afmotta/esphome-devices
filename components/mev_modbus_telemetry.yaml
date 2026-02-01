@@ -1,6 +1,6 @@
-# VMC Modbus Telemetry - Epic 18 Stories 18.2.1 & 18.2.2
+# MEV Modbus Telemetry - Epic 18 Stories 18.2.1 & 18.2.2
 #
-# Temperature sensors and component state monitoring for Cappellotto Air Fresh I VMC.
+# Temperature sensors and component state monitoring for Cappellotto Air Fresh I MEV.
 #
 # Temperature Registers (value ÷ 10 = °C):
 # - 501: Outdoor temperature
@@ -14,8 +14,8 @@
 # - 640-643: Compressor, dampers, valves
 #
 # Required vars:
-#   vmc_slug: Device slug for entity IDs (e.g., "first_floor_vmc")
-#   vmc_name: Friendly name prefix (e.g., "VMC Primo Piano")
+#   mev_slug: Device slug for entity IDs (e.g., "first_floor_mev")
+#   mev_name: Friendly name prefix (e.g., "MEV Primo Piano")
 
 sensor:
   # ============================================================================
@@ -24,9 +24,9 @@ sensor:
 
   # Outdoor temperature - Register 501
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Outdoor Temperature"
-    id: ${vmc_slug}_outdoor_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Outdoor Temperature"
+    id: ${mev_slug}_outdoor_temp
     register_type: holding
     address: 501
     value_type: S_WORD
@@ -40,9 +40,9 @@ sensor:
 
   # Water temperature - Register 502
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Water Temperature"
-    id: ${vmc_slug}_water_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Water Temperature"
+    id: ${mev_slug}_water_temp
     register_type: holding
     address: 502
     value_type: S_WORD
@@ -56,9 +56,9 @@ sensor:
 
   # Exhaust temperature - Register 503
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Exhaust Temperature"
-    id: ${vmc_slug}_exhaust_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Exhaust Temperature"
+    id: ${mev_slug}_exhaust_temp
     register_type: holding
     address: 503
     value_type: S_WORD
@@ -72,9 +72,9 @@ sensor:
 
   # Freecooling temperature - Register 511
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Freecooling Temperature"
-    id: ${vmc_slug}_freecooling_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Freecooling Temperature"
+    id: ${mev_slug}_freecooling_temp
     register_type: holding
     address: 511
     value_type: S_WORD
@@ -88,9 +88,9 @@ sensor:
 
   # Evaporation temperature - Register 512
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Evaporation Temperature"
-    id: ${vmc_slug}_evaporation_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Evaporation Temperature"
+    id: ${mev_slug}_evaporation_temp
     register_type: holding
     address: 512
     value_type: S_WORD
@@ -110,9 +110,9 @@ binary_sensor:
 
   # Supply fan active - Register 385 bit 0
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Supply Fan Active"
-    id: ${vmc_slug}_supply_fan_active
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Supply Fan Active"
+    id: ${mev_slug}_supply_fan_active
     register_type: holding
     address: 385
     bitmask: 0x0001
@@ -121,9 +121,9 @@ binary_sensor:
 
   # Extract fan active - Register 385 bit 1
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Extract Fan Active"
-    id: ${vmc_slug}_extract_fan_active
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Extract Fan Active"
+    id: ${mev_slug}_extract_fan_active
     register_type: holding
     address: 385
     bitmask: 0x0002
@@ -134,9 +134,9 @@ binary_sensor:
 
   # Bypass fan active - Register 386 bit 0
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Bypass Fan Active"
-    id: ${vmc_slug}_bypass_fan_active
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Bypass Fan Active"
+    id: ${mev_slug}_bypass_fan_active
     register_type: holding
     address: 386
     bitmask: 0x0001
@@ -147,9 +147,9 @@ binary_sensor:
 
   # Compressor active - Register 640 bit 0
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Compressor Active"
-    id: ${vmc_slug}_compressor_active
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Compressor Active"
+    id: ${mev_slug}_compressor_active
     register_type: holding
     address: 640
     bitmask: 0x0001
@@ -158,9 +158,9 @@ binary_sensor:
 
   # Bypass damper open - Register 640 bit 1
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Bypass Damper Open"
-    id: ${vmc_slug}_bypass_damper_open
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Bypass Damper Open"
+    id: ${mev_slug}_bypass_damper_open
     register_type: holding
     address: 640
     bitmask: 0x0002
@@ -169,9 +169,9 @@ binary_sensor:
 
   # Freecooling damper open - Register 640 bit 2
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Freecooling Damper Open"
-    id: ${vmc_slug}_freecooling_damper_open
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Freecooling Damper Open"
+    id: ${mev_slug}_freecooling_damper_open
     register_type: holding
     address: 640
     bitmask: 0x0004
@@ -182,9 +182,9 @@ binary_sensor:
 
   # Hot water valve open - Register 641 bit 0
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Hot Water Valve Open"
-    id: ${vmc_slug}_hot_water_valve_open
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Hot Water Valve Open"
+    id: ${mev_slug}_hot_water_valve_open
     register_type: holding
     address: 641
     bitmask: 0x0001
@@ -193,9 +193,9 @@ binary_sensor:
 
   # Cold water valve open - Register 641 bit 1
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Cold Water Valve Open"
-    id: ${vmc_slug}_cold_water_valve_open
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Cold Water Valve Open"
+    id: ${mev_slug}_cold_water_valve_open
     register_type: holding
     address: 641
     bitmask: 0x0002
@@ -206,9 +206,9 @@ binary_sensor:
 
   # Defrost active - Register 642 bit 0
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Defrost Active"
-    id: ${vmc_slug}_defrost_active
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Defrost Active"
+    id: ${mev_slug}_defrost_active
     register_type: holding
     address: 642
     bitmask: 0x0001
@@ -219,9 +219,9 @@ binary_sensor:
 
   # Reversing valve position - Register 643 bit 0
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Reversing Valve Heating"
-    id: ${vmc_slug}_reversing_valve_heating
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Reversing Valve Heating"
+    id: ${mev_slug}_reversing_valve_heating
     register_type: holding
     address: 643
     bitmask: 0x0001

@@ -1,7 +1,7 @@
-# VMC Modbus Diagnostics - Epic 18 Stories 18.3.1, 18.3.2, 18.3.3
+# MEV Modbus Diagnostics - Epic 18 Stories 18.3.1, 18.3.2, 18.3.3
 #
 # Alarm decoding, filter maintenance tracking, and communication health
-# for Cappellotto Air Fresh I VMC.
+# for Cappellotto Air Fresh I MEV.
 #
 # Alarm Registers (packed bits):
 # - 769: Alarms 1-16
@@ -14,8 +14,8 @@
 # - 1605-1606: Filter hours current
 #
 # Required vars:
-#   vmc_slug: Device slug for entity IDs (e.g., "first_floor_vmc")
-#   vmc_name: Friendly name prefix (e.g., "VMC Primo Piano")
+#   mev_slug: Device slug for entity IDs (e.g., "first_floor_mev")
+#   mev_name: Friendly name prefix (e.g., "MEV Primo Piano")
 
 sensor:
   # ============================================================================
@@ -24,9 +24,9 @@ sensor:
 
   # Filter hours limit (32-bit) - Registers 1603-1604
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Filter Hours Limit"
-    id: ${vmc_slug}_filter_hours_limit
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Filter Hours Limit"
+    id: ${mev_slug}_filter_hours_limit
     register_type: holding
     address: 1603
     value_type: U_DWORD
@@ -38,9 +38,9 @@ sensor:
 
   # Filter hours current (32-bit) - Registers 1605-1606
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Filter Hours Current"
-    id: ${vmc_slug}_filter_hours_current
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Filter Hours Current"
+    id: ${mev_slug}_filter_hours_current
     register_type: holding
     address: 1605
     value_type: U_DWORD
@@ -52,15 +52,15 @@ sensor:
 
   # Filter hours remaining (calculated)
   - platform: template
-    name: "${vmc_name} Filter Hours Remaining"
-    id: ${vmc_slug}_filter_hours_remaining
+    name: "${mev_name} Filter Hours Remaining"
+    id: ${mev_slug}_filter_hours_remaining
     unit_of_measurement: "h"
     accuracy_decimals: 0
     icon: mdi:timer-alert
     entity_category: diagnostic
     lambda: |-
-      float limit = id(${vmc_slug}_filter_hours_limit).state;
-      float current = id(${vmc_slug}_filter_hours_current).state;
+      float limit = id(${mev_slug}_filter_hours_limit).state;
+      float current = id(${mev_slug}_filter_hours_current).state;
       if (std::isnan(limit) || std::isnan(current)) return NAN;
       return limit - current;
     update_interval: 60s
@@ -73,15 +73,15 @@ binary_sensor:
   # Communication error indicator
   # Uses cumulative alarm register 1104 to detect communication issues
   - platform: template
-    name: "${vmc_name} Communication Error"
-    id: ${vmc_slug}_communication_error
+    name: "${mev_name} Communication Error"
+    id: ${mev_slug}_communication_error
     device_class: problem
     icon: mdi:lan-disconnect
     entity_category: diagnostic
     lambda: |-
       // Check if any temperature sensor is NaN (indicating communication failure)
-      return std::isnan(id(${vmc_slug}_outdoor_temp).state) &&
-             std::isnan(id(${vmc_slug}_exhaust_temp).state);
+      return std::isnan(id(${mev_slug}_outdoor_temp).state) &&
+             std::isnan(id(${mev_slug}_exhaust_temp).state);
 
   # ============================================================================
   # Cumulative Alarm Status - Story 18.3.1 (FR13)
@@ -89,9 +89,9 @@ binary_sensor:
 
   # Master alarm indicator - Register 1104
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Active"
-    id: ${vmc_slug}_alarm_active
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Active"
+    id: ${mev_slug}_alarm_active
     register_type: holding
     address: 1104
     bitmask: 0x0001
@@ -101,27 +101,27 @@ binary_sensor:
       then:
         - logger.log:
             level: ERROR
-            format: "VMC ALARM DETECTED on %s"
-            args: ['"${vmc_name}"']
+            format: "MEV ALARM DETECTED on %s"
+            args: ['"${mev_name}"']
         - number.set:
-            id: ${vmc_slug}_fan_speed
+            id: ${mev_slug}_fan_speed
             value: 0
     on_release:
       then:
         - logger.log:
             level: INFO
-            format: "VMC Alarm cleared on %s"
-            args: ['"${vmc_name}"']
+            format: "MEV Alarm cleared on %s"
+            args: ['"${mev_name}"']
 
   # Filter maintenance due indicator
   - platform: template
-    name: "${vmc_name} Filter Maintenance Due"
-    id: ${vmc_slug}_filter_maintenance_due
+    name: "${mev_name} Filter Maintenance Due"
+    id: ${mev_slug}_filter_maintenance_due
     device_class: problem
     icon: mdi:air-filter
     entity_category: diagnostic
     lambda: |-
-      float remaining = id(${vmc_slug}_filter_hours_remaining).state;
+      float remaining = id(${mev_slug}_filter_hours_remaining).state;
       if (std::isnan(remaining)) return false;
       return remaining <= 0;
 
@@ -132,9 +132,9 @@ binary_sensor:
 
   # Alarm 1: High pressure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm High Pressure"
-    id: ${vmc_slug}_alarm_high_pressure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm High Pressure"
+    id: ${mev_slug}_alarm_high_pressure
     register_type: holding
     address: 769
     bitmask: 0x0001
@@ -143,9 +143,9 @@ binary_sensor:
 
   # Alarm 2: Low pressure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Low Pressure"
-    id: ${vmc_slug}_alarm_low_pressure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Low Pressure"
+    id: ${mev_slug}_alarm_low_pressure
     register_type: holding
     address: 769
     bitmask: 0x0002
@@ -154,9 +154,9 @@ binary_sensor:
 
   # Alarm 3: Compressor thermal
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Compressor Thermal"
-    id: ${vmc_slug}_alarm_compressor_thermal
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Compressor Thermal"
+    id: ${mev_slug}_alarm_compressor_thermal
     register_type: holding
     address: 769
     bitmask: 0x0004
@@ -165,9 +165,9 @@ binary_sensor:
 
   # Alarm 4: Supply fan thermal
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Supply Fan Thermal"
-    id: ${vmc_slug}_alarm_supply_fan_thermal
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Fan Thermal"
+    id: ${mev_slug}_alarm_supply_fan_thermal
     register_type: holding
     address: 769
     bitmask: 0x0008
@@ -176,9 +176,9 @@ binary_sensor:
 
   # Alarm 5: Extract fan thermal
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Extract Fan Thermal"
-    id: ${vmc_slug}_alarm_extract_fan_thermal
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Fan Thermal"
+    id: ${mev_slug}_alarm_extract_fan_thermal
     register_type: holding
     address: 769
     bitmask: 0x0010
@@ -187,9 +187,9 @@ binary_sensor:
 
   # Alarm 6: Antifreeze
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Antifreeze"
-    id: ${vmc_slug}_alarm_antifreeze
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Antifreeze"
+    id: ${mev_slug}_alarm_antifreeze
     register_type: holding
     address: 769
     bitmask: 0x0020
@@ -198,9 +198,9 @@ binary_sensor:
 
   # Alarm 7: Supply fan failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Supply Fan Failure"
-    id: ${vmc_slug}_alarm_supply_fan_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Fan Failure"
+    id: ${mev_slug}_alarm_supply_fan_failure
     register_type: holding
     address: 769
     bitmask: 0x0040
@@ -209,9 +209,9 @@ binary_sensor:
 
   # Alarm 8: Extract fan failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Extract Fan Failure"
-    id: ${vmc_slug}_alarm_extract_fan_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Fan Failure"
+    id: ${mev_slug}_alarm_extract_fan_failure
     register_type: holding
     address: 769
     bitmask: 0x0080
@@ -220,9 +220,9 @@ binary_sensor:
 
   # Alarm 9: Filter dirty
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Filter Dirty"
-    id: ${vmc_slug}_alarm_filter_dirty
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Filter Dirty"
+    id: ${mev_slug}_alarm_filter_dirty
     register_type: holding
     address: 769
     bitmask: 0x0100
@@ -231,9 +231,9 @@ binary_sensor:
 
   # Alarm 10: Outdoor temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Outdoor Temp Sensor"
-    id: ${vmc_slug}_alarm_outdoor_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Outdoor Temp Sensor"
+    id: ${mev_slug}_alarm_outdoor_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x0200
@@ -242,9 +242,9 @@ binary_sensor:
 
   # Alarm 11: Supply temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Supply Temp Sensor"
-    id: ${vmc_slug}_alarm_supply_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Temp Sensor"
+    id: ${mev_slug}_alarm_supply_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x0400
@@ -253,9 +253,9 @@ binary_sensor:
 
   # Alarm 12: Extract temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Extract Temp Sensor"
-    id: ${vmc_slug}_alarm_extract_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Temp Sensor"
+    id: ${mev_slug}_alarm_extract_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x0800
@@ -264,9 +264,9 @@ binary_sensor:
 
   # Alarm 13: Exhaust temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Exhaust Temp Sensor"
-    id: ${vmc_slug}_alarm_exhaust_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Exhaust Temp Sensor"
+    id: ${mev_slug}_alarm_exhaust_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x1000
@@ -275,9 +275,9 @@ binary_sensor:
 
   # Alarm 14: Water temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Water Temp Sensor"
-    id: ${vmc_slug}_alarm_water_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Water Temp Sensor"
+    id: ${mev_slug}_alarm_water_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x2000
@@ -286,9 +286,9 @@ binary_sensor:
 
   # Alarm 15: Freecooling temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Freecooling Temp Sensor"
-    id: ${vmc_slug}_alarm_freecooling_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Freecooling Temp Sensor"
+    id: ${mev_slug}_alarm_freecooling_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x4000
@@ -297,9 +297,9 @@ binary_sensor:
 
   # Alarm 16: Evaporation temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Evaporation Temp Sensor"
-    id: ${vmc_slug}_alarm_evaporation_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Evaporation Temp Sensor"
+    id: ${mev_slug}_alarm_evaporation_temp_sensor
     register_type: holding
     address: 769
     bitmask: 0x8000
@@ -312,9 +312,9 @@ binary_sensor:
 
   # Alarm 17: Room temp sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Room Temp Sensor"
-    id: ${vmc_slug}_alarm_room_temp_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Room Temp Sensor"
+    id: ${mev_slug}_alarm_room_temp_sensor
     register_type: holding
     address: 770
     bitmask: 0x0001
@@ -323,9 +323,9 @@ binary_sensor:
 
   # Alarm 18: Room humidity sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Room Humidity Sensor"
-    id: ${vmc_slug}_alarm_room_humidity_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Room Humidity Sensor"
+    id: ${mev_slug}_alarm_room_humidity_sensor
     register_type: holding
     address: 770
     bitmask: 0x0002
@@ -334,9 +334,9 @@ binary_sensor:
 
   # Alarm 19: CO2 sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm CO2 Sensor"
-    id: ${vmc_slug}_alarm_co2_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm CO2 Sensor"
+    id: ${mev_slug}_alarm_co2_sensor
     register_type: holding
     address: 770
     bitmask: 0x0004
@@ -345,9 +345,9 @@ binary_sensor:
 
   # Alarm 20: VOC sensor
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm VOC Sensor"
-    id: ${vmc_slug}_alarm_voc_sensor
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm VOC Sensor"
+    id: ${mev_slug}_alarm_voc_sensor
     register_type: holding
     address: 770
     bitmask: 0x0008
@@ -356,9 +356,9 @@ binary_sensor:
 
   # Alarm 21: Defrost failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Defrost Failure"
-    id: ${vmc_slug}_alarm_defrost_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Defrost Failure"
+    id: ${mev_slug}_alarm_defrost_failure
     register_type: holding
     address: 770
     bitmask: 0x0010
@@ -367,9 +367,9 @@ binary_sensor:
 
   # Alarm 22: Low refrigerant
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Low Refrigerant"
-    id: ${vmc_slug}_alarm_low_refrigerant
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Low Refrigerant"
+    id: ${mev_slug}_alarm_low_refrigerant
     register_type: holding
     address: 770
     bitmask: 0x0020
@@ -378,9 +378,9 @@ binary_sensor:
 
   # Alarm 23: Water pump failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Water Pump Failure"
-    id: ${vmc_slug}_alarm_water_pump_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Water Pump Failure"
+    id: ${mev_slug}_alarm_water_pump_failure
     register_type: holding
     address: 770
     bitmask: 0x0040
@@ -389,9 +389,9 @@ binary_sensor:
 
   # Alarm 24: Bypass damper failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Bypass Damper Failure"
-    id: ${vmc_slug}_alarm_bypass_damper_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Bypass Damper Failure"
+    id: ${mev_slug}_alarm_bypass_damper_failure
     register_type: holding
     address: 770
     bitmask: 0x0080
@@ -400,9 +400,9 @@ binary_sensor:
 
   # Alarm 25: Freecooling damper failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Freecooling Damper Failure"
-    id: ${vmc_slug}_alarm_freecooling_damper_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Freecooling Damper Failure"
+    id: ${mev_slug}_alarm_freecooling_damper_failure
     register_type: holding
     address: 770
     bitmask: 0x0100
@@ -411,9 +411,9 @@ binary_sensor:
 
   # Alarm 26: Hot water valve failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Hot Water Valve Failure"
-    id: ${vmc_slug}_alarm_hot_water_valve_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Hot Water Valve Failure"
+    id: ${mev_slug}_alarm_hot_water_valve_failure
     register_type: holding
     address: 770
     bitmask: 0x0200
@@ -422,9 +422,9 @@ binary_sensor:
 
   # Alarm 27: Cold water valve failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Cold Water Valve Failure"
-    id: ${vmc_slug}_alarm_cold_water_valve_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Cold Water Valve Failure"
+    id: ${mev_slug}_alarm_cold_water_valve_failure
     register_type: holding
     address: 770
     bitmask: 0x0400
@@ -433,9 +433,9 @@ binary_sensor:
 
   # Alarm 28: Condensate pump failure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Condensate Pump Failure"
-    id: ${vmc_slug}_alarm_condensate_pump_failure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Condensate Pump Failure"
+    id: ${mev_slug}_alarm_condensate_pump_failure
     register_type: holding
     address: 770
     bitmask: 0x0800
@@ -444,9 +444,9 @@ binary_sensor:
 
   # Alarm 29: Fire alarm
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Fire"
-    id: ${vmc_slug}_alarm_fire
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Fire"
+    id: ${mev_slug}_alarm_fire
     register_type: holding
     address: 770
     bitmask: 0x1000
@@ -455,9 +455,9 @@ binary_sensor:
 
   # Alarm 30: External alarm
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm External"
-    id: ${vmc_slug}_alarm_external
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm External"
+    id: ${mev_slug}_alarm_external
     register_type: holding
     address: 770
     bitmask: 0x2000
@@ -466,9 +466,9 @@ binary_sensor:
 
   # Alarm 31: EEPROM error
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm EEPROM Error"
-    id: ${vmc_slug}_alarm_eeprom_error
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm EEPROM Error"
+    id: ${mev_slug}_alarm_eeprom_error
     register_type: holding
     address: 770
     bitmask: 0x4000
@@ -477,9 +477,9 @@ binary_sensor:
 
   # Alarm 32: Clock error
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Clock Error"
-    id: ${vmc_slug}_alarm_clock_error
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Clock Error"
+    id: ${mev_slug}_alarm_clock_error
     register_type: holding
     address: 770
     bitmask: 0x8000
@@ -492,9 +492,9 @@ binary_sensor:
 
   # Alarm 33: Compressor inverter fault
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Compressor Inverter Fault"
-    id: ${vmc_slug}_alarm_compressor_inverter_fault
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Compressor Inverter Fault"
+    id: ${mev_slug}_alarm_compressor_inverter_fault
     register_type: holding
     address: 771
     bitmask: 0x0001
@@ -503,9 +503,9 @@ binary_sensor:
 
   # Alarm 34: Supply fan inverter fault
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Supply Fan Inverter Fault"
-    id: ${vmc_slug}_alarm_supply_fan_inverter_fault
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Fan Inverter Fault"
+    id: ${mev_slug}_alarm_supply_fan_inverter_fault
     register_type: holding
     address: 771
     bitmask: 0x0002
@@ -514,9 +514,9 @@ binary_sensor:
 
   # Alarm 35: Extract fan inverter fault
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Extract Fan Inverter Fault"
-    id: ${vmc_slug}_alarm_extract_fan_inverter_fault
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Fan Inverter Fault"
+    id: ${mev_slug}_alarm_extract_fan_inverter_fault
     register_type: holding
     address: 771
     bitmask: 0x0004
@@ -525,9 +525,9 @@ binary_sensor:
 
   # Alarm 36: High discharge temp
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm High Discharge Temp"
-    id: ${vmc_slug}_alarm_high_discharge_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm High Discharge Temp"
+    id: ${mev_slug}_alarm_high_discharge_temp
     register_type: holding
     address: 771
     bitmask: 0x0008
@@ -536,9 +536,9 @@ binary_sensor:
 
   # Alarm 37: Low suction temp
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Low Suction Temp"
-    id: ${vmc_slug}_alarm_low_suction_temp
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Low Suction Temp"
+    id: ${mev_slug}_alarm_low_suction_temp
     register_type: holding
     address: 771
     bitmask: 0x0010
@@ -547,9 +547,9 @@ binary_sensor:
 
   # Alarm 38: High evaporation pressure
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm High Evaporation Pressure"
-    id: ${vmc_slug}_alarm_high_evaporation_pressure
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm High Evaporation Pressure"
+    id: ${mev_slug}_alarm_high_evaporation_pressure
     register_type: holding
     address: 771
     bitmask: 0x0020
@@ -558,9 +558,9 @@ binary_sensor:
 
   # Alarm 39: Service required
   - platform: modbus_controller
-    modbus_controller_id: ${vmc_slug}_controller
-    name: "${vmc_name} Alarm Service Required"
-    id: ${vmc_slug}_alarm_service_required
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Service Required"
+    id: ${mev_slug}_alarm_service_required
     register_type: holding
     address: 771
     bitmask: 0x0040

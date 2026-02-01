@@ -11,14 +11,14 @@ packages:
       sensor_id: first_floor_any_zone_open
       relay_id: relay_3
       output_id: analog_output_2
-  # VMC Modbus Control - Epic 18
-  # Replaces relay-based mev.yaml with Modbus-based vmc_modbus.yaml
+  # MEV Modbus Control - Epic 18
+  # Replaces relay-based mev.yaml with Modbus-based mev_modbus.yaml
   # Frees relays 18-21 for future use
-  first_floor_vmc: !include
-    file: ../../vmc_modbus.yaml
+  first_floor_mev: !include
+    file: ../../mev_modbus.yaml
     vars:
-      vmc_slug: "first_floor_vmc"
-      vmc_name: "VMC Primo Piano"
+      mev_slug: "first_floor_mev"
+      mev_name: "MEV Primo Piano"
       modbus_bus_id: rs485_bus
       fan_speed_output: analog_output_7
       humidity_sensor: first_floor_max_humidity
