@@ -1,0 +1,364 @@
+# Climate Control System - Main Overview Dashboard
+# Provides system-wide status and navigation to floor/room dashboards
+
+title: Climate Control
+path: climate-overview
+icon: mdi:home-thermometer
+type: sections
+
+sections:
+  # ===========================================================================
+  # System Status Section
+  # ===========================================================================
+  - type: grid
+    title: System Status
+    cards:
+      # Heat Pump Mode & Season
+      - type: tile
+        entity: select.climate_control_heat_pump_mode
+        name: Heat Pump Mode
+        icon: mdi:heat-pump
+        show_entity_picture: false
+        vertical: false
+
+      - type: tile
+        entity: sensor.climate_control_season_classification
+        name: Current Season
+        icon: mdi:calendar-range
+
+      - type: tile
+        entity: sensor.climate_control_heat_pump_mode_reason
+        name: Mode Reason
+        icon: mdi:information-outline
+
+      # Global Demand Indicators
+      - type: tile
+        entity: binary_sensor.climate_control_any_pid_requesting_heat
+        name: Heat Demand
+        icon: mdi:fire
+        color: red
+
+      - type: tile
+        entity: binary_sensor.climate_control_any_pid_requesting_cool
+        name: Cool Demand
+        icon: mdi:snowflake
+        color: blue
+
+  # ===========================================================================
+  # Floor Navigation Section
+  # ===========================================================================
+  - type: grid
+    title: Floor Navigation
+    cards:
+      - type: button
+        name: Ground Floor (Piano Terra)
+        icon: mdi:home-floor-0
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/ground-floor
+        entity: binary_sensor.climate_control_ground_floor_radiant_any_zone_open
+        show_state: true
+        show_name: true
+
+      - type: button
+        name: First Floor (Primo Piano)
+        icon: mdi:home-floor-1
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/first-floor
+        entity: binary_sensor.climate_control_first_floor_any_zone_open
+        show_state: true
+        show_name: true
+
+      - type: button
+        name: Second Floor (Secondo Piano)
+        icon: mdi:home-floor-2
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/second-floor
+        show_state: true
+        show_name: true
+
+      - type: button
+        name: System Monitoring
+        icon: mdi:monitor-dashboard
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/system-monitoring
+
+  # ===========================================================================
+  # Quick Status: Ground Floor
+  # ===========================================================================
+  - type: grid
+    title: Ground Floor - Quick Status
+    columns: 4
+    cards:
+      # Radiant System
+      - type: tile
+        entity: binary_sensor.climate_control_ground_floor_radiant_any_zone_open
+        name: Radiant Active
+        icon: mdi:radiator
+
+      - type: tile
+        entity: sensor.climate_control_max_dew_point_piano_terra
+        name: Max Dew Point
+        icon: mdi:water-thermometer
+
+      - type: tile
+        entity: sensor.climate_control_ground_floor_supply_temp_minimum
+        name: Supply Temp Min
+        icon: mdi:thermometer-water
+
+      - type: tile
+        entity: sensor.climate_control_max_humidity_piano_terra
+        name: Max Humidity
+        icon: mdi:water-percent
+
+      # Fancoil System
+      - type: tile
+        entity: binary_sensor.climate_control_ground_floor_any_fancoil_zone_open
+        name: Fancoil Active
+        icon: mdi:fan
+
+      - type: tile
+        entity: sensor.climate_control_effective_fancoil_boost_threshold
+        name: Boost Threshold
+        icon: mdi:thermometer-alert
+
+      - type: tile
+        entity: sensor.climate_control_effective_fancoil_humidity_threshold
+        name: Humidity Threshold
+        icon: mdi:water-percent-alert
+
+      - type: tile
+        entity: sensor.climate_control_ground_floor_time_in_current_mode
+        name: Time in Mode
+        icon: mdi:timer
+
+  # ===========================================================================
+  # Quick Status: First Floor
+  # ===========================================================================
+  - type: grid
+    title: First Floor - Quick Status
+    columns: 4
+    cards:
+      # Radiant System
+      - type: tile
+        entity: binary_sensor.climate_control_first_floor_any_zone_open
+        name: Radiant Active
+        icon: mdi:radiator
+
+      - type: tile
+        entity: sensor.climate_control_max_dew_point_primo_piano
+        name: Max Dew Point
+        icon: mdi:water-thermometer
+
+      - type: tile
+        entity: sensor.climate_control_first_floor_supply_temp_minimum
+        name: Supply Temp Min
+        icon: mdi:thermometer-water
+
+      - type: tile
+        entity: sensor.climate_control_first_floor_max_humidity
+        name: Max Humidity
+        icon: mdi:water-percent
+
+      # MEV System
+      - type: tile
+        entity: switch.climate_control_vmc_primo_piano_power
+        name: MEV Power
+        icon: mdi:fan
+
+      - type: tile
+        entity: sensor.climate_control_max_co_primo_piano
+        name: Max CO₂
+        icon: mdi:molecule-co2
+
+      - type: tile
+        entity: sensor.climate_control_max_iaq_primo_piano
+        name: Max IAQ
+        icon: mdi:air-filter
+
+      - type: tile
+        entity: number.climate_control_vmc_primo_piano_target_fan_speed
+        name: MEV Fan Speed
+        icon: mdi:fan-speed-3
+
+  # ===========================================================================
+  # Temperature Trends - Visual Overview
+  # ===========================================================================
+  - type: grid
+    title: Temperature Trends (24 Hours)
+    cards:
+      - type: history-graph
+        title: Ground Floor Temperature Trends
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_soggiorno_room_temp_abstracted
+            name: Soggiorno
+          - entity: sensor.climate_control_cucina_room_temp_abstracted
+            name: Cucina
+          - entity: sensor.climate_control_bagno_terra_room_temp_abstracted
+            name: Bagno
+          - entity: sensor.climate_control_anticamera_room_temp_abstracted
+            name: Anticamera
+          - entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
+            name: Locale Tecnico
+
+      - type: history-graph
+        title: First Floor Temperature Trends
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_camera_nord_room_temp_abstracted
+            name: Camera Nord
+          - entity: sensor.climate_control_camera_sud_room_temp_abstracted
+            name: Camera Sud
+          - entity: sensor.climate_control_camera_ospiti_room_temp_abstracted
+            name: Camera Ospiti
+          - entity: sensor.climate_control_camera_padronale_room_temp_abstracted
+            name: Camera Padronale
+
+      - type: history-graph
+        title: First Floor Bathrooms & Utility
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_bagno_grande_room_temp_abstracted
+            name: Bagno Grande
+          - entity: sensor.climate_control_bagno_ospiti_room_temp_abstracted
+            name: Bagno Ospiti
+          - entity: sensor.climate_control_bagno_padronale_room_temp_abstracted
+            name: Bagno Padronale
+          - entity: sensor.climate_control_lavanderia_room_temp_abstracted
+            name: Lavanderia
+
+  # ===========================================================================
+  # Humidity & Air Quality Trends
+  # ===========================================================================
+  - type: grid
+    title: Humidity & Air Quality Trends (24 Hours)
+    cards:
+      - type: history-graph
+        title: Floor Maximum Humidity
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_humidity_piano_terra
+            name: Ground Floor Max
+          - entity: sensor.climate_control_first_floor_max_humidity
+            name: First Floor Max
+
+      - type: history-graph
+        title: First Floor Air Quality
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_co_primo_piano
+            name: Max CO₂
+          - entity: sensor.climate_control_max_iaq_primo_piano
+            name: Max IAQ
+
+  # ===========================================================================
+  # System Performance Overview
+  # ===========================================================================
+  - type: grid
+    title: System Performance (24 Hours)
+    cards:
+      - type: history-graph
+        title: Mixing Valve Supply Temperatures
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_radiante_piano_terra_supply_temp
+            name: Ground Floor Supply
+          - entity: sensor.climate_control_primo_piano_supply_temp
+            name: First Floor Supply
+          - entity: sensor.climate_control_ground_floor_supply_temp_minimum
+            name: GF Min (Dew Protection)
+          - entity: sensor.climate_control_first_floor_supply_temp_minimum
+            name: FF Min (Dew Protection)
+
+      - type: history-graph
+        title: Dew Point Protection
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_max_dew_point_piano_terra
+            name: Ground Floor Max Dew Point
+          - entity: sensor.climate_control_max_dew_point_primo_piano
+            name: First Floor Max Dew Point
+
+  # ===========================================================================
+  # Room Temperature Overview (Current Values)
+  # ===========================================================================
+  - type: grid
+    title: All Rooms - Current Temperature
+    columns: 3
+    cards:
+      # Ground Floor Rooms
+      - type: tile
+        entity: sensor.climate_control_soggiorno_room_temp_abstracted
+        name: Soggiorno
+        icon: mdi:sofa
+
+      - type: tile
+        entity: sensor.climate_control_cucina_room_temp_abstracted
+        name: Cucina
+        icon: mdi:chef-hat
+
+      - type: tile
+        entity: sensor.climate_control_bagno_terra_room_temp_abstracted
+        name: Bagno Terra
+        icon: mdi:toilet
+
+      - type: tile
+        entity: sensor.climate_control_anticamera_room_temp_abstracted
+        name: Anticamera
+        icon: mdi:door
+
+      - type: tile
+        entity: sensor.climate_control_locale_tecnico_room_temp_abstracted
+        name: Locale Tecnico
+        icon: mdi:toolbox
+
+      # First Floor Rooms
+      - type: tile
+        entity: sensor.climate_control_camera_nord_room_temp_abstracted
+        name: Camera Nord
+        icon: mdi:bed
+
+      - type: tile
+        entity: sensor.climate_control_camera_sud_room_temp_abstracted
+        name: Camera Sud
+        icon: mdi:bed
+
+      - type: tile
+        entity: sensor.climate_control_camera_ospiti_room_temp_abstracted
+        name: Camera Ospiti
+        icon: mdi:bed
+
+      - type: tile
+        entity: sensor.climate_control_camera_padronale_room_temp_abstracted
+        name: Camera Padronale
+        icon: mdi:bed-king
+
+      - type: tile
+        entity: sensor.climate_control_bagno_grande_room_temp_abstracted
+        name: Bagno Grande
+        icon: mdi:toilet
+
+      - type: tile
+        entity: sensor.climate_control_bagno_ospiti_room_temp_abstracted
+        name: Bagno Ospiti
+        icon: mdi:toilet
+
+      - type: tile
+        entity: sensor.climate_control_bagno_padronale_room_temp_abstracted
+        name: Bagno Padronale
+        icon: mdi:toilet
+
+      - type: tile
+        entity: sensor.climate_control_lavanderia_room_temp_abstracted
+        name: Lavanderia
+        icon: mdi:washing-machine
+
+      # Second Floor
+      - type: tile
+        entity: sensor.climate_control_sottotetto_room_temp_abstracted
+        name: Sottotetto
+        icon: mdi:home-roof

@@ -1,0 +1,95 @@
+# Lavanderia (Laundry Room) - Detailed Room Dashboard
+# First Floor
+# Heating: Radiant Floor
+
+title: Lavanderia
+path: lavanderia
+icon: mdi:washing-machine
+type: sections
+
+sections:
+  - type: grid
+    cards:
+      - type: button
+        name: Back to First Floor
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/first-floor
+
+  # Room Environment
+  - type: grid
+    title: Room Environment
+    columns: 4
+    cards:
+      - type: tile
+        entity: sensor.climate_control_lavanderia_room_temp_abstracted
+        name: Temperature
+        icon: mdi:thermometer
+
+      - type: tile
+        entity: sensor.climate_control_lavanderia_room_humidity_abstracted
+        name: Humidity
+        icon: mdi:water-percent
+
+      - type: tile
+        entity: sensor.climate_control_lavanderia_dew_point
+        name: Dew Point
+        icon: mdi:water-thermometer
+
+      - type: tile
+        entity: sensor.climate_control_lavanderia_co2
+        name: CO₂
+        icon: mdi:molecule-co2
+
+      - type: tile
+        entity: sensor.climate_control_lavanderia_iaq
+        name: IAQ
+        icon: mdi:air-filter
+
+  # Radiant Floor Control
+  - type: grid
+    title: Radiant Floor Heating/Cooling
+    cards:
+      - type: thermostat
+        entity: climate.climate_control_pid_radiant_lavanderia
+        name: Radiant Control
+        features:
+          - type: climate-hvac-modes
+          - type: climate-preset-modes
+
+      - type: tile
+        entity: switch.climate_control_relay_20
+        name: Radiant Zone Valve
+        icon: mdi:valve
+
+      - type: tile
+        entity: binary_sensor.climate_control_pid_radiant_lavanderia_is_active
+        name: Zone Active
+        icon: mdi:radiator
+
+      - type: tile
+        entity: sensor.climate_control_pid_radiant_lavanderia_output_value
+        name: PID Output
+        icon: mdi:percent
+
+  # Auto-tune
+  - type: grid
+    title: PID Auto-tune
+    cards:
+      - type: tile
+        entity: button.climate_control_autotune_pid_radiant_lavanderia
+        name: Auto-tune Radiant
+        icon: mdi:tune-variant
+
+  # Historical Data
+  - type: grid
+    title: Historical Data
+    cards:
+      - type: history-graph
+        title: Temperature & Air Quality
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_lavanderia_room_temp_abstracted
+          - entity: sensor.climate_control_lavanderia_room_humidity_abstracted
+          - entity: sensor.climate_control_lavanderia_co2

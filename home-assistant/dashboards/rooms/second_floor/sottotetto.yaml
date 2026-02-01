@@ -1,0 +1,177 @@
+# Sottotetto (Attic) - Detailed Room Dashboard
+# Second Floor
+# Heating/Cooling: Fancoil only
+
+title: Sottotetto
+path: sottotetto
+icon: mdi:home-roof
+type: sections
+
+sections:
+  - type: grid
+    cards:
+      - type: button
+        name: Back to Second Floor
+        icon: mdi:arrow-left
+        tap_action:
+          action: navigate
+          navigation_path: /lovelace/second-floor
+
+  # Room Environment
+  - type: grid
+    title: Room Environment
+    columns: 3
+    cards:
+      - type: tile
+        entity: sensor.climate_control_sottotetto_room_temp_abstracted
+        name: Temperature
+        icon: mdi:thermometer
+
+      - type: tile
+        entity: sensor.climate_control_sottotetto_room_humidity_abstracted
+        name: Humidity
+        icon: mdi:water-percent
+
+      - type: tile
+        entity: sensor.climate_control_sottotetto_dew_point
+        name: Dew Point
+        icon: mdi:water-thermometer
+
+  # Fancoil Control
+  - type: grid
+    title: Fancoil Heating/Cooling
+    cards:
+      - type: thermostat
+        entity: climate.climate_control_pid_fancoil_sottotetto
+        name: Fancoil Control
+        features:
+          - type: climate-hvac-modes
+          - type: climate-preset-modes
+
+      - type: tile
+        entity: number.climate_control_fancoil_sottotetto_speed
+        name: Fan Speed (0-10V)
+        icon: mdi:fan-speed-3
+
+      - type: tile
+        entity: binary_sensor.climate_control_pid_fancoil_sottotetto_is_active
+        name: Fancoil Active
+        icon: mdi:fan
+
+      - type: tile
+        entity: binary_sensor.climate_control_pid_fancoil_sottotetto_is_heating
+        name: Heating
+        icon: mdi:fire
+
+      - type: tile
+        entity: binary_sensor.climate_control_pid_fancoil_sottotetto_is_cooling
+        name: Cooling
+        icon: mdi:snowflake
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_p_term
+        name: P Term
+        icon: mdi:alpha-p-circle
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_i_term
+        name: I Term
+        icon: mdi:alpha-i-circle
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_d_term
+        name: D Term
+        icon: mdi:alpha-d-circle
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_output_value
+        name: PID Output
+        icon: mdi:percent
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_error_value
+        name: Error
+        icon: mdi:delta
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_kp
+        name: Kp Gain
+        icon: mdi:tune
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_ki
+        name: Ki Gain
+        icon: mdi:tune
+
+      - type: tile
+        entity: sensor.climate_control_pid_fancoil_sottotetto_kd
+        name: Kd Gain
+        icon: mdi:tune
+
+  # Auto-tune
+  - type: grid
+    title: PID Auto-tune
+    cards:
+      - type: tile
+        entity: button.climate_control_autotune_pid_fancoil_sottotetto
+        name: Auto-tune Fancoil
+        icon: mdi:tune-variant
+
+  # Sensor Sources & Failover
+  - type: grid
+    title: Sensor Sources & Failover
+    columns: 2
+    cards:
+      - type: tile
+        entity: sensor.climate_control_sottotetto_room_temp_abstracted
+        name: Temperature (Active)
+        icon: mdi:thermometer-check
+
+      - type: tile
+        entity: sensor.climate_control_sottotetto_room_humidity_abstracted
+        name: Humidity (Active)
+        icon: mdi:water-percent
+
+      - type: tile
+        entity: sensor.climate_control_sottotetto_modbus_temp
+        name: Modbus Temperature
+        icon: mdi:thermometer-bluetooth
+
+      - type: tile
+        entity: sensor.climate_control_sottotetto_modbus_humidity
+        name: Modbus Humidity
+        icon: mdi:water-percent
+
+      - type: tile
+        entity: sensor.climate_control_room_sottotetto_temperature
+        name: HA Temperature (Fallback)
+        icon: mdi:home-assistant
+
+      - type: tile
+        entity: sensor.climate_control_room_sottotetto_humidity
+        name: HA Humidity (Fallback)
+        icon: mdi:home-assistant
+
+  # Historical Data
+  - type: grid
+    title: Historical Data
+    cards:
+      - type: history-graph
+        title: Temperature & Humidity Trend
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_sottotetto_room_temp_abstracted
+            name: Temperature
+          - entity: sensor.climate_control_sottotetto_room_humidity_abstracted
+            name: Humidity
+          - entity: sensor.climate_control_sottotetto_dew_point
+            name: Dew Point
+
+      - type: history-graph
+        title: PID Output & Activity
+        hours_to_show: 24
+        entities:
+          - entity: sensor.climate_control_pid_fancoil_sottotetto_output_value
+            name: Fancoil Output
+          - entity: binary_sensor.climate_control_pid_fancoil_sottotetto_is_active
+            name: Fancoil Active
