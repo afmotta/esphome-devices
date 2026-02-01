@@ -20,7 +20,7 @@ packages:
   fancoil: !include
     file: ../../fancoil.yaml
     vars:
-      output_id: analog_output_6
+      output_id: analog_output_5
 
   autotune_fancoil: !include
     file: ../../pid_autotune.yaml
