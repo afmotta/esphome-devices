@@ -1,0 +1,228 @@
+# VMC Modbus Telemetry - Epic 18 Stories 18.2.1 & 18.2.2
+#
+# Temperature sensors and component state monitoring for Cappellotto Air Fresh I VMC.
+#
+# Temperature Registers (value ÷ 10 = °C):
+# - 501: Outdoor temperature
+# - 502: Water temperature
+# - 503: Exhaust temperature
+# - 511: Freecooling temperature
+# - 512: Evaporation temperature
+#
+# Component State Registers (packed bits):
+# - 385-386: Fan states
+# - 640-643: Compressor, dampers, valves
+#
+# Required vars:
+#   vmc_slug: Device slug for entity IDs (e.g., "first_floor_vmc")
+#   vmc_name: Friendly name prefix (e.g., "VMC Primo Piano")
+
+sensor:
+  # ============================================================================
+  # Temperature Sensors - Story 18.2.1
+  # ============================================================================
+
+  # Outdoor temperature - Register 501
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Outdoor Temperature"
+    id: ${vmc_slug}_outdoor_temp
+    register_type: holding
+    address: 501
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:thermometer
+    filters:
+      - multiply: 0.1
+
+  # Water temperature - Register 502
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Water Temperature"
+    id: ${vmc_slug}_water_temp
+    register_type: holding
+    address: 502
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:water-thermometer
+    filters:
+      - multiply: 0.1
+
+  # Exhaust temperature - Register 503
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Exhaust Temperature"
+    id: ${vmc_slug}_exhaust_temp
+    register_type: holding
+    address: 503
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:fan-chevron-up
+    filters:
+      - multiply: 0.1
+
+  # Freecooling temperature - Register 511
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Freecooling Temperature"
+    id: ${vmc_slug}_freecooling_temp
+    register_type: holding
+    address: 511
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:snowflake-thermometer
+    filters:
+      - multiply: 0.1
+
+  # Evaporation temperature - Register 512
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Evaporation Temperature"
+    id: ${vmc_slug}_evaporation_temp
+    register_type: holding
+    address: 512
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:coolant-temperature
+    filters:
+      - multiply: 0.1
+
+binary_sensor:
+  # ============================================================================
+  # Component State Monitoring - Story 18.2.2
+  # ============================================================================
+  # Register 385: Fan states (bits)
+
+  # Supply fan active - Register 385 bit 0
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Supply Fan Active"
+    id: ${vmc_slug}_supply_fan_active
+    register_type: holding
+    address: 385
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:fan
+
+  # Extract fan active - Register 385 bit 1
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Extract Fan Active"
+    id: ${vmc_slug}_extract_fan_active
+    register_type: holding
+    address: 385
+    bitmask: 0x0002
+    device_class: running
+    icon: mdi:fan
+
+  # Register 386: More fan states (bits)
+
+  # Bypass fan active - Register 386 bit 0
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Bypass Fan Active"
+    id: ${vmc_slug}_bypass_fan_active
+    register_type: holding
+    address: 386
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:fan-auto
+
+  # Register 640: Compressor and damper states
+
+  # Compressor active - Register 640 bit 0
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Compressor Active"
+    id: ${vmc_slug}_compressor_active
+    register_type: holding
+    address: 640
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:heat-pump
+
+  # Bypass damper open - Register 640 bit 1
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Bypass Damper Open"
+    id: ${vmc_slug}_bypass_damper_open
+    register_type: holding
+    address: 640
+    bitmask: 0x0002
+    device_class: opening
+    icon: mdi:valve
+
+  # Freecooling damper open - Register 640 bit 2
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Freecooling Damper Open"
+    id: ${vmc_slug}_freecooling_damper_open
+    register_type: holding
+    address: 640
+    bitmask: 0x0004
+    device_class: opening
+    icon: mdi:valve
+
+  # Register 641: Valve states
+
+  # Hot water valve open - Register 641 bit 0
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Hot Water Valve Open"
+    id: ${vmc_slug}_hot_water_valve_open
+    register_type: holding
+    address: 641
+    bitmask: 0x0001
+    device_class: opening
+    icon: mdi:valve-open
+
+  # Cold water valve open - Register 641 bit 1
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Cold Water Valve Open"
+    id: ${vmc_slug}_cold_water_valve_open
+    register_type: holding
+    address: 641
+    bitmask: 0x0002
+    device_class: opening
+    icon: mdi:valve-open
+
+  # Register 642: Defrost states
+
+  # Defrost active - Register 642 bit 0
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Defrost Active"
+    id: ${vmc_slug}_defrost_active
+    register_type: holding
+    address: 642
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:snowflake-melt
+
+  # Register 643: Heat pump reversing valve
+
+  # Reversing valve position - Register 643 bit 0
+  - platform: modbus_controller
+    modbus_controller_id: ${vmc_slug}_controller
+    name: "${vmc_name} Reversing Valve Heating"
+    id: ${vmc_slug}_reversing_valve_heating
+    register_type: holding
+    address: 643
+    bitmask: 0x0001
+    icon: mdi:valve

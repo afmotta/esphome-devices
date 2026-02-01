@@ -1,0 +1,29 @@
+# VMC Modbus Controller Setup - Epic 18 Story 18.1.1
+#
+# Establishes Modbus communication with Cappellotto Air Fresh I VMC
+# at address 0x10 on the shared RS485 bus.
+#
+# VMC Configuration Requirements (one-time external setup):
+# - Modbus address: 0x10 (16 decimal)
+# - Serial: 9600 baud, 8N1 (parity set to None)
+#
+# Required vars:
+#   vmc_slug: Device slug for entity IDs (e.g., "first_floor_vmc")
+#   vmc_name: Friendly name prefix (e.g., "VMC Primo Piano")
+#   modbus_bus_id: ID of the modbus bus (e.g., rs485_bus)
+#
+# Optional vars:
+#   modbus_address: VMC Modbus address (default: 0x10)
+#   update_interval: Polling interval (default: 30s)
+
+defaults:
+  modbus_address: "0x10"
+  update_interval: 30s
+
+modbus_controller:
+  - id: ${vmc_slug}_controller
+    address: ${modbus_address}
+    modbus_id: ${modbus_bus_id}
+    update_interval: ${update_interval}
+    setup_priority: -10
+    command_throttle: 100ms

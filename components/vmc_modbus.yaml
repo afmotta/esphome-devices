@@ -1,0 +1,326 @@
+# VMC Modbus Component - Mechanical Extract Ventilation via Modbus
+# Epic 18: MEV Modbus Migration
+#
+# Complete Modbus-based control for Cappellotto Air Fresh I VMC.
+# Replaces relay-based control (4 relays freed) while retaining
+# 0-10V DAC for fan speed modulation.
+#
+# Features:
+# - On/Off, mode, dehumidify, integration via Modbus writes
+# - 5 internal temperature sensors
+# - Component state monitoring (fans, compressor, dampers, valves)
+# - 39 detailed alarm types + cumulative alarm
+# - Filter hours tracking for condition-based maintenance
+# - Demand-based ventilation (CO2, IAQ, humidity)
+# - Humidity cascade state machine
+#
+# Required vars:
+#   vmc_slug: Device slug for entity IDs (e.g., "first_floor_vmc")
+#   vmc_name: Friendly name prefix (e.g., "VMC Primo Piano")
+#   modbus_bus_id: ID of the modbus bus (e.g., rs485_bus)
+#   fan_speed_output: DAC output ID for 0-10V fan speed (e.g., analog_output_7)
+#   humidity_sensor: Sensor ID for humidity input
+#
+# Optional vars:
+#   modbus_address: VMC Modbus address (default: 0x10)
+#   update_interval: Modbus polling interval (default: 30s)
+
+defaults:
+  modbus_address: "0x10"
+  update_interval: 30s
+
+packages:
+  # Modbus controller setup - Story 18.1.1
+  controller: !include
+    file: vmc_modbus_controller.yaml
+    vars:
+      vmc_slug: ${vmc_slug}
+      vmc_name: ${vmc_name}
+      modbus_bus_id: ${modbus_bus_id}
+      modbus_address: ${modbus_address}
+      update_interval: ${update_interval}
+
+  # Control switches via Modbus - Story 18.1.2
+  control: !include
+    file: vmc_modbus_control.yaml
+    vars:
+      vmc_slug: ${vmc_slug}
+      vmc_name: ${vmc_name}
+
+  # Temperature sensors and component states - Stories 18.2.1, 18.2.2
+  telemetry: !include
+    file: vmc_modbus_telemetry.yaml
+    vars:
+      vmc_slug: ${vmc_slug}
+      vmc_name: ${vmc_name}
+
+  # Alarms, filter tracking, communication health - Stories 18.3.1, 18.3.2, 18.3.3
+  diagnostics: !include
+    file: vmc_modbus_diagnostics.yaml
+    vars:
+      vmc_slug: ${vmc_slug}
+      vmc_name: ${vmc_name}
+
+  # Demand sensors for ventilation control
+  # Note: proportional_demand_sensor.yaml expects mev_slug/mev_name variables
+  co2_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      mev_slug: ${vmc_slug}
+      mev_name: ${vmc_name}
+      demand_slug: co2
+      demand_name: CO2
+      unit_of_measurement: ppm
+      source_sensor_id: first_floor_max_co2
+      min_val_id: ${vmc_slug}_min_fan_speed
+      rate_multiplier: "0.05"
+      icon: mdi:molecule-co2
+
+  iaq_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      mev_slug: ${vmc_slug}
+      mev_name: ${vmc_name}
+      demand_slug: iaq
+      demand_name: IAQ
+      unit_of_measurement: IAQ
+      source_sensor_id: first_floor_max_iaq
+      min_val_id: ${vmc_slug}_min_fan_speed
+      rate_multiplier: "2.0"
+      icon: mdi:air-filter
+
+  humidity_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      mev_slug: ${vmc_slug}
+      mev_name: ${vmc_name}
+      demand_slug: humidity
+      demand_name: Humidity
+      source_sensor_id: ${humidity_sensor}
+      min_val_id: ${vmc_slug}_min_fan_speed
+      rate_multiplier: "20.0"
+      icon: mdi:water-percent
+
+# Sensor imports and calculations
+sensor:
+  # Import configuration from HA (Settings -> Helpers)
+  - platform: homeassistant
+    entity_id: input_number.mev_escalation_fan_threshold
+    id: ${vmc_slug}_escalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_deescalation_fan_threshold
+    id: ${vmc_slug}_deescalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_minimum_fan_speed
+    id: ${vmc_slug}_min_fan_speed
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_escalation_delay_minutes
+    id: ${vmc_slug}_escalation_delay
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_deescalation_delay_minutes
+    id: ${vmc_slug}_deescalation_delay
+    internal: true
+
+  # VMC Final Fan Speed (%)
+  - platform: template
+    name: "${vmc_name} Final Fan Speed"
+    id: ${vmc_slug}_final_fan_speed
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-3
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      // Stop fan if VMC alarm is active
+      if (id(${vmc_slug}_alarm_active).state) {
+        return 0.0f;
+      }
+
+      float co2 = id(${vmc_slug}_co2_demand).state;
+      float iaq = id(${vmc_slug}_iaq_demand).state;
+      float humidity = id(${vmc_slug}_humidity_demand).state;
+      float min_fan = id(${vmc_slug}_min_fan_speed).state;
+
+      // Fallback to min_fan if sensors are unavailable
+      if (isnan(min_fan)) min_fan = 20.0f;
+      float f_co2 = isnan(co2) ? min_fan : co2;
+      float f_iaq = isnan(iaq) ? min_fan : iaq;
+      float f_hum = isnan(humidity) ? min_fan : humidity;
+
+      float final_speed = std::max({f_co2, f_iaq, f_hum, min_fan});
+
+      // Update dominant demand diagnostics
+      std::string dominant = "Minimum";
+      if (final_speed > min_fan) {
+        if (final_speed == f_co2) dominant = "CO2";
+        else if (final_speed == f_iaq) dominant = "IAQ";
+        else if (final_speed == f_hum) dominant = "Humidity";
+      }
+      id(${vmc_slug}_dominant_demand).publish_state(dominant);
+
+      return std::min(100.0f, final_speed);
+    on_value:
+      then:
+        - number.set:
+            id: ${vmc_slug}_fan_speed
+            value: !lambda "return x;"
+
+# Diagnostic Sensors
+text_sensor:
+  - platform: template
+    name: "${vmc_name} Dominant Demand"
+    id: ${vmc_slug}_dominant_demand
+    icon: mdi:arm-acoustic-guitar
+    entity_category: diagnostic
+
+  - platform: template
+    name: "${vmc_name} Automation State"
+    id: ${vmc_slug}_automation_state
+    icon: mdi:robot-confused
+    entity_category: diagnostic
+
+# Humidity Cascade States
+select:
+  - platform: template
+    name: "${vmc_name} Humidity State"
+    id: ${vmc_slug}_humidity_state
+    options:
+      - "Fan Only"
+      - "Dehumidifying"
+      - "Cooling"
+    initial_option: "Fan Only"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - lambda: |-
+          // Use Modbus switches instead of relays
+          if (x == "Fan Only") {
+            id(${vmc_slug}_dehumidifier).turn_off();
+            id(${vmc_slug}_cooling).turn_off();
+          } else if (x == "Dehumidifying") {
+            id(${vmc_slug}_dehumidifier).turn_on();
+            id(${vmc_slug}_cooling).turn_off();
+          } else if (x == "Cooling") {
+            id(${vmc_slug}_dehumidifier).turn_on();
+            id(${vmc_slug}_cooling).turn_on();
+          }
+
+# Transition Logic for Humidity State Machine
+interval:
+  - interval: 1min
+    then:
+      - lambda: |-
+          static int escalation_counter = 0;
+          static int deescalation_counter = 0;
+
+          float final_fan = id(${vmc_slug}_final_fan_speed).state;
+          float rate = id(${vmc_slug}_humidity_rate).state;
+          float humidity = id(${humidity_sensor}).state;
+          auto current_state = id(${vmc_slug}_humidity_state).current_option();
+
+          float esc_thresh = id(${vmc_slug}_escalation_threshold).state;
+          float deesc_thresh = id(${vmc_slug}_deescalation_threshold).state;
+          float lower_bound = id(${vmc_slug}_humidity_lower).state;
+          float esc_delay = id(${vmc_slug}_escalation_delay).state;
+          float deesc_delay = id(${vmc_slug}_deescalation_delay).state;
+
+          if (isnan(final_fan) || isnan(rate) || isnan(humidity) || isnan(esc_thresh)) return;
+
+          bool escalation_active = false;
+          bool deescalation_active = false;
+          std::string state_msg = "Idle";
+
+          // Escalation
+          if (current_state == "Fan Only") {
+            if (final_fan >= esc_thresh && rate > 0.0f) {
+              escalation_counter++;
+              escalation_active = true;
+              state_msg = "Escalating (Dehum)";
+              if (escalation_counter >= (int)esc_delay) {
+                id(${vmc_slug}_humidity_state).make_call().set_option("Dehumidifying");
+                escalation_counter = 0;
+                deescalation_counter = 0;
+                ESP_LOGI("vmc", "Escalated to Dehumidifying");
+              }
+            }
+          } else if (current_state == "Dehumidifying") {
+            bool summer = id(summer_mode).state;
+            state_msg = "Dehumidifying";
+            if (summer && final_fan >= esc_thresh && rate > 0.0f) {
+              escalation_counter++;
+              escalation_active = true;
+              state_msg = "Escalating (Cooling)";
+              if (escalation_counter >= (int)esc_delay) {
+                id(${vmc_slug}_humidity_state).make_call().set_option("Cooling");
+                escalation_counter = 0;
+                deescalation_counter = 0;
+                ESP_LOGI("vmc", "Escalated to Cooling");
+              }
+            }
+          }
+
+          // De-escalation
+          if (current_state == "Cooling") {
+            state_msg = "Cooling";
+            bool summer = id(summer_mode).state;
+            if (!summer || (humidity < lower_bound && final_fan < deesc_thresh)) {
+               deescalation_counter++;
+               deescalation_active = true;
+               state_msg = "De-escalating (Dehum)";
+               if (deescalation_counter >= (int)deesc_delay) {
+                 id(${vmc_slug}_humidity_state).make_call().set_option("Dehumidifying");
+                 escalation_counter = 0;
+                 deescalation_counter = 0;
+                 ESP_LOGI("vmc", "De-escalated to Dehumidifying");
+               }
+            }
+          } else if (current_state == "Dehumidifying") {
+            if (!escalation_active && humidity < lower_bound && final_fan < deesc_thresh) {
+               deescalation_counter++;
+               deescalation_active = true;
+               state_msg = "De-escalating (Fan)";
+               if (deescalation_counter >= (int)deesc_delay) {
+                 id(${vmc_slug}_humidity_state).make_call().set_option("Fan Only");
+                 escalation_counter = 0;
+                 deescalation_counter = 0;
+                 ESP_LOGI("vmc", "De-escalated to Fan Only");
+               }
+            }
+          }
+
+          // Reset counters when direction changes or neither is active
+          if (!escalation_active) {
+            escalation_counter = 0;
+          }
+          if (!deescalation_active) {
+            deescalation_counter = 0;
+          }
+
+          id(${vmc_slug}_automation_state).publish_state(state_msg);
+
+# Number entity for fan speed percentage control (0-100%)
+# Maps to 0-10V DAC output (linear: 0%=0V, 100%=10V) - Story 18.1.3
+number:
+  - platform: template
+    name: "${vmc_name} Fan Speed"
+    id: ${vmc_slug}_fan_speed
+    icon: mdi:fan
+    min_value: 0
+    max_value: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    set_action:
+      - output.set_level:
+          id: ${fan_speed_output}
+          level: !lambda "return x / 100.0;"
