@@ -292,7 +292,7 @@ sensor:
       float f_iaq = isnan(iaq) ? min_fan : iaq;
       float f_hum = isnan(humidity) ? min_fan : humidity;
       float final_speed = std::max({f_co2, f_iaq, f_hum, min_fan});
-      std::string dominant = "Minimum";
+      std::string dominant = "Ventilation";
       if (final_speed > min_fan) {
         if (final_speed == f_co2) dominant = "CO2";
         else if (final_speed == f_iaq) dominant = "IAQ";
