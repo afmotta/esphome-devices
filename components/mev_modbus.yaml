@@ -74,20 +74,6 @@ packages:
       icon: mdi:water-percent
 
 # ============================================================================
-# Globals - State Machine Counters
-# ============================================================================
-globals:
-  - id: ${mev_slug}_escalation_counter
-    type: int
-    restore_value: no
-    initial_value: '0'
-
-  - id: ${mev_slug}_deescalation_counter
-    type: int
-    restore_value: no
-    initial_value: '0'
-
-# ============================================================================
 # Modbus Controller Setup
 # ============================================================================
 modbus_controller:
@@ -916,18 +902,18 @@ select:
             - switch.turn_on: ${mev_slug}_cooling
 
 # ============================================================================
-# State Machine Scripts
+# State Machine Scripts (with built-in delays)
 # ============================================================================
+# Scripts use mode: restart - restarting resets the delay timer.
+# on_press starts the script, on_release stops it (cancels pending transition).
 script:
-  # Escalate to Dehumidifying state
   - id: ${mev_slug}_escalate_to_dehumidifying
+    mode: restart
     then:
-      - globals.set:
-          id: ${mev_slug}_escalation_counter
-          value: '0'
-      - globals.set:
-          id: ${mev_slug}_deescalation_counter
-          value: '0'
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "Escalating (Dehum)"
+      - delay: !lambda "return id(${mev_slug}_escalation_delay).state * 60000;"
       - select.set:
           id: ${mev_slug}_humidity_state
           option: "Dehumidifying"
@@ -936,15 +922,13 @@ script:
           level: INFO
           tag: mev
 
-  # Escalate to Cooling state
   - id: ${mev_slug}_escalate_to_cooling
+    mode: restart
     then:
-      - globals.set:
-          id: ${mev_slug}_escalation_counter
-          value: '0'
-      - globals.set:
-          id: ${mev_slug}_deescalation_counter
-          value: '0'
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "Escalating (Cooling)"
+      - delay: !lambda "return id(${mev_slug}_escalation_delay).state * 60000;"
       - select.set:
           id: ${mev_slug}_humidity_state
           option: "Cooling"
@@ -953,15 +937,13 @@ script:
           level: INFO
           tag: mev
 
-  # De-escalate to Dehumidifying state
   - id: ${mev_slug}_deescalate_to_dehumidifying
+    mode: restart
     then:
-      - globals.set:
-          id: ${mev_slug}_escalation_counter
-          value: '0'
-      - globals.set:
-          id: ${mev_slug}_deescalation_counter
-          value: '0'
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "De-escalating (Dehum)"
+      - delay: !lambda "return id(${mev_slug}_deescalation_delay).state * 60000;"
       - select.set:
           id: ${mev_slug}_humidity_state
           option: "Dehumidifying"
@@ -970,15 +952,13 @@ script:
           level: INFO
           tag: mev
 
-  # De-escalate to Fan Only state
   - id: ${mev_slug}_deescalate_to_fan_only
+    mode: restart
     then:
-      - globals.set:
-          id: ${mev_slug}_escalation_counter
-          value: '0'
-      - globals.set:
-          id: ${mev_slug}_deescalation_counter
-          value: '0'
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "De-escalating (Fan)"
+      - delay: !lambda "return id(${mev_slug}_deescalation_delay).state * 60000;"
       - select.set:
           id: ${mev_slug}_humidity_state
           option: "Fan Only"
@@ -987,148 +967,96 @@ script:
           level: INFO
           tag: mev
 
-  # Reset counters when no transition is pending
-  - id: ${mev_slug}_reset_escalation
+  - id: ${mev_slug}_update_idle_state
+    mode: restart
     then:
-      - globals.set:
-          id: ${mev_slug}_escalation_counter
-          value: '0'
-
-  - id: ${mev_slug}_reset_deescalation
-    then:
-      - globals.set:
-          id: ${mev_slug}_deescalation_counter
-          value: '0'
+      - lambda: |-
+          auto state = id(${mev_slug}_humidity_state).current_option();
+          if (state == "Fan Only") {
+            id(${mev_slug}_automation_state).publish_state("Idle");
+          } else if (state == "Dehumidifying") {
+            id(${mev_slug}_automation_state).publish_state("Dehumidifying");
+          } else if (state == "Cooling") {
+            id(${mev_slug}_automation_state).publish_state("Cooling");
+          }
 
 # ============================================================================
-# State Machine Transition Logic
+# State Machine Transition Conditions (Template Binary Sensors)
 # ============================================================================
-interval:
-  - interval: 1min
-    then:
-      # Only run state machine if sensors are valid
-      - if:
-          condition:
-            lambda: |-
-              float final_fan = id(${mev_slug}_final_fan_speed).state;
-              float rate = id(${mev_slug}_humidity_rate).state;
-              float humidity = id(${humidity_sensor}).state;
-              float esc_thresh = id(${mev_slug}_escalation_threshold).state;
-              return !isnan(final_fan) && !isnan(rate) && !isnan(humidity) && !isnan(esc_thresh);
-          then:
-            # --- Escalation Logic ---
-            - if:
-                condition:
-                  lambda: |-
-                    auto state = id(${mev_slug}_humidity_state).current_option();
-                    float fan = id(${mev_slug}_final_fan_speed).state;
-                    float rate = id(${mev_slug}_humidity_rate).state;
-                    float thresh = id(${mev_slug}_escalation_threshold).state;
-                    return state == "Fan Only" && fan >= thresh && rate > 0.0f;
-                then:
-                  - lambda: 'id(${mev_slug}_escalation_counter) += 1;'
-                  - text_sensor.template.publish:
-                      id: ${mev_slug}_automation_state
-                      state: "Escalating (Dehum)"
-                  - if:
-                      condition:
-                        lambda: |-
-                          int delay = (int)id(${mev_slug}_escalation_delay).state;
-                          return id(${mev_slug}_escalation_counter) >= delay;
-                      then:
-                        - script.execute: ${mev_slug}_escalate_to_dehumidifying
-                else:
-                  - if:
-                      condition:
-                        lambda: |-
-                          auto state = id(${mev_slug}_humidity_state).current_option();
-                          float fan = id(${mev_slug}_final_fan_speed).state;
-                          float rate = id(${mev_slug}_humidity_rate).state;
-                          float thresh = id(${mev_slug}_escalation_threshold).state;
-                          bool summer = id(summer_mode).state;
-                          return state == "Dehumidifying" && summer && fan >= thresh && rate > 0.0f;
-                      then:
-                        - lambda: 'id(${mev_slug}_escalation_counter) += 1;'
-                        - text_sensor.template.publish:
-                            id: ${mev_slug}_automation_state
-                            state: "Escalating (Cooling)"
-                        - if:
-                            condition:
-                              lambda: |-
-                                int delay = (int)id(${mev_slug}_escalation_delay).state;
-                                return id(${mev_slug}_escalation_counter) >= delay;
-                            then:
-                              - script.execute: ${mev_slug}_escalate_to_cooling
-                      else:
-                        - script.execute: ${mev_slug}_reset_escalation
-            # --- De-escalation Logic ---
-            - if:
-                condition:
-                  lambda: |-
-                    auto state = id(${mev_slug}_humidity_state).current_option();
-                    float fan = id(${mev_slug}_final_fan_speed).state;
-                    float humidity = id(${humidity_sensor}).state;
-                    float lower = id(${mev_slug}_humidity_lower).state;
-                    float thresh = id(${mev_slug}_deescalation_threshold).state;
-                    bool summer = id(summer_mode).state;
-                    return state == "Cooling" && (!summer || (humidity < lower && fan < thresh));
-                then:
-                  - lambda: 'id(${mev_slug}_deescalation_counter) += 1;'
-                  - text_sensor.template.publish:
-                      id: ${mev_slug}_automation_state
-                      state: "De-escalating (Dehum)"
-                  - if:
-                      condition:
-                        lambda: |-
-                          int delay = (int)id(${mev_slug}_deescalation_delay).state;
-                          return id(${mev_slug}_deescalation_counter) >= delay;
-                      then:
-                        - script.execute: ${mev_slug}_deescalate_to_dehumidifying
-                else:
-                  - if:
-                      condition:
-                        lambda: |-
-                          auto state = id(${mev_slug}_humidity_state).current_option();
-                          float fan = id(${mev_slug}_final_fan_speed).state;
-                          float humidity = id(${humidity_sensor}).state;
-                          float lower = id(${mev_slug}_humidity_lower).state;
-                          float thresh = id(${mev_slug}_deescalation_threshold).state;
-                          return state == "Dehumidifying" && humidity < lower && fan < thresh;
-                      then:
-                        - lambda: 'id(${mev_slug}_deescalation_counter) += 1;'
-                        - text_sensor.template.publish:
-                            id: ${mev_slug}_automation_state
-                            state: "De-escalating (Fan)"
-                        - if:
-                            condition:
-                              lambda: |-
-                                int delay = (int)id(${mev_slug}_deescalation_delay).state;
-                                return id(${mev_slug}_deescalation_counter) >= delay;
-                            then:
-                              - script.execute: ${mev_slug}_deescalate_to_fan_only
-                      else:
-                        - script.execute: ${mev_slug}_reset_deescalation
-            # --- Update idle state display ---
-            - if:
-                condition:
-                  lambda: |-
-                    int esc = id(${mev_slug}_escalation_counter);
-                    int deesc = id(${mev_slug}_deescalation_counter);
-                    return esc == 0 && deesc == 0;
-                then:
-                  - lambda: |-
-                      auto state = id(${mev_slug}_humidity_state).current_option();
-                      if (state == "Fan Only") {
-                        id(${mev_slug}_automation_state).publish_state("Idle");
-                      } else if (state == "Dehumidifying") {
-                        id(${mev_slug}_automation_state).publish_state("Dehumidifying");
-                      } else if (state == "Cooling") {
-                        id(${mev_slug}_automation_state).publish_state("Cooling");
-                      }
-          else:
-            - text_sensor.template.publish:
-                id: ${mev_slug}_automation_state
-                state: "Waiting for sensors"
+# These sensors evaluate transition conditions and trigger scripts via on_press/on_release.
+# This replaces interval polling with event-driven state machine logic.
+binary_sensor:
+  - platform: template
+    name: "${mev_name} Should Escalate to Dehumidifying"
+    id: ${mev_slug}_should_escalate_dehum
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float rate = id(${mev_slug}_humidity_rate).state;
+      float thresh = id(${mev_slug}_escalation_threshold).state;
+      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      return state == "Fan Only" && fan >= thresh && rate > 0.0f;
+    on_press:
+      - script.execute: ${mev_slug}_escalate_to_dehumidifying
+    on_release:
+      - script.stop: ${mev_slug}_escalate_to_dehumidifying
+      - script.execute: ${mev_slug}_update_idle_state
+
+  - platform: template
+    name: "${mev_name} Should Escalate to Cooling"
+    id: ${mev_slug}_should_escalate_cooling
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float rate = id(${mev_slug}_humidity_rate).state;
+      float thresh = id(${mev_slug}_escalation_threshold).state;
+      bool summer = id(summer_mode).state;
+      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      return state == "Dehumidifying" && summer && fan >= thresh && rate > 0.0f;
+    on_press:
+      - script.execute: ${mev_slug}_escalate_to_cooling
+    on_release:
+      - script.stop: ${mev_slug}_escalate_to_cooling
+      - script.execute: ${mev_slug}_update_idle_state
+
+  - platform: template
+    name: "${mev_name} Should De-escalate to Dehumidifying"
+    id: ${mev_slug}_should_deescalate_dehum
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float humidity = id(${humidity_sensor}).state;
+      float lower = id(${mev_slug}_humidity_lower).state;
+      float thresh = id(${mev_slug}_deescalation_threshold).state;
+      bool summer = id(summer_mode).state;
+      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      return state == "Cooling" && (!summer || (humidity < lower && fan < thresh));
+    on_press:
+      - script.execute: ${mev_slug}_deescalate_to_dehumidifying
+    on_release:
+      - script.stop: ${mev_slug}_deescalate_to_dehumidifying
+      - script.execute: ${mev_slug}_update_idle_state
+
+  - platform: template
+    name: "${mev_name} Should De-escalate to Fan Only"
+    id: ${mev_slug}_should_deescalate_fan
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float humidity = id(${humidity_sensor}).state;
+      float lower = id(${mev_slug}_humidity_lower).state;
+      float thresh = id(${mev_slug}_deescalation_threshold).state;
+      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      return state == "Dehumidifying" && humidity < lower && fan < thresh;
+    on_press:
+      - script.execute: ${mev_slug}_deescalate_to_fan_only
+    on_release:
+      - script.stop: ${mev_slug}_deescalate_to_fan_only
+      - script.execute: ${mev_slug}_update_idle_state
 
 # ============================================================================
 # Fan Speed Control (0-10V DAC)
