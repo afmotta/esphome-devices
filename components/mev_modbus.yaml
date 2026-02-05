@@ -1,0 +1,1080 @@
+# MEV Modbus Component - Mechanical Extract Ventilation via Modbus
+# Epic 18: MEV Modbus Migration
+#
+# Complete Modbus-based control for Cappellotto Air Fresh I MEV.
+# Replaces relay-based control (4 relays freed) while retaining
+# 0-10V DAC for fan speed modulation.
+#
+# Features:
+# - On/Off, mode, dehumidify, integration via Modbus writes
+# - 5 internal temperature sensors
+# - Component state monitoring (fans, compressor, dampers, valves)
+# - 39 detailed alarm types + cumulative alarm
+# - Filter hours tracking for condition-based maintenance
+# - Demand-based ventilation (CO2, IAQ, humidity)
+# - Humidity cascade state machine
+#
+# Required vars:
+#   mev_slug: Device slug for entity IDs (e.g., "first_floor_mev")
+#   mev_name: Friendly name prefix (e.g., "MEV Primo Piano")
+#   modbus_bus_id: ID of the modbus bus (e.g., rs485_bus)
+#   fan_speed_output: DAC output ID for 0-10V fan speed (e.g., analog_output_7)
+#   humidity_sensor: Sensor ID for humidity input
+#
+# Optional vars:
+#   modbus_address: MEV Modbus address (default: 0x10)
+#   update_interval: Modbus polling interval (default: 30s)
+#
+# MEV Configuration Requirements (one-time external setup):
+# - Modbus address: 0x10 (16 decimal)
+# - Serial: 9600 baud, 8N1 (parity set to None)
+
+defaults:
+  modbus_address: "0x10"
+  update_interval: 30s
+
+packages:
+  # Demand sensors for ventilation control (reusable component)
+  co2_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      mev_slug: ${mev_slug}
+      mev_name: ${mev_name}
+      demand_slug: co2
+      demand_name: CO2
+      unit_of_measurement: ppm
+      source_sensor_id: first_floor_max_co2
+      min_val_id: ${mev_slug}_min_fan_speed
+      rate_multiplier: "0.05"
+      icon: mdi:molecule-co2
+
+  iaq_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      mev_slug: ${mev_slug}
+      mev_name: ${mev_name}
+      demand_slug: iaq
+      demand_name: IAQ
+      unit_of_measurement: IAQ
+      source_sensor_id: first_floor_max_iaq
+      min_val_id: ${mev_slug}_min_fan_speed
+      rate_multiplier: "2.0"
+      icon: mdi:air-filter
+
+  humidity_demand: !include
+    file: proportional_demand_sensor.yaml
+    vars:
+      mev_slug: ${mev_slug}
+      mev_name: ${mev_name}
+      demand_slug: humidity
+      demand_name: Humidity
+      source_sensor_id: ${humidity_sensor}
+      min_val_id: ${mev_slug}_min_fan_speed
+      rate_multiplier: "20.0"
+      icon: mdi:water-percent
+
+# ============================================================================
+# Modbus Controller Setup
+# ============================================================================
+modbus_controller:
+  - id: ${mev_slug}_controller
+    address: ${modbus_address}
+    modbus_id: ${modbus_bus_id}
+    update_interval: ${update_interval}
+    setup_priority: -10
+    command_throttle: 100ms
+
+# ============================================================================
+# Control Switches (replaces relays 18-21)
+# ============================================================================
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Power"
+    id: ${mev_slug}_power
+    register_type: holding
+    address: 1106
+    bitmask: 1
+    icon: mdi:power
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Summer Mode"
+    id: ${mev_slug}_summer_mode
+    register_type: holding
+    address: 1584
+    bitmask: 1
+    icon: mdi:sun-snowflake-variant
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Dehumidifier"
+    id: ${mev_slug}_dehumidifier
+    register_type: holding
+    address: 1141
+    bitmask: 1
+    icon: mdi:water-percent
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Cooling"
+    id: ${mev_slug}_cooling
+    register_type: holding
+    address: 1140
+    bitmask: 1
+    icon: mdi:snowflake
+
+# ============================================================================
+# Sensors
+# ============================================================================
+sensor:
+  # Temperature Sensors (value / 10 = C)
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Outdoor Temperature"
+    id: ${mev_slug}_outdoor_temp
+    register_type: holding
+    address: 501
+    value_type: S_WORD
+    unit_of_measurement: "C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:thermometer
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Water Temperature"
+    id: ${mev_slug}_water_temp
+    register_type: holding
+    address: 502
+    value_type: S_WORD
+    unit_of_measurement: "C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:water-thermometer
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Exhaust Temperature"
+    id: ${mev_slug}_exhaust_temp
+    register_type: holding
+    address: 503
+    value_type: S_WORD
+    unit_of_measurement: "C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:fan-chevron-up
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Freecooling Temperature"
+    id: ${mev_slug}_freecooling_temp
+    register_type: holding
+    address: 511
+    value_type: S_WORD
+    unit_of_measurement: "C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:snowflake-thermometer
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Evaporation Temperature"
+    id: ${mev_slug}_evaporation_temp
+    register_type: holding
+    address: 512
+    value_type: S_WORD
+    unit_of_measurement: "C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: mdi:coolant-temperature
+    filters:
+      - multiply: 0.1
+
+  # Filter Maintenance Tracking
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Filter Hours Limit"
+    id: ${mev_slug}_filter_hours_limit
+    register_type: holding
+    address: 1603
+    value_type: U_DWORD
+    unit_of_measurement: "h"
+    state_class: measurement
+    accuracy_decimals: 0
+    icon: mdi:timer-sand
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Filter Hours Current"
+    id: ${mev_slug}_filter_hours_current
+    register_type: holding
+    address: 1605
+    value_type: U_DWORD
+    unit_of_measurement: "h"
+    state_class: measurement
+    accuracy_decimals: 0
+    icon: mdi:timer-outline
+    entity_category: diagnostic
+
+  - platform: template
+    name: "${mev_name} Filter Hours Remaining"
+    id: ${mev_slug}_filter_hours_remaining
+    unit_of_measurement: "h"
+    accuracy_decimals: 0
+    icon: mdi:timer-alert
+    entity_category: diagnostic
+    lambda: |-
+      float limit = id(${mev_slug}_filter_hours_limit).state;
+      float current = id(${mev_slug}_filter_hours_current).state;
+      if (std::isnan(limit) || std::isnan(current)) return NAN;
+      return limit - current;
+    update_interval: 60s
+
+  # HA Configuration Imports
+  - platform: homeassistant
+    entity_id: input_number.mev_escalation_fan_threshold
+    id: ${mev_slug}_escalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_deescalation_fan_threshold
+    id: ${mev_slug}_deescalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_minimum_fan_speed
+    id: ${mev_slug}_min_fan_speed
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_escalation_delay_minutes
+    id: ${mev_slug}_escalation_delay
+    internal: true
+
+  - platform: homeassistant
+    entity_id: input_number.mev_deescalation_delay_minutes
+    id: ${mev_slug}_deescalation_delay
+    internal: true
+
+  # Final Fan Speed Calculation
+  - platform: template
+    name: "${mev_name} Final Fan Speed"
+    id: ${mev_slug}_final_fan_speed
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-3
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      if (id(${mev_slug}_alarm_active).state) {
+        return 0.0f;
+      }
+      float co2 = id(${mev_slug}_co2_demand).state;
+      float iaq = id(${mev_slug}_iaq_demand).state;
+      float humidity = id(${mev_slug}_humidity_demand).state;
+      float min_fan = id(${mev_slug}_min_fan_speed).state;
+      if (isnan(min_fan)) min_fan = 20.0f;
+      float f_co2 = isnan(co2) ? min_fan : co2;
+      float f_iaq = isnan(iaq) ? min_fan : iaq;
+      float f_hum = isnan(humidity) ? min_fan : humidity;
+      float final_speed = std::max({f_co2, f_iaq, f_hum, min_fan});
+      std::string dominant = "Ventilation";
+      if (final_speed > min_fan) {
+        if (final_speed == f_co2) dominant = "CO2";
+        else if (final_speed == f_iaq) dominant = "IAQ";
+        else if (final_speed == f_hum) dominant = "Humidity";
+      }
+      id(${mev_slug}_dominant_demand).publish_state(dominant);
+      return std::min(100.0f, final_speed);
+    on_value:
+      then:
+        - number.set:
+            id: ${mev_slug}_fan_speed
+            value: !lambda "return x;"
+
+# ============================================================================
+# Binary Sensors
+# ============================================================================
+binary_sensor:
+  # Component State Monitoring
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Supply Fan Active"
+    id: ${mev_slug}_supply_fan_active
+    register_type: holding
+    address: 385
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:fan
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Extract Fan Active"
+    id: ${mev_slug}_extract_fan_active
+    register_type: holding
+    address: 385
+    bitmask: 0x0002
+    device_class: running
+    icon: mdi:fan
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Bypass Fan Active"
+    id: ${mev_slug}_bypass_fan_active
+    register_type: holding
+    address: 386
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:fan-auto
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Compressor Active"
+    id: ${mev_slug}_compressor_active
+    register_type: holding
+    address: 640
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:heat-pump
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Bypass Damper Open"
+    id: ${mev_slug}_bypass_damper_open
+    register_type: holding
+    address: 640
+    bitmask: 0x0002
+    device_class: opening
+    icon: mdi:valve
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Freecooling Damper Open"
+    id: ${mev_slug}_freecooling_damper_open
+    register_type: holding
+    address: 640
+    bitmask: 0x0004
+    device_class: opening
+    icon: mdi:valve
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Hot Water Valve Open"
+    id: ${mev_slug}_hot_water_valve_open
+    register_type: holding
+    address: 641
+    bitmask: 0x0001
+    device_class: opening
+    icon: mdi:valve-open
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Cold Water Valve Open"
+    id: ${mev_slug}_cold_water_valve_open
+    register_type: holding
+    address: 641
+    bitmask: 0x0002
+    device_class: opening
+    icon: mdi:valve-open
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Defrost Active"
+    id: ${mev_slug}_defrost_active
+    register_type: holding
+    address: 642
+    bitmask: 0x0001
+    device_class: running
+    icon: mdi:snowflake-melt
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Reversing Valve Heating"
+    id: ${mev_slug}_reversing_valve_heating
+    register_type: holding
+    address: 643
+    bitmask: 0x0001
+    icon: mdi:valve
+
+  # Communication Health
+  - platform: template
+    name: "${mev_name} Communication Error"
+    id: ${mev_slug}_communication_error
+    device_class: problem
+    icon: mdi:lan-disconnect
+    entity_category: diagnostic
+    lambda: |-
+      return std::isnan(id(${mev_slug}_outdoor_temp).state) &&
+             std::isnan(id(${mev_slug}_exhaust_temp).state);
+
+  # Master Alarm Indicator
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Active"
+    id: ${mev_slug}_alarm_active
+    register_type: holding
+    address: 1104
+    bitmask: 0x0001
+    device_class: problem
+    icon: mdi:alert-circle
+    on_press:
+      then:
+        - logger.log:
+            level: ERROR
+            format: "MEV ALARM DETECTED on %s"
+            args: ['"${mev_name}"']
+        - number.set:
+            id: ${mev_slug}_fan_speed
+            value: 0
+    on_release:
+      then:
+        - logger.log:
+            level: INFO
+            format: "MEV Alarm cleared on %s"
+            args: ['"${mev_name}"']
+
+  - platform: template
+    name: "${mev_name} Filter Maintenance Due"
+    id: ${mev_slug}_filter_maintenance_due
+    device_class: problem
+    icon: mdi:air-filter
+    entity_category: diagnostic
+    lambda: |-
+      float remaining = id(${mev_slug}_filter_hours_remaining).state;
+      if (std::isnan(remaining)) return false;
+      return remaining <= 0;
+
+  # Detailed Alarms - Register 769 (Alarms 1-16)
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm High Pressure"
+    id: ${mev_slug}_alarm_high_pressure
+    register_type: holding
+    address: 769
+    bitmask: 0x0001
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Low Pressure"
+    id: ${mev_slug}_alarm_low_pressure
+    register_type: holding
+    address: 769
+    bitmask: 0x0002
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Compressor Thermal"
+    id: ${mev_slug}_alarm_compressor_thermal
+    register_type: holding
+    address: 769
+    bitmask: 0x0004
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Fan Thermal"
+    id: ${mev_slug}_alarm_supply_fan_thermal
+    register_type: holding
+    address: 769
+    bitmask: 0x0008
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Fan Thermal"
+    id: ${mev_slug}_alarm_extract_fan_thermal
+    register_type: holding
+    address: 769
+    bitmask: 0x0010
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Antifreeze"
+    id: ${mev_slug}_alarm_antifreeze
+    register_type: holding
+    address: 769
+    bitmask: 0x0020
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Fan Failure"
+    id: ${mev_slug}_alarm_supply_fan_failure
+    register_type: holding
+    address: 769
+    bitmask: 0x0040
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Fan Failure"
+    id: ${mev_slug}_alarm_extract_fan_failure
+    register_type: holding
+    address: 769
+    bitmask: 0x0080
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Filter Dirty"
+    id: ${mev_slug}_alarm_filter_dirty
+    register_type: holding
+    address: 769
+    bitmask: 0x0100
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Outdoor Temp Sensor"
+    id: ${mev_slug}_alarm_outdoor_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x0200
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Temp Sensor"
+    id: ${mev_slug}_alarm_supply_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x0400
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Temp Sensor"
+    id: ${mev_slug}_alarm_extract_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x0800
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Exhaust Temp Sensor"
+    id: ${mev_slug}_alarm_exhaust_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x1000
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Water Temp Sensor"
+    id: ${mev_slug}_alarm_water_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x2000
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Freecooling Temp Sensor"
+    id: ${mev_slug}_alarm_freecooling_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x4000
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Evaporation Temp Sensor"
+    id: ${mev_slug}_alarm_evaporation_temp_sensor
+    register_type: holding
+    address: 769
+    bitmask: 0x8000
+    device_class: problem
+    entity_category: diagnostic
+
+  # Detailed Alarms - Register 770 (Alarms 17-32)
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Room Temp Sensor"
+    id: ${mev_slug}_alarm_room_temp_sensor
+    register_type: holding
+    address: 770
+    bitmask: 0x0001
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Room Humidity Sensor"
+    id: ${mev_slug}_alarm_room_humidity_sensor
+    register_type: holding
+    address: 770
+    bitmask: 0x0002
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm CO2 Sensor"
+    id: ${mev_slug}_alarm_co2_sensor
+    register_type: holding
+    address: 770
+    bitmask: 0x0004
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm VOC Sensor"
+    id: ${mev_slug}_alarm_voc_sensor
+    register_type: holding
+    address: 770
+    bitmask: 0x0008
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Defrost Failure"
+    id: ${mev_slug}_alarm_defrost_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0010
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Low Refrigerant"
+    id: ${mev_slug}_alarm_low_refrigerant
+    register_type: holding
+    address: 770
+    bitmask: 0x0020
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Water Pump Failure"
+    id: ${mev_slug}_alarm_water_pump_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0040
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Bypass Damper Failure"
+    id: ${mev_slug}_alarm_bypass_damper_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0080
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Freecooling Damper Failure"
+    id: ${mev_slug}_alarm_freecooling_damper_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0100
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Hot Water Valve Failure"
+    id: ${mev_slug}_alarm_hot_water_valve_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0200
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Cold Water Valve Failure"
+    id: ${mev_slug}_alarm_cold_water_valve_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0400
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Condensate Pump Failure"
+    id: ${mev_slug}_alarm_condensate_pump_failure
+    register_type: holding
+    address: 770
+    bitmask: 0x0800
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Fire"
+    id: ${mev_slug}_alarm_fire
+    register_type: holding
+    address: 770
+    bitmask: 0x1000
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm External"
+    id: ${mev_slug}_alarm_external
+    register_type: holding
+    address: 770
+    bitmask: 0x2000
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm EEPROM Error"
+    id: ${mev_slug}_alarm_eeprom_error
+    register_type: holding
+    address: 770
+    bitmask: 0x4000
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Clock Error"
+    id: ${mev_slug}_alarm_clock_error
+    register_type: holding
+    address: 770
+    bitmask: 0x8000
+    device_class: problem
+    entity_category: diagnostic
+
+  # Detailed Alarms - Register 771 (Alarms 33-39)
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Compressor Inverter Fault"
+    id: ${mev_slug}_alarm_compressor_inverter_fault
+    register_type: holding
+    address: 771
+    bitmask: 0x0001
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Supply Fan Inverter Fault"
+    id: ${mev_slug}_alarm_supply_fan_inverter_fault
+    register_type: holding
+    address: 771
+    bitmask: 0x0002
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Extract Fan Inverter Fault"
+    id: ${mev_slug}_alarm_extract_fan_inverter_fault
+    register_type: holding
+    address: 771
+    bitmask: 0x0004
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm High Discharge Temp"
+    id: ${mev_slug}_alarm_high_discharge_temp
+    register_type: holding
+    address: 771
+    bitmask: 0x0008
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Low Suction Temp"
+    id: ${mev_slug}_alarm_low_suction_temp
+    register_type: holding
+    address: 771
+    bitmask: 0x0010
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm High Evaporation Pressure"
+    id: ${mev_slug}_alarm_high_evaporation_pressure
+    register_type: holding
+    address: 771
+    bitmask: 0x0020
+    device_class: problem
+    entity_category: diagnostic
+
+  - platform: modbus_controller
+    modbus_controller_id: ${mev_slug}_controller
+    name: "${mev_name} Alarm Service Required"
+    id: ${mev_slug}_alarm_service_required
+    register_type: holding
+    address: 771
+    bitmask: 0x0040
+    device_class: problem
+    entity_category: diagnostic
+
+# ============================================================================
+# Text Sensors
+# ============================================================================
+text_sensor:
+  - platform: template
+    name: "${mev_name} Dominant Demand"
+    id: ${mev_slug}_dominant_demand
+    icon: mdi:gauge
+    entity_category: diagnostic
+
+  - platform: template
+    name: "${mev_name} Automation State"
+    id: ${mev_slug}_automation_state
+    icon: mdi:state-machine
+    entity_category: diagnostic
+
+# ============================================================================
+# Humidity Cascade State Machine
+# ============================================================================
+select:
+  - platform: template
+    name: "${mev_name} Humidity State"
+    id: ${mev_slug}_humidity_state
+    options:
+      - "Fan Only"
+      - "Dehumidifying"
+      - "Cooling"
+    initial_option: "Fan Only"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - if:
+          condition:
+            lambda: 'return x == "Fan Only";'
+          then:
+            - switch.turn_off: ${mev_slug}_dehumidifier
+            - switch.turn_off: ${mev_slug}_cooling
+      - if:
+          condition:
+            lambda: 'return x == "Dehumidifying";'
+          then:
+            - switch.turn_on: ${mev_slug}_dehumidifier
+            - switch.turn_off: ${mev_slug}_cooling
+      - if:
+          condition:
+            lambda: 'return x == "Cooling";'
+          then:
+            - switch.turn_on: ${mev_slug}_dehumidifier
+            - switch.turn_on: ${mev_slug}_cooling
+
+# ============================================================================
+# State Machine Scripts (with built-in delays)
+# ============================================================================
+# Scripts use mode: restart - restarting resets the delay timer.
+# on_press starts the script, on_release stops it (cancels pending transition).
+script:
+  - id: ${mev_slug}_escalate_to_dehumidifying
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "Escalating (Dehum)"
+      - delay: !lambda "return id(${mev_slug}_escalation_delay).state * 60000;"
+      - select.set:
+          id: ${mev_slug}_humidity_state
+          option: "Dehumidifying"
+      - logger.log:
+          format: "MEV: Escalated to Dehumidifying"
+          level: INFO
+          tag: mev
+
+  - id: ${mev_slug}_escalate_to_cooling
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "Escalating (Cooling)"
+      - delay: !lambda "return id(${mev_slug}_escalation_delay).state * 60000;"
+      - select.set:
+          id: ${mev_slug}_humidity_state
+          option: "Cooling"
+      - logger.log:
+          format: "MEV: Escalated to Cooling"
+          level: INFO
+          tag: mev
+
+  - id: ${mev_slug}_deescalate_to_dehumidifying
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "De-escalating (Dehum)"
+      - delay: !lambda "return id(${mev_slug}_deescalation_delay).state * 60000;"
+      - select.set:
+          id: ${mev_slug}_humidity_state
+          option: "Dehumidifying"
+      - logger.log:
+          format: "MEV: De-escalated to Dehumidifying"
+          level: INFO
+          tag: mev
+
+  - id: ${mev_slug}_deescalate_to_fan_only
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${mev_slug}_automation_state
+          state: "De-escalating (Fan)"
+      - delay: !lambda "return id(${mev_slug}_deescalation_delay).state * 60000;"
+      - select.set:
+          id: ${mev_slug}_humidity_state
+          option: "Fan Only"
+      - logger.log:
+          format: "MEV: De-escalated to Fan Only"
+          level: INFO
+          tag: mev
+
+  - id: ${mev_slug}_update_idle_state
+    mode: restart
+    then:
+      - lambda: |-
+          auto state = id(${mev_slug}_humidity_state).current_option();
+          if (state == "Fan Only") {
+            id(${mev_slug}_automation_state).publish_state("Idle");
+          } else if (state == "Dehumidifying") {
+            id(${mev_slug}_automation_state).publish_state("Dehumidifying");
+          } else if (state == "Cooling") {
+            id(${mev_slug}_automation_state).publish_state("Cooling");
+          }
+
+# ============================================================================
+# State Machine Transition Conditions (Template Binary Sensors)
+# ============================================================================
+# These sensors evaluate transition conditions and trigger scripts via on_press/on_release.
+# This replaces interval polling with event-driven state machine logic.
+binary_sensor:
+  - platform: template
+    name: "${mev_name} Should Escalate to Dehumidifying"
+    id: ${mev_slug}_should_escalate_dehum
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float rate = id(${mev_slug}_humidity_rate).state;
+      float thresh = id(${mev_slug}_escalation_threshold).state;
+      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      return state == "Fan Only" && fan >= thresh && rate > 0.0f;
+    on_press:
+      - script.execute: ${mev_slug}_escalate_to_dehumidifying
+    on_release:
+      - script.stop: ${mev_slug}_escalate_to_dehumidifying
+      - script.execute: ${mev_slug}_update_idle_state
+
+  - platform: template
+    name: "${mev_name} Should Escalate to Cooling"
+    id: ${mev_slug}_should_escalate_cooling
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float rate = id(${mev_slug}_humidity_rate).state;
+      float thresh = id(${mev_slug}_escalation_threshold).state;
+      bool summer = id(summer_mode).state;
+      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      return state == "Dehumidifying" && summer && fan >= thresh && rate > 0.0f;
+    on_press:
+      - script.execute: ${mev_slug}_escalate_to_cooling
+    on_release:
+      - script.stop: ${mev_slug}_escalate_to_cooling
+      - script.execute: ${mev_slug}_update_idle_state
+
+  - platform: template
+    name: "${mev_name} Should De-escalate to Dehumidifying"
+    id: ${mev_slug}_should_deescalate_dehum
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float humidity = id(${humidity_sensor}).state;
+      float lower = id(${mev_slug}_humidity_lower).state;
+      float thresh = id(${mev_slug}_deescalation_threshold).state;
+      bool summer = id(summer_mode).state;
+      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      return state == "Cooling" && (!summer || (humidity < lower && fan < thresh));
+    on_press:
+      - script.execute: ${mev_slug}_deescalate_to_dehumidifying
+    on_release:
+      - script.stop: ${mev_slug}_deescalate_to_dehumidifying
+      - script.execute: ${mev_slug}_update_idle_state
+
+  - platform: template
+    name: "${mev_name} Should De-escalate to Fan Only"
+    id: ${mev_slug}_should_deescalate_fan
+    internal: true
+    lambda: |-
+      auto state = id(${mev_slug}_humidity_state).current_option();
+      float fan = id(${mev_slug}_final_fan_speed).state;
+      float humidity = id(${humidity_sensor}).state;
+      float lower = id(${mev_slug}_humidity_lower).state;
+      float thresh = id(${mev_slug}_deescalation_threshold).state;
+      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      return state == "Dehumidifying" && humidity < lower && fan < thresh;
+    on_press:
+      - script.execute: ${mev_slug}_deescalate_to_fan_only
+    on_release:
+      - script.stop: ${mev_slug}_deescalate_to_fan_only
+      - script.execute: ${mev_slug}_update_idle_state
+
+# ============================================================================
+# Fan Speed Control (0-10V DAC)
+# ============================================================================
+number:
+  - platform: template
+    name: "${mev_name} Fan Speed"
+    id: ${mev_slug}_fan_speed
+    icon: mdi:fan
+    min_value: 0
+    max_value: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    set_action:
+      - output.set_level:
+          id: ${fan_speed_output}
+          level: !lambda "return x / 100.0;"
