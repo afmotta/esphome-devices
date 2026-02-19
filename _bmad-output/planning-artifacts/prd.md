@@ -1,4 +1,32 @@
+---
+workflowType: 'prd'
+workflow: 'edit'
+classification:
+  domain: 'iot_embedded'
+  projectType: 'iot_embedded'
+  complexity: 'medium'
+inputDocuments: []
+lastEdited: '2026-02-15'
+editHistory:
+  - date: '2026-02-15'
+    changes: 'Added Executive Summary, User Journeys, YAML frontmatter. Fixed filler, leakage, FR numbering. Note: §1-§3 hardware/architecture descriptions outdated.'
+---
+
 # ESPHome Multi-Floor Climate Control - Brownfield Enhancement PRD
+
+## Executive Summary
+
+This project delivers a **production residential climate control system** for a three-floor building in Milan, Italy, built on ESPHome with full autonomous operation independent of Home Assistant.
+
+**The system** manages 13 temperature zones across 3 floors with dual-mode operation (radiant floor heating/cooling + fancoil units), PID-controlled precision, and intelligent seasonal mode management.
+
+**Architecture:** A single ESP32-S3 POE climate controller runs all PID logic and zone coordination. 14 room sensor boards (ESP32-C3) broadcast temperature, humidity, CO2, and air quality data via UDP packet transport. Modbus RS485 extends the controller's I/O capacity through peripheral relay boards, analog output boards, and a MEV ventilation unit.
+
+**Resilience:** A 3-tier sensor failover ensures continuous operation: Home Assistant sensors (primary), UDP packet transport (fallback), and emergency safe shutdown. The system operates autonomously — Home Assistant enhances monitoring and overrides but is not required for climate control.
+
+**Key differentiator:** Unlike typical HA-dependent ESPHome setups, this system treats Home Assistant as optional. Local PID control, direct UDP sensor data, and Modbus I/O expansion provide full climate management without any cloud or server dependency.
+
+---
 
 ## Document Information
 
@@ -17,8 +45,11 @@
 | 2025-10-09 | 1.0     | Initial brownfield PRD for RS485 Modbus board-to-board communication and automation enhancements | Mary (Business Analyst) |
 | 2025-10-17 | 1.1     | Removed ground floor cooling automation from Epic 1 - deferred to future phase                   | Mary (Business Analyst) |
 | 2025-10-23 | 1.2     | Added Epic 4: Room-Based Component Architecture refactoring                                      | Mary (Business Analyst) |
+| 2026-02-15 | 1.3     | Added Executive Summary, User Journeys, YAML frontmatter. Fixed filler, leakage, FR numbering. Note: §1-§3 outdated. | John (PM - Edit Workflow) |
 
 ---
+
+> **⚠ OUTDATED SECTIONS NOTICE:** Sections 1 through 3 below describe the system as of October 2025. The architecture has evolved significantly through Epics 15-19. Key differences: (1) Board-to-board sensor sharing now uses UDP packet transport, not Modbus RS485. (2) Modbus is used only for peripheral I/O expansion (relay boards, analog outputs, MEV). (3) The main controller is a WaveShare ESP32-S3-POE, not KC868-A6/A16. (4) 14 room sensor boards (S1-Pro-Multi-Sense, ESP32-C3) provide per-zone environmental data. See the Executive Summary for current architecture. A full PRD refresh is recommended.
 
 ## 1. Intro Project Analysis and Context
 
@@ -77,7 +108,7 @@ This is an **active production ESPHome-based home climate control system** manag
 - ☐ UX/UI Guidelines
 - ☐ Technical Debt Documentation
 
-**Recommendation**: I recommend running the `*document-project` task after this PRD is finalized to create comprehensive architecture documentation that captures the actual system structure, patterns, and technical constraints.
+**Recommendation**: Run the `*document-project` task after this PRD is finalized to create comprehensive architecture documentation capturing the actual system structure, patterns, and technical constraints.
 
 ### 1.3 Enhancement Scope Definition
 
@@ -92,7 +123,7 @@ This is an **active production ESPHome-based home climate control system** manag
 
 #### Enhancement Description
 
-This enhancement aims to **transform the system from Home Assistant-dependent to autonomous** by implementing master/slave board communication via RS485 Modbus RTU protocol. The system will gain the ability to operate independently during Home Assistant outages while maintaining full integration when HA is available. One additional board will be added to complete the system coverage of all three floors.
+This enhancement **transforms the system from Home Assistant-dependent to autonomous** via master/slave board communication over RS485 Modbus RTU protocol. The system will gain the ability to operate independently during Home Assistant outages while maintaining full integration when HA is available. One additional board will be added to complete the system coverage of all three floors.
 
 #### Impact Assessment
 - ☐ Minimal Impact (isolated additions)
@@ -136,6 +167,85 @@ The enhancement must be implemented carefully to preserve the existing working c
 
 ---
 
+## User Journeys
+
+### UJ1: Homeowner — Set-and-Forget Climate Comfort
+
+**User:** Residential occupant across 3 floors
+**Goal:** Comfortable living environment with zero daily intervention
+
+**Primary Flow:**
+1. Homeowner sets desired temperature per zone once via Home Assistant dashboard
+2. System maintains target temperature automatically across seasons (heat/cool mode transitions handled by seasonal mode logic)
+3. Homeowner occasionally checks HA dashboard to verify room conditions (temperature, humidity, air quality)
+4. If a room feels uncomfortable, homeowner adjusts setpoint via HA — system responds within minutes
+
+**Key Expectations:**
+- Temperature held within ±0.5°C of setpoint without manual intervention
+- Seasonal transitions (heat ↔ cool) happen automatically based on calendar and demand
+- System continues working during HA outages — no manual fallback needed
+- Air quality (CO2, IAQ) monitored and ventilation adjusted automatically via MEV
+
+**Related FRs:** FR1-FR5 (Modbus I/O), FR7 (failover), FR9 (PID preservation), FR10 (HA compatibility)
+
+---
+
+### UJ2: System Administrator — Parameter Tuning for Comfort Optimization
+
+**User:** Technical owner maintaining the ESPHome system
+**Goal:** Fine-tune system parameters to improve comfort across zones
+
+**Primary Flow:**
+1. Administrator monitors zone performance via HA dashboards (PID output, sensor tiers, temperature tracking)
+2. Identifies zone with suboptimal comfort (overshoot, slow response, oscillation)
+3. Adjusts PID parameters (Kp, Ki, Kd) or zone configuration via ESPHome YAML
+4. Deploys updated firmware via OTA (local development) or HA ESPHome addon (production)
+5. Monitors results and iterates
+
+**Secondary Flows:**
+- Adding new room sensors: Deploy new S1-Pro board, configure UDP broadcast, add room package to climate controller
+- Diagnosing issues: Check ESPHome logs, sensor tier status, Modbus diagnostics in HA
+- Seasonal adjustments: Modify seasonal mode calendar dates or transition thresholds
+
+**Key Expectations:**
+- All diagnostic data (PID terms, sensor sources, failover events) visible in HA
+- Configuration changes via YAML without custom low-level code (FR12)
+- OTA updates work reliably without physical device access
+- Modular room components — changes to one zone don't affect others
+
+**Related FRs:** FR9 (PID preservation), FR10 (HA compatibility), FR11 (diagnostics), FR12 (configuration)
+
+---
+
+### UJ3: System — Autonomous Operation and Failover
+
+**User:** The climate control system operating without human intervention
+**Goal:** Maintain safe, comfortable conditions regardless of external system availability
+
+**Primary Flow (Normal Operation):**
+1. Room sensors broadcast temperature, humidity, CO2, IAQ via UDP every 10 seconds
+2. Climate controller receives sensor data, evaluates 3-tier failover (HA → UDP → Emergency)
+3. PID controllers compute output for each zone based on setpoint and current temperature
+4. Outputs drive zone valves (Modbus relays), mixing valves (Modbus 0-10V), and fancoils (Modbus 0-10V)
+5. Mixing valve PIDs maintain supply water temperature based on zone demand
+6. Seasonal mode logic manages heat/cool transitions based on calendar and demand signals
+
+**Failover Flow:**
+1. Home Assistant becomes unavailable → system detects HA sensor NaN
+2. Failover tier switches from "HA" to "UDP" — PID controllers continue with UDP sensor data
+3. All climate control continues uninterrupted
+4. When HA recovers → automatic switch back to HA tier
+
+**Emergency Flow:**
+1. Both HA and UDP sensors become unavailable → sensor reports NaN
+2. PID controllers fail-safe (stop heating/cooling output)
+3. Zone valves close, pumps stop — system enters safe shutdown
+4. When sensors recover → automatic restart of climate control
+
+**Related FRs:** FR7 (failover), FR8 (autonomous mode switching), FR9 (PID preservation), FR13 (polling)
+
+---
+
 ## 2. Requirements
 
 ### 2.1 Functional Requirements
@@ -151,7 +261,7 @@ The enhancement must be implemented carefully to preserve the existing working c
    - Climate mode state (heat/cool/off)
    - Coordination signals for slave boards
 
-**FR5**: The `distribuzione-piano-terra` device (slave) SHALL read temperature and coordination data via Modbus from the master instead of relying solely on Home Assistant's `sensor.termometro_soggiorno_temperature`.
+**FR5**: The ground floor distribution device (slave) SHALL read temperature and coordination data via Modbus from the master instead of relying solely on Home Assistant room temperature sensors.
 
 **FR6**: ONE new board SHALL be added to complete the system:
    - **First Floor Board** (Kincony KC868-A16): Zone distribution for Primo Piano heating/cooling with local Dallas sensors
@@ -159,23 +269,23 @@ The enhancement must be implemented carefully to preserve the existing working c
 
 **FR7**: The system SHALL implement automatic failover: if Modbus communication fails, slave boards SHALL fall back to Home Assistant sensor data (if available) or safe default behavior.
 
-**FR9**: Slave boards SHALL implement autonomous mode switching between heat/cool based on Modbus-received climate mode state from master, reducing dependency on Home Assistant's `sensor.thermostat_mode`.
+**FR8**: Slave boards SHALL implement autonomous mode switching between heat/cool based on Modbus-received climate mode state from master, reducing dependency on Home Assistant's `sensor.thermostat_mode`.
 
-**FR10**: The existing PID control loops (heat/cool dual PIDs) SHALL remain unchanged, continuing to use the current tuning parameters (kp, ki, kd values).
+**FR9**: The existing PID control loops (heat/cool dual PIDs) SHALL remain unchanged, continuing to use the current tuning parameters (kp, ki, kd values).
 
-**FR11**: The system SHALL maintain full backward compatibility with Home Assistant, exposing all sensors, switches, and climate entities for monitoring and manual overrides.
+**FR10**: The system SHALL maintain full backward compatibility with Home Assistant, exposing all sensors, switches, and climate entities for monitoring and manual overrides.
 
-**FR12**: Modbus communication errors SHALL be logged and exposed as diagnostic sensors in Home Assistant for monitoring and troubleshooting.
+**FR11**: Modbus communication errors SHALL be logged and exposed as diagnostic sensors in Home Assistant for monitoring and troubleshooting.
 
-**FR13**: Each board SHALL support a configuration parameter to enable/disable Modbus communication, allowing gradual rollout and easy rollback to HA-dependent operation.
+**FR12**: Each board SHALL support a configuration parameter to enable/disable Modbus communication, allowing gradual rollout and easy rollback to HA-dependent operation.
 
-**FR14**: The master board SHALL poll slave boards at a configurable interval (default: 10 seconds) to maintain up-to-date system state and ensure slave responsiveness.
+**FR13**: The master board SHALL poll slave boards at a configurable interval (default: 10 seconds) to maintain up-to-date system state and ensure slave responsiveness.
 
-**FR15**: The system SHALL support room-level temperature and humidity measurement for each controlled zone, using either Modbus-based sensors or 1-Wire sensors (technology selection TBD during implementation).
+**FR14**: The system SHALL support room-level temperature and humidity measurement for each controlled zone, using either Modbus-based sensors or 1-Wire sensors (technology selection TBD during implementation).
 
-**FR16**: Room temperature and humidity sensors SHALL be accessible to PID controllers for precise zone control and to Home Assistant for monitoring and advanced automation.
+**FR15**: Room temperature and humidity sensors SHALL be accessible to PID controllers for precise zone control and to Home Assistant for monitoring and advanced automation.
 
-**FR17**: If Modbus sensors are used for room monitoring, they SHALL integrate into the existing master/slave architecture as either slave devices or sensors polled by slave boards.
+**FR16**: If Modbus sensors are used for room monitoring, they SHALL integrate into the existing master/slave architecture as either slave devices or sensors polled by slave boards.
 
 ### 2.2 Non-Functional Requirements
 
@@ -189,9 +299,9 @@ The enhancement must be implemented carefully to preserve the existing working c
 
 **NFR5**: The system SHALL recover gracefully from Modbus communication failures within 30 seconds, either via Modbus reconnection or fallback to Home Assistant data.
 
-**NFR6**: Configuration changes SHALL be possible via ESPHome YAML updates without requiring custom C++ components (prefer ESPHome native Modbus components).
+**NFR6**: Configuration changes SHALL be possible via declarative configuration updates without requiring custom low-level code, using the platform's native component ecosystem.
 
-**NFR7**: The system SHALL maintain the existing deployment model: `locals/` for development/testing, `remotes/` for production via Home Assistant ESPHome Builder addon.
+**NFR7**: The system SHALL maintain the existing dual-path deployment model: local builds for development/testing and remote package-based builds for production deployment.
 
 **NFR8**: Documentation SHALL be targeted at experienced ESPHome users familiar with PID control, RS485, and Modbus concepts.
 
@@ -439,9 +549,9 @@ esphome-devices/
 
 **Epic Structure Decision**: Single comprehensive epic with sequenced stories
 
-**Rationale**: This enhancement, while significant in scope, represents a cohesive architectural change with tightly coupled components. All stories contribute to the single goal of autonomous board-to-board communication. Multiple epics would create artificial boundaries and complicate dependency management. The stories are sequenced to build incrementally from foundation (Modbus infrastructure) through integration (sensor migration) to completion (third board addition), ensuring each story delivers testable value while maintaining system stability.
+**Rationale**: This enhancement represents a cohesive architectural change with tightly coupled components. All stories contribute to the single goal of autonomous board-to-board communication. Multiple epics would create artificial boundaries and complicate dependency management. The stories are sequenced to build incrementally from foundation (Modbus infrastructure) through integration (sensor migration) to completion (third board addition), ensuring each story delivers testable value while maintaining system stability.
 
-This approach also aligns with the brownfield context: we're enhancing a single existing system, not adding multiple independent features.
+The brownfield context reinforces this: a single existing system enhancement, not multiple independent features.
 
 ---
 
@@ -917,11 +1027,7 @@ Upon PRD approval:
 
 ## Appendix B: Related GitHub Issues
 
-_(Note: GitHub authentication was unavailable during PRD creation. Placeholder for user to add relevant issue links if desired.)_
-
-- Issue #XXX: [To be added - RS485 communication enhancement]
-- Issue #XXX: [To be added - Third board addition]
-- Issue #XXX: [To be added - Home Assistant single point of failure]
+_(No GitHub issues have been linked to this PRD. Add relevant issue references here as they are created.)_
 
 ---
 
