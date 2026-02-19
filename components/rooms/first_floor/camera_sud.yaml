@@ -17,7 +17,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_camera_sud_humidity"
 
   pid_radiant: !include
-    file: ../../radiant.yaml
+    file: ../../../vesta/packages/components/radiant.yaml
     vars:
       relay_id: relay_16
       temperature_sensor: camera_sud_room_temp_abstracted
@@ -26,7 +26,7 @@ packages:
       kd: 0.05
 
   autotune: !include
-    file: ../../pid_autotune.yaml
+    file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
       pid_id: pid_radiant_camera_sud
       pid_name: "Radiante Camera Sud"

@@ -119,3 +119,15 @@ development_status:
   19-6-extract-mev-ventilation-coordinator: review
   19-7-documentation-principles-examples: review
   epic-19-retrospective: optional
+
+  # === Epic 20: Vesta Phase 1 Completion - Full Component Migration ===
+
+  epic-20: done
+  20-1-package-restructure: done
+  20-2-extract-pid-stack: done
+  20-3-extract-radiant-pumps-dewpoint: done
+  20-4-extract-seasonal-mode-coordinator: done
+  20-5-extract-modbus-io-drivers: done
+  20-6-documentation-new-components: done
+  20-7-migrate-esphome-devices-to-vesta: done
+  epic-20-retrospective: optional

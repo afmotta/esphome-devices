@@ -1,10 +1,14 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 'step-01-revalidated', 'step-02-epic-19-added', 'step-03-stories-formatted', 'step-04-validation-complete', 'step-01-epic-20-requirements', 'step-02-epic-20-designed', 'step-03-epic-20-stories', 'step-04-epic-20-validated']
 inputDocuments:
   - "_bmad-output/implementation-artifacts/epic-*.md"
   - "_bmad-output/planning-artifacts/product-brief-mev-modbus-2026-02-01.md"
-date: 2026-02-01
+  - "_bmad-output/planning-artifacts/product-brief-esphome-devices-2026-02-19.md"
+  - "_bmad-output/planning-artifacts/prd.md"
+  - "_bmad-output/planning-artifacts/architecture.md"
+date: 2026-02-19
 project_name: ESPHome Multi-Floor Climate Control System
+notes: "PRD and Architecture documents are outdated (Oct 2025). Epics 1-18 already created. Epic 19 in review. Epic 20 requirements extracted from product brief."
 ---
 
 # ESPHome Climate Control - Epic Breakdown
@@ -35,6 +39,8 @@ This document consolidates all epics for the ESPHome Multi-Floor Climate Control
 | 16 | First Floor MEV Intelligent Control | Draft |
 | 17 | Three-Tier Seasonal Mode Selection | Draft |
 | 18 | MEV Modbus Migration | New |
+| 19 | Vesta Climate Framework - Open Source Extraction (Phase 1) | In Progress |
+| 20 | Vesta Phase 1 Completion - Full Component Migration | New |
 
 ---
 
@@ -468,3 +474,372 @@ So that **I'm aware of connectivity issues that could affect control**.
 | 18.3.3 | VMC Communication Health & Alerting | NFR3, NFR4 | Ready |
 
 **Total: 8 stories covering all 15 FRs and 4 NFRs**
+
+---
+
+## Epic 19: Vesta Climate Framework - Open Source Extraction (Phase 1)
+
+**Status:** In Progress (created 2026-02-07)
+**Brief:** [epic-19-brief.md](../../_bmad-output/planning-artifacts/epic-19-brief.md)
+
+Extract and generalize 5 production-proven ESPHome climate control components from the esphome-devices codebase into a new open-source project called **Vesta** (Roman goddess of the hearth). The "Base + Boost" pattern — where radiant floor provides efficient baseline comfort and fancoils activate as a responsive boost layer — is the hero component and project differentiator.
+
+### Component Inventory
+
+| Component | Type | Source Lines | Target |
+|-----------|------|-------------|--------|
+| Trend Sensor | Utility | 48 | `packages/utils/trend_sensor.yaml` |
+| Failover Sensor | Utility | 111 | `packages/utils/failover_sensor.yaml` |
+| Proportional Demand Sensor | Utility | 83 | `packages/utils/proportional_demand_sensor.yaml` |
+| Fancoil Boost Coordinator | Coordinator | 313 | `packages/coordinators/fancoil_boost.yaml` |
+| MEV Ventilation Coordinator | Coordinator | 365 | `packages/coordinators/mev_ventilation.yaml` |
+
+### Story Summary
+
+| Story | Title | Points | Dependencies | Status |
+|-------|-------|--------|-------------|--------|
+| 19.1 | Repository Scaffolding | 1 | None | Review |
+| 19.2 | Extract Trend Sensor (Quick Win) | 1 | 19.1 | Review |
+| 19.3 | Extract Failover Sensor | 2 | 19.1 | Review |
+| 19.4 | Extract Proportional Demand Sensor | 1 | 19.2 | Review |
+| 19.5 | Extract Fancoil Boost Coordinator (Hero) | 3 | 19.2 | Review |
+| 19.6 | Extract MEV Ventilation Coordinator | 2 | 19.4 | Review |
+| 19.7 | Documentation, Principles & Examples | 2 | All | Review |
+
+**Total: 7 stories, 12 story points**
+
+**Story files:** `_bmad-output/implementation-artifacts/19-*.md`
+
+---
+
+### Story 19.1: Repository Scaffolding
+
+As a **climate control enthusiast and ESPHome community member**,
+I want **a well-structured open-source repository called Vesta Climate Framework**,
+So that **production-proven ESPHome climate control components can be shared with the community and adopted by other multi-zone HVAC integrators**.
+
+**Acceptance Criteria:**
+
+**Given** a new open-source project is being created
+**When** the repository is initialized at `vesta/`
+**Then** the directory structure matches: `packages/utils/`, `packages/coordinators/`, `docs/`, `examples/`
+**And** README.md explains the Base + Boost innovation, 3-tier package structure, and component overview table
+**And** MIT LICENSE file is present
+**And** CONTRIBUTING.md describes component proposal process, YAML coding standards, and testing expectations
+**And** `.gitignore` covers ESPHome build artifacts
+
+---
+
+### Story 19.2: Extract Trend Sensor (Quick Win)
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **a reusable trend sensor package that calculates rate-of-change per minute with smoothing**,
+So that **I can detect temperature/humidity trends and enable predictive climate control logic**.
+
+**Acceptance Criteria:**
+
+**Given** the source component `components/trend_sensor.yaml` (48 lines) is production-proven
+**When** it is extracted to `packages/utils/trend_sensor.yaml`
+**Then** it is self-contained and compiles with only its declared parameters
+**And** all parameters are documented with types and defaults
+**And** `docs/trend-sensor.md` is written with usage examples
+**And** the extraction pattern (header format, naming convention, doc structure) is established for subsequent stories
+
+---
+
+### Story 19.3: Extract Failover Sensor
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **a reusable 3-tier sensor failover package that automatically switches between sensor sources**,
+So that **my climate control system degrades gracefully when sensors fail instead of shutting down**.
+
+**Acceptance Criteria:**
+
+**Given** the source component `components/failover_sensor.yaml` (111 lines) is production-proven
+**When** it is extracted to `packages/utils/failover_sensor.yaml`
+**Then** tier names are generalized (Primary/Secondary/Emergency instead of HA/UDP/Emergency)
+**And** parameter names are generic (`primary_sensor`/`secondary_sensor` instead of `ha_sensor`/`udp_sensor`)
+**And** tier architecture is documented with ASCII diagram in `docs/failover-sensor.md`
+**And** automatic recovery behavior is explained
+**And** usage example shows a realistic climate control scenario
+
+---
+
+### Story 19.4: Extract Proportional Demand Sensor
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **a reusable proportional demand sensor that converts any sensor reading into a 0-100% demand signal with optional rate-of-change boost**,
+So that **I can drive ventilation fan speeds, valve positions, or other actuators proportionally based on environmental conditions**.
+
+**Acceptance Criteria:**
+
+**Given** the source component `components/proportional_demand_sensor.yaml` (83 lines) depends on trend_sensor
+**When** it is extracted to `packages/utils/proportional_demand_sensor.yaml`
+**Then** parameter names are component-agnostic (no `mev_` prefix)
+**And** dependency on trend_sensor is clearly documented
+**And** rate boost feature is explained with practical example in `docs/proportional-demand.md`
+**And** at least 2 usage examples are provided (humidity demand, CO2 demand)
+
+---
+
+### Story 19.5: Extract Fancoil Boost Coordinator (Hero)
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **the "Base + Boost" pattern as a reusable coordinator that automatically activates fancoils when radiant floor cooling reaches its limits**,
+So that **I get efficient baseline cooling from radiant floors with responsive fancoil boost when conditions demand it, without manual switching**.
+
+**Acceptance Criteria:**
+
+**Given** the source component `components/fancoil_boost_coordinator.yaml` (313 lines) is the project's hero component
+**When** it is extracted to `packages/coordinators/fancoil_boost.yaml`
+**Then** all three activation triggers are documented with rationale (reactive temperature, reactive humidity, predictive PID saturation)
+**And** deactivation AND-logic is documented
+**And** hysteresis dead band and minimum time-in-state anti-oscillation behavior is explained
+**And** a complete integration example is provided (zone with radiant PID + fancoil + boost coordinator)
+**And** dependency on trend_sensor is documented
+**And** all diagnostic sensors are listed and explained
+
+---
+
+### Story 19.6: Extract MEV Ventilation Coordinator
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **a reusable MEV ventilation coordinator with multi-demand orchestration and humidity cascade state machine**,
+So that **I can control mechanical extract ventilation systems that respond to CO2, IAQ, and humidity with automatic mode escalation**.
+
+**Acceptance Criteria:**
+
+**Given** the source component `components/mev.yaml` (365 lines) depends on proportional_demand_sensor
+**When** it is extracted to `packages/coordinators/mev_ventilation.yaml`
+**Then** multi-demand MAX aggregation pattern is documented
+**And** humidity cascade state machine is documented with state diagram (Fan Only → Dehumidifying → Cooling)
+**And** escalation/de-escalation timing is explained
+**And** season awareness is documented (cooling state disabled in winter)
+**And** dependency chain is documented (proportional_demand → trend_sensor)
+**And** hardware requirements are listed (relays, DAC, sensors)
+
+---
+
+### Story 19.7: Documentation, Principles & Examples
+
+As a **potential Vesta user discovering the project**,
+I want **clear documentation of the architectural philosophy, a getting-started guide, and a complete working example**,
+So that **I can understand how the components fit together and start using them in my own ESPHome installation**.
+
+**Acceptance Criteria:**
+
+**Given** all 5 components have been extracted (Stories 19.2-19.6)
+**When** the documentation is finalized
+**Then** `docs/principles.md` documents all 9 foundational principles with explanations
+**And** `docs/getting-started.md` provides a clear onboarding path with prerequisites and recommended starting point
+**And** `examples/two_zone_radiant_fancoil.yaml` is a complete, commented, compilable example showing 2 zones with radiant PID, fancoil, boost coordinator, trend sensor, and failover sensor
+**And** README links to all component docs and includes the component overview table
+
+---
+
+## Epic 20: Vesta Phase 1 Completion - Full Component Migration
+
+**Status:** New (created 2026-02-19)
+**Brief:** [product-brief-esphome-devices-2026-02-19.md](../../_bmad-output/planning-artifacts/product-brief-esphome-devices-2026-02-19.md)
+
+Complete Vesta Phase 1 by migrating all remaining reusable components (15 additional packages) from esphome-devices into Vesta, reorganizing the package structure into a scalable taxonomy (`components/`, `coordinators/`, `devices/`), creating full documentation, and migrating esphome-devices to consume Vesta as an external dependency.
+
+### Requirements Inventory
+
+#### Functional Requirements
+
+| ID | Requirement |
+|----|-------------|
+| FR1 | Restructure package taxonomy: move `utils/` contents to `components/`, maintain `coordinators/`, create `devices/modbus-io/` |
+| FR2 | Extract 10 new components to `components/`: pid, pid_sensors, pid_autotune, pid_autotune_with_fancoil, radiant, fancoil, heat_only_radiant, mixing_pump, direct_pump, dew_point_sensor |
+| FR3 | Extract 1 new coordinator to `coordinators/`: seasonal_mode |
+| FR4 | Extract 4 new device drivers to `devices/modbus-io/`: modbus_relay_board, modbus_relay_switch, modbus_analog_output, modbus_analog_outputs_board |
+| FR5 | Create documentation for all 15 new components and update existing 5 component docs, README, and examples for new paths |
+| FR6 | Migrate esphome-devices to consume Vesta via GitHub remote includes, remove all local copies of migrated components, verify production system compiles |
+
+#### Non-Functional Requirements
+
+| ID | Requirement |
+|----|-------------|
+| NFR1 | All components must compile standalone with `esphome config` validation using only declared parameters |
+| NFR2 | No component may reference esphome-devices-specific entities (room names, hardware IDs) |
+| NFR3 | Every component's parameters must be documented with types and defaults |
+| NFR4 | Dependency chains must be explicit and documented (e.g., radiant → pid → trend_sensor) |
+
+#### Additional Requirements
+
+- Follow the extraction pattern established in Epic 19 (header comment block, parameter naming convention, doc structure)
+- Each component doc page must include parameter reference table + usage example
+- Existing Phase 1 examples must compile after restructure (no regressions)
+- esphome-devices must compile with zero local copies of migrated components
+
+### FR Coverage Map
+
+| FR | Epic 20 | Description |
+|----|---------|-------------|
+| FR1 | 20.1 Restructure | Package taxonomy reorganization (utils/ → components/, create devices/modbus-io/) |
+| FR2 | 20.2, 20.3 Components | 10 new components extracted to components/ (6 PID stack + 4 others) |
+| FR3 | 20.4 Coordinator | Seasonal mode coordinator extracted to coordinators/ |
+| FR4 | 20.5 Devices | 4 Modbus I/O drivers extracted to devices/modbus-io/ |
+| FR5 | 20.6 Docs | Full documentation for all 20 components |
+| FR6 | 20.7 Migration | esphome-devices consumes Vesta via GitHub remote includes |
+
+### Story Summary
+
+| Story | Title | FRs | Components | Status |
+|-------|-------|-----|------------|--------|
+| 20.1 | Package Restructure | FR1 | 3 moved | Ready |
+| 20.2 | Extract PID Stack | FR2 (partial) | 6 new | Ready |
+| 20.3 | Extract Heat-Only Radiant, Pumps & Dew Point | FR2 (remainder) | 4 new | Ready |
+| 20.4 | Extract Seasonal Mode Coordinator | FR3 | 1 new | Ready |
+| 20.5 | Extract Modbus I/O Drivers | FR4 | 4 new | Ready |
+| 20.6 | Documentation for New Components | FR5 | 15 doc pages | Ready |
+| 20.7 | Migrate esphome-devices to Vesta | FR6 | 20 migrated | Ready |
+
+**Total: 7 stories covering all 6 FRs and 4 NFRs**
+
+---
+
+### Story 20.1: Package Restructure
+
+As a **Vesta user**,
+I want **the package structure reorganized into a clear taxonomy (components/, coordinators/, devices/)**,
+So that **I can find packages intuitively and the framework scales as more components are added**.
+
+**Acceptance Criteria:**
+
+**Given** the existing Vesta repo has `packages/utils/` with trend_sensor, failover_sensor, proportional_demand_sensor
+**When** the restructure is applied
+**Then** all three files are moved to `packages/components/`
+**And** `packages/utils/` is removed
+**And** `packages/devices/modbus-io/` directory is created
+**And** all existing docs are updated to reference new paths
+**And** all existing examples compile with new package paths
+**And** README component overview table reflects the new structure
+**And** existing Phase 1 components still compile (no regressions)
+
+---
+
+### Story 20.2: Extract PID Stack
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **production-tested PID controller wrappers with presets for radiant and fancoil systems**,
+So that **I can set up proportional zone control with proven defaults instead of tuning from scratch**.
+
+**Acceptance Criteria:**
+
+**Given** the source components exist in esphome-devices
+**When** the following 6 components are extracted to `packages/components/`:
+- `pid.yaml` — PID controller wrapper with production-tested presets
+- `pid_sensors.yaml` — PID input/output diagnostic sensors
+- `pid_autotune.yaml` — PID auto-tuning logic
+- `pid_autotune_with_fancoil.yaml` — Auto-tune variant for fancoil systems
+- `radiant.yaml` — Radiant floor heating/cooling zone
+- `fancoil.yaml` — Fancoil unit control (analog 0-10V)
+
+**Then** each component compiles standalone with only its declared parameters
+**And** no component references esphome-devices-specific entities
+**And** all parameters have header comment blocks with purpose, required vars, optional vars
+**And** dependency chains are documented in headers (e.g., radiant depends on pid)
+**And** the Epic 19 extraction pattern is followed (header format, parameter naming convention)
+
+---
+
+### Story 20.3: Extract Heat-Only Radiant, Pumps & Dew Point
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **reusable packages for heat-only radiant zones, pump control, and dew point calculation**,
+So that **I can compose these building blocks into my system without writing boilerplate YAML**.
+
+**Acceptance Criteria:**
+
+**Given** the source components exist in esphome-devices
+**When** the following 4 components are extracted to `packages/components/`:
+- `heat_only_radiant.yaml` — Heat-only radiant variant
+- `mixing_pump.yaml` — Mixing valve + pump control
+- `direct_pump.yaml` — Direct pump control
+- `dew_point_sensor.yaml` — Dew point calculation utility
+
+**Then** each component compiles standalone with only its declared parameters
+**And** no component references esphome-devices-specific entities
+**And** all parameters have header comment blocks
+**And** the Epic 19 extraction pattern is followed
+
+---
+
+### Story 20.4: Extract Seasonal Mode Coordinator
+
+As a **multi-zone HVAC integrator using ESPHome**,
+I want **a seasonal mode coordinator that manages heat/cool mode transitions based on calendar and demand signals**,
+So that **my system switches between heating and cooling seasons automatically without manual intervention**.
+
+**Acceptance Criteria:**
+
+**Given** the source component `components/seasonal_mode.yaml` exists in esphome-devices
+**When** it is extracted to `packages/coordinators/seasonal_mode.yaml`
+**Then** the component compiles standalone with only its declared parameters
+**And** no references to esphome-devices-specific entities remain
+**And** calendar-based mode locking is parameterized (configurable date ranges)
+**And** demand-driven shoulder season transitions are parameterized
+**And** all parameters have header comment blocks
+**And** the Epic 19 extraction pattern is followed
+
+---
+
+### Story 20.5: Extract Modbus I/O Drivers
+
+As a **multi-zone HVAC integrator using ESPHome with Modbus expansion boards**,
+I want **parameterized Modbus relay board and analog output drivers**,
+So that **I can add I/O expansion to my system without writing Modbus register mappings from scratch**.
+
+**Acceptance Criteria:**
+
+**Given** the source components exist in esphome-devices
+**When** the following 4 components are extracted to `packages/devices/modbus-io/`:
+- `modbus_relay_board.yaml` — Modbus relay board driver
+- `modbus_relay_switch.yaml` — Individual Modbus relay switch
+- `modbus_analog_output.yaml` — Modbus 0-10V DAC output
+- `modbus_analog_outputs_board.yaml` — Modbus analog outputs board driver
+
+**Then** each component compiles standalone with only its declared parameters
+**And** drivers are board-agnostic (work with any Modbus relay/analog board, not just specific hardware)
+**And** no references to esphome-devices-specific entities remain
+**And** all parameters have header comment blocks
+**And** the Epic 19 extraction pattern is followed
+
+---
+
+### Story 20.6: Documentation for New Components
+
+As a **Vesta user discovering the framework**,
+I want **a doc page for every new component with parameter reference and usage examples**,
+So that **I can understand what each component does and how to include it in my config**.
+
+**Acceptance Criteria:**
+
+**Given** all 15 new components have been extracted (Stories 20.2-20.5)
+**When** documentation is created
+**Then** each of the 15 new components has a dedicated doc page in `docs/`
+**And** each doc page includes: purpose description, parameter reference table (name, type, required/optional, default), usage example with `!include` and vars
+**And** the README component overview table lists all 20 components with correct paths and links to doc pages
+**And** the getting-started guide is updated to reference the new component categories
+**And** doc pages for integrators include quick-reference parameter tables
+**And** doc pages for complex components (seasonal_mode, PID stack) include narrative "why" sections for enthusiasts
+
+---
+
+### Story 20.7: Migrate esphome-devices to Vesta
+
+As the **esphome-devices system operator**,
+I want **the production system updated to consume Vesta packages via GitHub remote includes**,
+So that **there are no local duplicates of migrated components and the system validates that Vesta works as an external dependency**.
+
+**Acceptance Criteria:**
+
+**Given** all 20 components are available in the Vesta repo (5 existing + 15 new)
+**When** esphome-devices is migrated
+**Then** all room configs and device configs reference Vesta packages via GitHub remote includes instead of local files
+**And** all 20 local component files that were migrated to Vesta are removed from `esphome-devices/components/`
+**And** `esphome config` validates successfully for the full production configuration
+**And** components that remain local (mev_demand.yaml, mev_modbus.yaml, room templates) are unaffected
+**And** the migration is documented (which files moved, how to update includes)

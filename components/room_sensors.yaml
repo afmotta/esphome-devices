@@ -54,7 +54,7 @@ sensor:
   # ============================================================================
 packages:
   temperature_failover: !include
-    file: ./failover_sensor.yaml
+    file: ../vesta/packages/components/failover_sensor.yaml
     vars:
       sensor_id: ${room_slug}_room_temp_abstracted
       sensor_name: "${room_name} Temperature (Abstracted)"
@@ -63,7 +63,7 @@ packages:
       ha_sensor: ${room_slug}_ha_temperature
       udp_sensor: ${room_slug}_udp_temperature
   humidity_failover: !include
-    file: ./failover_sensor.yaml
+    file: ../vesta/packages/components/failover_sensor.yaml
     vars:
       sensor_id: ${room_slug}_room_humidity_abstracted
       sensor_name: "${room_name} Humidity (Abstracted)"
@@ -72,7 +72,7 @@ packages:
       ha_sensor: ${room_slug}_ha_humidity
       udp_sensor: ${room_slug}_udp_humidity
   dew_point: !include
-    file: ./dew_point_sensor.yaml
+    file: ../vesta/packages/components/dew_point_sensor.yaml
     vars:
       room_slug: ${room_slug}
       room_name: ${room_name}

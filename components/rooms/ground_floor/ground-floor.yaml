@@ -6,7 +6,7 @@ defaults:
 
 packages:
   mixing_pump_ground_floor_radiant: !include
-    file: ../../mixing_pump.yaml
+    file: ../../../vesta/packages/components/mixing_pump.yaml
     vars:
       area_slug: "ground_floor_radiant"
       area_name: "Radiante Piano Terra"
@@ -14,8 +14,9 @@ packages:
       sensor_id: ground_floor_radiant_any_zone_open
       relay_id: relay_1
       output_id: analog_output_1
+      one_wire_bus_id: one_wire_01
   direct_pump_ground_floor_fancoil: !include
-    file: ../../direct_pump.yaml
+    file: ../../../vesta/packages/components/direct_pump.yaml
     vars:
       area_slug: "ground_floor_fancoil"
       area_name: "Fancoil Piano Terra"
@@ -54,7 +55,7 @@ binary_sensor:
 
 # Max dew point for ground floor radiant cooling protection
 # Excludes Bagno due to shower-induced humidity spikes
-# Only limits supply temp during cooling mode (summer_mode = true)
+# Only limits supply temp during cooling mode (hp_mode_summer = true)
 sensor:
   - platform: combination
     id: ground_floor_max_dew_point
@@ -71,7 +72,7 @@ sensor:
       then:
         - if:
             condition:
-              lambda: "return id(summer_mode).state;"
+              lambda: "return id(hp_mode_summer).state;"
             then:
               - climate.control:
                   id: pid_mixing_valve_ground_floor_radiant

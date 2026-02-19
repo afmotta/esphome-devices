@@ -17,7 +17,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_bagno_ospiti_humidity"
 
   pid_radiant: !include
-    file: ../../heat_only_radiant.yaml
+    file: ../../../vesta/packages/components/heat_only_radiant.yaml
     vars:
       relay_id: relay_11
       temperature_sensor: bagno_ospiti_room_temp_abstracted
@@ -26,7 +26,7 @@ packages:
       kd: 0.05
 
   autotune: !include
-    file: ../../pid_autotune.yaml
+    file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
       pid_id: pid_radiant_bagno_ospiti
       pid_name: "Radiante Bagno Ospiti"

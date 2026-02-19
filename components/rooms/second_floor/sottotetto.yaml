@@ -18,6 +18,6 @@ packages:
       ha_humidity_sensor_id: "sensor.room_sottotetto_humidity"
 
   fancoil: !include
-    file: ../../fancoil.yaml
+    file: ../../../vesta/packages/components/fancoil.yaml
     vars:
       output_id: analog_output_6
