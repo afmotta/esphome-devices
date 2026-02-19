@@ -1,0 +1,121 @@
+# generated: 2026-02-08
+# project: esphome-devices
+# project_key: esphome-devices
+# tracking_system: file-system
+# story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-08
+project: esphome-devices
+project_key: esphome-devices
+tracking_system: file-system
+story_location: "_bmad-output/implementation-artifacts"
+
+development_status:
+  # === Legacy Epics (1-15) - Pre-BMAD v6, no individual story tracking ===
+
+  epic-1: done # Autonomous Multi-Board Climate Control via RS485 Modbus
+  epic-1-retrospective: optional
+
+  epic-2: done # PID Architecture Simplification
+  epic-2-retrospective: optional
+
+  epic-3: done # HA-Coordinated Independent Boards
+  epic-3-retrospective: optional
+
+  epic-4: done # Room-Based Component Architecture
+  epic-4-retrospective: optional
+
+  epic-5: done # HA-Only Sensor Architecture
+  epic-5-retrospective: optional
+
+  epic-6: done # MEV Board Integration for First Floor
+  epic-6-retrospective: optional
+
+  epic-7: done # Window Detection & Climate Response
+  epic-7-retrospective: optional
+
+  epic-8: done # Unified State Machine Architecture
+  epic-8-retrospective: optional
+
+  epic-9: done # UDP Packet Transport Board Communication (Infrastructure Complete)
+  epic-9-retrospective: optional
+
+  epic-10: done # ESP32 Room Sensors & Zone Activity Tracking via UDP
+  epic-10-retrospective: optional
+
+  epic-11: backlog # ESP32 Room Sensors via UDP (Deferred)
+  epic-11-retrospective: optional
+
+  epic-12: backlog # Autonomous Dew Point Protection for Radiant Cooling (Deferred)
+  epic-12-retrospective: optional
+
+  epic-13: done # Ground Floor Hybrid Radiant-Fancoil Cooling
+  epic-13-retrospective: optional
+
+  epic-14: done # Per-Room Fancoil Boost Control
+  epic-14-retrospective: optional
+
+  epic-15: done # Air Quality Sensor Broadcasting
+  epic-15-retrospective: optional
+
+  # === Draft Epics (16-17) - No stories defined yet ===
+
+  epic-16: backlog # First Floor MEV Intelligent Control (Draft)
+  epic-16-retrospective: optional
+
+  epic-17: backlog # Three-Tier Seasonal Mode Selection (Draft)
+  epic-17-retrospective: optional
+
+  # === Epic 18: MEV Modbus Migration (Complete - commit 834f4be) ===
+
+  epic-18: done
+  18-1-vmc-modbus-controller-setup: done
+  18-2-vmc-control-switches: done
+  18-3-vmc-fan-speed-integration: done
+  18-4-vmc-temperature-sensors: done
+  18-5-vmc-component-state-monitoring: done
+  18-6-vmc-alarm-decoding: done
+  18-7-vmc-filter-maintenance-tracking: done
+  18-8-vmc-communication-health-alerting: done
+  epic-18-retrospective: optional
+
+  # === Epic 19: Vesta Climate Framework - Open Source Extraction (Phase 1) ===
+
+  epic-19: in-progress
+  19-1-repository-scaffolding: review
+  19-2-extract-trend-sensor: review
+  19-3-extract-failover-sensor: review
+  19-4-extract-proportional-demand-sensor: review
+  19-5-extract-fancoil-boost-coordinator: review
+  19-6-extract-mev-ventilation-coordinator: review
+  19-7-documentation-principles-examples: review
+  epic-19-retrospective: optional
