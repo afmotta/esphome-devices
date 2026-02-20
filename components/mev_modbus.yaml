@@ -57,7 +57,7 @@ packages:
       humidity_sensor: ${humidity_sensor}
       humidity_rate_sensor: ${mev_slug}_humidity_rate
       humidity_lower_sensor: ${mev_slug}_humidity_lower
-      cooling_mode_sensor: summer_mode
+      cooling_mode_sensor: hp_mode_summer
       dehumidifier_switch: ${mev_slug}_dehumidifier
       integration_switch: ${mev_slug}_integration
       alarm_sensor: ${mev_slug}_alarm_active

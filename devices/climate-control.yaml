@@ -1,6 +1,7 @@
 defaults:
   device_name: climate-control
   friendly_name: "Climate Control"
+  seasonal_mode_id: hp_mode
 
 packages:
   base: !include
@@ -8,7 +9,7 @@ packages:
     vars:
       enable_ethernet: true
   analog_outputs_1: !include
-    file: ../components/modbus_analog_outputs_board.yaml
+    file: ../vesta/packages/devices/modbus-io/modbus_analog_outputs_board.yaml
     vars:
       controller_id: analog_outputs_board_1
       modbus_address: 0x1
@@ -17,7 +18,7 @@ packages:
       id_offset: 0
       controller_name: "Analog Outputs Board 1"
   relays_1: !include
-    file: ../components/modbus_relay_board.yaml
+    file: ../vesta/packages/devices/modbus-io/modbus_relay_board.yaml
     vars:
       controller_id: relay_board_1
       modbus_address: 0x2
@@ -26,7 +27,7 @@ packages:
       id_offset: 8
       controller_name: "Relay Board 1"
   relays_2: !include
-    file: ../components/modbus_relay_board.yaml
+    file: ../vesta/packages/devices/modbus-io/modbus_relay_board.yaml
     vars:
       controller_id: relay_board_2
       modbus_address: 0x3
@@ -37,7 +38,12 @@ packages:
   ground_floor: !include ../components/rooms/ground_floor/ground-floor.yaml
   first_floor: !include ../components/rooms/first_floor/first-floor.yaml
   second_floor: !include ../components/rooms/second_floor/second-floor.yaml
-  seasonal_mode: !include ../components/seasonal_mode.yaml
+  seasonal_mode: !include
+    file: ../vesta/packages/coordinators/seasonal_mode.yaml
+    vars:
+      seasonal_mode_id: hp_mode
+      seasonal_mode_name: "Heat Pump Mode"
+      time_id: pcf85063_time
 
 udp:
   id: udp_packet_transport

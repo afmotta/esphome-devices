@@ -18,7 +18,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
   pid_radiant: !include
-    file: ../../radiant.yaml
+    file: ../../../vesta/packages/components/radiant.yaml
     vars:
       relay_id: relay_8
       kp: 0.8
@@ -26,22 +26,38 @@ packages:
       kd: 0.05
 
   fancoil: !include
-    file: ../../fancoil.yaml
+    file: ../../../vesta/packages/components/fancoil.yaml
     vars:
       output_id: analog_output_4
 
   fancoil_boost_coordinator: !include
-    file: ../../fancoil_boost_coordinator.yaml
+    file: ../../../vesta/packages/coordinators/fancoil_boost.yaml
+    vars:
+      zone_slug: ${room_slug}
+      zone_name: ${room_name}
+      temperature_sensor: ${temperature_sensor}
+      humidity_sensor: ${room_slug}_room_humidity_abstracted
+      radiant_pid_id: pid_radiant_${room_slug}
+      radiant_pid_cool_sensor: pid_radiant_${room_slug}_cool
+      fancoil_pid_id: pid_fancoil_${room_slug}
+      radiant_override_value_id: radiant_${room_slug}_override_value
+      radiant_override_switch_id: radiant_${room_slug}_override
+      radiant_pwm_id: radiant_pwm_${room_slug}
+      cooling_mode_sensor: hp_mode_summer
+      temp_threshold_sensor: effective_fancoil_boost_threshold
+      humidity_threshold_sensor: effective_fancoil_humidity_threshold
+      predictive_minutes_sensor: effective_predictive_boost_minutes
 
   autotune_radiant: !include
-    file: ../../pid_autotune_with_fancoil.yaml
+    file: ../../../vesta/packages/components/pid_autotune_with_fancoil.yaml
     vars:
       pid_id: pid_radiant_cucina
       pid_name: "Radiante Cucina"
       fancoil_pid_id: pid_fancoil_cucina
+      boost_active_global: cucina_boost_active
 
   autotune_fancoil: !include
-    file: ../../pid_autotune.yaml
+    file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
       pid_id: pid_fancoil_cucina
       pid_name: "Fancoil Cucina"

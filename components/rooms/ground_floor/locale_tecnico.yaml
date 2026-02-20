@@ -18,12 +18,12 @@ packages:
       ha_humidity_sensor_id: "sensor.room_locale_tecnico_humidity"
 
   fancoil: !include
-    file: ../../fancoil.yaml
+    file: ../../../vesta/packages/components/fancoil.yaml
     vars:
       output_id: analog_output_5
 
   autotune_fancoil: !include
-    file: ../../pid_autotune.yaml
+    file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
       pid_id: pid_fancoil_locale_tecnico
       pid_name: "Fancoil Locale Tecnico"
