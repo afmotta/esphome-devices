@@ -3,7 +3,7 @@ packages:
   direct_pump_fancoil_secondo_piano: !include
     file: ../../../vesta/packages/components/direct_pump.yaml
     vars:
-      area_slug: "fancoil_second_floor"
-      area_name: "Fancoil Secondo Piano"
-      sensor_id: pid_fancoil_sottotetto_is_active
+      area_slug: "second_floor_fancoil"
+      area_name: "Secondo Piano Fancoil"
+      sensor_id: sottotetto_fancoil_pid_is_active
       relay_id: relay_4

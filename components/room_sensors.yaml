@@ -8,7 +8,7 @@
 #   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
 #
 # Exposes:
-#   - sensor.{zone}_room_temp_abstracted: Temperature for PID controllers (internal)
+#   - sensor.{zone}_temp_abstracted: Temperature for PID controllers (internal)
 #   - text_sensor.{zone}_sensor_tier: Active tier ("UDP", "HA", or "Emergency")
 #
 # Tier Priority Rules:
@@ -22,14 +22,14 @@
 
 sensor:
   - platform: packet_transport
-    id: ${room_slug}_udp_temperature
+    id: ${room_slug}_temp_udp
     provider: room-sensor-${room_slug | replace('_', '-')}
     internal: true
     filters:
       - filter_out: nan
 
   - platform: packet_transport
-    id: ${room_slug}_udp_humidity
+    id: ${room_slug}_humidity_udp
     provider: room-sensor-${room_slug | replace('_', '-')}
     internal: true
     filters:
@@ -37,14 +37,14 @@ sensor:
 
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
-    id: ${room_slug}_ha_temperature
+    id: ${room_slug}_temp_ha
     internal: true
     filters:
       - filter_out: nan
 
   - platform: homeassistant
     entity_id: ${ha_humidity_sensor_id}
-    id: ${room_slug}_ha_humidity
+    id: ${room_slug}_humidity_ha
     internal: true
     filters:
       - filter_out: nan
@@ -56,25 +56,25 @@ packages:
   temperature_failover: !include
     file: ../vesta/packages/components/failover_sensor.yaml
     vars:
-      sensor_id: ${room_slug}_room_temp_abstracted
+      sensor_id: ${room_slug}_temp_abstracted
       sensor_name: "${room_name} Temperature (Abstracted)"
       unit_of_measurement: "°C"
       device_class: temperature
-      primary_sensor: ${room_slug}_ha_temperature
-      secondary_sensor: ${room_slug}_udp_temperature
+      primary_sensor: ${room_slug}_temp_ha
+      secondary_sensor: ${room_slug}_temp_udp
   humidity_failover: !include
     file: ../vesta/packages/components/failover_sensor.yaml
     vars:
-      sensor_id: ${room_slug}_room_humidity_abstracted
+      sensor_id: ${room_slug}_humidity_abstracted
       sensor_name: "${room_name} Humidity (Abstracted)"
       unit_of_measurement: "%"
       device_class: humidity
-      primary_sensor: ${room_slug}_ha_humidity
-      secondary_sensor: ${room_slug}_udp_humidity
+      primary_sensor: ${room_slug}_humidity_ha
+      secondary_sensor: ${room_slug}_humidity_udp
   dew_point: !include
     file: ../vesta/packages/components/dew_point_sensor.yaml
     vars:
       room_slug: ${room_slug}
       room_name: ${room_name}
-      temperature_sensor: ${room_slug}_room_temp_abstracted
-      humidity_sensor: ${room_slug}_room_humidity_abstracted
+      temperature_sensor: ${room_slug}_temp_abstracted
+      humidity_sensor: ${room_slug}_humidity_abstracted

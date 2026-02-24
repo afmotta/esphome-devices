@@ -8,7 +8,7 @@
 defaults:
   room_slug: "locale_tecnico"
   room_name: "Locale Tecnico"
-  temperature_sensor: locale_tecnico_room_temp_abstracted
+  temperature_sensor: locale_tecnico_temp_abstracted
 
 packages:
   sensors: !include
@@ -25,5 +25,5 @@ packages:
   autotune_fancoil: !include
     file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
-      pid_id: pid_fancoil_locale_tecnico
-      pid_name: "Fancoil Locale Tecnico"
+      pid_id: locale_tecnico_fancoil_pid
+      pid_name: "Locale Tecnico Fancoil"

@@ -79,33 +79,33 @@ one_wire:
 binary_sensor:
   - id: !extend any_pid_requesting_heat
     lambda: |-
-      return id(pid_radiant_soggiorno_is_heating).state ||
-             id(pid_radiant_cucina_is_heating).state ||
-             id(pid_radiant_bagno_terra_is_heating).state ||
-             id(pid_radiant_anticamera_is_heating).state ||
-             id(pid_radiant_bagno_grande_is_heating).state ||
-             id(pid_radiant_bagno_ospiti_is_heating).state ||
-             id(pid_radiant_bagno_padronale_is_heating).state ||
-             id(pid_radiant_camera_nord_is_heating).state ||
-             id(pid_radiant_camera_sud_is_heating).state ||
-             id(pid_radiant_camera_ospiti_is_heating).state ||
-             id(pid_radiant_camera_padronale_is_heating).state ||
-             id(pid_radiant_lavanderia_is_heating).state ||
-             id(pid_fancoil_soggiorno_is_heating).state ||
-             id(pid_fancoil_cucina_is_heating).state ||
-             id(pid_fancoil_locale_tecnico_is_heating).state ||
-             id(pid_fancoil_sottotetto_is_heating).state;
+      return id(soggiorno_radiant_pid_is_heating).state ||
+             id(cucina_radiant_pid_is_heating).state ||
+             id(bagno_terra_radiant_pid_is_heating).state ||
+             id(anticamera_radiant_pid_is_heating).state ||
+             id(bagno_grande_radiant_pid_is_heating).state ||
+             id(bagno_ospiti_radiant_pid_is_heating).state ||
+             id(bagno_padronale_radiant_pid_is_heating).state ||
+             id(camera_nord_radiant_pid_is_heating).state ||
+             id(camera_sud_radiant_pid_is_heating).state ||
+             id(camera_ospiti_radiant_pid_is_heating).state ||
+             id(camera_padronale_radiant_pid_is_heating).state ||
+             id(lavanderia_radiant_pid_is_heating).state ||
+             id(soggiorno_fancoil_pid_is_heating).state ||
+             id(cucina_fancoil_pid_is_heating).state ||
+             id(locale_tecnico_fancoil_pid_is_heating).state ||
+             id(sottotetto_fancoil_pid_is_heating).state;
 
   - id: !extend any_pid_requesting_cool
     lambda: |-
-      return id(pid_radiant_soggiorno_is_cooling).state ||
-             id(pid_radiant_cucina_is_cooling).state ||
-             id(pid_radiant_anticamera_is_cooling).state ||
-             id(pid_radiant_camera_nord_is_cooling).state ||
-             id(pid_radiant_camera_sud_is_cooling).state ||
-             id(pid_radiant_camera_ospiti_is_cooling).state ||
-             id(pid_radiant_camera_padronale_is_cooling).state ||
-             id(pid_fancoil_soggiorno_is_cooling).state ||
-             id(pid_fancoil_cucina_is_cooling).state ||
-             id(pid_fancoil_locale_tecnico_is_cooling).state ||
-             id(pid_fancoil_sottotetto_is_cooling).state;
+      return id(soggiorno_radiant_pid_is_cooling).state ||
+             id(cucina_radiant_pid_is_cooling).state ||
+             id(anticamera_radiant_pid_is_cooling).state ||
+             id(camera_nord_radiant_pid_is_cooling).state ||
+             id(camera_sud_radiant_pid_is_cooling).state ||
+             id(camera_ospiti_radiant_pid_is_cooling).state ||
+             id(camera_padronale_radiant_pid_is_cooling).state ||
+             id(soggiorno_fancoil_pid_is_cooling).state ||
+             id(cucina_fancoil_pid_is_cooling).state ||
+             id(locale_tecnico_fancoil_pid_is_cooling).state ||
+             id(sottotetto_fancoil_pid_is_cooling).state;

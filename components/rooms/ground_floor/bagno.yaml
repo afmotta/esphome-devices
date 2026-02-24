@@ -8,7 +8,7 @@
 defaults:
   room_slug: "bagno_terra"
   room_name: "Bagno Piano Terra"
-  temperature_sensor: bagno_terra_room_temp_abstracted
+  temperature_sensor: bagno_terra_temp_abstracted
 
 packages:
   sensors: !include
@@ -28,5 +28,5 @@ packages:
   autotune: !include
     file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
-      pid_id: pid_radiant_bagno_terra
-      pid_name: "Radiante Bagno Terra"
+      pid_id: bagno_terra_radiant_pid
+      pid_name: "Bagno Terra Radiant"

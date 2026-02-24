@@ -8,7 +8,7 @@
 defaults:
   room_slug: "anticamera"
   room_name: "Anticamera"
-  temperature_sensor: anticamera_room_temp_abstracted
+  temperature_sensor: anticamera_temp_abstracted
 
 packages:
   sensors: !include
@@ -28,5 +28,5 @@ packages:
   autotune: !include
     file: ../../../vesta/packages/components/pid_autotune.yaml
     vars:
-      pid_id: pid_radiant_anticamera
-      pid_name: "Radiante Anticamera"
+      pid_id: anticamera_radiant_pid
+      pid_name: "Anticamera Radiant"
