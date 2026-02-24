@@ -60,8 +60,8 @@ packages:
       sensor_name: "${room_name} Temperature (Abstracted)"
       unit_of_measurement: "°C"
       device_class: temperature
-      ha_sensor: ${room_slug}_ha_temperature
-      udp_sensor: ${room_slug}_udp_temperature
+      primary_sensor: ${room_slug}_ha_temperature
+      secondary_sensor: ${room_slug}_udp_temperature
   humidity_failover: !include
     file: ../vesta/packages/components/failover_sensor.yaml
     vars:
@@ -69,8 +69,8 @@ packages:
       sensor_name: "${room_name} Humidity (Abstracted)"
       unit_of_measurement: "%"
       device_class: humidity
-      ha_sensor: ${room_slug}_ha_humidity
-      udp_sensor: ${room_slug}_udp_humidity
+      primary_sensor: ${room_slug}_ha_humidity
+      secondary_sensor: ${room_slug}_udp_humidity
   dew_point: !include
     file: ../vesta/packages/components/dew_point_sensor.yaml
     vars:

@@ -23,34 +23,46 @@
 
 packages:
   co2_demand: !include
-    file: proportional_demand_sensor.yaml
+    file: ../vesta/packages/components/proportional_demand_sensor.yaml
     vars:
+      component_id: ${mev_slug}
+      component_name: ${mev_name}
       demand_slug: co2
       demand_name: CO2
       unit_of_measurement: ppm
       source_sensor_id: ${co2_sensor}
-      min_val_id: ${mev_slug}_min_fan_speed
+      min_output_id: ${mev_slug}_min_fan_speed
+      lower_bound_entity: "input_number.mev_co2_lower_bound"
+      upper_bound_entity: "input_number.mev_co2_upper_bound"
       rate_multiplier: "0.05"
       icon: mdi:molecule-co2
 
   iaq_demand: !include
-    file: proportional_demand_sensor.yaml
+    file: ../vesta/packages/components/proportional_demand_sensor.yaml
     vars:
+      component_id: ${mev_slug}
+      component_name: ${mev_name}
       demand_slug: iaq
       demand_name: IAQ
       unit_of_measurement: IAQ
       source_sensor_id: ${iaq_sensor}
-      min_val_id: ${mev_slug}_min_fan_speed
+      min_output_id: ${mev_slug}_min_fan_speed
+      lower_bound_entity: "input_number.mev_iaq_lower_bound"
+      upper_bound_entity: "input_number.mev_iaq_upper_bound"
       rate_multiplier: "2.0"
       icon: mdi:air-filter
 
   humidity_demand: !include
-    file: proportional_demand_sensor.yaml
+    file: ../vesta/packages/components/proportional_demand_sensor.yaml
     vars:
+      component_id: ${mev_slug}
+      component_name: ${mev_name}
       demand_slug: humidity
       demand_name: Humidity
       source_sensor_id: ${humidity_sensor}
-      min_val_id: ${mev_slug}_min_fan_speed
+      min_output_id: ${mev_slug}_min_fan_speed
+      lower_bound_entity: "input_number.mev_humidity_lower_bound"
+      upper_bound_entity: "input_number.mev_humidity_upper_bound"
       rate_multiplier: "20.0"
       icon: mdi:water-percent
 

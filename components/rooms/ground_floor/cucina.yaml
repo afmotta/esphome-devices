@@ -40,9 +40,9 @@ packages:
       radiant_pid_id: pid_radiant_${room_slug}
       radiant_pid_cool_sensor: pid_radiant_${room_slug}_cool
       fancoil_pid_id: pid_fancoil_${room_slug}
-      radiant_override_value_id: radiant_${room_slug}_override_value
-      radiant_override_switch_id: radiant_${room_slug}_override
-      radiant_pwm_id: radiant_pwm_${room_slug}
+      radiant_override_value_id: ${room_slug}_radiant_override_value
+      radiant_override_switch_id: ${room_slug}_radiant_override
+      radiant_pwm_id: radiant_output_${room_slug}
       cooling_mode_sensor: hp_mode_summer
       temp_threshold_sensor: effective_fancoil_boost_threshold
       humidity_threshold_sensor: effective_fancoil_humidity_threshold
