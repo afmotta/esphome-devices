@@ -1,0 +1,57 @@
+esphome:
+  name: ${device_name}
+  min_version: 2026.2.0
+  friendly_name: ${friendly_name}
+
+esp32:
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: ${encryption_key}
+
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+
+i2c:
+  id: i2c_bus
+  sda: GPIO5
+  scl: GPIO6
+  scan: true
+
+bme68x_bsec2_i2c:
+  address: 0x77
+  model: bme688
+  operating_age: 28d
+  sample_rate: LP
+  supply_voltage: 3.3V
+
+sensor:
+  - platform: sht4x
+    temperature:
+      name: "SHT45 Temperature"
+    humidity:
+      name: "SHT45 Humidity"
+  - platform: bme68x_bsec2
+    temperature:
+      name: "BME68x Temperature"
+    pressure:
+      name: "BME68x Pressure"
+    humidity:
+      name: "BME68x Humidity"
+    iaq:
+      name: "BME68x IAQ"
+      id: iaq
+    co2_equivalent:
+      name: "BME68x CO2 Equivalent"
+    breath_voc_equivalent:
+      name: "BME68x Breath VOC Equivalent"

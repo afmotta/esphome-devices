@@ -11,3 +11,4 @@ secrets.yaml
 *.map
 __pycache__/
 *.pyc
+venv/
