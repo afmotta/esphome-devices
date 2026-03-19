@@ -28,30 +28,34 @@ i2c:
   scl: GPIO6
   scan: true
 
-bme68x_bsec2_i2c:
-  address: 0x77
-  model: bme688
-  operating_age: 28d
-  sample_rate: LP
-  supply_voltage: 3.3V
-
 sensor:
   - platform: sht4x
     temperature:
       name: "SHT45 Temperature"
     humidity:
       name: "SHT45 Humidity"
-  - platform: bme68x_bsec2
+  - platform: sen6x
     temperature:
-      name: "BME68x Temperature"
-    pressure:
-      name: "BME68x Pressure"
+      name: "SEN6x Temperature"
+      accuracy_decimals: 2
     humidity:
-      name: "BME68x Humidity"
-    iaq:
-      name: "BME68x IAQ"
-      id: iaq
-    co2_equivalent:
-      name: "BME68x CO2 Equivalent"
-    breath_voc_equivalent:
-      name: "BME68x Breath VOC Equivalent"
+      name: "SEN6x Humidity"
+      accuracy_decimals: 2
+    pm_1_0:
+      name: PM <1µm Weight concentration
+      accuracy_decimals: 2
+    pm_2_5:
+      name: PM <2.5µm Weight concentration
+      accuracy_decimals: 2
+    pm_4_0:
+      name: PM <4µm Weight concentration
+      accuracy_decimals: 2
+    pm_10_0:
+      name: PM <10µm Weight concentration
+      accuracy_decimals: 2
+    nox:
+      name: NOx
+    voc:
+      name: VOC
+    co2:
+      name: Carbon Dioxide
