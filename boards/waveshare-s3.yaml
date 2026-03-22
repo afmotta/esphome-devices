@@ -9,7 +9,7 @@ packages:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  min_version: 2025.12.0
+  min_version: 2026.3.0
   comment: "WaveShare ESP32-S3-POE-ETH-8DI-8RO device"
   on_boot:
     then:

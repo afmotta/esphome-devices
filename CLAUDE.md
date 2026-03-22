@@ -65,7 +65,7 @@ This is a **production ESPHome-based residential climate control system** for a 
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **ESPHome** | 2025.12.0+ | ESP32 firmware framework (YAML-based) |
+| **ESPHome** | 2026.3.0+ | ESP32 firmware framework (YAML-based) |
 | **Python** | 3.x | Custom component development (LD2450 sensor driver) |
 | **C++** | (ESP-IDF) | Low-level sensor integrations and performance-critical code |
 | **YAML** | 1.2 | Configuration language for ESPHome |
@@ -690,7 +690,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check YAML syntax (indentation, colons, dashes)
 - Verify all `!include` paths are correct
 - Ensure all substitution variables are defined
-- Check ESPHome version (min 2025.12.0)
+- Check ESPHome version (min 2026.3.0)
 
 **Modbus Issues**:
 - Enable DEBUG logging for modbus_controller

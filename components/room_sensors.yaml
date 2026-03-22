@@ -10,6 +10,7 @@
 # Exposes:
 #   - sensor.{zone}_temp_abstracted: Temperature for PID controllers (internal)
 #   - text_sensor.{zone}_sensor_tier: Active tier ("UDP", "HA", or "Emergency")
+#   - sensor.{zone}_dew_point: Dew point temperature (°C)
 #
 # Tier Priority Rules:
 #   | HA Sensor  | UDP Sensor  | Active Tier         | Abstracted Value |
@@ -71,10 +72,16 @@ packages:
       device_class: humidity
       primary_sensor: ${room_slug}_humidity_ha
       secondary_sensor: ${room_slug}_humidity_udp
-  dew_point: !include
-    file: ../vesta/packages/components/dew_point_sensor.yaml
-    vars:
-      room_slug: ${room_slug}
-      room_name: ${room_name}
-      temperature_sensor: ${room_slug}_temp_abstracted
-      humidity_sensor: ${room_slug}_humidity_abstracted
+
+  # ============================================================================
+  # DEW POINT (native ESPHome 2026.3+ sensor)
+  # ============================================================================
+  dew_point:
+    sensor:
+      - platform: dew_point
+        name: "${room_name} Dew Point"
+        id: ${room_slug}_dew_point
+        temperature: ${room_slug}_temp_abstracted
+        humidity: ${room_slug}_humidity_abstracted
+        update_interval: 30s
+        accuracy_decimals: 0
