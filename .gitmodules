@@ -1,0 +1,4 @@
+[submodule "vesta"]
+	path = vesta
+	url = git@github.com:afmotta/vesta.git
+	branch = main
