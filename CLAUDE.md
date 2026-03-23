@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.0 |
-| **Last Updated** | January 23, 2026 |
+| **Version** | 1.1 |
+| **Last Updated** | March 23, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -93,66 +93,64 @@ This is a **production ESPHome-based residential climate control system** for a 
 
 ```
 esphome-devices/
-├── boards/                    # Hardware board configurations
+├── vesta/                     # Vesta Climate Framework (open-source library)
+│   ├── packages/
+│   │   ├── components/        # Reusable YAML component packages
+│   │   │   ├── pid.yaml               # PID controller
+│   │   │   ├── pid_autotune.yaml      # Auto-tuning logic
+│   │   │   ├── pid_sensors.yaml       # PID input/output sensors
+│   │   │   ├── radiant.yaml           # Radiant floor heating/cooling
+│   │   │   ├── fancoil.yaml           # Fancoil unit control (analog 0-10V)
+│   │   │   ├── heat_only_radiant.yaml # Heat-only radiant variant
+│   │   │   ├── direct_pump.yaml       # Direct pump control
+│   │   │   ├── mixing_pump.yaml       # Mixing valve + pump
+│   │   │   ├── failover_sensor.yaml   # 3-tier sensor failover
+│   │   │   ├── proportional_demand_sensor.yaml # Proportional demand
+│   │   │   └── trend_sensor.yaml      # Rate-of-change sensor
+│   │   ├── coordinators/      # Control pattern orchestrators
+│   │   │   ├── fancoil_boost.yaml     # Radiant+fancoil boost coordination
+│   │   │   ├── mev_ventilation.yaml   # MEV ventilation control
+│   │   │   └── seasonal_mode.yaml     # Seasonal heat/cool mode switching
+│   │   └── devices/           # Hardware board configurations
+│   ├── docs/                  # Vesta documentation
+│   ├── examples/              # Example configurations
+│   ├── README.md              # Vesta project overview
+│   └── CONTRIBUTING.md        # Contribution guidelines
+│
+├── boards/                    # Board hardware definitions
 │   ├── base.yaml              # Common ESPHome settings
 │   ├── a6.yaml                # KC868-A6 master board (mixing valves)
 │   ├── a16.yaml               # KC868-A16 slave boards (relays)
 │   ├── waveshare-s3.yaml      # ESP32-S3-POE board
-│   ├── s1-pro-multi-sense.yaml # Sensor board (2157 lines)
+│   ├── s1-pro-multi-sense.yaml # Sensor board
 │   ├── *_ethernet.yaml        # Ethernet network configs
 │   └── wifi.yaml              # WiFi network config
 │
-├── components/                # Reusable YAML component packages
-│   ├── pid.yaml               # PID controller (27 lines)
-│   ├── pid_autotune.yaml      # Auto-tuning logic
-│   ├── pid_sensors.yaml       # PID input/output sensors
-│   ├── radiant.yaml           # Radiant floor heating/cooling
-│   ├── fancoil.yaml           # Fancoil unit control (analog 0-10V)
-│   ├── heat_only_radiant.yaml # Heat-only radiant variant
-│   ├── modbus_relay_board.yaml # Relay board via Modbus
-│   ├── modbus_relay_switch.yaml # Individual relay switch
-│   ├── modbus_analog_output.yaml # 0-10V DAC output
-│   ├── direct_pump.yaml       # Direct pump control
-│   ├── mixing_pump.yaml       # Mixing valve + pump
-│   ├── failover_sensor.yaml   # 3-tier sensor failover
-│   ├── fancoil_boost_coordinator.yaml # Complex boost logic (313 lines)
-│   ├── mev.yaml               # Mechanical Extract Ventilation (365 lines)
+├── components/                # Project-specific components (non-Vesta)
+│   ├── room_sensors.yaml      # Room sensor failover wiring
+│   ├── mev_modbus.yaml        # MEV Modbus device driver
+│   ├── mev_demand.yaml        # MEV demand signal aggregation
 │   └── rooms/                 # Room-specific configurations
 │       ├── ground_floor/      # Ground floor rooms
 │       ├── first_floor/       # First floor rooms
 │       └── second_floor/      # Second floor rooms
 │
 ├── devices/                   # Main device configurations (entry points)
-│   ├── climate-control.yaml   # Main HVAC system (2117 lines)
-│   └── room-sensor-soggiorno.yaml # Standalone room sensor (372 lines)
+│   ├── climate-control.yaml   # Main HVAC system
+│   ├── room-sensor-soggiorno.yaml # Standalone room sensor
+│   └── wall-sensor.yaml       # Wall-mounted sensor (SEN66)
 │
 ├── libs/                      # Custom Python/C++ components
-│   └── s1_pro/
-│       ├── __init__.py        # Package marker
-│       ├── sensor.py          # Python config validator (50 lines)
-│       └── s1_pro.h           # C++ LD2450 radar driver
+│   └── s1_pro/                # LD2450 radar driver
 │
 ├── locals/                    # Local development/deployment configs
-│   └── climate-control.yaml   # Wrapper for local testing
-│
 ├── remotes/                   # Remote GitHub-based deployment configs
-│   └── climate-control.yaml   # Wrapper for production deployment
+├── docs/                      # Project documentation and guides
+├── home-assistant/            # HA dashboards and configurations
+│   └── dashboards/            # Lovelace dashboard configs
 │
-├── docs/                      # Project documentation
-│   ├── architecture-diagram.md # Mermaid diagrams
-│   ├── prd.md                 # Product Requirements Document
-│   ├── epic-*.md              # Sprint/epic documentation
-│   ├── brief*.md              # Feature briefs
-│   └── *.md                   # Various guides and docs
-│
-├── .bmad-core/                # Brownfield Management & Development framework
-│   ├── agent-teams/           # AI agent team definitions
-│   ├── agents/                # Individual agent configs
-│   ├── templates/             # Document templates
-│   ├── workflows/             # Development workflows
-│   └── *.md                   # BMAD guides and documentation
-│
-├── .github/                   # GitHub workflows and chat modes
+├── _bmad/                     # BMAD framework (agents, workflows, tasks)
+├── _bmad-output/              # BMAD artifacts (epics, stories, analysis)
 │
 ├── secrets.yaml               # (gitignored) Credentials and secrets
 └── TODO.md                    # Feature backlog (Italian)
@@ -184,16 +182,64 @@ esphome-devices/
 - Pattern: kebab-case descriptive names
 - Examples: `climate-control.yaml`, `room-sensor-soggiorno.yaml`
 
-### Entity Naming (Slug Pattern)
+### Entity ID Naming Convention
 
-**Standard Format**: `{location}_{component}_{variant}`
+**Pattern**: `{scope}_{component}[_{mode}][_{aspect}]`
 
-Examples:
-- `soggiorno_radiant` - Living room radiant floor
-- `ground_floor_fancoil` - Ground floor fancoil
-- `first_floor_mev` - First floor mechanical ventilation
-- `pid_radiant_soggiorno` - PID controller for living room radiant
-- `relay_1` through `relay_16` - Relay numbering per board
+| Position | Dimension | Required | Examples |
+|----------|-----------|----------|---------|
+| 1st | Scope | Yes | `soggiorno`, `cucina`, `camera_nord`, `ground_floor` |
+| 2nd | Component | Yes | `radiant`, `fancoil`, `mev`, `pump`, `mixing` |
+| 3rd | Mode | Optional | `heat`, `cool`, `pid`, `boost` |
+| 4th | Aspect | Optional | `output`, `setpoint`, `kp`, `ki`, `kd`, `status` |
+
+**Rules**:
+1. Room names are atomic tokens (`camera_nord` is one slug, not two dimensions)
+2. Floor scope is only used when no room applies (entity is floor-scoped)
+3. Board-level hardware entities (`relay_1`, `dac_output_1`) are excluded — they keep their own convention
+4. Each dimension is always a single underscore-delimited token
+5. Convention applies to entity IDs only — file names and variable names are separate concerns
+
+**Example Entity IDs**:
+
+```
+# Room-scoped radiant floor control
+soggiorno_radiant                    # Radiant floor switch/output
+soggiorno_radiant_pid                # PID climate entity
+soggiorno_radiant_pid_output         # PID output value
+soggiorno_radiant_pid_setpoint       # PID target temperature
+soggiorno_radiant_pid_kp             # PID proportional gain
+soggiorno_radiant_override           # Manual override switch
+soggiorno_radiant_override_value     # Manual override percentage
+soggiorno_radiant_pwm                # Slow PWM relay driver
+
+# Room-scoped fancoil control
+soggiorno_fancoil_pid                # Fancoil PID climate entity
+soggiorno_boost_state                # Boost coordinator state
+soggiorno_boost_active               # Boost active flag
+soggiorno_temp_delta                  # Temperature delta from setpoint
+soggiorno_temp_trend                  # Temperature rate of change
+
+# Room-scoped sensors (failover tiers)
+soggiorno_temp_udp                   # UDP temperature (primary)
+soggiorno_temp_ha                    # Home Assistant temperature (fallback)
+soggiorno_temp_abstracted            # Failover-resolved temperature
+soggiorno_humidity_abstracted        # Failover-resolved humidity
+soggiorno_dew_point                  # Calculated dew point
+soggiorno_sensor_tier                # Active failover tier
+
+# Floor-scoped aggregates
+ground_floor_radiant_any_zone_open   # Any radiant zone active
+ground_floor_max_dew_point           # Max dew point for protection
+ground_floor_fancoil_boost_threshold # Boost activation threshold
+
+# Floor-scoped MEV
+first_floor_mev_fan_speed            # MEV fan speed control
+first_floor_mev_co2_demand           # CO2-based demand signal
+first_floor_mev_alarm_active         # Master alarm indicator
+```
+
+**Key Insight**: PID is a *mode of operation* ("radiant under PID control"), not a separate component. This keeps the model flat with a maximum of 4 segments.
 
 **Italian Terms** (used throughout):
 - `soggiorno` = living room
@@ -572,26 +618,26 @@ external_components:
 
 ### Critical Configuration Files
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `devices/climate-control.yaml` | 2117 | **Main entry point** - orchestrates entire system |
-| `boards/base.yaml` | 20 | **Common settings** - logger, API, OTA for all devices |
-| `boards/waveshare-s3.yaml` | ~200 | Master board hardware definition |
-| `components/fancoil_boost_coordinator.yaml` | 313 | Complex boost algorithm for humidity control |
-| `components/mev.yaml` | 365 | MEV ventilation control with air quality |
-| `components/failover_sensor.yaml` | ~50 | 3-tier sensor failover logic |
+| File | Purpose |
+|------|---------|
+| `devices/climate-control.yaml` | **Main entry point** - orchestrates entire system |
+| `boards/base.yaml` | **Common settings** - logger, API, OTA for all devices |
+| `boards/waveshare-s3.yaml` | Master board hardware definition |
+| `vesta/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
+| `vesta/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
+| `vesta/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
+| `components/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 
 ### Key Documentation Files
 
 | File | Purpose |
 |------|---------|
 | `docs/architecture-diagram.md` | Mermaid diagrams of system architecture |
-| `docs/prd.md` | Product Requirements Document (61 KB) |
-| `docs/epic-17-brief.md` | Latest epic: Seasonal mode automation |
-| `docs/epic-16-*.md` | MEV integration documentation |
+| `_bmad-output/planning-artifacts/prd.md` | Product Requirements Document |
+| `_bmad-output/planning-artifacts/epics.md` | Master epic index (Epics 1-20) |
+| `_bmad-output/analysis/brainstorming-session-2026-02-24.md` | Entity ID naming convention |
+| `_bmad-output/analysis/brainstorming-session-2026-02-05.md` | Vesta open-source strategy |
 | `TODO.md` | Feature backlog (in Italian) |
-| `.bmad-core/user-guide.md` | BMAD framework user guide |
-| `.bmad-core/working-in-the-brownfield.md` | Brownfield development guide |
 
 ### Configuration Entry Points
 
@@ -777,6 +823,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-03-23 | 1.1 | Updated repo structure for Vesta extraction, added entity ID naming convention, updated file references for Epics 18-20 | AI Assistant |
 | 2026-01-23 | 1.0 | Initial CLAUDE.md creation | AI Assistant |
 
 ---

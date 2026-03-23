@@ -72,10 +72,10 @@ development_status:
   epic-10: done # ESP32 Room Sensors & Zone Activity Tracking via UDP
   epic-10-retrospective: optional
 
-  epic-11: backlog # ESP32 Room Sensors via UDP (Deferred)
+  epic-11: cancelled # ESP32 Room Sensors via UDP - Obsolete (failover sensor + arch changes)
   epic-11-retrospective: optional
 
-  epic-12: backlog # Autonomous Dew Point Protection for Radiant Cooling (Deferred)
+  epic-12: done # Autonomous Dew Point Protection - Implemented via native ESPHome dew_point sensor + combination aggregator
   epic-12-retrospective: optional
 
   epic-13: done # Ground Floor Hybrid Radiant-Fancoil Cooling
@@ -89,10 +89,10 @@ development_status:
 
   # === Draft Epics (16-17) - No stories defined yet ===
 
-  epic-16: backlog # First Floor MEV Intelligent Control (Draft)
+  epic-16: done # First Floor MEV Intelligent Control - Implemented via Vesta mev_ventilation coordinator + mev_demand
   epic-16-retrospective: optional
 
-  epic-17: backlog # Three-Tier Seasonal Mode Selection (Draft)
+  epic-17: done # Three-Tier Seasonal Mode Selection - All 7 stories complete (Jan 22, 2026)
   epic-17-retrospective: optional
 
   # === Epic 18: MEV Modbus Migration (Complete - commit 834f4be) ===
@@ -110,14 +110,14 @@ development_status:
 
   # === Epic 19: Vesta Climate Framework - Open Source Extraction (Phase 1) ===
 
-  epic-19: in-progress
-  19-1-repository-scaffolding: review
-  19-2-extract-trend-sensor: review
-  19-3-extract-failover-sensor: review
-  19-4-extract-proportional-demand-sensor: review
-  19-5-extract-fancoil-boost-coordinator: review
-  19-6-extract-mev-ventilation-coordinator: review
-  19-7-documentation-principles-examples: review
+  epic-19: done
+  19-1-repository-scaffolding: done
+  19-2-extract-trend-sensor: done
+  19-3-extract-failover-sensor: done
+  19-4-extract-proportional-demand-sensor: done
+  19-5-extract-fancoil-boost-coordinator: done
+  19-6-extract-mev-ventilation-coordinator: done
+  19-7-documentation-principles-examples: done
   epic-19-retrospective: optional
 
   # === Epic 20: Vesta Phase 1 Completion - Full Component Migration ===
