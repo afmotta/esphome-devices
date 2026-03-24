@@ -131,3 +131,14 @@ development_status:
   20-6-documentation-new-components: done
   20-7-migrate-esphome-devices-to-vesta: done
   epic-20-retrospective: optional
+
+  # === Epic 21: Vesta CLI Configuration Generator (Phase 2) ===
+
+  epic-21: backlog
+  21-1-project-scaffolding-data-model: backlog
+  21-2-building-discovery-wizard: backlog
+  21-3-hardware-mapping-wizard: backlog
+  21-4-yaml-configuration-generator: backlog
+  21-5-validation-dry-run: backlog
+  21-6-documentation-user-guide: backlog
+  epic-21-retrospective: optional

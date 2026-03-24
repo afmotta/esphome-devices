@@ -41,6 +41,7 @@ This document consolidates all epics for the ESPHome Multi-Floor Climate Control
 | 18 | MEV Modbus Migration | New |
 | 19 | Vesta Climate Framework - Open Source Extraction (Phase 1) | In Progress |
 | 20 | Vesta Phase 1 Completion - Full Component Migration | New |
+| 21 | Vesta CLI Configuration Generator | New |
 
 ---
 
