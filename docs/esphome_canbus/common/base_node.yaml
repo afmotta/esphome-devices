@@ -1,0 +1,63 @@
+# =============================================================================
+# base_node.yaml — shared package included by every node
+# =============================================================================
+# Required substitutions:
+#   ${node_name}, ${node_id}, ${room_id}, ${board_id}
+#   ${can_cs_pin}, ${can_clk_pin}, ${can_mosi_pin}, ${can_miso_pin}
+#   ${can_int_pin}, ${can_clock}
+# =============================================================================
+
+esphome:
+  includes:
+    - common/canbus_protocol.h
+  on_boot:
+    priority: 200
+    then:
+      - lambda: |-
+          ESP_LOGI("canbus", "Node ${node_name} online — ID=${node_id} R${room_id}B${board_id}");
+          ESP_LOGI("canbus", "  Input  CAN ID: 0x%03X", can_id(CAT_INPUT,  ${node_id}));
+          ESP_LOGI("canbus", "  Status CAN ID: 0x%03X", can_id(CAT_STATUS, ${node_id}));
+
+globals:
+  - id: error_flags
+    type: uint8_t
+    initial_value: "0"
+
+# --------------- SPI bus for MCP2515 ---------------
+spi:
+  clk_pin: ${can_clk_pin}
+  mosi_pin: ${can_mosi_pin}
+  miso_pin: ${can_miso_pin}
+
+# --------------- CAN bus ---------------
+canbus:
+  - platform: mcp2515
+    id: can0
+    cs_pin: ${can_cs_pin}
+    interrupt_pin: ${can_int_pin}
+    clock: ${can_clock}
+    bit_rate: 125KBPS
+    on_frame:
+      - can_id: !lambda 'return can_id(CAT_OUTPUT, ${node_id});'
+        then:
+          - lambda: |-
+              if (x.size() >= 5 && x[0] == PROTO_V1) {
+                uint8_t subtype = x[1];
+                if (subtype == MSG_CONFIG_WRITE) {
+                  uint8_t key = x[2];
+                  uint16_t val = (x[3] << 8) | x[4];
+                  ESP_LOGI("canbus", "Config key=0x%02X value=%u", key, val);
+                }
+              }
+
+# --------------- Heartbeat every 30 seconds ---------------
+interval:
+  - interval: 30s
+    then:
+      - canbus.send:
+          canbus_id: can0
+          can_id: !lambda 'return can_id(CAT_STATUS, ${node_id});'
+          data: !lambda |-
+            uint8_t uptime_h = (uint8_t)((millis() / 3600000UL) & 0xFF);
+            uint8_t btn_state = 0x00;
+            return heartbeat_payload(uptime_h, btn_state, id(error_flags), ${room_id}, ${board_id});

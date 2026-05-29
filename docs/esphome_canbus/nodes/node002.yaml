@@ -1,0 +1,38 @@
+# =============================================================================
+# Node: node002 — ID 2
+# =============================================================================
+# Floor:    Ground
+# Location: Kitchen island
+# Room:     1, Board: 1
+# Buttons:  2 (GPIO 2,3)
+# CAN ID:   Input  = 0x202
+#            Status = 0x602
+# =============================================================================
+
+substitutions:
+  node_name: "node002"
+  node_id: "2"
+  room_id: "1"
+  board_id: "1"
+  debounce_ms: "50"
+  can_cs_pin: "GPIO9"
+  can_clk_pin: "GPIO18"
+  can_mosi_pin: "GPIO19"
+  can_miso_pin: "GPIO16"
+  can_int_pin: "GPIO20"
+  can_clock: "16MHZ"
+
+esphome:
+  name: ${node_name}
+  friendly_name: "Kitchen island"
+
+rp2040:
+  board: rpipico
+
+logger:
+  level: DEBUG
+
+packages:
+  base: !include ../common/base_node.yaml
+  btn0: !include { file: ../common/button.yaml, vars: { button_index: "0", button_gpio: "2" } }
+  btn1: !include { file: ../common/button.yaml, vars: { button_index: "1", button_gpio: "3" } }

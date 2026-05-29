@@ -1,0 +1,83 @@
+# =============================================================================
+# button.yaml — per-button package, include once per physical button
+# =============================================================================
+# Required vars: ${button_index}, ${button_gpio}
+# Required parent substitutions:
+#   ${node_name}, ${node_id}, ${room_id}, ${board_id}, ${debounce_ms}
+# =============================================================================
+
+binary_sensor:
+  - platform: gpio
+    name: "${node_name} Button ${button_index}"
+    id: btn_${button_index}
+    pin:
+      number: ${button_gpio}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_ms}ms
+      - delayed_off: ${debounce_ms}ms
+
+    on_multi_click:
+      # ----- Triple click -----
+      - timing:
+          - ON for at most 0.5s
+          - OFF for 0.05s to 0.4s
+          - ON for at most 0.5s
+          - OFF for 0.05s to 0.4s
+          - ON for at most 0.5s
+          - OFF for at least 0.3s
+        then:
+          - lambda: 'ESP_LOGD("btn", "${node_name} btn${button_index}: triple");'
+          - canbus.send:
+              canbus_id: can0
+              can_id: !lambda 'return can_id(CAT_INPUT, ${node_id});'
+              data: !lambda 'return button_payload(${button_index}, EVT_TRIPLE, ${room_id}, ${board_id});'
+
+      # ----- Double click -----
+      - timing:
+          - ON for at most 0.5s
+          - OFF for 0.05s to 0.4s
+          - ON for at most 0.5s
+          - OFF for at least 0.3s
+        then:
+          - lambda: 'ESP_LOGD("btn", "${node_name} btn${button_index}: double");'
+          - canbus.send:
+              canbus_id: can0
+              can_id: !lambda 'return can_id(CAT_INPUT, ${node_id});'
+              data: !lambda 'return button_payload(${button_index}, EVT_DOUBLE, ${room_id}, ${board_id});'
+
+      # ----- Single click -----
+      - timing:
+          - ON for at most 0.5s
+          - OFF for at least 0.3s
+        then:
+          - lambda: 'ESP_LOGD("btn", "${node_name} btn${button_index}: click");'
+          - canbus.send:
+              canbus_id: can0
+              can_id: !lambda 'return can_id(CAT_INPUT, ${node_id});'
+              data: !lambda 'return button_payload(${button_index}, EVT_CLICK, ${room_id}, ${board_id});'
+
+      # ----- Long press (1-3 seconds) -----
+      - timing:
+          - ON for 1s to 3s
+          - OFF for at least 0.3s
+        then:
+          - lambda: 'ESP_LOGD("btn", "${node_name} btn${button_index}: long");'
+          - canbus.send:
+              canbus_id: can0
+              can_id: !lambda 'return can_id(CAT_INPUT, ${node_id});'
+              data: !lambda 'return button_payload(${button_index}, EVT_LONG, ${room_id}, ${board_id});'
+
+      # ----- Extra long press (3+ seconds) -----
+      - timing:
+          - ON for at least 3s
+          - OFF for at least 0.3s
+        then:
+          - lambda: 'ESP_LOGD("btn", "${node_name} btn${button_index}: extra_long");'
+          - canbus.send:
+              canbus_id: can0
+              can_id: !lambda 'return can_id(CAT_INPUT, ${node_id});'
+              data: !lambda 'return button_payload(${button_index}, EVT_EXTRA_LONG, ${room_id}, ${board_id});'

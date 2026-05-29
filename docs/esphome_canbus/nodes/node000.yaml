@@ -1,0 +1,40 @@
+# =============================================================================
+# Node: node000 — ID 0
+# =============================================================================
+# Floor:    Ground
+# Location: Hallway entrance
+# Room:     0, Board: 0
+# Buttons:  4 (GPIO 2,3,4,5)
+# CAN ID:   Input  = 0x200
+#            Status = 0x600
+# =============================================================================
+
+substitutions:
+  node_name: "node000"
+  node_id: "0"
+  room_id: "0"
+  board_id: "0"
+  debounce_ms: "50"
+  can_cs_pin: "GPIO9"
+  can_clk_pin: "GPIO18"
+  can_mosi_pin: "GPIO19"
+  can_miso_pin: "GPIO16"
+  can_int_pin: "GPIO20"
+  can_clock: "16MHZ"
+
+esphome:
+  name: ${node_name}
+  friendly_name: "Hallway entrance"
+
+rp2040:
+  board: rpipico
+
+logger:
+  level: DEBUG
+
+packages:
+  base: !include ../common/base_node.yaml
+  btn0: !include { file: ../common/button.yaml, vars: { button_index: "0", button_gpio: "2" } }
+  btn1: !include { file: ../common/button.yaml, vars: { button_index: "1", button_gpio: "3" } }
+  btn2: !include { file: ../common/button.yaml, vars: { button_index: "2", button_gpio: "4" } }
+  btn3: !include { file: ../common/button.yaml, vars: { button_index: "3", button_gpio: "5" } }

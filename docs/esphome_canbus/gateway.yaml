@@ -1,0 +1,285 @@
+# =============================================================================
+# gateway.yaml — CAN Bus ↔ Home Assistant bridge
+# =============================================================================
+# Hardware: Waveshare ESP32-S3-POE-ETH-8DI-8DO
+# Role:     Listens for CAN button events and heartbeats, fires HA events.
+#           Exposes an API service for HA to send commands to nodes.
+# =============================================================================
+
+esphome:
+  name: canbus-gateway
+  friendly_name: "CAN Bus Gateway"
+  includes:
+    - common/canbus_protocol.h
+
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# --------------- Logging ---------------
+logger:
+  baud_rate: 0
+  level: DEBUG
+
+# --------------- Network: PoE Ethernet ---------------
+ethernet:
+  type: W5500
+  clk_pin: GPIO15
+  mosi_pin: GPIO13
+  miso_pin: GPIO14
+  cs_pin: GPIO16
+  interrupt_pin: GPIO12
+  reset_pin: GPIO39
+
+# --------------- Home Assistant API ---------------
+api:
+  services:
+    # Service: send an output command to a specific node
+    - service: canbus_send_output
+      variables:
+        node_id: int
+        subtype: int
+        param1: int
+        param2: int
+      then:
+        - canbus.send:
+            canbus_id: can0
+            can_id: !lambda 'return can_id(CAT_OUTPUT, (uint16_t)node_id);'
+            data: !lambda |-
+              return {PROTO_V1, (uint8_t)subtype, (uint8_t)param1, (uint8_t)param2,
+                      0x00, 0x00, 0x00, 0x00};
+
+    # Service: send a config parameter to a specific node
+    - service: canbus_send_config
+      variables:
+        node_id: int
+        key: int
+        value: int
+      then:
+        - canbus.send:
+            canbus_id: can0
+            can_id: !lambda 'return can_id(CAT_OUTPUT, (uint16_t)node_id);'
+            data: !lambda |-
+              return {PROTO_V1, MSG_CONFIG_WRITE, (uint8_t)key,
+                      (uint8_t)((value >> 8) & 0xFF), (uint8_t)(value & 0xFF),
+                      0x00, 0x00, 0x00};
+
+ota:
+  - platform: esphome
+
+# --------------- I2C (for PCA9554 output expander) ---------------
+i2c:
+  sda: GPIO42
+  scl: GPIO41
+  frequency: 100kHz
+  id: i2cbus
+  scan: false
+
+pca9554:
+  - id: tca9554_hub
+    address: 0x20
+
+# --------------- Globals (bridge between CAN lambda and HA event actions) ----
+globals:
+  - id: evt_room
+    type: uint8_t
+    initial_value: "0"
+  - id: evt_board
+    type: uint8_t
+    initial_value: "0"
+  - id: evt_button
+    type: uint8_t
+    initial_value: "0"
+  - id: evt_type
+    type: uint8_t
+    initial_value: "0"
+  - id: hb_uptime
+    type: uint8_t
+    initial_value: "0"
+  - id: hb_errors
+    type: uint8_t
+    initial_value: "0"
+
+# --------------- CAN Bus (native ESP32 TWAI) ---------------
+canbus:
+  - platform: esp32_can
+    id: can0
+    tx_pin: GPIO2
+    rx_pin: GPIO3
+    bit_rate: 125KBPS
+    on_frame:
+      # ---- All button events (CAT_INPUT = category 1) ----
+      - can_id: 0x200
+        can_id_mask: 0x600
+        then:
+          - if:
+              condition:
+                lambda: 'return x.size() >= 6 && x[0] == PROTO_V1;'
+              then:
+                - lambda: |-
+                    id(evt_room)   = payload_room(x);
+                    id(evt_board)  = payload_board(x);
+                    id(evt_button) = payload_button_index(x);
+                    id(evt_type)   = payload_event_type(x);
+                    ESP_LOGI("gw", "Button R%02uB%u btn%u %s",
+                             id(evt_room), id(evt_board), id(evt_button),
+                             event_type_str(id(evt_type)));
+                - homeassistant.event:
+                    event: esphome.canbus_button
+                    data:
+                      room: !lambda 'return to_string(id(evt_room));'
+                      board: !lambda 'return to_string(id(evt_board));'
+                      button: !lambda 'return to_string(id(evt_button));'
+                      event: !lambda 'return std::string(event_type_str(id(evt_type)));'
+                - text_sensor.template.publish:
+                    id: last_event
+                    state: !lambda |-
+                      char buf[48];
+                      snprintf(buf, sizeof(buf), "R%02uB%u btn%u %s",
+                               id(evt_room), id(evt_board), id(evt_button),
+                               event_type_str(id(evt_type)));
+                      return std::string(buf);
+
+      # ---- All heartbeats (CAT_STATUS = category 3) ----
+      - can_id: 0x600
+        can_id_mask: 0x600
+        then:
+          - if:
+              condition:
+                lambda: 'return x.size() >= 7 && x[0] == PROTO_V1;'
+              then:
+                - lambda: |-
+                    id(evt_room)   = payload_room(x);
+                    id(evt_board)  = payload_board(x);
+                    id(hb_uptime)  = payload_uptime(x);
+                    id(hb_errors)  = payload_errors(x);
+                    if (id(hb_errors) != ERR_NONE) {
+                      ESP_LOGW("gw", "Node R%02uB%u error=0x%02X uptime=%uh",
+                               id(evt_room), id(evt_board), id(hb_errors), id(hb_uptime));
+                    } else {
+                      ESP_LOGD("gw", "Heartbeat R%02uB%u uptime=%uh",
+                               id(evt_room), id(evt_board), id(hb_uptime));
+                    }
+                - homeassistant.event:
+                    event: esphome.canbus_heartbeat
+                    data:
+                      room: !lambda 'return to_string(id(evt_room));'
+                      board: !lambda 'return to_string(id(evt_board));'
+                      uptime: !lambda 'return to_string(id(hb_uptime));'
+                      errors: !lambda 'return to_string(id(hb_errors));'
+
+# --------------- Debug: last event text sensor ---------------
+text_sensor:
+  - platform: template
+    name: "Last CAN Event"
+    id: last_event
+    icon: "mdi:message-flash"
+
+# --------------- Board accessories ---------------
+output:
+  - platform: ledc
+    id: buzzer
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: rgb_led
+    name: "Gateway RGB LED"
+    chipset: WS2812
+    rgb_order: RGB
+    pin: GPIO38
+    num_leds: 1
+
+# --------------- 8 Digital Inputs (optocoupler isolated) ---------------
+binary_sensor:
+  - platform: gpio
+    id: di1
+    name: "Gateway DI1"
+    pin: { number: GPIO4, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di2
+    name: "Gateway DI2"
+    pin: { number: GPIO5, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di3
+    name: "Gateway DI3"
+    pin: { number: GPIO6, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di4
+    name: "Gateway DI4"
+    pin: { number: GPIO7, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di5
+    name: "Gateway DI5"
+    pin: { number: GPIO8, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di6
+    name: "Gateway DI6"
+    pin: { number: GPIO9, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di7
+    name: "Gateway DI7"
+    pin: { number: GPIO10, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+  - platform: gpio
+    id: di8
+    name: "Gateway DI8"
+    pin: { number: GPIO11, mode: INPUT_PULLUP, inverted: true }
+    filters: [{ delayed_on_off: 10ms }]
+
+# --------------- 8 Digital Outputs (via PCA9554 I2C expander) ---------------
+switch:
+  - platform: gpio
+    name: "Gateway DO1"
+    id: do1
+    pin: { pca9554: tca9554_hub, number: 0, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO2"
+    id: do2
+    pin: { pca9554: tca9554_hub, number: 1, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO3"
+    id: do3
+    pin: { pca9554: tca9554_hub, number: 2, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO4"
+    id: do4
+    pin: { pca9554: tca9554_hub, number: 3, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO5"
+    id: do5
+    pin: { pca9554: tca9554_hub, number: 4, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO6"
+    id: do6
+    pin: { pca9554: tca9554_hub, number: 5, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO7"
+    id: do7
+    pin: { pca9554: tca9554_hub, number: 6, mode: { output: true } }
+    inverted: true
+  - platform: gpio
+    name: "Gateway DO8"
+    id: do8
+    pin: { pca9554: tca9554_hub, number: 7, mode: { output: true } }
+    inverted: true
