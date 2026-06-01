@@ -15,3 +15,7 @@
 - **`MSG_BUTTON_EVENT` / `MSG_HEARTBEAT` sharing `0x01` remains intentional** [`firmware/common/canbus_protocol.h`] — confirmed by the PRD wire spec; category bits disambiguate button vs heartbeat frames.
 - **`assert`-based validation note was stale** [`firmware/generate_nodes.py`] — generator validation already used explicit `print + sys.exit(1)` checks before this follow-up.
 - **SPI pin corrections are already propagated downstream** [`firmware/generate_nodes.py`, `firmware/nodes/node100.yaml`, `firmware/nodes/node101.yaml`] — template and generated nodes now carry GPIO2 / GPIO3 / GPIO4 and GPIO11.
+
+## Deferred from: code review of 2-1-base-node-configuration-spi-and-mcp2515-setup.md (2026-06-01)
+
+- `can_int_pin` substitution is generated in node YAMLs but not consumed by `canbus.mcp2515` config in `firmware/common/base_node.yaml`; keep as deferred pre-existing cleanup until platform support or template strategy is revisited.

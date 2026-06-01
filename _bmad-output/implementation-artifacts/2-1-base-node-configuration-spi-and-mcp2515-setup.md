@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 epic: 2
 story: 1
 story_key: 2-1-base-node-configuration-spi-and-mcp2515-setup
@@ -8,7 +8,7 @@ baseline_commit: 74aa3f4f987e4363247f17f91f9e0ce7f517cfc0
 
 # Story 2.1: Base node configuration - SPI and MCP2515 setup
 
-Status: review
+Status: done
 
 ## Story
 
@@ -19,7 +19,7 @@ so that the node's CAN hardware is correctly initialized and ready to transmit f
 ## Acceptance Criteria
 
 1. `firmware/common/base_node.yaml` configures `spi:` with the verified CANBed RP2040 SPI pin mapping
-2. `firmware/common/base_node.yaml` configures `canbus:` with platform `mcp2515`, `cs_pin`, `bit_rate: 125kbps`, `clock_freq` matching OQ-3, and `int_pin` matching OQ-2
+2. `firmware/common/base_node.yaml` configures `canbus:` with platform `mcp2515`, `cs_pin`, `bit_rate: 125kbps`, and `clock` matching OQ-3; Story notes document that OQ-2 `int_pin` is hardware-verified but not configurable via ESPHome 2025.12.5 `canbus.mcp2515`
 3. The node platform remains `rp2040` with board `rpipico`
 4. Node isolation is enforced: no `wifi:`, no `api:`, no `ota:`, no `web_server:`
 5. Substitution variables `${node_id}`, `${room_id}`, `${board_id}` are declared and used in the shared package
@@ -31,6 +31,11 @@ so that the node's CAN hardware is correctly initialized and ready to transmit f
 - [x] Task 2: Verify node-isolation constraints in base node package (AC: 4)
 - [x] Task 3: Validate substitutions and references (`node_id`, `room_id`, `board_id`) (AC: 5)
 - [x] Task 4: Run compile gate for PoC node config (AC: 6)
+
+### Review Findings
+
+- [x] [Review][Patch] Update AC2 wording to match supported ESPHome MCP2515 options and explicitly document `int_pin` limitation [firmware/common/base_node.yaml:1]
+- [x] [Review][Defer] `can_int_pin` substitution is generated but currently unused in base node package [firmware/nodes/node100.yaml:25] — deferred, pre-existing
 
 ## Dev Notes
 
