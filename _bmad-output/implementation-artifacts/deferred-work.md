@@ -1,3 +1,9 @@
+## Deferred from: code review of 1-3-author-canbus-protocol-header (2026-06-01)
+
+- **`payload_room`/`payload_board` return wrong bytes for heartbeat frames** [`firmware/common/canbus_protocol.h`, `firmware/gateway.yaml:159`] — `payload_room(d)` reads `d[4]` which is `error_flags` in a heartbeat frame; `payload_board(d)` reads `d[5]` which is `room`. Gateway heartbeat handler calls these decoders (lines 159–160), silently staging wrong values into `evt_room`/`evt_board` globals on every heartbeat. Pre-existing; correct with heartbeat-specific decoders or split the layout in a future story.
+- **`button_index` not range-checked in `button_payload`** [`firmware/common/canbus_protocol.h`] — Accepts `uint8_t button_index` (0–255) without validation; values 6–255 produce syntactically valid frames with out-of-spec button indices. Pre-existing design choice; the constraint (max 6 GPIOs) is enforced at Python codegen level in `generate_nodes.py`.
+- **`static const` gives internal linkage for all protocol constants** [`firmware/common/canbus_protocol.h`] — Should prefer `inline constexpr` for a header-only constants file to avoid ODR issues if ESPHome's code generator ever emits multiple translation units. Pre-existing; no current practical impact under ESPHome's single-TU model.
+
 ## Deferred from: code review of 1-2-resolve-hardware-open-questions (2026-06-01)
 
 - **SPI pin corrections (SCK=GPIO2, MOSI=GPIO3, MISO=GPIO4) not explicitly assigned to downstream stories** — Confirmed corrections documented in README table but not added as explicit subtasks in Stories 1.4 or 2.1. Risk of being overlooked when those stories are executed.

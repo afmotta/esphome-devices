@@ -1,0 +1,23 @@
+esphome:
+  name: test-gateway
+  includes:
+    - common/canbus_protocol.h
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          auto make_event_string = static_cast<std::string (*)(uint8_t)>(event_type_str);
+          const auto frame_id = can_id(CAT_INPUT, 1);
+          const auto payload = button_payload(0, EVT_TRIPLE_CLICK, 1, 2);
+          const auto event_name = make_event_string(EVT_EXTRA_LONG_PRESS);
+          if (payload.size() != CAN_FRAME_SIZE || frame_id == 0 || event_name.empty()) {
+            ESP_LOGE("protocol", "protocol self-check FAIL");
+          }
+
+esp32:
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+  baud_rate: 0

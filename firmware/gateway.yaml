@@ -129,7 +129,7 @@ canbus:
                     id(evt_type)   = payload_event_type(x);
                     ESP_LOGI("gw", "Button R%02uB%u btn%u %s",
                              id(evt_room), id(evt_board), id(evt_button),
-                             event_type_str(id(evt_type)));
+                             event_type_str(id(evt_type)).c_str());
                 - homeassistant.event:
                     event: esphome.canbus_button
                     data:
@@ -143,7 +143,7 @@ canbus:
                       char buf[48];
                       snprintf(buf, sizeof(buf), "R%02uB%u btn%u %s",
                                id(evt_room), id(evt_board), id(evt_button),
-                               event_type_str(id(evt_type)));
+                               event_type_str(id(evt_type)).c_str());
                       return std::string(buf);
 
       # ---- All heartbeats (CAT_STATUS = category 3) ----

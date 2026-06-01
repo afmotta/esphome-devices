@@ -1,13 +1,14 @@
 ---
-status: ready-for-dev
+status: done
 epic: 1
 story: 3
 story_key: 1-3-author-canbus-protocol-header
+baseline_commit: e841ae1bc6ffe03a19bf09303b3ca602135a3825
 ---
 
 # Story 1.3: Author `canbus_protocol.h` from scratch
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -35,19 +36,29 @@ so that all CAN frame construction and decoding across both node and gateway fir
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Write `firmware/common/canbus_protocol.h` from scratch (AC: 1–4)
-  - [ ] Add `#pragma once` header guard
-  - [ ] Add required `#include <vector>`, `#include <string>`, `#include <cstdint>`
-  - [ ] Define all constants: `PROTO_V1`, `CAT_INPUT`, `CAT_STATUS`, `MSG_BUTTON_EVENT`, `MSG_HEARTBEAT`, all `EVT_*`, `CAN_FRAME_SIZE`
-  - [ ] Define `inline uint32_t can_id(uint8_t category, uint16_t node_id)`
-  - [ ] Define `inline std::vector<uint8_t> button_payload(uint8_t button_index, uint8_t event_type, uint8_t room_id, uint8_t board_id)`
-  - [ ] Define `inline std::string event_type_str(uint8_t event_type)` — return type MUST be `std::string`, not `const char*`
-- [ ] Task 2: Compile under rp2040 platform (AC: 5)
-  - [ ] Create a minimal test node YAML that includes the header and run `esphome compile`
-  - [ ] Confirm zero errors and zero warnings
-- [ ] Task 3: Compile under esp32/esp-idf platform (AC: 6)
-  - [ ] Create a minimal test gateway YAML that includes the header and run `esphome compile`
-  - [ ] Confirm zero errors and zero warnings
+- [x] Task 1: Write `firmware/common/canbus_protocol.h` from scratch (AC: 1–4)
+  - [x] Add `#pragma once` header guard
+  - [x] Add required `#include <vector>`, `#include <string>`, `#include <cstdint>`
+  - [x] Define all constants: `PROTO_V1`, `CAT_INPUT`, `CAT_STATUS`, `MSG_BUTTON_EVENT`, `MSG_HEARTBEAT`, all `EVT_*`, `CAN_FRAME_SIZE`
+  - [x] Define `inline uint32_t can_id(uint8_t category, uint16_t node_id)`
+  - [x] Define `inline std::vector<uint8_t> button_payload(uint8_t button_index, uint8_t event_type, uint8_t room_id, uint8_t board_id)`
+  - [x] Define `inline std::string event_type_str(uint8_t event_type)` — return type MUST be `std::string`, not `const char*`
+- [x] Task 2: Compile under rp2040 platform (AC: 5)
+  - [x] Create a minimal test node YAML that includes the header and run `esphome compile`
+  - [x] Confirm zero errors and zero warnings
+- [x] Task 3: Compile under esp32/esp-idf platform (AC: 6)
+  - [x] Create a minimal test gateway YAML that includes the header and run `esphome compile`
+  - [x] Confirm zero errors and zero warnings
+
+### Review Findings
+
+- [x] [Review][Patch] `event_type_str` `std::string` return breaks `%s` format specifiers in gateway.yaml — `ESP_LOGI` (line 132) and `snprintf` (line 146) pass `std::string` to `%s` variadic args; UB on both platforms. Fix: append `.c_str()` at both call sites. [`firmware/gateway.yaml:132,146`]
+- [x] [Review][Patch] Self-check logs misleading "protocol self-check" only when check FAILS — message gives no pass/fail indication. Fix: log "protocol self-check FAIL" in the error branch or invert condition to log success. [`firmware/test-node.yaml:10`, `firmware/test-gateway.yaml:10`]
+- [x] [Review][Patch] `heartbeat_payload` uses `room`/`board` param names; `button_payload` uses `room_id`/`board_id` — inconsistent naming for the same logical fields. Fix: rename `heartbeat_payload` params to `room_id`/`board_id`. [`firmware/common/canbus_protocol.h`]
+- [x] [Review][Patch] test-gateway uses `CAT_STATUS` CAN ID with `button_payload` — semantically inverts the protocol (button events use `CAT_INPUT`). Fix: change `can_id(CAT_STATUS, 1)` to `can_id(CAT_INPUT, 1)`. [`firmware/test-gateway.yaml:11`]
+- [x] [Review][Defer] `payload_room`/`payload_board` return wrong bytes for heartbeat frames — reads byte 4 (error_flags) as room and byte 5 (room) as board; heartbeat handler in gateway.yaml calls these decoders — deferred, pre-existing
+- [x] [Review][Defer] `button_index` not range-checked against 6-GPIO max — values 6–255 silently produce out-of-spec frames — deferred, pre-existing (validated at Python codegen layer)
+- [x] [Review][Defer] `static const` gives internal linkage — `inline constexpr` safer for multi-TU builds — deferred, pre-existing (single-TU ESPHome build model mitigates)
 
 ## Dev Notes
 
@@ -55,13 +66,13 @@ so that all CAN frame construction and decoding across both node and gateway fir
 
 `docs/esphome_canbus/common/canbus_protocol.h` (now at `firmware/common/canbus_protocol.h` after Story 1.1) EXISTS but **MUST be treated as a reference only, not as the authoritative implementation** (FR-4.1 explicitly states this). It contains several deviations from the PRD spec that must be corrected:
 
-| Issue | Existing File | Required by PRD |
-|-------|--------------|-----------------|
-| Missing constant | ❌ No `CAN_FRAME_SIZE` | ✅ `CAN_FRAME_SIZE = 8` required |
-| Wrong EVT names | `EVT_DOUBLE`, `EVT_TRIPLE`, `EVT_LONG`, `EVT_EXTRA_LONG` | `EVT_DOUBLE_CLICK`, `EVT_TRIPLE_CLICK`, `EVT_LONG_PRESS`, `EVT_EXTRA_LONG_PRESS` |
-| Wrong return type | `event_type_str` returns `const char*` | Must return `std::string` |
-| Extra constants | Has `CAT_SYSTEM`, `CAT_OUTPUT`, `MSG_CONFIG_WRITE`, etc. | Fine to keep — not prohibited |
-| Extra functions | Has `heartbeat_payload`, `payload_*` decoders, `can_id_category`, etc. | Fine to keep — not prohibited |
+| Issue             | Existing File                                                          | Required by PRD                                                                  |
+| ----------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Missing constant  | ❌ No `CAN_FRAME_SIZE`                                                  | ✅ `CAN_FRAME_SIZE = 8` required                                                  |
+| Wrong EVT names   | `EVT_DOUBLE`, `EVT_TRIPLE`, `EVT_LONG`, `EVT_EXTRA_LONG`               | `EVT_DOUBLE_CLICK`, `EVT_TRIPLE_CLICK`, `EVT_LONG_PRESS`, `EVT_EXTRA_LONG_PRESS` |
+| Wrong return type | `event_type_str` returns `const char*`                                 | Must return `std::string`                                                        |
+| Extra constants   | Has `CAT_SYSTEM`, `CAT_OUTPUT`, `MSG_CONFIG_WRITE`, etc.               | Fine to keep — not prohibited                                                    |
+| Extra functions   | Has `heartbeat_payload`, `payload_*` decoders, `can_id_category`, etc. | Fine to keep — not prohibited                                                    |
 
 **The corrected file may retain the extra constants and functions from the existing version — they are not wrong, just not explicitly required by the PRD.** The three issues above MUST be fixed.
 
@@ -217,8 +228,27 @@ claude-sonnet-4-6
 
 ### Debug Log References
 
+- `git rev-parse HEAD` → baseline commit `e841ae1bc6ffe03a19bf09303b3ca602135a3825`
+- `esphome compile test-node.yaml` → success on `rp2040` (ESPHome 2025.12.5)
+- `esphome compile test-gateway.yaml` → success on `esp32` / `esp-idf` (ESPHome 2025.12.5)
+- `python3 _bmad/scripts/tests/test_resolve_customization.py` → pass
+- `python3 .claude/skills/bmad-customize/scripts/tests/test_list_customizable_skills.py` → pass
+
 ### Completion Notes List
+
+- Authored the shared protocol header in `firmware/common/canbus_protocol.h` with the required PRD API: `CAN_FRAME_SIZE`, `can_id(...)`, `button_payload(...)`, and `std::string event_type_str(...)`.
+- Promoted the PRD-aligned event constant names (`EVT_DOUBLE_CLICK`, `EVT_TRIPLE_CLICK`, `EVT_LONG_PRESS`, `EVT_EXTRA_LONG_PRESS`) and kept compatibility aliases for older packages still using the legacy names.
+- Added minimal `rp2040` and `esp32` compile fixtures to prove the header compiles cleanly under both required ESPHome toolchains.
+- Validated the story with both ESPHome compile checks plus the repo's existing Python unittest scripts.
 
 ### File List
 
+- `_bmad-output/implementation-artifacts/1-3-author-canbus-protocol-header.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `firmware/common/canbus_protocol.h`
+- `firmware/test-gateway.yaml`
+- `firmware/test-node.yaml`
+
 ### Change Log
+
+- `2026-06-01`: Authored the shared CAN protocol header API, added dual-platform compile fixtures, validated the repo tests, and moved Story 1.3 to review.
