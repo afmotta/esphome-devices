@@ -1,0 +1,72 @@
+# generated: 2026-06-01
+# last_updated: 2026-06-01
+# project: canbus
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-01
+last_updated: 2026-06-01
+project: canbus
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Firmware Project Foundation
+  epic-1: in-progress
+  1-1-move-firmware-to-firmware-directory: ready-for-dev
+  1-2-resolve-hardware-open-questions: ready-for-dev
+  1-3-author-canbus-protocol-header: ready-for-dev
+  1-4-validate-code-generation-pipeline: ready-for-dev
+  epic-1-retrospective: optional
+
+  # Epic 2: Node Firmware — Button Events & Heartbeat Over CAN
+  epic-2: backlog
+  2-1-base-node-configuration-spi-and-mcp2515-setup: backlog
+  2-2-per-button-package-5-event-types-via-on-multi-click: backlog
+  2-3-node-heartbeat-and-can-frame-receive-lambda-safety: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Gateway Firmware — Home Assistant Integration
+  epic-3: backlog
+  3-1-gateway-base-configuration-twai-esp-idf-and-native-api: backlog
+  3-2-gateway-cat-input-handler-button-events-to-home-assistant: backlog
+  3-3-gateway-cat-status-handler-heartbeat-logging: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: PoC Validation & Sign-off
+  epic-4: backlog
+  4-1-bench-assembly-and-hardware-commissioning: backlog
+  4-2-button-event-acceptance-matrix-node-100: backlog
+  4-3-button-event-acceptance-matrix-node-101-and-poc-sign-off: backlog
+  epic-4-retrospective: optional
