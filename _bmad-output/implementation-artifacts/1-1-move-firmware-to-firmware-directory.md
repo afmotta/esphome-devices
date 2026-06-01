@@ -54,6 +54,7 @@ so that the firmware is clearly separated from documentation and all tooling cor
 **DO NOT change any file contents** during this move — this is a pure restructure. The only new files are `firmware/secrets.yaml.example`, `firmware/README.md`, and additions to `.gitignore`.
 
 **Path analysis — why no `!include` changes are needed:**
+
 - Generated node YAMLs (e.g., `firmware/nodes/node000.yaml`) use:
   - `!include ../common/base_node.yaml` → resolves to `firmware/common/base_node.yaml` ✓
   - `!include { file: ../common/button.yaml, ... }` → resolves to `firmware/common/button.yaml` ✓
@@ -65,6 +66,7 @@ so that the firmware is clearly separated from documentation and all tooling cor
 ### Required File Contents
 
 **`firmware/secrets.yaml.example`** (exact content):
+
 ```yaml
 wifi_ssid: "your_ssid"
 wifi_password: "your_password"
@@ -106,6 +108,7 @@ Hardware open questions to resolve before first compile.
 ### `.gitignore` Additions
 
 Check if `.gitignore` exists at project root. If it does, append; if not, create it. Add:
+
 ```
 firmware/secrets.yaml
 firmware/.esphome/
@@ -114,9 +117,11 @@ firmware/.esphome/
 ### Verification Step
 
 Run from project root:
+
 ```bash
 esphome config firmware/gateway.yaml
 ```
+
 This validates YAML syntax and ESPHome component resolution without running a full compile. The command must exit 0. If it fails with a "file not found" or path error, re-examine the `includes:` paths.
 
 **Note:** A full compile (`esphome compile`) requires ESPHome and toolchains to be installed. The AC specifies `esphome config` (config-check only), which just needs ESPHome CLI.
@@ -124,6 +129,7 @@ This validates YAML syntax and ESPHome component resolution without running a fu
 ### No Regressions — Existing Code Analysis
 
 The existing files in `docs/esphome_canbus/` are reference material only. They will be fully superseded by later stories:
+
 - `canbus_protocol.h` will be rewritten in Story 1.3 (the existing version is non-authoritative per FR-4.1)
 - `gateway.yaml` will be updated in Story 3.1 (hardware config mismatch: existing uses PoE/Ethernet board config; PoC uses WiFi/RS485-CAN board)
 - `common/base_node.yaml` and `common/button.yaml` will be updated in Stories 2.1 and 2.2
@@ -157,6 +163,7 @@ canbus/
 ### Testing
 
 There is no automated test suite for ESPHome YAML. The validation gate is:
+
 1. `esphome config firmware/gateway.yaml` exits 0 (no path errors)
 2. Manually confirm all files listed in AC #1 exist at their expected paths
 
@@ -212,8 +219,8 @@ claude-sonnet-4-6
 
 - [x] [Review][Decision] AC 7 verification — confirmed: `esphome config firmware/gateway.yaml` output shows no path errors; exit code 2 is exclusively the pre-existing `can_id: !lambda` templating limitation at gateway.yaml:42. AC 7 passes.
 - [x] [Review][Patch] .gitignore missing trailing newline — fixed. [.gitignore:3]
-- [x] [Review][Defer] MSG_BUTTON_EVENT and MSG_HEARTBEAT share value 0x01 [firmware/common/canbus_protocol.h:20-21] — deferred, pre-existing
-- [x] [Review][Defer] `includes:` path is CWD-sensitive — breaks if `esphome compile` is run from outside the project root [firmware/common/base_node.yaml, firmware/gateway.yaml] — deferred, pre-existing ESPHome behavior
-- [x] [Review][Defer] `generate_nodes.py` silently overwrites node files on re-run without warning [firmware/generate_nodes.py] — deferred, pre-existing
-- [x] [Review][Defer] `generate_nodes.py` no duplicate GPIO validation within a row — two buttons can share a pin silently [firmware/generate_nodes.py] — deferred, pre-existing
-- [x] [Review][Defer] `generate_nodes.py` uses `assert` for validation — all checks are disabled when run with `python -O` [firmware/generate_nodes.py] — deferred, pre-existing
+- [x] [Review][Decision] `MSG_BUTTON_EVENT` and `MSG_HEARTBEAT` both remain `0x01` by PRD design; category bits distinguish the frame families. [`firmware/common/canbus_protocol.h`]
+- [x] [Review][Decision] The include-path concern is not reproducible in the current tree — `esphome config` succeeds from both repo root and `firmware/` for generated node configs. [`firmware/common/base_node.yaml`, `firmware/gateway.yaml`]
+- [x] [Review][Decision] `generate_nodes.py` overwrites `nodes/` by design because generated outputs are the single source of truth and must not be hand-edited. [`firmware/generate_nodes.py`, `_bmad-output/project-context.md`]
+- [x] [Review][Patch] `generate_nodes.py` now rejects duplicate GPIOs within a row. [`firmware/generate_nodes.py`]
+- [x] [Review][Decision] The old `assert`-based validation note is stale; generator validation already uses explicit `sys.exit(1)` checks. [`firmware/generate_nodes.py`]

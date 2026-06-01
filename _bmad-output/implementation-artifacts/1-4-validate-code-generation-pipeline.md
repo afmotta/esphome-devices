@@ -51,13 +51,15 @@ so that the generated node YAML files are ready to compile and the pipeline is p
 - [x] [Review][Decision] Distinct board ID requirement resolved — user confirmed that distinct room IDs are sufficient for the PoC; the story and planning requirement text were updated to match the implemented `board=0` / `board=0` registry.
 - [x] [Review][Patch] Generated node YAMLs now compile from `firmware/nodes/*.yaml` after correcting the shared include path and replacing node-side CAN ID lambdas with generated static CAN IDs [firmware/common/base_node.yaml:12]
 - [x] [Review][Patch] Non-integer CSV fields now exit with a clear validation error instead of a raw `ValueError` traceback [firmware/generate_nodes.py:66]
-- [x] [Review][Defer] Missing-CSV bootstrap still writes stale sample rows with obsolete GPIO values and node IDs [firmware/generate_nodes.py:80] — deferred, pre-existing
+- [x] [Review][Patch] Duplicate GPIOs inside a single CSV row now fail validation with an explicit error. [`firmware/generate_nodes.py`]
+- [x] [Review][Patch] Missing-CSV bootstrap now seeds current PoC rows (100/101, GPIO20/21) and exits before generating stale node YAMLs. [`firmware/generate_nodes.py`]
 
 ## Dev Notes
 
 ### Prerequisites
 
 This story depends on:
+
 - **Story 1.1 complete:** firmware files are under `firmware/`, not `docs/esphome_canbus/`
 - **Story 1.2 complete:** `firmware/README.md` has confirmed GPIO values for OQ-1 (button GPIOs), OQ-2 (INT pin), OQ-3 (oscillator frequency)
 - **Story 1.3 complete:** `firmware/common/canbus_protocol.h` is rewritten with the correct EVT_* constant names
@@ -67,15 +69,18 @@ If Story 1.2 is not complete, use the existing assumed values (GPIOs 2, 3, 4, 5 
 ### Critical Change: `generate_nodes.py` Validation
 
 The existing script uses Python `assert` for validation:
+
 ```python
 assert 0 <= node_id <= 511, f"Node ID {node_id} out of range (0-511)"
 ```
 
 **Two problems:**
+
 1. Upper bound must be 399, not 511 (architecture: IDs 400–511 are reserved)
 2. Python `assert` can be disabled with `-O` flag and doesn't guarantee a clear error message on exit
 
 **Required validation approach:**
+
 ```python
 import sys
 
@@ -102,6 +107,7 @@ The PoC uses 2 nodes on the ground floor. Use `node_id=100` and `node_id=101`.
 The `gpio_list` values must come from Story 1.2 (OQ-1). If Story 1.2 is not yet complete, use the existing script defaults as a placeholder: `"2,3"` (2 buttons, minimal). Do not use the old entries with 4–6 buttons unless OQ-1 has confirmed those pins.
 
 **Proposed `nodes.csv`** (adjust room/location as appropriate for the physical bench setup):
+
 ```csv
 node_id,floor,room,board,location,gpio_list
 100,0,7,0,Ground floor hallway,<OQ-1 GPIOs from README>
@@ -144,11 +150,13 @@ packages:
   # ... one line per button
 ```
 
-**⚠️ If Story 1.3 renamed EVT_* constants:** The generated YAML itself does NOT reference EVT_* — those are used in `button.yaml`. The generator template does not need to change. However, `base_node.yaml` and `button.yaml` (updated in Stories 2.1 and 2.2) must use the new names.
+**⚠️ If Story 1.3 renamed EVT_* constants:**
+The generated YAML itself does NOT reference EVT_* — those are used in `button.yaml`. The generator template does not need to change. However, `base_node.yaml` and `button.yaml` (updated in Stories 2.1 and 2.2) must use the new names.
 
 ### Updating the Generator Template for OQ-2 and OQ-3
 
 The `generate_nodes.py` template hardcodes the MCP2515 pin assumptions. If Story 1.2 confirmed different values, update the template defaults:
+
 ```python
 TEMPLATE = """\
 ...
@@ -177,6 +185,7 @@ The updated validation must reject IDs ≥ 400.
 ### Old Generated Files to Remove
 
 These files exist at `firmware/nodes/` after Story 1.1 (moved from `docs/esphome_canbus/nodes/`):
+
 - `node000.yaml` (node_id=0)
 - `node001.yaml` (node_id=1)
 - `node002.yaml` (node_id=2)
@@ -190,6 +199,7 @@ All must be deleted. The PoC only uses nodes 100 and 101.
 ### Testing
 
 The primary verification is running `python3 generate_nodes.py` from `firmware/` and checking:
+
 1. Exit code 0
 2. CAN ID map printed showing node 100 and node 101 with IDs `0x264` (node 100, CAT_INPUT=1) and `0x265` (node 101)
    - `can_id(1, 100)` = `(1 << 9) | 100` = `512 + 100` = `612` = `0x264`
@@ -225,6 +235,7 @@ _None — no blockers encountered._
 - Task 2: `nodes.csv` replaced with 2 PoC entries. Button GPIOs set to `"20,21"` per OQ-1 (GPIO20–GPIO27 confirmed as expansion header pins). Rooms 7 and 8 used for node 100 and 101 respectively (distinct, PoC bench assignment).
 - Task 3: Generator runs successfully. CAN ID map output: node 100 = 0x264, node 101 = 0x265. Both YAMLs contain `packages: base: !include ../common/base_node.yaml` (satisfies AC 4). Exit code 0.
 - Task 4: Seven old node YAMLs (node000–node020) deleted. Only node100.yaml and node101.yaml remain in `firmware/nodes/`.
+- Deferred-work follow-up: the generator now rejects duplicate GPIOs within one node row and, when `nodes.csv` is missing, seeds current PoC example rows then exits without generating stale YAML output.
 - Existing regression test (`_bmad/scripts/tests/test_resolve_customization.py`) passes — no regressions.
 
 ### File List
@@ -243,4 +254,5 @@ _None — no blockers encountered._
 
 ### Change Log
 
-- 2026-06-01: Story 1.4 implemented — validated code generation pipeline, populated `nodes.csv` with PoC entries (node 100 and 101), fixed generator validation (assert→sys.exit, bound 399, duplicate check), corrected hardware pin template (SPI + INT), generated node100.yaml and node101.yaml, removed 7 old placeholder node YAMLs.
+- 2026-06-01: Story 1.4 implemented — validated code generation pipeline, populated `nodes.csv` with PoC entries (node 100 and 101), fixed generator validation (assert→sys.exit, bound 399, duplicate check), corrected hardware pin template (SPI + INT), generated node100.yaml and node101.yaml, and removed 7 old placeholder node YAMLs.
+- 2026-06-01: Deferred-work follow-up added duplicate-GPIO validation and made the missing-CSV bootstrap seed current PoC rows without generating stale node files.

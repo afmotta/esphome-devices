@@ -2,7 +2,7 @@
 
 ## Hardware Verification
 
-Hardware open questions resolved from official Longan Labs CANBed RP2040 V1.1 Eagle schematic.
+Hardware open questions resolved from the official Longan Labs CANBed RP2040 V1.1 Eagle schematic pinned to commit `fdefed9e521864c67a05bf19a4e5046428b86662`.
 
 ### OQ-1: Button GPIO numbers (CANBed RP2040)
 
@@ -17,7 +17,7 @@ internal pull-up) to these pins.
 > Update template defaults to use GPIO20–GPIO27 instead.
 
 **Source:** CANBed RP2040 V1.1 Eagle schematic — `CANBED_RP2040_V11_EAGLE` repository,
-GitHub: https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE — J1 header net connections confirm
+GitHub (pinned): <https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE/blob/fdefed9e521864c67a05bf19a4e5046428b86662/CANBed2040_V1.1.sch> — J1 header net connections confirm
 8 GPIO lines with no external pull-up resistors (internal pull-up required on each line).
 
 ---
@@ -27,7 +27,7 @@ GitHub: https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE — J1 header net
 **Status:** Confirmed  
 **Value:** GPIO11  
 **Source:** CANBed RP2040 V1.1 Eagle schematic — `CANBED_RP2040_V11_EAGLE` repository,
-GitHub: https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE — `INT` net explicitly
+GitHub (pinned): <https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE/blob/fdefed9e521864c67a05bf19a4e5046428b86662/CANBed2040_V1.1.sch> — `INT` net explicitly
 connects `U5(!INT)` (MCP2515 interrupt output) to `U2(GPIO11)` (RP2040).
 
 > **⚠️ Template correction required:** The existing template assumes `can_int_pin: "GPIO20"`.
@@ -42,7 +42,7 @@ connects `U5(!INT)` (MCP2515 interrupt output) to `U2(GPIO11)` (RP2040).
 **Status:** Confirmed  
 **Value:** 16 MHz  
 **Source:** CANBed RP2040 V1.1 Eagle schematic — `CANBED_RP2040_V11_EAGLE` repository,
-GitHub: https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE — part `X1` (crystal
+GitHub (pinned): <https://github.com/Longan-Labs/CANBED_RP2040_V11_EAGLE/blob/fdefed9e521864c67a05bf19a4e5046428b86662/CANBed2040_V1.1.sch> — part `X1` (crystal
 connected to MCP2515 OSC1/OSC2) has `value="16MHz"`.
 
 > Existing assumption `can_clock: "16MHZ"` is **correct** — no change required.

@@ -155,8 +155,8 @@ canbus:
                 lambda: 'return x.size() >= 7 && x[0] == PROTO_V1;'
               then:
                 - lambda: |-
-                    id(evt_room)   = payload_room(x);
-                    id(evt_board)  = payload_board(x);
+                    id(evt_room)   = payload_heartbeat_room(x);
+                    id(evt_board)  = payload_heartbeat_board(x);
                     id(hb_uptime)  = payload_uptime(x);
                     id(hb_errors)  = payload_errors(x);
                     if (id(hb_errors) != ERR_NONE) {

@@ -56,9 +56,9 @@ so that all CAN frame construction and decoding across both node and gateway fir
 - [x] [Review][Patch] Self-check logs misleading "protocol self-check" only when check FAILS — message gives no pass/fail indication. Fix: log "protocol self-check FAIL" in the error branch or invert condition to log success. [`firmware/test-node.yaml:10`, `firmware/test-gateway.yaml:10`]
 - [x] [Review][Patch] `heartbeat_payload` uses `room`/`board` param names; `button_payload` uses `room_id`/`board_id` — inconsistent naming for the same logical fields. Fix: rename `heartbeat_payload` params to `room_id`/`board_id`. [`firmware/common/canbus_protocol.h`]
 - [x] [Review][Patch] test-gateway uses `CAT_STATUS` CAN ID with `button_payload` — semantically inverts the protocol (button events use `CAT_INPUT`). Fix: change `can_id(CAT_STATUS, 1)` to `can_id(CAT_INPUT, 1)`. [`firmware/test-gateway.yaml:11`]
-- [x] [Review][Defer] `payload_room`/`payload_board` return wrong bytes for heartbeat frames — reads byte 4 (error_flags) as room and byte 5 (room) as board; heartbeat handler in gateway.yaml calls these decoders — deferred, pre-existing
-- [x] [Review][Defer] `button_index` not range-checked against 6-GPIO max — values 6–255 silently produce out-of-spec frames — deferred, pre-existing (validated at Python codegen layer)
-- [x] [Review][Defer] `static const` gives internal linkage — `inline constexpr` safer for multi-TU builds — deferred, pre-existing (single-TU ESPHome build model mitigates)
+- [x] [Review][Patch] Heartbeat room/board decoding fixed — added heartbeat-specific payload decoders and switched the gateway heartbeat handler to use them. [`firmware/common/canbus_protocol.h`, `firmware/gateway.yaml`]
+- [x] [Review][Decision] `button_index` remains enforced at the generator/config layer — Epic 1 does not define a wire-level invalid-button encoding, so no runtime mutation was added inside `button_payload`. [`firmware/common/canbus_protocol.h`, `firmware/generate_nodes.py`]
+- [x] [Review][Patch] Header constants promoted from `static const` to `inline constexpr` for safer multi-TU use. [`firmware/common/canbus_protocol.h`]
 
 ## Dev Notes
 
@@ -87,30 +87,31 @@ so that all CAN frame construction and decoding across both node and gateway fir
 #include <cstdint>
 
 // Protocol version
-static const uint8_t PROTO_V1 = 0x01;
+inline constexpr uint8_t PROTO_V1 = 0x01;
 
 // Category bits (bits 10:9 of 11-bit CAN ID)
-static const uint8_t CAT_INPUT  = 1;   // node → gateway (button events)
-static const uint8_t CAT_STATUS = 3;   // node → gateway (heartbeat)
+inline constexpr uint8_t CAT_INPUT  = 1;   // node → gateway (button events)
+inline constexpr uint8_t CAT_STATUS = 3;   // node → gateway (heartbeat)
 
 // Message types (payload byte 1)
-static const uint8_t MSG_BUTTON_EVENT = 0x01;
-static const uint8_t MSG_HEARTBEAT    = 0x01;  // same value, distinguished by CAN ID category
+inline constexpr uint8_t MSG_BUTTON_EVENT = 0x01;
+inline constexpr uint8_t MSG_HEARTBEAT    = 0x01;  // same value, distinguished by CAN ID category
 
 // Frame size — MUST be a named constant, never inline integer literal
-static const uint8_t CAN_FRAME_SIZE = 8;
+inline constexpr uint8_t CAN_FRAME_SIZE = 8;
 
 // Button event types (payload byte 3)
-static const uint8_t EVT_CLICK           = 0x01;
-static const uint8_t EVT_DOUBLE_CLICK    = 0x02;
-static const uint8_t EVT_TRIPLE_CLICK    = 0x03;
-static const uint8_t EVT_LONG_PRESS      = 0x04;
-static const uint8_t EVT_EXTRA_LONG_PRESS = 0x05;
+inline constexpr uint8_t EVT_CLICK            = 0x01;
+inline constexpr uint8_t EVT_DOUBLE_CLICK     = 0x02;
+inline constexpr uint8_t EVT_TRIPLE_CLICK     = 0x03;
+inline constexpr uint8_t EVT_LONG_PRESS       = 0x04;
+inline constexpr uint8_t EVT_EXTRA_LONG_PRESS = 0x05;
 ```
 
 **Required payload byte layout (from PRD wire spec):**
 
 Button event frame (8 bytes):
+
 ```
 Byte 0: PROTO_V1       (protocol version)
 Byte 1: MSG_BUTTON_EVENT
@@ -125,6 +126,7 @@ Byte 7: 0x00           (reserved)
 So `button_payload` must return: `{PROTO_V1, MSG_BUTTON_EVENT, button_index, event_type, room_id, board_id, 0x00, 0x00}`
 
 **`event_type_str` return type MUST be `std::string`** (the gateway lambda assigns it to a `std::string` local variable):
+
 ```cpp
 inline std::string event_type_str(uint8_t event_type) {
     switch (event_type) {
@@ -139,6 +141,7 @@ inline std::string event_type_str(uint8_t event_type) {
 ```
 
 **`can_id` function** — category occupies bits 10:9, node_id occupies bits 8:0:
+
 ```cpp
 inline uint32_t can_id(uint8_t category, uint16_t node_id) {
     return ((uint32_t)(category & 0x03) << 9) | (node_id & 0x1FF);
@@ -148,6 +151,7 @@ inline uint32_t can_id(uint8_t category, uint16_t node_id) {
 ### Platform Compatibility Notes
 
 This header must compile under two incompatible toolchains:
+
 - **RP2040 (nodes):** GCC for ARM Cortex-M0+, C++17, `rp2040` platform in ESPHome
 - **ESP32-S3 (gateway):** GCC via esp-idf, C++17, `esp-idf` framework in ESPHome
 
@@ -156,6 +160,7 @@ Both support `std::vector`, `std::string`, `#pragma once`. No platform-specific 
 ### Downstream Impact — Constant Renames
 
 The EVT_* renames break the existing `button.yaml` and `base_node.yaml`:
+
 - `EVT_TRIPLE` → `EVT_TRIPLE_CLICK`
 - `EVT_DOUBLE` → `EVT_DOUBLE_CLICK`
 - `EVT_LONG` → `EVT_LONG_PRESS`
@@ -167,6 +172,7 @@ The EVT_* renames break the existing `button.yaml` and `base_node.yaml`:
 To satisfy AC #5 and AC #6 without modifying the existing `base_node.yaml` or `button.yaml` (which use the old EVT_ names), create **minimal test YAMLs** that include only the header:
 
 **Minimal rp2040 test YAML:**
+
 ```yaml
 esphome:
   name: test-node
@@ -181,6 +187,7 @@ logger:
 ```
 
 **Minimal esp32/esp-idf test YAML:**
+
 ```yaml
 esphome:
   name: test-gateway
@@ -197,6 +204,7 @@ logger:
 ```
 
 Run from `firmware/`:
+
 ```bash
 esphome compile test-node.yaml
 esphome compile test-gateway.yaml
@@ -207,9 +215,11 @@ These minimal YAMLs are temporary scaffolding — they can be deleted after the 
 ### Lambda Safety Reminder (for later stories)
 
 This header defines `CAN_FRAME_SIZE = 8`. Every `on_frame` lambda in both nodes and gateway **MUST** start with:
+
 ```cpp
 if (x.size() < CAN_FRAME_SIZE) return;
 ```
+
 This constant being defined here is what makes that pattern possible. Do not add `on_frame` handlers to any YAML without this guard.
 
 ### References
@@ -238,6 +248,8 @@ claude-sonnet-4-6
 
 - Authored the shared protocol header in `firmware/common/canbus_protocol.h` with the required PRD API: `CAN_FRAME_SIZE`, `can_id(...)`, `button_payload(...)`, and `std::string event_type_str(...)`.
 - Promoted the PRD-aligned event constant names (`EVT_DOUBLE_CLICK`, `EVT_TRIPLE_CLICK`, `EVT_LONG_PRESS`, `EVT_EXTRA_LONG_PRESS`) and kept compatibility aliases for older packages still using the legacy names.
+- Added heartbeat-specific payload decoders and updated the gateway heartbeat handler so room/board bytes are decoded from the heartbeat layout instead of the button layout.
+- Promoted the shared protocol constants from `static const` to `inline constexpr` after verifying both ESPHome toolchains compile the header cleanly.
 - Added minimal `rp2040` and `esp32` compile fixtures to prove the header compiles cleanly under both required ESPHome toolchains.
 - Validated the story with both ESPHome compile checks plus the repo's existing Python unittest scripts.
 
@@ -251,4 +263,5 @@ claude-sonnet-4-6
 
 ### Change Log
 
-- `2026-06-01`: Authored the shared CAN protocol header API, added dual-platform compile fixtures, validated the repo tests, and moved Story 1.3 to review.
+- `2026-06-01`: Authored the shared CAN protocol header API, added dual-platform compile fixtures, and validated the repo tests.
+- `2026-06-01`: Deferred-work follow-up fixed heartbeat room/board decoding and promoted protocol constants to `inline constexpr`.

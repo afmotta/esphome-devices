@@ -30,41 +30,41 @@
 // =============================================================================
 
 // --------------- Protocol version ---------------
-static const uint8_t PROTO_V1 = 0x01;
-static const uint8_t CAN_FRAME_SIZE = 8;
+inline constexpr uint8_t PROTO_V1 = 0x01;
+inline constexpr uint8_t CAN_FRAME_SIZE = 8;
 
 // --------------- Categories (bits 10:9) ---------------
-static const uint8_t CAT_SYSTEM = 0; // Emergency, errors       (highest priority)
-static const uint8_t CAT_INPUT = 1;  // Button events            node → gateway
-static const uint8_t CAT_OUTPUT = 2; // LED/relay commands       gateway → node
-static const uint8_t CAT_STATUS = 3; // Heartbeat, health        node → gateway
+inline constexpr uint8_t CAT_SYSTEM = 0; // Emergency, errors       (highest priority)
+inline constexpr uint8_t CAT_INPUT = 1;  // Button events            node → gateway
+inline constexpr uint8_t CAT_OUTPUT = 2; // LED/relay commands       gateway → node
+inline constexpr uint8_t CAT_STATUS = 3; // Heartbeat, health        node → gateway
 
 // CAN ID mask: match category bits only (bits 10:9)
-static const uint32_t CAN_MASK_CATEGORY = 0x600;
+inline constexpr uint32_t CAN_MASK_CATEGORY = 0x600;
 
 // --------------- Message types (payload byte 1) ---------------
-static const uint8_t MSG_BUTTON_EVENT = 0x01;
-static const uint8_t MSG_HEARTBEAT = 0x01;
-static const uint8_t MSG_CONFIG_WRITE = 0x02;
-static const uint8_t MSG_CONFIG_ACK = 0x03;
+inline constexpr uint8_t MSG_BUTTON_EVENT = 0x01;
+inline constexpr uint8_t MSG_HEARTBEAT = 0x01;
+inline constexpr uint8_t MSG_CONFIG_WRITE = 0x02;
+inline constexpr uint8_t MSG_CONFIG_ACK = 0x03;
 
 // --------------- Button event types (payload byte 3) ---------------
-static const uint8_t EVT_CLICK = 0x01;
-static const uint8_t EVT_DOUBLE_CLICK = 0x02;
-static const uint8_t EVT_TRIPLE_CLICK = 0x03;
-static const uint8_t EVT_LONG_PRESS = 0x04;
-static const uint8_t EVT_EXTRA_LONG_PRESS = 0x05;
+inline constexpr uint8_t EVT_CLICK = 0x01;
+inline constexpr uint8_t EVT_DOUBLE_CLICK = 0x02;
+inline constexpr uint8_t EVT_TRIPLE_CLICK = 0x03;
+inline constexpr uint8_t EVT_LONG_PRESS = 0x04;
+inline constexpr uint8_t EVT_EXTRA_LONG_PRESS = 0x05;
 
 // Backward-compatible aliases for older YAML packages that still use the pre-PRD names.
-static const uint8_t EVT_DOUBLE = EVT_DOUBLE_CLICK;
-static const uint8_t EVT_TRIPLE = EVT_TRIPLE_CLICK;
-static const uint8_t EVT_LONG = EVT_LONG_PRESS;
-static const uint8_t EVT_EXTRA_LONG = EVT_EXTRA_LONG_PRESS;
+inline constexpr uint8_t EVT_DOUBLE = EVT_DOUBLE_CLICK;
+inline constexpr uint8_t EVT_TRIPLE = EVT_TRIPLE_CLICK;
+inline constexpr uint8_t EVT_LONG = EVT_LONG_PRESS;
+inline constexpr uint8_t EVT_EXTRA_LONG = EVT_EXTRA_LONG_PRESS;
 
 // --------------- Error flags (heartbeat byte 4) ---------------
-static const uint8_t ERR_NONE = 0x00;
-static const uint8_t ERR_CAN_TX_FAIL = 0x01;
-static const uint8_t ERR_CAN_BUS_OFF = 0x02;
+inline constexpr uint8_t ERR_NONE = 0x00;
+inline constexpr uint8_t ERR_CAN_TX_FAIL = 0x01;
+inline constexpr uint8_t ERR_CAN_BUS_OFF = 0x02;
 
 // =============================================================================
 // CAN ID helpers
@@ -112,6 +112,8 @@ inline uint8_t payload_board(const std::vector<uint8_t> &d) { return d.size() > 
 inline uint8_t payload_uptime(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
 inline uint8_t payload_btn_states(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
 inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
+inline uint8_t payload_heartbeat_room(const std::vector<uint8_t> &d) { return d.size() > 5 ? d[5] : 0; }
+inline uint8_t payload_heartbeat_board(const std::vector<uint8_t> &d) { return d.size() > 6 ? d[6] : 0; }
 
 // Event type to string (for HA events)
 inline std::string event_type_str(uint8_t event_type)

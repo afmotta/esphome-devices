@@ -9,9 +9,9 @@ Usage:
 
 CSV format:
     node_id,floor,room,board,location,gpio_list
-    0,0,0,0,"Ground floor hallway entrance","2,3,4,5"
+    100,0,7,0,"Ground floor hallway","20,21"
 
-node_id is the flat CAN bus address (0-511).
+node_id is the flat CAN bus address (0-399).
 floor/room/board are metadata carried in the payload for HA.
 """
 
@@ -65,6 +65,11 @@ packages:
 BUTTON_PKG = '  btn{idx}: !include {{ file: ../common/button.yaml, vars: {{ button_index: "{idx}", button_gpio: "{gpio}" }} }}'
 
 FLOOR_LABELS = {0: "Ground", 1: "First", 2: "Second", 3: "Third"}
+EXAMPLE_ROWS = [
+    ["node_id", "floor", "room", "board", "location", "gpio_list"],
+    [100, 0, 7, 0, "Ground floor hallway", "20,21"],
+    [101, 0, 8, 0, "Ground floor living room", "20,21"],
+]
 
 
 def can_id(category: int, node_id: int) -> int:
@@ -80,15 +85,9 @@ def main():
         print(f"Creating example {csv_path} ...")
         with open(csv_path, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["node_id", "floor", "room", "board", "location", "gpio_list"])
-            w.writerow([0, 0, 0, 0, "Hallway entrance", "2,3,4,5"])
-            w.writerow([1, 0, 1, 0, "Kitchen left", "2,3,4,5,6,7"])
-            w.writerow([2, 0, 1, 1, "Kitchen island", "2,3"])
-            w.writerow([10, 1, 9, 0, "Master bedroom door", "2,3,4,5"])
-            w.writerow([11, 1, 9, 1, "Master bedroom bed left", "2,3"])
-            w.writerow([12, 1, 9, 2, "Master bedroom bed right", "2,3"])
-            w.writerow([20, 2, 17, 0, "Attic studio", "2,3,4,5"])
-        print(f"  Edit {csv_path} with your actual layout, then re-run.\n")
+            w.writerows(EXAMPLE_ROWS)
+        print(f"  Seeded {csv_path} with current PoC example rows. Review and re-run.\n")
+        return
 
     seen_node_ids = {}
     count = 0
@@ -120,6 +119,9 @@ def main():
                 sys.exit(1)
             if len(gpios) > 6:
                 print(f"ERROR: Too many GPIOs for node {node_id}: max 6, got {len(gpios)}", file=sys.stderr)
+                sys.exit(1)
+            if len(set(gpios)) != len(gpios):
+                print(f"ERROR: Duplicate GPIO in node {node_id}: {row['gpio_list']}", file=sys.stderr)
                 sys.exit(1)
 
             if node_id in seen_node_ids:
