@@ -1,3 +1,10 @@
+## Deferred from: code review of 1-2-resolve-hardware-open-questions (2026-06-01)
+
+- **SPI pin corrections (SCK=GPIO2, MOSI=GPIO3, MISO=GPIO4) not explicitly assigned to downstream stories** — Confirmed corrections documented in README table but not added as explicit subtasks in Stories 1.4 or 2.1. Risk of being overlooked when those stories are executed.
+- **Source URLs not pinned to commit SHA** — OQ citations link to `main` branch of `CANBED_RP2040_V11_EAGLE` repo; if the schematic is ever revised, the reference is no longer reproducible.
+- **`can_clock: "16MHZ"` capitalization unverified against ESPHome** — Schematic confirms 16 MHz but ESPHome's expected string format (`16MHZ` vs `16MHz`) is unverified. Confirm case-sensitivity in Story 2.1 when writing `base_node.yaml`.
+- **Existing node YAMLs may still contain `can_int_pin: GPIO20`** — The wrong INT pin value is flagged but not corrected in this story. Audit and update in Stories 1.4 and 2.1.
+
 ## Deferred from: code review of 1-1-move-firmware-to-firmware-directory (2026-06-01)
 
 - **MSG_BUTTON_EVENT and MSG_HEARTBEAT share value 0x01** [`firmware/common/canbus_protocol.h:20-21`] — Both constants are `0x01`; any dispatch on payload type will misroute one. Gateway currently disambiguates via CAN ID category mask, but a future refactor routing by type alone will silently break.

@@ -72,8 +72,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 - **No unit test framework** — ESPHome YAML is validated by `esphome compile`. The primary "test" is a successful compile.
 - **Compile before flashing:** always run `esphome compile <node>.yaml` locally before flashing. The `on_frame` + `can_id_mask` + `homeassistant.event` chain in `gateway.yaml` has not yet been compiled/tested against hardware — treat it as unverified.
 - **Code generation validation:** `generate_nodes.py` prints a CAN ID map on completion. Review it for duplicate IDs and unexpected CAN addresses before flashing any batch of nodes.
-- **Hardware pin verification needed:** GPIO20 as MCP2515 INT pin on CANBed RP2040 has not been confirmed from the board schematic. Verify before first compile.
-- **Button GPIO numbers** for the CANBed RP2040 user-facing pins need confirmation from the Longan Labs pinout diagram before building out the full `nodes.csv`.
+- **Hardware pin verification complete:** Story 1.2 resolved GPIO20→GPIO11 for MCP2515 INT pin and confirmed button GPIOs as GPIO20–GPIO27. See `firmware/README.md` for full details.
 
 ### Code Quality & Style Rules
 
