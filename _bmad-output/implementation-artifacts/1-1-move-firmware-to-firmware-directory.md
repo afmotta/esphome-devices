@@ -1,5 +1,5 @@
 ---
-status: review
+status: done
 epic: 1
 story: 1
 story_key: 1-1-move-firmware-to-firmware-directory
@@ -8,7 +8,7 @@ baseline_commit: b7172efa06e0e894d19277ea48cd4a911e6e2a56
 
 # Story 1.1: Move firmware to `firmware/` directory
 
-Status: review
+Status: done
 
 ## Story
 
@@ -207,3 +207,13 @@ claude-sonnet-4-6
 ### Change Log
 
 - 2026-06-01: Story 1.1 implemented — moved firmware source from docs/esphome_canbus/ to firmware/, created firmware/secrets.yaml.example and firmware/README.md, updated .gitignore.
+
+### Review Findings
+
+- [x] [Review][Decision] AC 7 verification — confirmed: `esphome config firmware/gateway.yaml` output shows no path errors; exit code 2 is exclusively the pre-existing `can_id: !lambda` templating limitation at gateway.yaml:42. AC 7 passes.
+- [x] [Review][Patch] .gitignore missing trailing newline — fixed. [.gitignore:3]
+- [x] [Review][Defer] MSG_BUTTON_EVENT and MSG_HEARTBEAT share value 0x01 [firmware/common/canbus_protocol.h:20-21] — deferred, pre-existing
+- [x] [Review][Defer] `includes:` path is CWD-sensitive — breaks if `esphome compile` is run from outside the project root [firmware/common/base_node.yaml, firmware/gateway.yaml] — deferred, pre-existing ESPHome behavior
+- [x] [Review][Defer] `generate_nodes.py` silently overwrites node files on re-run without warning [firmware/generate_nodes.py] — deferred, pre-existing
+- [x] [Review][Defer] `generate_nodes.py` no duplicate GPIO validation within a row — two buttons can share a pin silently [firmware/generate_nodes.py] — deferred, pre-existing
+- [x] [Review][Defer] `generate_nodes.py` uses `assert` for validation — all checks are disabled when run with `python -O` [firmware/generate_nodes.py] — deferred, pre-existing

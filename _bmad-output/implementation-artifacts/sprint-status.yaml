@@ -44,7 +44,7 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   # Epic 1: Firmware Project Foundation
   epic-1: in-progress
-  1-1-move-firmware-to-firmware-directory: ready-for-dev
+  1-1-move-firmware-to-firmware-directory: done
   1-2-resolve-hardware-open-questions: ready-for-dev
   1-3-author-canbus-protocol-header: ready-for-dev
   1-4-validate-code-generation-pipeline: ready-for-dev
