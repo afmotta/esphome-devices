@@ -16,6 +16,7 @@ floor/room/board are metadata carried in the payload for HA.
 """
 
 import csv
+import sys
 from pathlib import Path
 
 TEMPLATE = """\
@@ -31,17 +32,20 @@ TEMPLATE = """\
 # =============================================================================
 
 substitutions:
-  node_name: "{name}"
-  node_id: "{node_id}"
-  room_id: "{room}"
-  board_id: "{board}"
-  debounce_ms: "50"
-  can_cs_pin: "GPIO9"
-  can_clk_pin: "GPIO18"
-  can_mosi_pin: "GPIO19"
-  can_miso_pin: "GPIO16"
-  can_int_pin: "GPIO20"
-  can_clock: "16MHZ"
+        node_name: "{name}"
+        node_id: "{node_id}"
+        room_id: "{room}"
+        board_id: "{board}"
+        input_can_id: "0x{input_id:03X}"
+        output_can_id: "0x{output_id:03X}"
+        status_can_id: "0x{status_id:03X}"
+        debounce_ms: "50"
+        can_cs_pin: "GPIO9"
+        can_clk_pin: "GPIO2"
+        can_mosi_pin: "GPIO3"
+        can_miso_pin: "GPIO4"
+        can_int_pin: "GPIO11"
+        can_clock: "16MHZ"
 
 esphome:
   name: ${{node_name}}
@@ -93,24 +97,39 @@ def main():
     with open(csv_path, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            node_id = int(row["node_id"])
-            floor = int(row["floor"])
-            room = int(row["room"])
-            board = int(row["board"])
             location = row["location"]
-            gpios = [int(g.strip()) for g in row["gpio_list"].split(",")]
 
-            assert 0 <= node_id <= 511, f"Node ID {node_id} out of range (0-511)"
-            assert 0 <= room <= 255, f"Room {room} out of range (0-255)"
-            assert 0 <= board <= 255, f"Board {board} out of range (0-255)"
-            assert len(gpios) <= 6, f"Max 6 buttons, got {len(gpios)}"
+            try:
+                node_id = int(row["node_id"])
+                floor = int(row["floor"])
+                room = int(row["room"])
+                board = int(row["board"])
+                gpios = [int(g.strip()) for g in row["gpio_list"].split(",")]
+            except ValueError as exc:
+                print(f"ERROR: Invalid integer value on CSV row {reader.line_num}: {exc}", file=sys.stderr)
+                sys.exit(1)
+
+            if not (0 <= node_id <= 399):
+                print(f"ERROR: Node ID {node_id} out of range (valid: 0–399)", file=sys.stderr)
+                sys.exit(1)
+            if not (0 <= room <= 255):
+                print(f"ERROR: Room {room} out of range (valid: 0–255)", file=sys.stderr)
+                sys.exit(1)
+            if not (0 <= board <= 255):
+                print(f"ERROR: Board {board} out of range (valid: 0–255)", file=sys.stderr)
+                sys.exit(1)
+            if len(gpios) > 6:
+                print(f"ERROR: Too many GPIOs for node {node_id}: max 6, got {len(gpios)}", file=sys.stderr)
+                sys.exit(1)
 
             if node_id in seen_node_ids:
-                raise ValueError(f"Duplicate node_id {node_id}: '{location}' vs '{seen_node_ids[node_id]}'")
+                print(f"ERROR: Duplicate node_id {node_id}: '{location}' vs '{seen_node_ids[node_id]}'", file=sys.stderr)
+                sys.exit(1)
             seen_node_ids[node_id] = location
 
             name = f"node{node_id:03d}"
             input_id = can_id(1, node_id)
+            output_id = can_id(2, node_id)
             status_id = can_id(3, node_id)
 
             button_lines = [BUTTON_PKG.format(idx=idx, gpio=gpio) for idx, gpio in enumerate(gpios)]
@@ -125,6 +144,7 @@ def main():
                 num_buttons=len(gpios),
                 gpio_summary=",".join(str(g) for g in gpios),
                 input_id=input_id,
+                output_id=output_id,
                 status_id=status_id,
                 button_packages="\n".join(button_lines) + "\n",
             )

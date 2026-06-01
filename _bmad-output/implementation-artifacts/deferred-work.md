@@ -18,3 +18,7 @@
 - **`generate_nodes.py` silently overwrites node files on re-run** [`firmware/generate_nodes.py`] — No prompt, diff, or backup before overwriting. Manually edited node YAMLs will be lost without warning.
 - **`generate_nodes.py` no duplicate GPIO validation within a row** [`firmware/generate_nodes.py`] — A CSV row with repeated GPIO values (e.g. `"2,2,3"`) passes validation and generates a YAML where two buttons share a pin; ESPHome compiles it but runtime behavior is unpredictable.
 - **`generate_nodes.py` uses `assert` for all validation** [`firmware/generate_nodes.py`] — `assert` statements are disabled with `python -O`, silently bypassing all range checks for node_id, room, board, and button count.
+
+## Deferred from: code review of 1-4-validate-code-generation-pipeline (2026-06-01)
+
+- **Missing-CSV bootstrap still writes stale sample rows with obsolete GPIO values and node IDs** [`firmware/generate_nodes.py:80`] — If `nodes.csv` is absent, the script still seeds legacy example rows (`0/1/2/10/11/12/20`) with old button GPIO defaults before generating YAMLs from them. Pre-existing issue outside the lines changed for Story 1.4.

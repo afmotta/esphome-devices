@@ -35,12 +35,12 @@ This PoC covers 2 button nodes and 1 gateway on a bench setup.
 
 ## Hardware Bill of Materials
 
-| Role | Board | Qty |
-| --- | --- | --- |
-| Button node | Seeed Studio CANBed RP2040 (SKU 102991596) | 2 |
-| Gateway | Waveshare ESP32-S3-RS485-CAN | 1 |
-| CAN bus termination | 120 Ω resistors (or board jumpers) | 2 (one per bus end) |
-| Power | 9–28 V DC supply | 1 (for nodes) |
+| Role                | Board                                      | Qty                 |
+| ------------------- | ------------------------------------------ | ------------------- |
+| Button node         | Seeed Studio CANBed RP2040 (SKU 102991596) | 2                   |
+| Gateway             | Waveshare ESP32-S3-RS485-CAN               | 1                   |
+| CAN bus termination | 120 Ω resistors (or board jumpers)         | 2 (one per bus end) |
+| Power               | 9–28 V DC supply                           | 1 (for nodes)       |
 
 > **Note:** CANBed RP2040 boards ship as kits requiring soldering of through-hole components (terminal blocks, DB9, pin headers, termination switch) before first use. This is a prerequisite for bench assembly.
 
@@ -55,13 +55,13 @@ This PoC covers 2 button nodes and 1 gateway on a bench setup.
 
 **Fixed SPI pin mapping:**
 
-| Signal | GPIO |
-| --- | --- |
-| SPI CS | GPIO9 |
-| SPI SCK | GPIO18 |
-| SPI MOSI | GPIO19 |
-| SPI MISO | GPIO16 |
-| INT | GPIO20 [ASSUMPTION: unverified — confirm from board schematic before compile] |
+| Signal   | GPIO                                                                          |
+| -------- | ----------------------------------------------------------------------------- |
+| SPI CS   | GPIO9                                                                         |
+| SPI SCK  | GPIO18                                                                        |
+| SPI MOSI | GPIO19                                                                        |
+| SPI MISO | GPIO16                                                                        |
+| INT      | GPIO20 [ASSUMPTION: unverified — confirm from board schematic before compile] |
 
 ### Gateway — Waveshare ESP32-S3-RS485-CAN
 
@@ -76,8 +76,8 @@ This PoC covers 2 button nodes and 1 gateway on a bench setup.
 
 **CAN GPIO mapping:**
 
-| Signal | GPIO |
-| --- | --- |
+| Signal           | GPIO   |
+| ---------------- | ------ |
 | CAN TX (TWAI TX) | GPIO15 |
 | CAN RX (TWAI RX) | GPIO16 |
 
@@ -105,10 +105,10 @@ Bits 8–0:  Node ID (9 bits, 0–511)
 
 Categories used in PoC:
 
-| Category | Value | Direction | Purpose |
-| --- | --- | --- | --- |
-| CAT_INPUT | 1 | Node → Gateway | Button events |
-| CAT_STATUS | 3 | Node → Gateway | Heartbeat |
+| Category   | Value | Direction      | Purpose       |
+| ---------- | ----- | -------------- | ------------- |
+| CAT_INPUT  | 1     | Node → Gateway | Button events |
+| CAT_STATUS | 3     | Node → Gateway | Heartbeat     |
 
 ### Design rationale: room and board in payload
 
@@ -116,28 +116,28 @@ ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a va
 
 ### Button event frame (CAT_INPUT)
 
-| Byte | Field | Value |
-| --- | --- | --- |
-| 0 | Protocol version | 0x01 |
-| 1 | Message type | 0x01 (MSG_BUTTON_EVENT) |
-| 2 | Button index | 0–5 |
-| 3 | Event type | 0x01=click, 0x02=double_click, 0x03=triple_click, 0x04=long_press, 0x05=extra_long_press |
-| 4 | Room ID | 0–255 |
-| 5 | Board ID | 0–255 |
-| 6–7 | Reserved | 0x00 |
+| Byte | Field            | Value                                                                                    |
+| ---- | ---------------- | ---------------------------------------------------------------------------------------- |
+| 0    | Protocol version | 0x01                                                                                     |
+| 1    | Message type     | 0x01 (MSG_BUTTON_EVENT)                                                                  |
+| 2    | Button index     | 0–5                                                                                      |
+| 3    | Event type       | 0x01=click, 0x02=double_click, 0x03=triple_click, 0x04=long_press, 0x05=extra_long_press |
+| 4    | Room ID          | 0–255                                                                                    |
+| 5    | Board ID         | 0–255                                                                                    |
+| 6–7  | Reserved         | 0x00                                                                                     |
 
 ### Heartbeat frame (CAT_STATUS)
 
-| Byte | Field | Value |
-| --- | --- | --- |
-| 0 | Protocol version | 0x01 |
-| 1 | Message type | 0x01 (MSG_HEARTBEAT) |
-| 2 | Uptime (hours) | uint8, wraps at 255 |
-| 3 | Button states bitmask | current GPIO states |
-| 4 | Error flags | 0x00=healthy, 0x01=CAN TX fail, 0x02=bus-off |
-| 5 | Room ID | 0–255 |
-| 6 | Board ID | 0–255 |
-| 7 | Reserved | 0x00 |
+| Byte | Field                 | Value                                        |
+| ---- | --------------------- | -------------------------------------------- |
+| 0    | Protocol version      | 0x01                                         |
+| 1    | Message type          | 0x01 (MSG_HEARTBEAT)                         |
+| 2    | Uptime (hours)        | uint8, wraps at 255                          |
+| 3    | Button states bitmask | current GPIO states                          |
+| 4    | Error flags           | 0x00=healthy, 0x01=CAN TX fail, 0x02=bus-off |
+| 5    | Room ID               | 0–255                                        |
+| 6    | Board ID              | 0–255                                        |
+| 7    | Reserved              | 0x00                                         |
 
 ## Functional Requirements
 
@@ -222,7 +222,7 @@ ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a va
 
 **FR-8.2** `nodes.csv` SHALL define at minimum: `node_id`, `floor`, `room`, `board`, `location`, `gpio_list` for each node.
 
-**FR-8.3** For the PoC, `nodes.csv` SHALL contain exactly 2 node entries with distinct `node_id` values, distinct `room`/`board` combinations, and assigned button GPIO lists.
+**FR-8.3** For the PoC, `nodes.csv` SHALL contain exactly 2 node entries with distinct `node_id` values, distinct `room` values, and assigned button GPIO lists.
 
 **FR-8.4** `generate_nodes.py` SHALL print a CAN ID map on completion. The map SHALL be reviewed for duplicate IDs before flashing.
 
@@ -230,7 +230,7 @@ ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a va
 
 **FR-9.1** For each of the 5 event types, pressing the corresponding button sequence on node 0 SHALL result in an `esphome.canbus_button` event appearing in HA Developer Tools → Events with correct `room`, `board`, `button`, and `event` values.
 
-**FR-9.2** The same validation SHALL pass for node 1 (different `room` and `board` values).
+**FR-9.2** The same validation SHALL pass for node 1 (different `room` value).
 
 **FR-9.3** Within 60 seconds of power-on, each node SHALL emit at least one heartbeat visible as `esphome.canbus_heartbeat` in HA. [ASSUMPTION: first heartbeat fires at power-on or within the first 30-second interval — actual timing is OQ-6, adjust window if needed after observation.]
 
@@ -258,14 +258,14 @@ ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a va
 
 ## Open Questions
 
-| # | Question | Blocking? | Owner |
-| --- | --- | --- | --- |
-| OQ-1 | What are the exact GPIO numbers for user-facing button pins on the CANBed RP2040? The Longan Labs pinout diagram must be consulted before building `nodes.csv`. | Yes — blocks FR-1, FR-8 | Alberto |
-| OQ-2 | Is the MCP2515 INT pin on the CANBed RP2040 actually GPIO20? Confirm from board schematic before first compile. | Yes — blocks FR-2 | Alberto |
-| OQ-3 | Does the CANBed RP2040 ship with a 16 MHz oscillator? The MCP_CAN library and ESPHome MCP2515 component default to this. | Yes — blocks FR-2 | Alberto |
-| OQ-4 | Does the ESPHome `on_frame` + `can_id_mask` + `homeassistant.event` chain on the gateway compile and behave as designed? This is the highest-risk software path and has not been tested. | Yes — blocks FR-5, FR-6 | Alberto (compile test) |
-| OQ-5 | How many buttons will actually be wired on each PoC node? Determines GPIO list in `nodes.csv`. | No — does not block compile; blocks FR-9 | Alberto |
-| OQ-6 | Will the first heartbeat fire at node power-on (t=0), or only after the first 30-second interval? | No — affects FR-9.3 test window only | Observe during testing |
+| #    | Question                                                                                                                                                                                 | Blocking?                                | Owner                  |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------- |
+| OQ-1 | What are the exact GPIO numbers for user-facing button pins on the CANBed RP2040? The Longan Labs pinout diagram must be consulted before building `nodes.csv`.                          | Yes — blocks FR-1, FR-8                  | Alberto                |
+| OQ-2 | Is the MCP2515 INT pin on the CANBed RP2040 actually GPIO20? Confirm from board schematic before first compile.                                                                          | Yes — blocks FR-2                        | Alberto                |
+| OQ-3 | Does the CANBed RP2040 ship with a 16 MHz oscillator? The MCP_CAN library and ESPHome MCP2515 component default to this.                                                                 | Yes — blocks FR-2                        | Alberto                |
+| OQ-4 | Does the ESPHome `on_frame` + `can_id_mask` + `homeassistant.event` chain on the gateway compile and behave as designed? This is the highest-risk software path and has not been tested. | Yes — blocks FR-5, FR-6                  | Alberto (compile test) |
+| OQ-5 | How many buttons will actually be wired on each PoC node? Determines GPIO list in `nodes.csv`.                                                                                           | No — does not block compile; blocks FR-9 | Alberto                |
+| OQ-6 | Will the first heartbeat fire at node power-on (t=0), or only after the first 30-second interval?                                                                                        | No — affects FR-9.3 test window only     | Observe during testing |
 
 ## Deployment Procedure (PoC)
 
@@ -284,10 +284,10 @@ ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a va
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- |
-| `on_frame` + `homeassistant.event` chain does not compile or behave as expected | High (untested path) | High (blocks all HA integration) | Compile first; isolate the chain in a minimal test YAML before integrating full gateway config |
-| Wrong INT pin (OQ-2) causes MCP2515 to silently fail | Medium | High | Verify from schematic before first compile; check for RX errors in ESPHome logs |
-| Wrong oscillator frequency (OQ-3) causes CAN timing errors | Medium | High | All devices will log error frames; confirm from board docs first |
-| Missing or double termination causes reflections / bus errors | Low (easy to check physically) | Medium | Verify termination before powering |
-| WiFi connectivity issues between gateway and HA | Low | Medium | Ensure both are on same network; check ESPHome API connection logs |
+| Risk                                                                            | Likelihood                     | Impact                           | Mitigation                                                                                     |
+| ------------------------------------------------------------------------------- | ------------------------------ | -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `on_frame` + `homeassistant.event` chain does not compile or behave as expected | High (untested path)           | High (blocks all HA integration) | Compile first; isolate the chain in a minimal test YAML before integrating full gateway config |
+| Wrong INT pin (OQ-2) causes MCP2515 to silently fail                            | Medium                         | High                             | Verify from schematic before first compile; check for RX errors in ESPHome logs                |
+| Wrong oscillator frequency (OQ-3) causes CAN timing errors                      | Medium                         | High                             | All devices will log error frames; confirm from board docs first                               |
+| Missing or double termination causes reflections / bus errors                   | Low (easy to check physically) | Medium                           | Verify termination before powering                                                             |
+| WiFi connectivity issues between gateway and HA                                 | Low                            | Medium                           | Ensure both are on same network; check ESPHome API connection logs                             |
