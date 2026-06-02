@@ -14,7 +14,6 @@ substitutions:
         node_id: "100"
         room_id: "7"
         board_id: "0"
-        input_can_id: "0x264"
         output_can_id: "0x464"
         status_can_id: "0x664"
         debounce_ms: "50"

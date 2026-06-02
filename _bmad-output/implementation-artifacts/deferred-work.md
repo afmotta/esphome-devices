@@ -16,6 +16,13 @@
 - **`assert`-based validation note was stale** [`firmware/generate_nodes.py`] — generator validation already used explicit `print + sys.exit(1)` checks before this follow-up.
 - **SPI pin corrections are already propagated downstream** [`firmware/generate_nodes.py`, `firmware/nodes/node100.yaml`, `firmware/nodes/node101.yaml`] — template and generated nodes now carry GPIO2 / GPIO3 / GPIO4 and GPIO11.
 
+## Deferred from: code review of 2-2-per-button-package-5-event-types-via-on-multi-click.md (2026-06-02)
+
+- **Long/extra-long press share exact 3s boundary** [`firmware/common/button.yaml`] — `ON for 1s to 3s` and `ON for at least 3s` are adjacent; ESPHome always fires long, never extra-long at exactly 3s. Pre-existing in timing spec.
+- **Single-click can fire during slow double-click** [`firmware/common/button.yaml`] — double-click inter-press window `OFF for 0.05s to 0.4s` overlaps single's `OFF for at least 0.3s`; a 0.3–0.4s gap is ambiguous. Tightening double to `OFF for 0.05s to 0.29s` would eliminate the dead zone. Pre-existing.
+- **`send_data()` return value silently discarded** [`firmware/common/button.yaml`] — `canbus::Error` is ignored; TX failures on a busy bus (e.g., `ERROR_ALLTXBUSY`) lose events silently. Recommend an `ESP_LOGW` on non-OK result. Pre-existing behavior carried from `canbus.send:` action.
+- **node_id ≥ 512 silently produces colliding CAN IDs** [`firmware/common/canbus_protocol.h`] — `can_id()` masks `node_id & 0x1FF` (max 511); node IDs 512+ wrap and collide. Currently safe because `generate_nodes.py` validates node IDs to 0–399. Pre-existing.
+
 ## Deferred from: code review of 2-1-base-node-configuration-spi-and-mcp2515-setup.md (2026-06-01)
 
 - `can_int_pin` substitution is generated in node YAMLs but not consumed by `canbus.mcp2515` config in `firmware/common/base_node.yaml`; keep as deferred pre-existing cleanup until platform support or template strategy is revisited.
