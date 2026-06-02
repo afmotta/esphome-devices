@@ -13,8 +13,12 @@ script:
     then:
       - lambda: |-
           ESP_LOGD("btn", "${node_name} btn${button_index}: %s", event_type_str(event_type).c_str());
-          id(can0).send_data(can_id(CAT_INPUT, ${node_id}), false,
+          auto err = id(can0).send_data(can_id(CAT_INPUT, ${node_id}), false,
               button_payload(${button_index}, event_type, ${room_id}, ${board_id}));
+          if (err != canbus::ERROR_OK) {
+            ESP_LOGW("btn", "${node_name} btn${button_index} TX failed (err=%d), event %s dropped",
+                (int) err, event_type_str(event_type).c_str());
+          }
 
 binary_sensor:
   - platform: gpio
@@ -34,9 +38,9 @@ binary_sensor:
       # ----- Triple click -----
       - timing:
           - ON for at most 0.5s
-          - OFF for 0.05s to 0.4s
+          - OFF for 0.05s to 0.29s
           - ON for at most 0.5s
-          - OFF for 0.05s to 0.4s
+          - OFF for 0.05s to 0.29s
           - ON for at most 0.5s
           - OFF for at least 0.3s
         then:
@@ -47,7 +51,7 @@ binary_sensor:
       # ----- Double click -----
       - timing:
           - ON for at most 0.5s
-          - OFF for 0.05s to 0.4s
+          - OFF for 0.05s to 0.29s
           - ON for at most 0.5s
           - OFF for at least 0.3s
         then:
@@ -64,9 +68,11 @@ binary_sensor:
               id: btn${button_index}_send_event
               event_type: !lambda 'return EVT_CLICK;'
 
-      # ----- Long press (1-3 seconds) -----
+      # ----- Long press (1s to just under 3s) -----
+      # Capped at 2999ms so the extra-long pattern (>= 3s) is reachable;
+      # an inclusive "1s to 3s" here would always win at exactly 3s.
       - timing:
-          - ON for 1s to 3s
+          - ON for 1s to 2999ms
           - OFF for at least 0.3s
         then:
           - script.execute:

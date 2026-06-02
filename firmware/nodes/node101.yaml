@@ -5,8 +5,9 @@
 # Location: Ground floor living room
 # Room:     8, Board: 0
 # Buttons:  2 (GPIO 20,21)
-# CAN ID:   Input  = 0x265
-#            Status = 0x665
+# CAN IDs:  Input  = 0x265  (CAT_INPUT,  node → gateway, button events)
+#           Status = 0x665  (CAT_STATUS, node → gateway, heartbeat)
+#           Output = 0x465  (CAT_OUTPUT, gateway → node, commands / RX filter)
 # =============================================================================
 
 substitutions:
@@ -14,6 +15,7 @@ substitutions:
         node_id: "101"
         room_id: "8"
         board_id: "0"
+        input_can_id: "0x265"
         output_can_id: "0x465"
         status_can_id: "0x665"
         debounce_ms: "50"

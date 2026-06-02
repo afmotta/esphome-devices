@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <cstddef>
 
 // =============================================================================
 // CAN Bus Smart Home Protocol v1
@@ -31,7 +32,8 @@
 
 // --------------- Protocol version ---------------
 inline constexpr uint8_t PROTO_V1 = 0x01;
-inline constexpr uint8_t CAN_FRAME_SIZE = 8;
+// size_t so comparisons against std::vector::size() are exact (no implicit promotion).
+inline constexpr std::size_t CAN_FRAME_SIZE = 8;
 
 // --------------- Categories (bits 10:9) ---------------
 inline constexpr uint8_t CAT_SYSTEM = 0; // Emergency, errors       (highest priority)

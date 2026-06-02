@@ -27,8 +27,9 @@ TEMPLATE = """\
 # Location: {location}
 # Room:     {room}, Board: {board}
 # Buttons:  {num_buttons} (GPIO {gpio_summary})
-# CAN ID:   Input  = 0x{input_id:03X}
-#            Status = 0x{status_id:03X}
+# CAN IDs:  Input  = 0x{input_id:03X}  (CAT_INPUT,  node → gateway, button events)
+#           Status = 0x{status_id:03X}  (CAT_STATUS, node → gateway, heartbeat)
+#           Output = 0x{output_id:03X}  (CAT_OUTPUT, gateway → node, commands / RX filter)
 # =============================================================================
 
 substitutions:

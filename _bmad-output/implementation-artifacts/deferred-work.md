@@ -1,13 +1,19 @@
 ## Deferred from: code review of 2-3-node-heartbeat-and-can-frame-receive-lambda-safety.md (2026-06-02)
 
 - **`uptime_h` silently overflows at 255 hours (~10.6 days)** [`firmware/common/base_node.yaml`] — `(uint8_t)((millis() / 3600000UL) & 0xFF)` wraps to 0 with no flag or epoch counter; a receiver cannot distinguish a rebooted node from a 256-hour-old one. Pre-existing.
-- **`on_frame` filter uses `${output_can_id}`** [`firmware/common/base_node.yaml`] — the node's CAN receive filter and its transmit CAN ID are both `${output_can_id}`; direction convention (node TX vs gateway command RX) is implicit and not documented. Pre-existing.
-- **`uint16_t val = (x[3] << 8) | x[4]`** [`firmware/common/base_node.yaml`] — `x[3]` is `uint8_t`; shift promotes to `int` before assignment. Harmless on ESP32 (32-bit `int`) but non-portable. Use `(static_cast<uint16_t>(x[3]) << 8) | x[4]`. Pre-existing.
-- **`CAN_FRAME_SIZE` typed as `uint8_t`** [`firmware/common/canbus_protocol.h`] — compared with `x.size()` (`size_t`); implicit promotion is safe now but a `constexpr size_t` would be self-documenting. Pre-existing.
 
 ## Remaining Epic 1 Residuals (2026-06-01)
 
 - **`button_index` is still not range-checked inside `button_payload`** [`firmware/common/canbus_protocol.h`] — Epic 1 continues to enforce the 0–5 invariant at the generator/config layer (`generate_nodes.py` emits at most 6 buttons, `button.yaml` uses those generated indices). No wire-spec-defined invalid-button encoding was added in this follow-up.
+
+## Closed During Epic 2 Deferred-Work Follow-Up (2026-06-02)
+
+- **Click-timing dead-zones fixed** [`firmware/common/button.yaml`] — double/triple inter-press windows tightened from `OFF for 0.05s to 0.4s` to `0.05s to 0.29s` so they no longer overlap single-click's `OFF for at least 0.3s`; long press capped at `1s to 2999ms` so the extra-long (`>= 3s`) pattern is reachable. De-risks the Epic 4 acceptance matrix for double-click and extra-long-press.
+- **`send_data()` TX failures now logged** [`firmware/common/button.yaml`] — the shared `btn*_send_event` script captures the `canbus::Error` return and emits `ESP_LOGW` on non-OK, so dropped events on a busy bus are observable (NFR-8 spirit).
+- **CAN ID direction convention resolved + documented** [`firmware/common/base_node.yaml`, `firmware/generate_nodes.py`, `firmware/nodes/*`] — platform-level (default TX) `can_id` now uses `${input_can_id}` (CAT_INPUT, node → gateway) instead of `${output_can_id}`; the `on_frame` RX filter keeps `${output_can_id}` (CAT_OUTPUT, gateway → node) with an explicit comment. `input_can_id` is regenerated into node files (no longer stale/unused). Direction convention is documented in the base-node header and generator node comment.
+- **`(x[3] << 8)` integer promotion fixed** [`firmware/common/base_node.yaml`] — now `(static_cast<uint16_t>(x[3]) << 8) | x[4]`; portable across `int` widths.
+- **`CAN_FRAME_SIZE` retyped to `std::size_t`** [`firmware/common/canbus_protocol.h`] — exact comparison against `std::vector::size()` with no implicit promotion; added `#include <cstddef>`.
+- Validation: `esphome compile nodes/node100.yaml` and `node101.yaml` both SUCCESS on ESPHome 2026.5.0.
 
 ## Closed During Epic 1 Deferred-Work Follow-Up (2026-06-01)
 
@@ -25,9 +31,6 @@
 
 ## Deferred from: code review of 2-2-per-button-package-5-event-types-via-on-multi-click.md (2026-06-02)
 
-- **Long/extra-long press share exact 3s boundary** [`firmware/common/button.yaml`] — `ON for 1s to 3s` and `ON for at least 3s` are adjacent; ESPHome always fires long, never extra-long at exactly 3s. Pre-existing in timing spec.
-- **Single-click can fire during slow double-click** [`firmware/common/button.yaml`] — double-click inter-press window `OFF for 0.05s to 0.4s` overlaps single's `OFF for at least 0.3s`; a 0.3–0.4s gap is ambiguous. Tightening double to `OFF for 0.05s to 0.29s` would eliminate the dead zone. Pre-existing.
-- **`send_data()` return value silently discarded** [`firmware/common/button.yaml`] — `canbus::Error` is ignored; TX failures on a busy bus (e.g., `ERROR_ALLTXBUSY`) lose events silently. Recommend an `ESP_LOGW` on non-OK result. Pre-existing behavior carried from `canbus.send:` action.
 - **node_id ≥ 512 silently produces colliding CAN IDs** [`firmware/common/canbus_protocol.h`] — `can_id()` masks `node_id & 0x1FF` (max 511); node IDs 512+ wrap and collide. Currently safe because `generate_nodes.py` validates node IDs to 0–399. Pre-existing.
 
 ## Deferred from: code review of 2-1-base-node-configuration-spi-and-mcp2515-setup.md (2026-06-01)
