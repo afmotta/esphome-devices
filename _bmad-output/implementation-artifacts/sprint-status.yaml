@@ -51,11 +51,11 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: Node Firmware — Button Events & Heartbeat Over CAN
-  epic-2: in-progress
+  epic-2: done
   2-1-base-node-configuration-spi-and-mcp2515-setup: done
   2-2-per-button-package-5-event-types-via-on-multi-click: done
-  2-3-node-heartbeat-and-can-frame-receive-lambda-safety: backlog
-  epic-2-retrospective: optional
+  2-3-node-heartbeat-and-can-frame-receive-lambda-safety: done
+  epic-2-retrospective: done
 
   # Epic 3: Gateway Firmware — Home Assistant Integration
   epic-3: backlog

@@ -1,3 +1,10 @@
+## Deferred from: code review of 2-3-node-heartbeat-and-can-frame-receive-lambda-safety.md (2026-06-02)
+
+- **`uptime_h` silently overflows at 255 hours (~10.6 days)** [`firmware/common/base_node.yaml`] — `(uint8_t)((millis() / 3600000UL) & 0xFF)` wraps to 0 with no flag or epoch counter; a receiver cannot distinguish a rebooted node from a 256-hour-old one. Pre-existing.
+- **`on_frame` filter uses `${output_can_id}`** [`firmware/common/base_node.yaml`] — the node's CAN receive filter and its transmit CAN ID are both `${output_can_id}`; direction convention (node TX vs gateway command RX) is implicit and not documented. Pre-existing.
+- **`uint16_t val = (x[3] << 8) | x[4]`** [`firmware/common/base_node.yaml`] — `x[3]` is `uint8_t`; shift promotes to `int` before assignment. Harmless on ESP32 (32-bit `int`) but non-portable. Use `(static_cast<uint16_t>(x[3]) << 8) | x[4]`. Pre-existing.
+- **`CAN_FRAME_SIZE` typed as `uint8_t`** [`firmware/common/canbus_protocol.h`] — compared with `x.size()` (`size_t`); implicit promotion is safe now but a `constexpr size_t` would be self-documenting. Pre-existing.
+
 ## Remaining Epic 1 Residuals (2026-06-01)
 
 - **`button_index` is still not range-checked inside `button_payload`** [`firmware/common/canbus_protocol.h`] — Epic 1 continues to enforce the 0–5 invariant at the generator/config layer (`generate_nodes.py` emits at most 6 buttons, `button.yaml` uses those generated indices). No wire-spec-defined invalid-button encoding was added in this follow-up.

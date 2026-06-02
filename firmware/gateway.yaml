@@ -120,7 +120,7 @@ canbus:
         then:
           - if:
               condition:
-                lambda: 'return x.size() >= 6 && x[0] == PROTO_V1;'
+                lambda: 'if (x.size() < CAN_FRAME_SIZE) return false; return x[0] == PROTO_V1;'
               then:
                 - lambda: |-
                     id(evt_room)   = payload_room(x);
@@ -152,7 +152,7 @@ canbus:
         then:
           - if:
               condition:
-                lambda: 'return x.size() >= 7 && x[0] == PROTO_V1;'
+                lambda: 'if (x.size() < CAN_FRAME_SIZE) return false; return x[0] == PROTO_V1;'
               then:
                 - lambda: |-
                     id(evt_room)   = payload_heartbeat_room(x);

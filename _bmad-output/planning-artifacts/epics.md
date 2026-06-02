@@ -280,7 +280,7 @@ So that the gateway can detect node aliveness and malformed frames are silently 
 **Given** `canbus_protocol.h` defines `CAN_FRAME_SIZE = 8`, `CAT_STATUS`, `MSG_HEARTBEAT` (Story 1.3)
 **When** the heartbeat is implemented in `firmware/common/base_node.yaml`
 **Then** a heartbeat frame is transmitted every 30 seconds with CAN ID = `can_id(CAT_STATUS, ${node_id})`
-**And** the heartbeat payload is 8 bytes matching the PRD heartbeat frame spec: byte 0 = `PROTO_V1`, byte 1 = `MSG_HEARTBEAT`, byte 2 = uptime hours (uint8, wraps at 255), byte 3 = button states bitmask, byte 4 = error flags, byte 5 = room_id, byte 6 = board_id, byte 7 = 0x00
+**And** the heartbeat payload is 8 bytes matching the PRD heartbeat frame spec: byte 0 = `PROTO_V1`, byte 1 = `MSG_HEARTBEAT`, byte 2 = uptime hours (uint8, wraps at 255), byte 3 = error flags, byte 4 = room_id, byte 5 = board_id, byte 6 = `0x00` reserved, byte 7 = `0x00` reserved
 **And** error flags (payload byte 4) are set: bit 0 for MCP2515 TX error or timeout, bit 1 for bus-off; 0x00 when healthy (FR-3.2)
 **And** every `on_frame` receive lambda in both node and gateway firmware begins with `if (x.size() < CAN_FRAME_SIZE) return;` as the first line (NFR-2)
 **And** the size guard uses the named constant `CAN_FRAME_SIZE`, not an inline integer literal

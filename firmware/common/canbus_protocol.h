@@ -90,11 +90,11 @@ inline std::vector<uint8_t> button_payload(uint8_t button_index, uint8_t event_t
   return {PROTO_V1, MSG_BUTTON_EVENT, button_index, event_type, room_id, board_id, 0x00, 0x00};
 }
 
-// Heartbeat: [ver, type, uptime_h, btn_states, errors, room, board, 0]
-inline std::vector<uint8_t> heartbeat_payload(uint8_t uptime_hours, uint8_t button_states,
+// Heartbeat: [ver, type, uptime_h, errors, room, board, 0, 0]
+inline std::vector<uint8_t> heartbeat_payload(uint8_t uptime_hours,
                                               uint8_t error_flags, uint8_t room_id, uint8_t board_id)
 {
-  return {PROTO_V1, MSG_HEARTBEAT, uptime_hours, button_states, error_flags, room_id, board_id, 0x00};
+  return {PROTO_V1, MSG_HEARTBEAT, uptime_hours, error_flags, room_id, board_id, 0x00, 0x00};
 }
 
 // =============================================================================
@@ -110,10 +110,9 @@ inline uint8_t payload_board(const std::vector<uint8_t> &d) { return d.size() > 
 
 // Heartbeat-specific
 inline uint8_t payload_uptime(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
-inline uint8_t payload_btn_states(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
-inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
-inline uint8_t payload_heartbeat_room(const std::vector<uint8_t> &d) { return d.size() > 5 ? d[5] : 0; }
-inline uint8_t payload_heartbeat_board(const std::vector<uint8_t> &d) { return d.size() > 6 ? d[6] : 0; }
+inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
+inline uint8_t payload_heartbeat_room(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
+inline uint8_t payload_heartbeat_board(const std::vector<uint8_t> &d) { return d.size() > 5 ? d[5] : 0; }
 
 // Event type to string (for HA events)
 inline std::string event_type_str(uint8_t event_type)
