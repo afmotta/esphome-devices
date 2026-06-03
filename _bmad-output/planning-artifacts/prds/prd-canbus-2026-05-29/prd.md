@@ -114,30 +114,41 @@ Categories used in PoC:
 
 ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a variable inside the lambda. When the gateway uses mask-based filtering to match all button events at once (regardless of which node sent them), it cannot reliably decode the source node from the CAN ID alone. Room and board IDs are therefore embedded in the payload, making each frame self-describing. This is not over-engineering — it is a direct consequence of an ESPHome constraint.
 
+> **Wire-spec amendment (2026-06-03, correct-course):** both node→gateway frames share a uniform
+> `[version][type][room][board]` prefix, then message-specific content trailing toward the reserved
+> tail. This unifies the `room`/`board` decoders across button and heartbeat and keeps the free bytes
+> contiguous with the content for future growth. Heartbeat `uptime` is widened to a little-endian
+> `uint16` (bytes 5-6). The byte-3 "button states bitmask" is **removed** — buttons are momentary
+> and have no resting state. `PROTO_V1` is unchanged per the versioning policy below.
+>
+> **Versioning policy:** until the project is declared LIVE, `PROTO_V1` stays `0x01` and breaking
+> payload changes are absorbed in place (all nodes reflashed in lock-step with the gateway — no
+> fielded firmware to remain compatible with). **Declaring the project live is Alberto's explicit
+> call.** Only after going live does a breaking payload change require a version bump.
+
 ### Button event frame (CAT_INPUT)
 
 | Byte | Field            | Value                                                                                    |
 | ---- | ---------------- | ---------------------------------------------------------------------------------------- |
 | 0    | Protocol version | 0x01                                                                                     |
 | 1    | Message type     | 0x01 (MSG_BUTTON_EVENT)                                                                  |
-| 2    | Button index     | 0–5                                                                                      |
-| 3    | Event type       | 0x01=click, 0x02=double_click, 0x03=triple_click, 0x04=long_press, 0x05=extra_long_press |
-| 4    | Room ID          | 0–255                                                                                    |
-| 5    | Board ID         | 0–255                                                                                    |
+| 2    | Room ID          | 0–255                                                                                    |
+| 3    | Board ID         | 0–255                                                                                    |
+| 4    | Button index     | 0–5                                                                                      |
+| 5    | Event type       | 0x01=click, 0x02=double_click, 0x03=triple_click, 0x04=long_press, 0x05=extra_long_press |
 | 6–7  | Reserved         | 0x00                                                                                     |
 
 ### Heartbeat frame (CAT_STATUS)
 
-| Byte | Field                 | Value                                        |
-| ---- | --------------------- | -------------------------------------------- |
-| 0    | Protocol version      | 0x01                                         |
-| 1    | Message type          | 0x01 (MSG_HEARTBEAT)                         |
-| 2    | Uptime (hours)        | uint8, wraps at 255                          |
-| 3    | Button states bitmask | current GPIO states                          |
-| 4    | Error flags           | 0x00=healthy, 0x01=CAN TX fail, 0x02=bus-off |
-| 5    | Room ID               | 0–255                                        |
-| 6    | Board ID              | 0–255                                        |
-| 7    | Reserved              | 0x00                                         |
+| Byte | Field            | Value                                                  |
+| ---- | ---------------- | ------------------------------------------------------ |
+| 0    | Protocol version | 0x01                                                   |
+| 1    | Message type     | 0x01 (MSG_HEARTBEAT)                                   |
+| 2    | Room ID          | 0–255                                                  |
+| 3    | Board ID         | 0–255                                                  |
+| 4    | Error flags      | 0x00=healthy, 0x01=CAN TX fail, 0x02=bus-off           |
+| 5–6  | Uptime (hours)   | uint16 little-endian, saturates at 65535 (~7.5 yr)     |
+| 7    | Reserved         | 0x00                                                   |
 
 ## Functional Requirements
 
@@ -195,20 +206,20 @@ ESPHome's `on_frame` trigger does not cleanly expose the received CAN ID as a va
 ### FR-6: Gateway firmware — Home Assistant event forwarding
 
 **FR-6.1** On receiving a valid CAT_INPUT frame, the gateway SHALL fire a `esphome.canbus_button` event to Home Assistant with the following string fields:
-- `room`: room ID extracted from payload byte 4
-- `board`: board ID extracted from payload byte 5
-- `button`: button index from payload byte 2
+- `room`: room ID extracted from payload byte 2
+- `board`: board ID extracted from payload byte 3
+- `button`: button index from payload byte 4
 - `event`: event type string (`click`, `double_click`, `triple_click`, `long_press`, `extra_long_press`)
 
 **FR-6.2** On receiving a valid CAT_STATUS frame, the gateway SHALL fire a `esphome.canbus_heartbeat` event with:
-- `room`: room ID from payload byte 5
-- `board`: board ID from payload byte 6
-- `uptime`: uptime hours from payload byte 2 (as string)
+- `room`: room ID from payload byte 2
+- `board`: board ID from payload byte 3
+- `uptime`: uptime hours from payload bytes 5-6 (uint16 LE, as string)
 - `errors`: error flags from payload byte 4 (as string)
 
 **FR-6.3** All event data field values SHALL be strings. Integer values SHALL be converted via `to_string()` or `std::string()` before use in `homeassistant.event` data blocks.
 
-**FR-6.4** Values needed in `homeassistant.event` data blocks SHALL be staged into ESPHome globals first. Lambda-local variables set in a preceding `lambda:` action are not in scope for `homeassistant.event` data blocks — this is an ESPHome constraint, not a style preference.
+**FR-6.4** Each `homeassistant.event` data field SHALL be populated by a per-field `!lambda` that re-decodes directly from the received frame vector `x`. The narrow constraint is that a variable declared in a *separate preceding* `lambda:` action is not in scope inside the data block (it runs in its own action context) — but a `!lambda` attached to the data field itself runs in `on_frame` scope and can read `x`. Globals staging is NOT required and is not used (corrected 2026-06-03; aligns with the implemented gateway).
 
 ### FR-7: Gateway firmware — Connectivity
 

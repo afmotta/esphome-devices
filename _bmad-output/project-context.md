@@ -129,7 +129,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 **Protocol changes:**
 
 - `canbus_protocol.h` is shared by both nodes and gateway. Any protocol change requires reflashing ALL affected nodes (no OTA) — treat protocol as frozen unless absolutely necessary.
-- Protocol version byte (`PROTO_V1 = 0x01`) must be incremented for any breaking payload change.
+- **Versioning policy:** until the project is declared LIVE, `PROTO_V1` stays `0x01` and breaking payload changes are made in place — no version bump — because every node is reflashed in lock-step with the gateway (no fielded firmware to stay compatible with). **Declaring the project live is Alberto's explicit call.** Only after going live does a breaking payload change require incrementing the protocol version byte.
 
 **Adding a new node type or new event:**
 

@@ -21,16 +21,26 @@
 // All semantic meaning (room, board, button, event) lives in the payload.
 // The CAN ID only provides uniqueness for arbitration and category filtering.
 //
-// Data payload (8 bytes):
-//   Byte 0: Protocol version
-//   Byte 1: Message type
-//   Byte 2-3: Message-specific data
-//   Byte 4: Room ID   (0-255)
-//   Byte 5: Board ID  (0-255)
-//   Byte 6-7: Reserved
+// Node → gateway payload (8 bytes) — uniform [version][type] header, then identity:
+//   Byte 0:   Protocol version
+//   Byte 1:   Message type
+//   Byte 2:   Room ID   (0-255)  — sender identity, same offset for every node→gateway frame
+//   Byte 3:   Board ID  (0-255)  — sender identity, same offset for every node→gateway frame
+//   Byte 4-6: Message-specific content (trails identity, contiguous with the reserved tail)
+//   Byte 7:   Reserved
+//
+//   Button event content: Byte 4 = button index, Byte 5 = event type      (6-7 reserved)
+//   Heartbeat content:    Byte 4 = error flags,  Byte 5-6 = uptime hours (uint16 LE), 7 reserved
+//
+// Gateway → node payload (8 bytes) carries command params, not room/board — the CAN ID
+// already addresses the target node:  [version, subtype/type, p1, p2, ...].
 // =============================================================================
 
 // --------------- Protocol version ---------------
+// Versioning policy: until the project is declared LIVE, PROTO_V1 stays 0x01 and breaking
+// payload changes are absorbed in place (every node is reflashed in lock-step with the
+// gateway — there is no fielded firmware to stay compatible with). Going live is Alberto's
+// explicit call; only after that does any breaking payload change require a version bump.
 inline constexpr uint8_t PROTO_V1 = 0x01;
 // size_t so comparisons against std::vector::size() are exact (no implicit promotion).
 inline constexpr std::size_t CAN_FRAME_SIZE = 8;
@@ -85,18 +95,20 @@ inline uint16_t can_id_node(uint32_t id) { return id & 0x1FF; }
 // Room and board identify the sender; node_id is only in the CAN header.
 // =============================================================================
 
-// Button event: [ver, type, button, event, room, board, 0, 0]
+// Button event: [ver, type, room, board, button, event, 0, 0]
 inline std::vector<uint8_t> button_payload(uint8_t button_index, uint8_t event_type,
                                            uint8_t room_id, uint8_t board_id)
 {
-  return {PROTO_V1, MSG_BUTTON_EVENT, button_index, event_type, room_id, board_id, 0x00, 0x00};
+  return {PROTO_V1, MSG_BUTTON_EVENT, room_id, board_id, button_index, event_type, 0x00, 0x00};
 }
 
-// Heartbeat: [ver, type, uptime_h, errors, room, board, 0, 0]
-inline std::vector<uint8_t> heartbeat_payload(uint8_t uptime_hours,
+// Heartbeat: [ver, type, room, board, errors, uptime_lo, uptime_hi, 0]
+// uptime_hours is a little-endian uint16 (bytes 5-6); 0xFFFF means "at least 65535 h".
+inline std::vector<uint8_t> heartbeat_payload(uint16_t uptime_hours,
                                               uint8_t error_flags, uint8_t room_id, uint8_t board_id)
 {
-  return {PROTO_V1, MSG_HEARTBEAT, uptime_hours, error_flags, room_id, board_id, 0x00, 0x00};
+  return {PROTO_V1, MSG_HEARTBEAT, room_id, board_id, error_flags,
+          (uint8_t) (uptime_hours & 0xFF), (uint8_t) ((uptime_hours >> 8) & 0xFF), 0x00};
 }
 
 // =============================================================================
@@ -105,16 +117,22 @@ inline std::vector<uint8_t> heartbeat_payload(uint8_t uptime_hours,
 
 inline uint8_t payload_version(const std::vector<uint8_t> &d) { return d.size() > 0 ? d[0] : 0; }
 inline uint8_t payload_type(const std::vector<uint8_t> &d) { return d.size() > 1 ? d[1] : 0; }
-inline uint8_t payload_button_index(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
-inline uint8_t payload_event_type(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
-inline uint8_t payload_room(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
-inline uint8_t payload_board(const std::vector<uint8_t> &d) { return d.size() > 5 ? d[5] : 0; }
 
-// Heartbeat-specific
-inline uint8_t payload_uptime(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
-inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
-inline uint8_t payload_heartbeat_room(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
-inline uint8_t payload_heartbeat_board(const std::vector<uint8_t> &d) { return d.size() > 5 ? d[5] : 0; }
+// Sender identity — same offset for every node→gateway frame (button + heartbeat).
+inline uint8_t payload_room(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
+inline uint8_t payload_board(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
+
+// Button-event content
+inline uint8_t payload_button_index(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
+inline uint8_t payload_event_type(const std::vector<uint8_t> &d) { return d.size() > 5 ? d[5] : 0; }
+
+// Heartbeat content — uptime is a little-endian uint16 spanning bytes 5-6.
+inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 4 ? d[4] : 0; }
+inline uint16_t payload_uptime16(const std::vector<uint8_t> &d)
+{
+  if (d.size() < 7) return 0;
+  return (uint16_t) d[5] | ((uint16_t) d[6] << 8);
+}
 
 // Event type to string (for HA events)
 inline std::string event_type_str(uint8_t event_type)
