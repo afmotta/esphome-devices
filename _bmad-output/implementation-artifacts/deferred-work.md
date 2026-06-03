@@ -1,3 +1,7 @@
+## Deferred from: code review of 3-3-gateway-cat-status-handler-heartbeat-logging.md (2026-06-03)
+
+- **`%u`/`%02u` format specifiers receive `uint8_t` args promoted to signed `int`, not `unsigned int`** [`firmware/gateway.yaml:124-128`] — formally undefined behavior per the C standard, but harmless in practice for `uint8_t` values on this platform (and `-Wformat` may flag it). Pre-existing codebase convention: the error-path `ESP_LOGW` and the CAT_INPUT handler use the same pattern. Story 3.3 only extends it to one new `errors` argument on the normal-path `ESP_LOGD`. Not introduced by this change; revisit codebase-wide if a stricter format-safety pass is ever warranted.
+
 ## Deferred from: code review of 3-2-gateway-cat-input-handler-button-events-to-home-assistant.md (2026-06-02)
 
 - **project-context.md mandates staging-globals, contradicting AC6 and shipped code** [`_bmad-output/project-context.md:64,152`] — the doc says "always stage values into globals first" but AC6 and the committed CAT_INPUT handler deliberately use per-field `!lambda` re-decode with no globals. Same class of unacknowledged doc/firmware contradiction as the architecture.md follow-up the story already records. Correct project-context.md (and align with the [[project_gateway_ha_event_firing_approach]] decision) in a doc pass.

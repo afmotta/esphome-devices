@@ -35,8 +35,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-01
-last_updated: 2026-06-02
-last_updated_by: claude-code-review-3-2
+last_updated: 2026-06-03
+last_updated_by: bmad-retrospective-epic-3
 project: canbus
 project_key: NOKEY
 tracking_system: file-system
@@ -59,11 +59,11 @@ development_status:
   epic-2-retrospective: done
 
   # Epic 3: Gateway Firmware — Home Assistant Integration
-  epic-3: in-progress
+  epic-3: done
   3-1-gateway-base-configuration-twai-esp-idf-and-native-api: done
   3-2-gateway-cat-input-handler-button-events-to-home-assistant: done
-  3-3-gateway-cat-status-handler-heartbeat-logging: ready-for-dev
-  epic-3-retrospective: optional
+  3-3-gateway-cat-status-handler-heartbeat-logging: done
+  epic-3-retrospective: done
 
   # Epic 4: PoC Validation & Sign-off
   epic-4: backlog

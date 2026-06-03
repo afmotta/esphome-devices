@@ -1,6 +1,10 @@
+---
+baseline_commit: 860162a0f411c26d8fe4de9ab6bf6f0898cad678
+---
+
 # Story 3.3: Gateway CAT_STATUS handler — heartbeat logging
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,18 +40,25 @@ The CAT_STATUS handler **already exists and is substantially complete** in [firm
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify guard, decode, and no-HA-event** (AC: 1,3,5)
-  - [ ] 1.1: Confirm the `if:` `condition:` lambda's first statement is `if (x.size() < CAN_FRAME_SIZE) return false;` before any byte access (AC1). Current: `if (x.size() < CAN_FRAME_SIZE) return false; return x[0] == PROTO_V1;` — verify unchanged/correct. [firmware/gateway.yaml:110]
-  - [ ] 1.2: Confirm decode uses `payload_uptime`, `payload_errors`, `payload_heartbeat_room`, `payload_heartbeat_board`, and the error compare uses `ERR_NONE` (AC5). [firmware/gateway.yaml:112-117]
-  - [ ] 1.3: Confirm there is **no** `homeassistant.event:` action and no API event fire in this handler (AC3).
+- [x] **Task 1: Verify guard, decode, and no-HA-event** (AC: 1,3,5)
+  - [x] 1.1: Confirm the `if:` `condition:` lambda's first statement is `if (x.size() < CAN_FRAME_SIZE) return false;` before any byte access (AC1). Current: `if (x.size() < CAN_FRAME_SIZE) return false; return x[0] == PROTO_V1;` — verify unchanged/correct. [firmware/gateway.yaml:116]
+  - [x] 1.2: Confirm decode uses `payload_uptime`, `payload_errors`, `payload_heartbeat_room`, `payload_heartbeat_board`, and the error compare uses `ERR_NONE` (AC5). [firmware/gateway.yaml:119-123]
+  - [x] 1.3: Confirm there is **no** `homeassistant.event:` action and no API event fire in this handler (AC3).
 
-- [ ] **Task 2: Ensure the log line carries the full decode on every heartbeat** (AC: 2,4)
-  - [ ] 2.1: The current code logs room/board/uptime on the `ESP_LOGD` (normal) path but only includes the error byte on the `ESP_LOGW` (error) path. Add the error byte to the normal-path message (e.g. `... err=0x%02X`) so uptime+errors+room+board are all present on every heartbeat (AC2, AC4). Keep the two-level severity (`ESP_LOGW` when `errors != ERR_NONE`, `ESP_LOGD`/`ESP_LOGI` otherwise) — just make the normal path complete. [firmware/gateway.yaml:117-123]
-  - [ ] 2.2: Confirm the message is decode-confirming (contains the decoded values), not static (AC4).
+- [x] **Task 2: Ensure the log line carries the full decode on every heartbeat** (AC: 2,4)
+  - [x] 2.1: The current code logs room/board/uptime on the `ESP_LOGD` (normal) path but only includes the error byte on the `ESP_LOGW` (error) path. Add the error byte to the normal-path message (e.g. `... err=0x%02X`) so uptime+errors+room+board are all present on every heartbeat (AC2, AC4). Keep the two-level severity (`ESP_LOGW` when `errors != ERR_NONE`, `ESP_LOGD`/`ESP_LOGI` otherwise) — just make the normal path complete. [firmware/gateway.yaml:117-123]
+  - [x] 2.2: Confirm the message is decode-confirming (contains the decoded values), not static (AC4).
 
-- [ ] **Task 3: Compile both handlers** (AC: 6)
-  - [ ] 3.1: From `firmware/`, run `esphome compile gateway.yaml` with the Story 3.2 CAT_INPUT handler and this CAT_STATUS handler both present. Fix any errors.
-  - [ ] 3.2: Confirm `firmware/README.md` "ESPHome Version" reflects the compiling version (`2026.5.0`).
+- [x] **Task 3: Compile both handlers** (AC: 6)
+  - [x] 3.1: From `firmware/`, run `esphome compile gateway.yaml` with the Story 3.2 CAT_INPUT handler and this CAT_STATUS handler both present. Fix any errors.
+  - [x] 3.2: Confirm `firmware/README.md` "ESPHome Version" reflects the compiling version (`2026.5.0`).
+
+### Review Findings
+
+_Code review 2026-06-03 (Blind Hunter + Edge Case Hunter + Acceptance Auditor). All 6 ACs assessed PASS by the Acceptance Auditor. Findings below concern code quality, not AC compliance. AC6 re-verified post-patch: `esphome compile gateway.yaml` → SUCCESS in 13.45s (ESPHome 2026.5.0, RAM 14.1%, Flash 9.5%) after the log-format unification below._
+
+- [x] [Review][Patch] Unified heartbeat log lines to one consistent format [firmware/gateway.yaml:124-128] — RESOLVED 2026-06-03. The error path logged `Node R%02uB%u error=0x%02X uptime=%uh` (label `error=`, error-before-uptime) while the normal path logged `Heartbeat R%02uB%u uptime=%uh err=0x%02X` (label `err=`, uptime-before-error) — two formats for the same entity, harder to grep/parse. Both lines now use the identical layout `R%02uB%u uptime=%uh error=0x%02X` with arg order `room, board, uptime, errors`, differing only in the leading word (`Node`/`Heartbeat`) and severity level (`ESP_LOGW`/`ESP_LOGD`). AC4 still satisfied (error byte present on every heartbeat). (blind+edge)
+- [x] [Review][Defer] `%u`/`%02u` format specifiers receive `uint8_t` args promoted to signed `int`, not `unsigned int` [firmware/gateway.yaml:124-128] — deferred, pre-existing. Formally UB per C, harmless on this platform/`uint8_t`; pre-existing codebase convention (error path + CAT_INPUT handler use the same). The diff merely extends it to one new `errors` arg.
 
 ## Dev Notes
 
@@ -131,14 +142,28 @@ The CAT_STATUS handler in its current form is the product of `3d7830a` / `a5ee1f
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code dev-story workflow)
+
 ### Debug Log References
+
+- `esphome compile gateway.yaml` (ESPHome 2026.5.0) → SUCCESS in 13.46s. Both CAT_INPUT (0x200) and CAT_STATUS (0x600) `on_frame` handlers present. Flash 9.5%, RAM 14.1%.
 
 ### Completion Notes List
 
+- **Verification (Task 1):** CAT_STATUS handler already correct. Guard is the exact-bound `if (x.size() < CAN_FRAME_SIZE) return false; return x[0] == PROTO_V1;` (first check, no magic `8`, no `x.empty()`) — AC1 ✓. Decode uses the named `payload_uptime/errors/heartbeat_room/heartbeat_board` helpers and the error compare uses `ERR_NONE` — AC5 ✓. No `homeassistant.event:` / API fire in the handler — logging only, AC3 ✓.
+- **Change (Task 2.1):** Added `err=0x%02X` to the normal-path `ESP_LOGD` message so uptime + errors + room + board are surfaced on **every** heartbeat, not just error heartbeats. Two-level severity preserved (`ESP_LOGW` when `errors != ERR_NONE`, else `ESP_LOGD`). Message remains decode-confirming (carries decoded values, not static) — AC2, AC4 ✓.
+- **Compile gate (Task 3):** Clean compile with both handlers present on ESPHome 2026.5.0 — AC6 ✓. `firmware/README.md` "ESPHome Version" already pinned to 2026.5.0 (set in Story 3.2); no change needed.
+- Followed the `if:`/`condition:` guard preference (consistent with Story 3.2). No refactor to single-lambda form. No `nodes/` files touched; CAT_INPUT handler and `canbus:`/`api:` config untouched.
+- Hardware verification of a live heartbeat in the gateway log is deferred to Story 4.1 (bench commissioning), per Dev Notes.
+
 ### File List
+
+- `firmware/gateway.yaml` — CAT_STATUS `on_frame` normal-path log line: added `err=0x%02X` (and `errors` arg).
 
 ## Change Log
 
+- 2026-06-02 — Story 3.3 implemented: surfaced heartbeat error byte on the normal-path log line so the full decode (uptime+errors+room+board) is logged on every heartbeat; verified guard/decode/no-HA-event; compile gate passed with both handlers (ESPHome 2026.5.0).
+
 ## Status
 
-ready-for-dev
+done
