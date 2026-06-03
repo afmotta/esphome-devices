@@ -1,18 +1,21 @@
+## Closed During Epic 3 Deferred-Work Follow-Up (2026-06-03)
+
+- **project-context.md staging-globals mandate corrected** [`_bmad-output/project-context.md:61-64,150-153`] — both the `homeassistant.event` data rule and the "key non-obvious facts" note claimed values must be staged into globals first. Shipped CAT_INPUT handler (`firmware/gateway.yaml:102-108`) uses a per-field `!lambda` re-decoding directly from frame vector `x` — no globals. Doc now describes the actual per-field re-decode pattern, narrows the real constraint (cannot reference a var from a *separate preceding* `lambda:` action), and records it as the deliberate [[project_gateway_ha_event_firing_approach]] decision.
+- **README ESPHome version reframed as known-good, not pinned + HA re-adoption note added** [`firmware/README.md:68-83`] — "Pinned version" relabeled "Known-good version" with an explicit "Not enforced (no `esphome: min_version:`)" caveat; password→encryption migration note now states an already-adopted gateway must be deleted and re-added in HA with the new encryption key.
+- **Secrets onboarding documented** [`firmware/README.md`] — new "Onboarding: `secrets.yaml`" section lists the three required keys (`wifi_ssid`, `wifi_password`, `api_encryption_key`) and states the build fails at config load if any is missing (no pre-flight validation; ESPHome default).
+
 ## Deferred from: code review of 3-3-gateway-cat-status-handler-heartbeat-logging.md (2026-06-03)
 
 - **`%u`/`%02u` format specifiers receive `uint8_t` args promoted to signed `int`, not `unsigned int`** [`firmware/gateway.yaml:124-128`] — formally undefined behavior per the C standard, but harmless in practice for `uint8_t` values on this platform (and `-Wformat` may flag it). Pre-existing codebase convention: the error-path `ESP_LOGW` and the CAT_INPUT handler use the same pattern. Story 3.3 only extends it to one new `errors` argument on the normal-path `ESP_LOGD`. Not introduced by this change; revisit codebase-wide if a stricter format-safety pass is ever warranted.
 
 ## Deferred from: code review of 3-2-gateway-cat-input-handler-button-events-to-home-assistant.md (2026-06-02)
 
-- **project-context.md mandates staging-globals, contradicting AC6 and shipped code** [`_bmad-output/project-context.md:64,152`] — the doc says "always stage values into globals first" but AC6 and the committed CAT_INPUT handler deliberately use per-field `!lambda` re-decode with no globals. Same class of unacknowledged doc/firmware contradiction as the architecture.md follow-up the story already records. Correct project-context.md (and align with the [[project_gateway_ha_event_firing_approach]] decision) in a doc pass.
 - **No rate-limit/dedup on HA event firing** [`firmware/gateway.yaml:97`] — `homeassistant.event:` fires on every matching CAT_INPUT frame; a noisy bus or a stuck/repeating frame floods the HA event bus. Low risk for human-paced button clicks; pre-existing design, not introduced by Story 3.2. Revisit if a chatty-bus scenario emerges.
-- **README "pinned version" is documentation-only + migration note omits HA re-adoption** [`firmware/README.md:67-74`] — the README records ESPHome `2026.5.0` but nothing enforces it (no `esphome: min_version:` in YAML), and the password→encryption migration note doesn't mention that an already-adopted gateway must be re-paired in HA with the new encryption key. Moot until a device is deployed (no bench yet); add to onboarding docs.
 
 ## Deferred from: code review of 3-1-gateway-base-configuration-twai-esp-idf-and-native-api.md (2026-06-02)
 
 - **Service send_data() error handling** [`firmware/gateway.yaml:53-76`] — Services log canbus errors but don't implement recovery, retry, or user notification. Pre-existing design pattern; not regression. Defer to future story on command reliability and timeout handling.
 
-- **Secrets file validation missing** [`firmware/gateway.yaml:41`] — No pre-check that secrets.yaml exists or contains ha_api_key before runtime. Pre-existing ESPHome behavior: build fails at config load if secret is missing. Not specific to this change; document in onboarding docs for users setting up secrets.
 
 ## Deferred from: code review of 2-3-node-heartbeat-and-can-frame-receive-lambda-safety.md (2026-06-02)
 

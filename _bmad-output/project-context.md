@@ -60,8 +60,9 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 
 **`homeassistant.event` data:**
 
-- Data values must be strings. Use `to_string(id(global))` or `std::string(char_ptr)`.
-- ESPHome cannot reference lambda-local variables in `homeassistant.event` data blocks — always stage values into globals first, then reference them.
+- Data values must be strings. Use `to_string(...)` or `std::string(char_ptr)` (e.g. `room: !lambda 'return to_string(payload_room(x));'`).
+- Attach a per-field `!lambda` to each data key that re-decodes directly from the frame vector `x`. This is the shipped gateway pattern (`firmware/gateway.yaml` CAT_INPUT handler) — **no globals**. A `!lambda` on the data field runs in the `on_frame` scope where `x` is in scope.
+- The real constraint is narrower than "use globals": you cannot reference a variable declared in a *separate preceding* `lambda:` action, because the data block runs in its own action context. Re-decode in the field `!lambda` instead of staging.
 
 **`on_multi_click` ordering:**
 
@@ -149,7 +150,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 
 **Key non-obvious facts:**
 
-- The gateway uses `id(global)` staging because ESPHome's `homeassistant.event` data block executes in a separate action context — lambda-local variables set in a preceding `lambda:` action are not in scope.
+- The gateway fires `homeassistant.event` with a per-field `!lambda` that re-decodes from the frame vector `x` directly (no globals). A variable set in a *separate preceding* `lambda:` action is not in scope inside the data block (separate action context) — but a `!lambda` on the data field itself runs in `on_frame` scope and can read `x`. This per-field re-decode is a deliberate design decision (gateway HA event firing approach); do not "fix" it toward globals or the internal-API single-lambda form.
 - Click detection happens on the node, not the gateway. Multi-click timing uses ESPHome's `on_multi_click` which runs locally. Do not attempt to reconstruct click sequences from raw CAN events on the gateway.
 - `MSG_BUTTON_EVENT` and `MSG_HEARTBEAT` both equal `0x01` — they are distinguished by the CAN ID category (CAT_INPUT vs CAT_STATUS), not the message type byte alone.
 - Node ID `0` is valid — it is not a null/unset sentinel. Node IDs start at 0.

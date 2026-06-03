@@ -67,8 +67,32 @@ All values confirmed from V1.1 Eagle schematic. Use these in Story 2.1
 
 ## ESPHome Version
 
-**Pinned version:** ESPHome 2026.5.0 — confirmed by successful `esphome compile gateway.yaml` (Story 3.2) and the Epic 2 node compiles.
+**Known-good version:** ESPHome 2026.5.0 — confirmed by successful `esphome compile gateway.yaml` (Story 3.2) and the Epic 2 node compiles.
+
+> **Not enforced:** no YAML carries an `esphome: min_version:` constraint, so this version is recorded, not pinned — a different installed ESPHome will still build. Treat 2026.5.0 as the last validated baseline; add `esphome: min_version:` if a hard floor becomes necessary.
 
 > **Note:** As of ESPHome 2026.1.0 the `api: password:` option was removed. The gateway uses
 > API encryption instead (`api: encryption: key: !secret api_encryption_key`). Generate a key with
 > `openssl rand -base64 32` and add it to `secrets.yaml`.
+>
+> **Migration — re-adopt in HA:** switching from `api: password:` to `api: encryption:` changes the
+> gateway's API identity. A gateway already adopted in Home Assistant must be **deleted and re-added**
+> in HA (Settings → Devices & Services → ESPHome) with the new encryption key — it will not reconnect
+> on the old password entry.
+
+---
+
+## Onboarding: `secrets.yaml`
+
+The gateway reads three secrets at config load. There is no pre-flight validation — if
+`secrets.yaml` is missing or any key is absent, `esphome compile`/`run` **fails at config load**
+with a missing-secret error (ESPHome default behavior). Create `firmware/secrets.yaml` before the
+first build:
+
+| Key                  | Value                                            |
+| -------------------- | ------------------------------------------------ |
+| `wifi_ssid`          | WiFi network name                                |
+| `wifi_password`      | WiFi password                                    |
+| `api_encryption_key` | base64 key from `openssl rand -base64 32`        |
+
+Nodes have no WiFi/API and require no secrets.
