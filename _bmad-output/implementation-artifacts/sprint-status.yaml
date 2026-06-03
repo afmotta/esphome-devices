@@ -36,7 +36,7 @@
 
 generated: 2026-06-01
 last_updated: 2026-06-03
-last_updated_by: bmad-retrospective-epic-3
+last_updated_by: bmad-create-story
 project: canbus
 project_key: NOKEY
 tracking_system: file-system
@@ -71,3 +71,10 @@ development_status:
   4-2-button-event-acceptance-matrix-node-100: backlog
   4-3-button-event-acceptance-matrix-node-101-and-poc-sign-off: backlog
   epic-4-retrospective: optional
+
+  # Epic 5: Post-PoC — Command Reliability & Fault Surfacing
+  # NOT YET FORMALIZED in epics.md — drafted ahead of schedule; sequence AFTER Epic 4 sign-off.
+  # Epic kept 'backlog' (not 'in-progress'): the story file exists but work is not active.
+  # Run sprint-planning/correct-course to register Epic 5 in the planning epic breakdown.
+  epic-5: backlog
+  5-1-gateway-command-reliability: ready-for-dev

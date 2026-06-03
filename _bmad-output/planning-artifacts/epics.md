@@ -40,7 +40,7 @@ FR-5.3: The gateway CAN interface SHALL use the native TWAI controller on GPIO15
 FR-6.1: On receiving a valid CAT_INPUT frame, the gateway SHALL fire an `esphome.canbus_button` event to HA with string fields: `room`, `board`, `button`, `event`.
 FR-6.2: On receiving a valid CAT_STATUS frame, the gateway SHALL log the heartbeat frame via ESPHome logger (no HA event in PoC).
 FR-6.3: All event data field values SHALL be strings. Integers converted via `to_string()` or `std::string()`.
-FR-6.4: The gateway SHALL fire HA events via a single `lambda:` action using `api::global_api_server` directly — no ESPHome globals for event staging.
+FR-6.4: The gateway SHALL fire HA events using the ESPHome `homeassistant.event:` YAML action, populating each data field with a per-field `!lambda` that re-decodes from the received frame vector `x` (no globals staging). [Overridden 2026-06-02: the original single-lambda `api::global_api_server` mandate was reversed — the YAML action is simpler, documented, and upgrade-stable, whereas the internal API is undocumented and version-coupled. See `firmware/gateway.yaml` and the project decision record.]
 
 FR-7.1: The gateway SHALL communicate with Home Assistant using the ESPHome native API. The specific network layer (WiFi, Ethernet) is an implementation detail and may vary between PoC and production hardware.
 FR-7.2: API credentials (key) SHALL be managed outside of committed source (e.g. `secrets.yaml`) and SHALL NOT be hardcoded in firmware configs.
@@ -76,7 +76,7 @@ NFR-9 (Repeatable validation): HA Developer Tools event log SHALL be captured as
 - **ESPHome version pinning:** Pin the ESPHome version immediately after first successful compile. Record the pinned version in `firmware/README.md`. All subsequent compiles use the pinned version.
 - **Secrets management:** `firmware/secrets.yaml` (gitignored) holds `wifi_ssid`, `wifi_password`, `ha_api_key`. `firmware/secrets.yaml.example` is committed as a template.
 - **Node ID allocation:** PoC nodes use IDs 100 and 101, from the ground floor range (100–199). `generate_nodes.py` SHALL reject IDs outside 0–399 or duplicates.
-- **Single-lambda API pattern on gateway:** Home Assistant events are fired via `api::global_api_server` directly inside a single lambda. The exact C++ method signatures must be verified against the pinned ESPHome source before implementation.
+- **HA event-firing pattern on gateway:** Home Assistant events are fired via the ESPHome `homeassistant.event:` YAML action, with each data field populated by a per-field `!lambda` that re-decodes from the frame vector `x` — not the internal `api::global_api_server` API. [Overridden 2026-06-02; the YAML action is documented and upgrade-stable.]
 - **Heartbeat PoC disposition:** Gateway logs heartbeat frames via `ESP_LOGI` only. No `esphome.canbus_heartbeat` HA event is fired in the PoC.
 - **Commissioning procedure:** For each PoC node: edit `nodes.csv`, run generator, compile, flash, verify heartbeat in gateway log within 60 s before bench assembly.
 - **PoC sign-off criteria:** (1) All 10 acceptance combinations produce correct HA events; (2) each event is captured as a logged artifact; (3) zero CAN error frames in gateway logs during the run.
@@ -92,7 +92,7 @@ FR-2.1–2.4: Epic 2 — CAN frame transmission from nodes
 FR-3.1–3.2: Epic 2 — node heartbeat frames
 FR-4.1–4.4: Epic 1 — canbus_protocol.h authored from scratch
 FR-5.1–5.3: Epic 3 — gateway CAN reception via mask filtering
-FR-6.1–6.4: Epic 3 — gateway HA event forwarding (single-lambda)
+FR-6.1–6.4: Epic 3 — gateway HA event forwarding (homeassistant.event: YAML action)
 FR-7.1–7.2: Epic 3 — gateway ESPHome native API connectivity
 FR-8.1–8.4: Epic 1 — code generation pipeline (nodes.csv → generate_nodes.py → nodes/)
 FR-9.1–9.6: Epic 4 — PoC validation and sign-off
@@ -106,6 +106,8 @@ NFR-6 (bus speed uniformity): Epic 2, Epic 3
 NFR-7 (bus termination): Epic 4
 NFR-8 (gateway observability): Epic 3
 NFR-9 (repeatable logged validation): Epic 4
+
+Epic 5 (post-PoC): no PoC FR/NFR coverage — introduces new reliability/observability requirements (command retry/notification, fault surfacing) not yet captured in the PoC-scoped PRD. PRD extension pending before this epic is scheduled.
 
 ## Epic List
 
@@ -132,6 +134,12 @@ Alberto can press a button on either node and see a correctly decoded `esphome.c
 The full 10-combination acceptance matrix (5 event types × 2 nodes) is tested, every result captured as a logged artifact, and the PoC is officially signed off — providing the regression baseline before production hardware procurement.
 
 **FRs covered:** FR-9.1, FR-9.2, FR-9.3, FR-9.4, FR-9.5, FR-9.6
+
+### Epic 5: Post-PoC — Command Reliability & Fault Surfacing
+
+_Post-PoC hardening — sequenced AFTER the Epic 4 sign-off._ The gateway delivers gateway→node commands reliably on a busy or marginal bus (bounded retry with backoff), notifies Home Assistant when a command ultimately fails, and surfaces pathological inbound-frame storms as faults instead of silently flooding the HA event bus. Consolidates deferred-work items #8 and #9 (reviewed 2026-06-03).
+
+**FRs covered:** none in the current PoC PRD — introduces post-PoC reliability/observability requirements (PRD extension pending).
 
 ---
 
@@ -324,10 +332,10 @@ So that every button press on any node produces a correctly decoded event in HA 
 **When** a CAT_INPUT frame is received (`can_id: 0x200`, `can_id_mask: 0x600`)
 **Then** the `on_frame` lambda begins with `if (x.size() < CAN_FRAME_SIZE) return;` (NFR-2)
 **And** if `x[0] != PROTO_V1`, the frame is silently discarded with no log output and no HA event
-**And** for a valid frame, the lambda decodes: `room = x[4]`, `board = x[5]`, `button = x[2]`, `event = event_type_str(x[3])`
-**And** fires an `esphome.canbus_button` event to HA via `api::global_api_server` directly within a single `lambda:` action
+**And** for a valid frame, the lambda decodes `room`, `board`, `button`, and `event` using the named `payload_*` helpers from `canbus_protocol.h` (the single source of truth for byte positions), not raw indices
+**And** fires an `esphome.canbus_button` event to HA via the `homeassistant.event:` YAML action, each data field populated by a per-field `!lambda` re-decoding from `x`
 **And** all event data field values are strings (raw decimal integers: `"7"` not `"room_7"`) (FR-6.3)
-**And** no ESPHome globals are introduced to pass values between actions in the same handler (FR-6.4)
+**And** no ESPHome globals are used to stage event data — each `homeassistant.event` field re-decodes from `x` in its own `!lambda` (FR-6.4)
 **And** the lambda logs the decoded event to the ESPHome serial log before firing the HA event (NFR-8)
 **And** pressing a button on node 100 or node 101 produces the correct `esphome.canbus_button` event in HA Developer Tools
 
@@ -402,3 +410,38 @@ So that the full stack is validated with a repeatable, documented baseline befor
 **And** all 10 artifacts are present in the repository (5 × node 100 from Story 4.2 + 5 × node 101) (FR-9.5, NFR-9)
 **And** the gateway ESPHome log shows zero CAN error frames across the entire validation run (FR-9.6)
 **And** a PoC sign-off record is committed to `firmware/VALIDATION.md` documenting: ESPHome version used, hardware confirmed (OQ-1/OQ-2/OQ-3 values), all 10 acceptance combinations verified with artifact locations, date of sign-off
+
+---
+
+## Epic 5: Post-PoC — Command Reliability & Fault Surfacing
+
+> **Scope:** Post-PoC hardening, sequenced AFTER the Epic 4 PoC sign-off. It addresses reliability/observability concerns deliberately out of scope for the PoC — the PoC PRD stops at "log/observe," not "recover." This epic introduces no new PoC FRs; its requirements are reliability/observability NFRs not yet captured in the PRD (PRD extension pending). Origin: deferred-work items #8 and #9, reviewed and parked on 2026-06-03 because each needs design rather than an ad-hoc patch.
+
+The gateway delivers gateway→node commands reliably on a busy or marginal bus, makes command failures and inbound-frame storms observable in Home Assistant and the logs, and does so without regressing the PoC's button/heartbeat behavior.
+
+### Story 5.1: Gateway command reliability — send retry/backoff, HA failure notification, and stuck-frame fault surfacing
+
+As the operator of the CAN ↔ Home Assistant gateway,
+I want gateway→node commands to retry on transient bus failures, notify Home Assistant when a command ultimately fails, and surface pathological inbound-frame storms as faults,
+So that command delivery is reliable on a busy bus and silent failures or event-bus floods become observable instead of invisible.
+
+**Acceptance Criteria:**
+
+**Given** the gateway API services `canbus_send_output` and `canbus_send_config` (`firmware/gateway.yaml`)
+**When** `id(can0).send_data(...)` returns a non-`ERROR_OK` result
+**Then** the send is retried up to a bounded maximum (default 3 attempts) with backoff, implemented via an ESPHome `script:` + `delay:` that does NOT block the main loop
+**And** retried frames are byte-identical to the original (gateway→node commands are idempotent at the node)
+
+**Given** a command has exhausted all retries and still failed
+**When** final exhaustion is reached
+**Then** the gateway fires `esphome.canbus_command_failed` to Home Assistant via the `homeassistant.event:` YAML action (not the internal `api::global_api_server` path) with string fields `service`, `node_id`, `error`
+
+**Given** a malfunctioning node or bus emits the same inbound frame at an abnormally high rate
+**When** matched inbound frames exceed a configurable threshold far above human-paced use
+**Then** the gateway emits a debounced fault log identifying the storm WITHOUT dropping or rate-limiting any legitimate `homeassistant.event` firing — observability, not throttling (buttons are momentary; every legitimate event must fire)
+
+**And** the existing CAT_INPUT button-event firing and CAT_STATUS heartbeat logging behave exactly as before on normal, human-paced traffic (no regression)
+**And** every `on_frame` lambda retains the `x.size() < CAN_FRAME_SIZE` guard and uses only `canbus_protocol.h` constants — no magic numbers (NFR-2, NFR-3)
+**And** `esphome compile firmware/gateway.yaml` completes successfully on the pinned ESPHome version (NFR-1)
+
+**Detailed implementation context:** `_bmad-output/implementation-artifacts/5-1-gateway-command-reliability.md`
