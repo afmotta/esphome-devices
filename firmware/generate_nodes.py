@@ -45,7 +45,8 @@ substitutions:
         can_clk_pin: "GPIO2"
         can_mosi_pin: "GPIO3"
         can_miso_pin: "GPIO4"
-        can_int_pin: "GPIO11"
+        # No can_int_pin: the ESPHome mcp2515 component polls over SPI and exposes no
+        # interrupt-pin config. The hardware INT line is GPIO11 (see README OQ-2).
         can_clock: "16MHZ"
 
 esphome:

@@ -27,6 +27,14 @@ globals:
   - id: error_flags
     type: uint8_t
     initial_value: "0"
+  # millis() is uint32 ms and wraps every ~49.7 days. Count the wraps so reported uptime
+  # survives past the ms ceiling (the 30s heartbeat observes every wrap — see below).
+  - id: uptime_rollovers
+    type: uint16_t
+    initial_value: "0"
+  - id: last_millis
+    type: uint32_t
+    initial_value: "0"
 
 # --------------- SPI bus for MCP2515 ---------------
 spi:
@@ -57,7 +65,7 @@ canbus:
                     if (subtype == MSG_CONFIG_WRITE) {
                       uint8_t key = x[2];
                       uint16_t val = (static_cast<uint16_t>(x[3]) << 8) | x[4];
-                      ESP_LOGI("canbus", "Config key=0x%02X value=%u", key, val);
+                      ESP_LOGI("canbus", "Config key=0x%02X value=%u", (unsigned) key, (unsigned) val);
                     }
 
 # --------------- Heartbeat every 30 seconds ---------------
@@ -68,5 +76,13 @@ interval:
           canbus_id: can0
           can_id: ${status_can_id}
           data: !lambda |-
-            uint8_t uptime_h = (uint8_t)((millis() / 3600000UL) & 0xFF);
+            // millis() is uint32 ms and wraps every ~49.7 days. The 30s heartbeat reliably
+            // observes each wrap (a wrap can't hide between two ticks), so count rollovers to
+            // reconstruct true uptime, then report hours as a uint16 saturating at 65535 (~7.5yr).
+            uint32_t now = millis();
+            if (now < id(last_millis)) id(uptime_rollovers) += 1;
+            id(last_millis) = now;
+            uint64_t ms = ((uint64_t) id(uptime_rollovers) << 32) | now;
+            uint64_t hours = ms / 3600000ULL;
+            uint16_t uptime_h = hours > 65535ULL ? 65535 : (uint16_t) hours;
             return heartbeat_payload(uptime_h, id(error_flags), ${room_id}, ${board_id});
