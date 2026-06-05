@@ -20,8 +20,11 @@ relatedDocuments:
 
 **Proposed.** Two decisions are made: **(1)** the bus is **segmented** (a single bus is not
 viable — below), and **(2)** the coupling method is **software bridges** (store-and-forward).
-**Segment count and bit rate remain open**, pending a cable-budget/zone sketch (see open
-items).
+**Segment count remains open**, pending a cable-budget/zone sketch (see open items). The
+bit rate is frozen at **125 kbps** across all CAN segments, matching the current architecture
+and firmware. The coupling-method geometry tiebreaker is resolved: the zones cannot all
+home-run to the controller, so controller-as-hub is rejected despite its reliability
+strengths.
 
 **Governing criterion: reliability** (not cost or firmware effort — Alberto is comfortable
 writing firmware; the system must be dependable as always-on house infrastructure). The
@@ -38,6 +41,12 @@ strict single-file daisy-chain.
 physical layout cannot be served by one electrical bus within the budget/stub constraints.
 Segmentation is therefore required.
 
+Alberto has also confirmed the geometry does **not** support home-running every zone/segment
+to the controller. That rules out controller-as-hub as the final topology: although it has
+excellent fault containment and the fewest extra active devices, it requires a star of
+independent CAN ports at the controller. This house needs intermediate coupling points in a
+tree, so the coupling decision falls to software bridges.
+
 The addressing model helps: ADR-0001 IDs are globally unique `(room, board, …)`, so frames
 are **segment-agnostic** — there are no per-segment ID collisions to manage regardless of
 how the bus is split.
@@ -49,10 +58,10 @@ Adopt a **segmented CAN topology**: a **main/backbone bus** plus **secondary bus
 **tree (no loops)** — raw CAN has no TTL, so any ring is an unkillable broadcast storm.
 
 **Coupling method — DECIDED: software bridges** (store-and-forward, ESP32-class — e.g.
-LilyGO T-2CAN or ESP32 + 2× MCP2515). Chosen over controller-as-hub because it keeps the
-critical controller **simple and redundancy-able** (ADR-0003) and makes each coupler
-failure **partial** (one zone), and because it does not require the star geometry the hub
-demands. The choice does not affect the protocol (ADR-0001) or the control model (ADR-0003);
+LilyGO T-2CAN or ESP32 + 2× MCP2515). Chosen over controller-as-hub because the house cannot
+home-run every segment to the controller, and because it keeps the critical controller
+**simple and redundancy-able** (ADR-0003) while making each coupler failure **partial** (one
+zone). The choice does not affect the protocol (ADR-0001) or the control model (ADR-0003);
 it is a physical-layer decision. (See [candidates ranked on reliability](#coupling-method-candidates--ranked-on-reliability)
 for why CAN-Ethernet, plain repeaters, and hub were not chosen.)
 
@@ -115,13 +124,13 @@ coupler fails?), and **component MTBF** (the coupler's own dependability).
     per port, but **complicates the one board you most want simple/redundant** and forces a
     **star geometry** (every segment home-runs to the controller).
 
-**Lean (reliability-first):** the choice is between **software bridge** and
-**controller-as-hub**, and the **tiebreaker is geometry**, not electronics — if all zones
-can home-run to the controller, the hub (with isolated per-port transceivers) is the most
-reliable (fewest parts, full containment, no firmware-bearing middleboxes); if they cannot,
-software bridges engineered to industrial spec keep each failure partial and the controller
-simple. A plain repeater is chosen only to insist on no-firmware silicon, and then it should
-be a fault-isolating star coupler.
+**Applied tiebreaker (reliability-first):** the final choice was between **software bridge**
+and **controller-as-hub**. If all zones could home-run to the controller, the hub (with
+isolated per-port transceivers) would be the most reliable option: fewest parts, full
+containment, no firmware-bearing middleboxes. The house geometry does not allow that star,
+so software bridges engineered to industrial spec are chosen: they keep each failure partial
+and keep the controller simple. A plain repeater would be chosen only to insist on
+no-firmware silicon, and then it should be a fault-isolating star coupler.
 
 ### Indicative pricing (per segment/coupler)
 
@@ -163,18 +172,17 @@ bridge ~$15–35). The cheap end is the DIY/firmware end.
 
 ## Open items
 1. **Cable-budget / zone sketch** — number of segments, approximate runs, where they
-   converge. Now sets the **segment/bridge count** (the *method* is decided), and the bit-rate.
+  converge. Now sets the **segment/bridge count** (the *method* and bit rate are decided).
 2. **Bridge firmware platform** — minimal/stripped ESPHome (one toolchain, `on_frame` →
    `send_data`) vs lean custom firmware for a pure-forwarder. Lean toward whichever is
    easiest to make demonstrably fail-safe; radios off either way.
-3. **Bit rate** — confirm 125 kbps (or drop to 50 kbps for more headroom) per segment.
-4. **Forwarding rules** — start with **forward-all both ways** (simplest, most reliable;
+3. **Forwarding rules** — start with **forward-all both ways** (simplest, most reliable;
    the controller needs all node traffic and management must reach every segment). Add
    selective filtering only if backbone load ever demands it.
-5. **Per-bridge power** — likely a power rail alongside CAN; size for reliability.
-6. **Bridge reliability validation** — soak-test the watchdog/fail-safe behavior (a hung
+4. **Per-bridge power** — likely a power rail alongside CAN; size for reliability.
+5. **Bridge reliability validation** — soak-test the watchdog/fail-safe behavior (a hung
    bridge must go silent, never babble).
-7. **Re-verify pricing** at purchase (see caveat) — secondary, since reliability governs.
+6. **Re-verify pricing** at purchase (see caveat) — secondary, since reliability governs.
 
 ## Alternatives considered
 - **Single trunk-and-spur (one bus).** Simplest, no couplers — **rejected, not viable**
@@ -182,8 +190,9 @@ bridge ~$15–35). The cheap end is the DIY/firmware end.
 - **Controller-as-hub / plain repeater / fault-isolating star coupler / CAN-Ethernet** —
   evaluated on reliability (table above) and **not chosen**: CAN-Ethernet depends on the
   fragile LAN; plain repeaters don't contain babbling faults; hub complicates the critical
-  controller and forces star geometry. Hub remains the natural fallback *if* a future layout
-  turns out to home-run all zones to the controller.
+  controller and, more importantly, forces star geometry that this house cannot provide.
+  Hub remains the natural fallback only if a future physical layout unexpectedly creates
+  clean home-runs from every zone to the controller.
 
 ## Notes
 This ADR covers **CAN bus segmentation/coupling** only. Broader physical/electrical

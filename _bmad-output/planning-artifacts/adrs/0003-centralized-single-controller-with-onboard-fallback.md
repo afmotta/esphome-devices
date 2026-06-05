@@ -20,8 +20,8 @@ relatedDocuments:
 **Proposed** — Alberto selected this option (Option 1) on 2026-06-04 after evaluating it
 against two distributed alternatives (below); pending formal acceptance and resolution of
 the open items. This is the **post-POC target architecture**: the POC's single-gateway
-setup was a deliberate simplification that was built and verified; this ADR records what
-comes after it.
+setup was a deliberate simplification that has been compiled/code-reviewed, with bench and
+HA acceptance validation still pending in Epic 4; this ADR records what comes after it.
 
 The physical/electrical **topology** (where relays and circuits live) is explicitly
 **out of scope** here and parked for a future ADR at Alberto's request.
@@ -58,19 +58,54 @@ with the button→action logic held **on the board itself** so it survives HA ou
    over RS485). It subsumes the POC "gateway" role.
 2. **Logic lives on the board** (ESPHome), not delegated to HA. This is the load-bearing
    condition for the resilience goal.
-3. **Per-binding Model-A arbitration**, gated by the board's own `api.connected`:
-   - `api.connected` → the board forwards the event to HA; **HA drives** the relay entities
+3. **Per-binding Model-A arbitration**, gated by the board's own `ha_ready` state, not raw
+   `api.connected`:
+   - `ha_ready` → the board forwards the event to HA; **HA drives** the relay entities
      (and Zigbee/Thread fixtures) — the rich path.
-   - `!api.connected` → the board's **local** mapping writes the Modbus relay directly —
-     the fallback path.
+   - `!ha_ready` → the board's **local** mapping writes the Modbus relay directly — the
+     fallback path.
    - Relays are ESPHome `switch` entities backed by Modbus, so HA (online) and the board's
      local logic (offline) drive the *same* outputs; one gate, one board, **no
      de-duplication and no double-action by construction.**
 4. **Zigbee/Thread fixtures are HA-only** — inherently HA-dependent, no local fallback
    (HA down = those fixtures don't respond; relay-backed lights degrade to on/off).
-5. **Single source of truth → both views.** The button→action mapping is authored once and
-   compiled into (a) the board's on-board fallback logic and (b) HA's automations, so
-   online and offline behaviour cannot silently diverge.
+5. **Single source of truth → both views.** The button→action mapping is authored once as a
+  canonical binding manifest and compiled/generated into (a) the board's on-board fallback
+  logic and (b) HA's automations, so online and offline behaviour cannot silently diverge.
+
+### Binding model and arbitration
+
+The canonical binding manifest is the source of truth. Each binding records:
+
+- source event: `(room, board, button, event)`
+- `mode`: one of `ha_with_local_fallback`, `local_authoritative`, `ha_only`
+- target: Modbus relay/switch, HA entity, scene, or automation reference
+- local fallback action, when applicable: e.g. `toggle`, `on`, `off`, `pulse`
+- HA action reference / generated automation id
+- manifest `version` and `hash`
+
+The controller and HA both carry the same manifest hash. The controller considers HA ready
+only when all of these are true:
+
+1. ESPHome Native API is connected.
+2. HA has sent a fresh readiness heartbeat within the configured TTL.
+3. HA's reported binding manifest hash matches the controller's compiled/current hash.
+
+For `ha_with_local_fallback` bindings, the controller emits the HA event with an `event_id`,
+manifest hash, and source tuple. HA's generated automation calls a controller ACK service
+after it has accepted/applied the action. If the ACK does not arrive before the fallback
+timeout, the controller runs the local fallback action. For `local_authoritative` bindings,
+the controller always drives the relay and reports the event to HA; HA must not duplicate
+that relay action. For `ha_only` bindings (Zigbee/Thread fixtures, rich scenes without a
+relay-backed fallback), the controller reports to HA when ready and does nothing locally
+when HA is not ready.
+
+Phase 1 binding lifecycle is static: edit manifest → generate controller config and HA
+automations → compile/reflash the controller → load HA automations. A manifest hash mismatch
+disables HA authority and uses local fallback where available. Phase 2 keeps the same
+manifest/hash model but pushes updates to the controller over its Native API/Ethernet using
+staging, commit, rollback, and hash reconciliation; bindings are still not distributed over
+CAN.
 
 ### Resilience model
 
@@ -96,6 +131,13 @@ mechanism — far simpler than distributed election; see open items).
 
 Each bus is used where its communication model fits: CAN is event-driven (instant transmit
 on press, arbitrated); Modbus is master-commanded (controller writes a relay on demand).
+
+The current PoC firmware still exposes generic `SUBTYPE_OUTPUT_CMD` / `canbus_send_output`
+hooks. Those are treated as **PoC-era command hooks**, not target-architecture relay
+control. Before implementing this target architecture, generic CAN output commands should be
+removed, renamed, or constrained to input-node management use cases (configuration,
+identify/diagnostics, factory reset, optional local indicators). Live relay/light actuation
+belongs on Modbus/RS485 from the controller.
 
 ## Consequences
 
@@ -123,17 +165,19 @@ on press, arbitrated); Modbus is master-commanded (controller writes a relay on 
 
 ### Open items
 
-1. **On-board binding/logic representation** — how the button→relay mapping is expressed in
-   the controller's ESPHome config (the "dumb match" engine), and the per-binding authority
-   (local-authoritative vs HA-with-fallback).
-2. **Binding lifecycle** — Phase 1 (now): static, compiled, manual reflash through
-   build/test. Phase 2 (pre-go-live): bindings runtime-pushed to the controller **over its
-   own Native API/Ethernet** (not over CAN — bindings live on one board, so there is no
-   distributed commissioning to do). Confirmed phasing; Phase 2 not built yet.
-3. **Active/standby redundancy** — design the pair + Modbus-master hand-over. Future.
-4. **Modbus scale/latency validation** on target hardware.
-5. **Controller board selection** — a board with CAN + Ethernet + Modbus (RS485).
-6. **Physical/electrical topology** — parked for its own future ADR (Alberto).
+1. **Binding manifest tooling** — choose the manifest file format/location and generator
+  outputs for controller ESPHome YAML and HA automations.
+2. **Timeout values** — set HA readiness heartbeat TTL and per-event ACK fallback timeout on
+  target hardware so degraded switching remains acceptably fast without causing double
+  actions.
+3. **Runtime binding push (Phase 2)** — design staging/commit/rollback over the controller's
+  Native API/Ethernet. Confirmed not over CAN.
+4. **PoC command-surface cleanup** — remove/rename/constrain generic `SUBTYPE_OUTPUT_CMD`
+  and `canbus_send_output` before target implementation so `CAT_OUTPUT` is management-only.
+5. **Active/standby redundancy** — design the pair + Modbus-master hand-over. Future.
+6. **Modbus scale/latency validation** on target hardware.
+7. **Controller board selection** — a board with CAN + Ethernet + Modbus (RS485).
+8. **Physical/electrical topology** — parked for its own future ADR (Alberto).
 
 ## Alternatives considered
 
@@ -155,7 +199,7 @@ on press, arbitrated); Modbus is master-commanded (controller writes a relay on 
 ## Notes
 
 Builds on ADR-0001 (Extended-ID button events are the CAN pub/sub subjects; the `OUTPUT`
-category is management-only) and ADR-0002 (which this ADR rescopes to commissioning of the
-CAN-only button nodes only — bindings are *not* commissioned over CAN; they live on this
-controller and are pushed over its API). A separate future ADR will cover
+category is management-only) and ADR-0002 (commissioning of CAN endpoint node identity only
+— bindings are *not* commissioned over CAN; they live on this controller and are pushed over
+its API). A separate future ADR will cover
 physical/electrical topology.

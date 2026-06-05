@@ -85,6 +85,10 @@ payloads, so the "growing payload zoo" that would justify a DPT-like registry ne
 materialises. Decision: keep ad-hoc per-message payloads. **Revisit trigger:** if new
 device classes ever add several value-carrying CAN message types.
 
+**Follow-up 2026-06-05:** ADR-0006 is exactly this revisit trigger. If ADR-0006 is
+accepted, D2 is resolved by its light typed-payload scheme for `CAT_SENSOR`: measurement
+type in the ID, fixed status/value payload encoding, no heavy DPT registry.
+
 **D3 — Accept the room-number / arbitration-priority coupling as a known, benign limitation.**
 Because the ID is `[category:3][room:8][board:8]…`, within a category a lower room number
 wins CAN arbitration. Decision: **accept, no change.**
@@ -109,7 +113,8 @@ wins CAN arbitration. Decision: **accept, no change.**
 ### Open items
 
 1. Annotate `architecture.md:75` to point at decision **D3** (priority-coupling accepted).
-2. None of A–E remain open; revisit **D2** only on the stated trigger.
+2. If ADR-0006 is accepted, annotate D2 as resolved by ADR-0006's light typed-payload
+  scheme; otherwise revisit **D2** only on the stated trigger.
 
 ## Notes
 

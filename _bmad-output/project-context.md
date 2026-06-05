@@ -1,7 +1,7 @@
 ---
 project_name: 'canbus'
 user_name: 'Alberto'
-date: '2026-05-29'
+date: '2026-06-05'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow', 'critical_rules']
 status: 'complete'
 rule_count: 32
@@ -22,7 +22,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 - **MCP2515** CAN controller — SPI, 16 MHz oscillator (CANBed RP2040 fixed board design)
 - **W5500** Ethernet — Waveshare ESP32-S3-POE-ETH-8DI-8DO fixed pin mapping
 - **PCA9554** I2C GPIO expander — address `0x20`, 8 digital outputs on gateway
-- **CAN bus** — 125 kbps, standard 11-bit IDs
+- **CAN bus** — 125 kbps, 29-bit Extended IDs (ADR-0001 location-as-address)
 - **Python 3** — `generate_nodes.py` code generation (stdlib only, no extra packages)
 - **Home Assistant** — integration via ESPHome native API over PoE Ethernet
 
@@ -39,7 +39,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 ### Python (`generate_nodes.py`)
 
 - Uses stdlib only (`csv`, `pathlib`) — do not add external dependencies.
-- The script validates: node_id 0–399, room/board 0–255, max 6 GPIOs per node, no duplicate node_ids, and no duplicate GPIOs within one node row. Add new validations here, not in the template string.
+- The script validates: room/board 0–255, globally unique `(room, board)`, max 6 GPIOs per node, and no duplicate GPIOs within one node row. Add new validations here, not in the template string.
 - If `nodes.csv` is missing, the script seeds the current PoC example rows (nodes 100 and 101 on GPIO20/21) and exits before generating `nodes/` output.
 - Output files in `nodes/` are fully regenerated on each run — do not add logic there.
 
@@ -50,17 +50,17 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 - Shared config lives in `common/` as packages. Nodes include them via `packages:` + `!include`.
 - Per-button packages use the parameterized form:
   `btn0: !include { file: ../common/button.yaml, vars: { button_index: "0", button_gpio: "2" } }`
-- All substitution variables (`${node_id}`, `${room_id}`, etc.) must be declared in the top-level `substitutions:` block of the node YAML before the `packages:` block.
+- All substitution variables (`${room_id}`, `${board_id}`, etc.) must be declared in the top-level `substitutions:` block of the node YAML before the `packages:` block.
 
 **CAN bus filtering (gateway):**
 
-- The gateway matches all frames of a given category using mask filtering: `can_id: 0x200` + `can_id_mask: 0x600` catches all CAT_INPUT frames regardless of node.
-- Category bits are bits 10:9 of the 11-bit CAN ID. Mask `0x600` = `0b11000000000`.
-- CAT_INPUT = 1 → base ID `0x200`; CAT_STATUS = 3 → base ID `0x600`.
+- The gateway matches all frames of a given category using Extended-ID mask filtering: `can_id: 0x04000000` + `can_id_mask: 0x1C000000` catches all CAT_INPUT frames regardless of node.
+- Category bits are bits 28:26 of the 29-bit Extended CAN ID. Mask `0x1C000000` matches category only.
+- CAT_INPUT = 1 → base ID `0x04000000`; CAT_STATUS = 3 → base ID `0x0C000000`.
 
 **`homeassistant.event` data:**
 
-- Data values must be strings. Use `to_string(...)` or `std::string(char_ptr)` (e.g. `room: !lambda 'return to_string(payload_room(x));'`).
+- Data values must be strings. Use `to_string(...)` or `std::string(char_ptr)` (e.g. `room: !lambda 'return to_string(id_room(can_id));'`).
 - Attach a per-field `!lambda` to each data key that re-decodes directly from the frame vector `x`. This is the shipped gateway pattern (`firmware/gateway.yaml` CAT_INPUT handler) — **no globals**. A `!lambda` on the data field runs in the `on_frame` scope where `x` is in scope.
 - The real constraint is narrower than "use globals": you cannot reference a variable declared in a *separate preceding* `lambda:` action, because the data block runs in its own action context. Re-decode in the field `!lambda` instead of staging.
 
@@ -85,7 +85,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 
 **File naming:**
 
-- Node configs: `node{id:03d}.yaml` — zero-padded 3-digit node ID (e.g. `node000`, `node012`, `node100`).
+- Node configs: `node-r<room>-b<board>.yaml` (e.g. `node-r7-b0.yaml`).
 - Generated files live in `nodes/` — never commit hand-edits to files in that directory.
 
 **C++ header conventions (`canbus_protocol.h`):**
@@ -143,7 +143,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 **NEVER do these:**
 
 - **Never edit files in `nodes/` by hand.** They are generated output. All changes go through `nodes.csv` → `generate_nodes.py`.
-- **Never put semantic meaning in the CAN ID.** Room, board, button, and event data belong in the 8-byte payload only. The CAN ID carries only `category` (2 bits) and `node_id` (9 bits).
+- **Never reintroduce the flat `node_id` / 11-bit ID model.** ADR-0001 is accepted: room, board, button, and event live in the 29-bit Extended CAN ID for INPUT frames; payloads carry protocol version, values, and parameters.
 - **Never assume HA event data fields are integers.** All fields in `esphome.canbus_button` and `esphome.canbus_heartbeat` are strings (`"7"`, not `7`). HA automation `event_data:` filters must use string values.
 - **Never skip the `x.size()` guard in CAN frame lambdas.** Malformed or short frames will crash without it.
 - **Never use Arduino framework on the gateway.** Native TWAI (`esp32_can`) requires `esp-idf`. Switching to Arduino silently breaks CAN.
@@ -164,4 +164,4 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 
 **For humans:** Update when hardware pins are verified, when protocol version bumps, or when new common packages are added. Remove rules that become obvious over time.
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-05_

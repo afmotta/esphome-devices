@@ -245,7 +245,9 @@ subsequent compiles use the pinned version.
 - `canbus_protocol.h` is a compile-time dependency of both node and gateway firmware. Any change requires recompiling both.
 - `nodes.csv` schema change requires updating `generate_nodes.py` template and regenerating all node configs.
 - Gateway HA event firing uses the documented `homeassistant.event:` YAML action; ESPHome version is still pinned after first compile for reproducibility, but no internal-API re-validation is required on upgrade.
-- Node ID range allocation is permanent — collisions require reflashing affected nodes.
+- The Extended-ID field layout is permanent after LIVE — changing it requires reflashing
+  affected nodes. `(room, board)` collisions are address collisions and must be prevented by
+  registry validation/commissioning checks.
 
 ## Implementation Patterns & Consistency Rules
 
@@ -255,21 +257,22 @@ subsequent compiles use the pinned version.
 
 ### Lambda Safety Pattern
 
-Every `on_frame` handler on both nodes and gateway MUST begin with a frame size guard.
-The minimum size constant is defined in `canbus_protocol.h` as `CAN_FRAME_SIZE = 8`.
+Every `on_frame` handler on both nodes and gateway MUST begin with the relevant frame size
+guard. Minimum payload lengths are defined in `canbus_protocol.h` per frame type, such as
+`INPUT_PAYLOAD_MIN`, `STATUS_PAYLOAD_MIN`, and `CONFIG_PAYLOAD_MIN`.
 
 **Correct:**
 
 ```cpp
-if (x.size() < CAN_FRAME_SIZE) return;
+if (x.size() < STATUS_PAYLOAD_MIN) return;
 ```
 
 **Wrong — do not use these forms:**
 
 ```cpp
-if (x.empty()) return;           // wrong bound
-if (x.size() == 0) return;       // wrong bound
-if (x.size() < 8) return;        // magic number — use CAN_FRAME_SIZE
+if (x.empty()) return;           // wrong bound for most frames
+if (x.size() == 0) return;       // wrong bound for most frames
+if (x.size() < 8) return;        // magic number — use the named per-frame minimum
 ```
 
 On unexpected frame size: return silently. Do not log, do not fire an error event.
@@ -311,25 +314,27 @@ staging between actions.
 
 ```yaml
 on_frame:
-  - can_id: 0x200
-    can_id_mask: 0x600
+  - can_id: 0x04000000
+    can_id_mask: 0x1C000000
+    use_extended_id: true
     then:
       - if:
           condition:
-            lambda: 'if (x.size() < CAN_FRAME_SIZE) return false; return x[0] == PROTO_V1;'
+            lambda: 'if (x.size() < INPUT_PAYLOAD_MIN) return false; return x[0] == PROTO_V1;'
           then:
             - lambda: |-
                 ESP_LOGI("gw", ...);   // log decoded values first (NFR-8)
             - homeassistant.event:
                 event: esphome.canbus_button
-                data:                  // each field a !lambda decoding from x; all values strings
-                  room: !lambda 'return to_string(payload_room(x));'
+                data:                  // each field a !lambda decoding from can_id; all values strings
+                  room: !lambda 'return to_string(id_room(can_id));'
                   # board / button / event likewise
 ```
 
-The size guard `if (x.size() < CAN_FRAME_SIZE) return false;` is the first statement of the
+The size guard `if (x.size() < <PAYLOAD_MIN>) return false;` is the first statement of the
 `condition:` lambda — before any byte is indexed. One `on_frame` handler per CAN category:
-CAT_INPUT (button events → HA) and CAT_STATUS (heartbeat — log only in PoC).
+CAT_INPUT (button events → HA) and CAT_STATUS (heartbeat — log only in PoC), using
+Extended-ID category masks.
 
 ### ESPHome Globals Usage Rule
 
@@ -341,7 +346,7 @@ decisions). Globals are still permitted for:
 
 An ESPHome global should never be introduced solely to pass a value from one action
 to the next within a single `on_frame` handler. If that pattern appears, replace it
-by decoding directly from `x` in each `!lambda` (e.g. per-field in the
+by decoding directly from `can_id` and/or `x` in each `!lambda` (e.g. per-field in the
 `homeassistant.event:` data block).
 
 ### YAML Structure Conventions
@@ -361,8 +366,8 @@ or hardware-specific quirks.
 
 ```yaml
 packages:
-  btn0: !include { file: ../common/button.yaml, vars: { button_index: "0", button_gpio: "2" } }
-  btn1: !include { file: ../common/button.yaml, vars: { button_index: "1", button_gpio: "3" } }
+  btn0: !include { file: ../common/button.yaml, vars: { button_index: "0", button_gpio: "20" } }
+  btn1: !include { file: ../common/button.yaml, vars: { button_index: "1", button_gpio: "21" } }
 ```
 
 Button index and GPIO are always strings in the `vars` block (ESPHome substitution
@@ -406,8 +411,8 @@ The original floor-range table is removed; see `adrs/0001-can-extended-id-locati
 **All AI agents MUST:**
 
 - Read `canbus_protocol.h` before writing any lambda that constructs or decodes a CAN frame
-- Check `firmware/nodes.csv` before assigning a new node ID
-- Verify `x.size() < CAN_FRAME_SIZE` is the first check before any payload byte is accessed (first line of the lambda for nodes; first statement of the `condition:` lambda for the gateway)
+- Check `firmware/nodes.csv` / the live commissioning registry before assigning a new `(room, board)`
+- Verify the relevant `x.size() < *_PAYLOAD_MIN` guard is the first check before any payload byte is accessed (first line of the lambda for nodes; first statement of the `condition:` lambda for the gateway)
 - On the gateway, fire HA events via the `homeassistant.event:` action with `if:`/`condition:` guards — never introduce globals for event staging
 - Compile with `esphome compile` before reporting a task complete; a failed compile is not a completed story
 

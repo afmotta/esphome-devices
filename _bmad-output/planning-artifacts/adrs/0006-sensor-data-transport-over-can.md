@@ -34,55 +34,90 @@ the lighting controller of ADR-0003; firmware already built by Alberto) consumes
 publishes it to Home Assistant, and drives HVAC.
 
 This is the **revisit trigger named in ADR-0004 (D2)**: value-carrying message types now
-proliferate. The resolution is the *light* typed-payload scheme D2 anticipated — the
-measurement type rides the ID and *implies* the value's encoding — not a heavy DPT registry.
+proliferate. The resolution is the *light* typed-payload scheme D2 anticipated — the CAN ID
+carries source identity and channel, while the payload carries a compact measurement type
+that *implies* the value's encoding — not a heavy DPT registry.
 
 ADR-0001 explicitly reserved category space for "future message classes (sensors, …)", so
 this slots in without a re-cut.
 
 ## Decision
 
-### 1. New category `CAT_SENSOR` (low priority)
+### 1. New category `CAT_SENSOR = 4` (low priority)
 
-Add `CAT_SENSOR` using a reserved category value (e.g. `4`). Because CAN arbitrates by ID
-(lower = higher priority) and category is the top field, a high category number makes
-sensor traffic **yield** to INPUT (buttons), OUTPUT, and STATUS — correct, since readings
-are periodic and non-urgent.
+Add `CAT_SENSOR = 4`. Because CAN arbitrates by ID (lower = higher priority) and category
+is the top field, this makes sensor traffic **yield** to INPUT (buttons), OUTPUT, and
+STATUS — correct, since readings are periodic and non-urgent.
 
 ### 2. SENSOR frame ID layout (source-addressed, like INPUT/STATUS)
 
 ```
-Bit: 28 27 26 │ 25 ........ 18 │ 17 ........ 10 │ 9 8 7 6 5 │ 4 3 2 1 0
-     C  C  C  │ R (room:8)     │ B (board:8)    │ M M M M M │ x x x x x
-C = CAT_SENSOR     M = measurement_type (5 bits, 32 values)     x = reserved (5)
+Bit: 28 27 26 │ 25 ........ 18 │ 17 ........ 10 │ 9 ................ 0
+  C  C  C  │ R (room:8)     │ B (board:8)    │ K K K K K K K K K K
+C = CAT_SENSOR     K = channel / sensor instance (10 bits)
 ```
 
-The consumer decodes `room / board / measurement_type` straight from the `can_id` (a
-category-mask subscription, same shape as the INPUT/STATUS handlers).
+The consumer decodes `room / board / channel` straight from the `can_id` (a category-mask
+subscription, same shape as the INPUT/STATUS handlers) and decodes `measurement_type` from
+the payload. `channel = 0` is the default and expected value for the initial deployment.
+Non-zero channels are reserved for the rare case of multiple physical sensor packages or
+instances on the same host node; using 10 bits here gives 1024 source instances without
+constraining the measurement namespace.
 
 ### 3. `measurement_type` enum (one frame per measurement)
 
-Distinguishes the two T/RH sources: `SHT45_TEMP, SHT45_RH, SEN66_TEMP, SEN66_RH,
-SEN66_PM1_0, SEN66_PM2_5, SEN66_PM4_0, SEN66_PM10, SEN66_VOC_INDEX, SEN66_NOX_INDEX,
-SEN66_CO2` (11 → fits 5 bits with headroom).
+Freeze the initial `uint16_t measurement_type` values in `canbus_protocol.h`:
+
+| Value | Name |
+|---:|---|
+| `0` | `SENSOR_MEAS_INVALID` / reserved |
+| `1` | `SENSOR_SHT45_TEMP` |
+| `2` | `SENSOR_SHT45_RH` |
+| `3` | `SENSOR_SEN66_TEMP` |
+| `4` | `SENSOR_SEN66_RH` |
+| `5` | `SENSOR_SEN66_PM1_0` |
+| `6` | `SENSOR_SEN66_PM2_5` |
+| `7` | `SENSOR_SEN66_PM4_0` |
+| `8` | `SENSOR_SEN66_PM10` |
+| `9` | `SENSOR_SEN66_VOC_INDEX` |
+| `10` | `SENSOR_SEN66_NOX_INDEX` |
+| `11` | `SENSOR_SEN66_CO2` |
+
+The enum distinguishes the two T/RH sources. Values `12`-`65535` remain reserved for future
+measurement types or a later structured registry.
 
 ### 4. Value encoding (the light typed-payload scheme)
 
-Payload = `[PROTO_V1, val_lo, val_hi]` — a little-endian 16-bit value whose meaning is
-implied by `measurement_type`:
+Payload = `[PROTO_V1, sensor_status, meas_lo, meas_hi, val0, val1, val2, val3]` — a status
+byte, a little-endian `uint16_t measurement_type`, and a little-endian 32-bit value whose
+meaning is implied by `measurement_type`:
+
+| Status | Name | Semantics |
+|---:|---|---|
+| `0` | `SENSOR_STATUS_OK` | `val` is valid and should be published. |
+| `1` | `SENSOR_STATUS_WARMING_UP` | Sensor is present but not ready; ignore `val`. |
+| `2` | `SENSOR_STATUS_UNAVAILABLE` | Sensor/component did not produce a reading; ignore `val`. |
+| `3` | `SENSOR_STATUS_ERROR` | Sensor reported an error; ignore `val`. |
+| `4` | `SENSOR_STATUS_OUT_OF_RANGE` | Reading was outside representable/allowed range; ignore `val`. |
+
+Consumers publish numeric values only when `sensor_status == SENSOR_STATUS_OK`; otherwise
+the corresponding HA entity is marked unavailable/diagnostic as appropriate.
 
 | Quantity | Encoding |
 |---|---|
-| Temperature | `int16`, centi-°C (×100) → 2143 = 21.43 °C |
-| Relative humidity | `uint16`, ×100 (0–10000 = 0–100 %) |
-| PM1.0 / 2.5 / 4 / 10 | `uint16`, ×10 µg/m³ (0.1 resolution) |
-| VOC index / NOx index | `uint16`, 1–500 (index, no scaling) |
-| CO₂ | `uint16`, ppm (0–65535) |
+| Temperature | `int32`, centi-°C (×100) → 2143 = 21.43 °C |
+| Relative humidity | `uint32`, ×100 (0–10000 = 0–100 %) |
+| PM1.0 / 2.5 / 4 / 10 | `uint32`, ×10 µg/m³ (0.1 resolution) |
+| VOC index / NOx index | `uint32`, 1–500 (index, no scaling) |
+| CO₂ | `uint32`, ppm |
 
-One measurement per frame keeps the model uniform (subject in ID, value in payload). Load
-is negligible: ~11 frames/room/cycle at a 10–30 s cadence is a few tens of frames/s even
-for a whole house — trivial against 125 kbps and (per CAT_SENSOR's low priority) never
-delays button traffic.
+One measurement per frame keeps the model uniform: source/channel identity in the ID,
+measurement type and value in the payload. The initial default cadence is **30 s for every
+measurement**. The consumer marks a measurement stale/unavailable if it has not received a
+fresh `SENSOR_STATUS_OK` frame for that `room/board/channel/measurement_type` within
+**90 s**. Load is negligible: ~11 frames/room per 30 s is a few frames/s even for a whole
+house — trivial against 125 kbps and (per CAT_SENSOR's low priority) never delays button
+traffic.
 
 ### 5. Sensor-node profile — dedicated **or** combined, per room
 
@@ -110,8 +145,11 @@ against the host rail and fan inrush); power locally if marginal.
 
 The **dedicated HVAC controller** subscribes to `CAT_SENSOR` (category-mask filter),
 decodes, publishes the readings to HA as sensor entities, and feeds HVAC. It is a parallel
-controller to ADR-0003's lighting controller — independent subsystems, so a fault in one
-does not affect the other.
+controller to ADR-0003's lighting controller for operation, but **not** a commissioning
+authority: node address assignment, re-homing, replacement, and the live
+`(hwid → room/board/profile)` registry remain owned by the ADR-0003 controller + HA UI
+defined in ADR-0002. The HVAC controller may read exported registry metadata for friendly
+names and diagnostics, but it does not allocate addresses.
 
 ### 7. Heartbeats
 
@@ -121,10 +159,13 @@ can monitor their health.
 ## Consequences
 
 ### Positive
-- Additive — reserved category space, no protocol break (ADR-0001).
-- Uniform with the existing model (subject in ID, value in payload); same handler shape.
+- Additive — uses `CAT_SENSOR = 4`, no protocol break (ADR-0001).
+- Uniform with the existing model (source/channel in ID, typed value in payload); same
+  category-mask handler shape.
 - Closes ADR-0004 D2 with the *light* typed-payload scheme (no heavy registry).
-- Topology unaffected (ADR-0005): trivial load, carried by forward-all bridges, low priority.
+- Topology unaffected (ADR-0005): trivial load, carried by forward-all bridges, low priority;
+  the topology invariant is that `CAT_SENSOR` from every segment must reach the HVAC
+  controller.
 - Dedicated HVAC controller isolates the HVAC subsystem from lighting.
 
 ### Negative / costs
@@ -135,15 +176,19 @@ can monitor their health.
 - The host-shares-the-sensor's-room rule constrains which node a sensor may attach to.
 
 ### Open items
-1. **Confirm `CAT_SENSOR` value** and freeze the `measurement_type` enum + encoding table in
-   `canbus_protocol.h`.
+1. **Implement protocol constants/helpers** in `canbus_protocol.h`: `CAT_SENSOR = 4`,
+  measurement enum, status enum, `SENSOR_PAYLOAD_MIN = 8`, `can_sensor_id()`,
+  `id_sensor_channel()`, `payload_sensor_measurement()`, `payload_sensor_value32()`, and
+  value/status decoders.
 2. **Verify ESPHome SEN66 support** (or write the custom I2C component).
 3. **Verify SEN66 power** over QwiicBus per run.
-4. **Sampling cadence** per measurement (e.g. fast for CO2/PM vs slow for T/RH).
-5. Encoders/decoders + a category-mask handler on the HVAC controller.
+4. Encoders/decoders + a category-mask handler on the HVAC controller, including the 90 s
+  staleness rule.
+5. Extend the registry/commissioning UI with node role and attached sensor metadata where
+  needed, so the same-room host rule can be validated.
 
 ## Notes
 Depends on ADR-0001 (categories/IDs). Realises ADR-0004 D2 (light typed payloads). Consumer
-is a dedicated controller in the spirit of ADR-0003. Commissioning of sensor nodes uses the
-ADR-0002 selector, generalised there to a dedicated commissioning button for nodes without a
-user button.
+is a dedicated controller in the spirit of ADR-0003, but commissioning authority stays with
+the ADR-0002 registry owner. Commissioning of sensor nodes uses the ADR-0002 selector,
+generalised there to a dedicated commissioning button for nodes without a user button.
