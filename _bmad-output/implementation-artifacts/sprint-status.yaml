@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-01
-last_updated: 2026-06-03
+last_updated: 2026-06-05
 last_updated_by: bmad-create-story
 project: canbus
 project_key: NOKEY
@@ -66,10 +66,10 @@ development_status:
   epic-3-retrospective: done
 
   # Epic 4: PoC Validation & Sign-off
-  epic-4: backlog
-  4-1-bench-assembly-and-hardware-commissioning: backlog
-  4-2-button-event-acceptance-matrix-node-100: backlog
-  4-3-button-event-acceptance-matrix-node-101-and-poc-sign-off: backlog
+  epic-4: done
+  4-1-bench-assembly-and-hardware-commissioning: done
+  4-2-button-event-acceptance-matrix-node-100: done
+  4-3-button-event-acceptance-matrix-node-101-and-poc-sign-off: done
   epic-4-retrospective: optional
 
   # Epic 5: Post-PoC — Command Reliability & Fault Surfacing
