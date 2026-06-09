@@ -13,6 +13,7 @@ relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0003-centralized-single-controller-with-onboard-fallback.md
   - _bmad-output/planning-artifacts/adrs/0004-information-model-and-addressing-vs-knx.md
   - _bmad-output/planning-artifacts/adrs/0005-can-bus-topology-segmented-multi-bus.md
+  - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
   - firmware/common/canbus_protocol.h
 ---
 

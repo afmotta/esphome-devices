@@ -1,14 +1,18 @@
 ---
 adr: 0002
 title: 'Commissioning of CAN endpoint nodes (identical-firmware, press-to-assign)'
-status: 'Proposed'
+status: 'Superseded'
 date: '2026-06-04'
+supersededDate: '2026-06-06'
+supersededBy:
+  - 'ADR-0007: Flat node_id identity with central meaning map'
 deciders: ['Alberto']
 author: 'Winston (System Architect)'
 dependsOn:
   - 'ADR-0001: Adopt CAN Extended IDs with location-as-address'
 relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0001-can-extended-id-location-as-address.md
+  - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
   - _bmad-output/planning-artifacts/adrs/0003-centralized-single-controller-with-onboard-fallback.md
   - _bmad-output/planning-artifacts/architecture.md
   - firmware/common/canbus_protocol.h

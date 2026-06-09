@@ -1,9 +1,12 @@
 ---
 adr: 0001
 title: 'Adopt CAN Extended IDs with location-as-address (eliminate flat node_id)'
-status: 'Accepted'
+status: 'Superseded'
 date: '2026-06-04'
 acceptedDate: '2026-06-04'
+supersededDate: '2026-06-06'
+supersededBy:
+  - 'ADR-0007: Flat node_id identity with central meaning map'
 deciders: ['Alberto']
 author: 'Winston (System Architect)'
 supersedes:
@@ -11,6 +14,7 @@ supersedes:
   - 'architecture.md §Technical Constraints → ESPHome on_frame constraint (room/board in payload)'
 relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0002-runtime-assignable-node-addressing-and-commissioning.md
+  - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
   - _bmad-output/planning-artifacts/architecture.md
   - _bmad-output/project-context.md
   - docs/canbus-smart-home-reference.md

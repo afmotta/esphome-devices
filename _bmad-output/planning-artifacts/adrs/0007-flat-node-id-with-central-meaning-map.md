@@ -1,8 +1,9 @@
 ---
 adr: 0007
 title: 'Flat node_id identity with central meaning map (supersedes location-as-address)'
-status: 'Proposed'
+status: 'Accepted'
 date: '2026-06-06'
+acceptedDate: '2026-06-09'
 deciders: ['Alberto']
 author: 'Winston (System Architect)'
 supersedes:
@@ -20,10 +21,14 @@ relatedDocuments:
 
 ## Status
 
-**Proposed** — supersedes **ADR-0001** (location-as-address) and **ADR-0002** (runtime
-address commissioning). Reached after an extended exploration of onboarding options; this
-is the model that resolves onboarding by *removing* node-side identity state rather than
-engineering around it.
+**Accepted (2026-06-09) — implemented.** Supersedes **ADR-0001** (location-as-address) and
+**ADR-0002** (runtime address commissioning). Reached after an extended exploration of
+onboarding options; this is the model that resolves onboarding by *removing* node-side identity
+state rather than engineering around it. The decision shipped across PRs #12–#19 (protocol
+header rewrite, firmware/gateway/generator migration to Extended IDs + flat `node_id`, central
+`node_id` map + monotonic allocator, Phase-1 commissioning, and the `CAT_SENSOR` layer);
+Open-item §2 (full central-map schema, commissioning service edit/backup beyond Phase-1)
+remains the only outstanding follow-up.
 
 ## Context
 

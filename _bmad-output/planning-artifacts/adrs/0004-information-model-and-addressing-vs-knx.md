@@ -11,6 +11,7 @@ relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0001-can-extended-id-location-as-address.md
   - _bmad-output/planning-artifacts/adrs/0002-runtime-assignable-node-addressing-and-commissioning.md
   - _bmad-output/planning-artifacts/adrs/0003-centralized-single-controller-with-onboard-fallback.md
+  - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
   - _bmad-output/planning-artifacts/architecture.md
   - firmware/common/canbus_protocol.h
 ---
