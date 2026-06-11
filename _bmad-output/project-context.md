@@ -131,6 +131,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 
 - `canbus_protocol.h` is shared by both nodes and gateway. Any protocol change requires reflashing ALL affected nodes (no OTA) — treat protocol as frozen unless absolutely necessary.
 - **Versioning policy:** until the project is declared LIVE, `PROTO_V1` stays `0x01` and breaking payload changes are made in place — no version bump — because every node is reflashed in lock-step with the gateway (no fielded firmware to stay compatible with). **Declaring the project live is Alberto's explicit call.** Only after going live does a breaking payload change require incrementing the protocol version byte.
+- **Post-LIVE evolution doctrine (ADR-0008):** once LIVE, the controller is the sole compatibility layer — it decodes every historical payload version, and changes are absorbed controller-side before any fielded node is touched. Nodes and bridges are updated *physically* (in-place USB reflash, which preserves `node_id`, or board swap) — never over the air. No CAN bootloader is built: `BOOTLOADER` stays a comment-level name reservation in `canbus_protocol.h` with no category value. A fleet-wide breaking change becomes a physical reflash campaign — see `docs/reflash-campaign-runbook.md`, gated by `docs/live-freeze-checklist.md`.
 
 **Adding a new node type or new event:**
 

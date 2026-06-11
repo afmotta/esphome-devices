@@ -1,3 +1,11 @@
+## Deferred from: spec-adr-0008-ratify-and-evolution-artifacts.md (2026-06-11)
+
+ADR-0008 (post-LIVE firmware evolution) was accepted; these are its open items **not** addressed by the ratification spec, deferred to their owners. Not bugs.
+
+- **USB-reachability mechanical spec (ADR-0008 open item 1)** [forthcoming physical/electrical topology ADR; ADR-0003 open item 8] — the concrete connector orientation / pigtail-vs-direct spec per mount type (wall box, bridge enclosure, sensor casing) that satisfies the §3 service-access rule. ADR-0008 establishes the *requirement*; the mechanical detail is owned by the physical/electrical ADR, not this one.
+- **Firmware artifact archival (ADR-0008 open item 3)** [release process / repo] — decide where compiled per-release UF2/bin images live (repo? release tags?) and what metadata ties each image to registry (`nodes.csv`) state. Feeds the LIVE-freeze checklist (`docs/live-freeze-checklist.md`); a years-later reflash campaign depends on it.
+- **Spare-stock policy (ADR-0008 open item 4)** [ops / commissioning] — how many pre-flashed spare boards sit on the shelf for the board-swap path, and at what `node_id` allocation discipline (ADR-0007 id space). Supports `docs/reflash-campaign-runbook.md` Path B.
+
 ## Deferred from: code review of spec-adr-0006-sensor-node-firmware.md (2026-06-11)
 
 - **`commission.py` writes `nodes.csv` before regeneration — mid-loop generator failure leaves artifacts inconsistent** [`firmware/tools/commission.py` `apply_assignment`] — the CSV is persisted, then `generate_nodes.main()` runs; if generation `sys.exit(1)`s on any invalid row (duplicate `(room, board)`, bad `sensors` value, …) the registry is updated while `nodes/` is partially regenerated and `node_map.h` stays stale. Interactive mode catches the SystemExit and continues with only a one-line message. Pre-existing write-then-validate ordering, surfaced — not caused — by the ADR-0006 sensors-column review; fixing it means validating before persisting (dry-run pass) or writing CSV+map atomically after success.

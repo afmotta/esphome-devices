@@ -1,8 +1,9 @@
 ---
 adr: 0008
 title: 'Post-LIVE firmware & protocol evolution: controller as compatibility layer, physical-only node updates, no CAN bootloader'
-status: 'Proposed'
+status: 'Accepted'
 date: '2026-06-11'
+acceptedDate: '2026-06-11'
 deciders: ['Alberto']
 author: 'Winston (System Architect)'
 dependsOn:
@@ -23,12 +24,13 @@ relatedDocuments:
 
 ## Status
 
-**Proposed.** Drafted from the 2026-06-11 gap analysis: no document answers *what happens
-when a node-side firmware or protocol change is needed after LIVE*. This decision has an
-**expiry date** — one of the options (a CAN bootloader) must be flashed onto every board
-*before* it goes into a wall and cannot be retrofitted afterwards. It must therefore be
-decided before the first production node is installed, even though it concerns events that
-may never happen.
+**Accepted (2026-06-11).** Ratifies the post-LIVE firmware & protocol evolution doctrine,
+drafted from the 2026-06-11 gap analysis: no document answered *what happens when a
+node-side firmware or protocol change is needed after LIVE*. This decision carries an
+**expiry date** — one of the options it rejects (a CAN bootloader) would have had to be
+flashed onto every board *before* it goes into a wall and cannot be retrofitted afterwards.
+Accepting this ADR is the deliberate choice, made before the first production node is
+installed, to let that option expire — even though it concerns events that may never happen.
 
 ## Context
 
@@ -191,14 +193,19 @@ soaked end-to-end:
 ## Open items
 
 1. **USB-reachability mechanical spec** per mount type (wall box, bridge enclosure,
-   sensor casing) — owned by the forthcoming physical/electrical topology ADR.
-2. **Reflash campaign runbook** — write + bench-time it (feeds the LIVE checklist, §5).
+   sensor casing) — owned by the forthcoming physical/electrical topology ADR. Tracked in
+   `deferred-work.md`.
+2. **Reflash campaign runbook** — stub now lives at `docs/reflash-campaign-runbook.md`;
+   still needs bench-timing of the per-board/fleet numbers to validate the §2 cost estimate
+   (feeds the LIVE checklist, §5).
 3. **Firmware artifact archival** — where compiled per-release UF2/bin images live
-   (repo? release tags?) and what metadata ties them to registry state.
+   (repo? release tags?) and what metadata ties them to registry state. Tracked in
+   `deferred-work.md`.
 4. **Spare-stock policy** — how many pre-flashed spare boards (and at what `node_id`
-   allocation discipline) sit on the shelf for the swap path.
-5. **LIVE checklist ownership** — turn §5 into a tracked artifact Alberto signs off,
-   per the status-hygiene rule (a checklist file, not prose in an ADR).
+   allocation discipline) sit on the shelf for the swap path. Tracked in `deferred-work.md`.
+5. **LIVE checklist ownership** — done in structure: the freeze gate is now tracked as the
+   checklist file `docs/live-freeze-checklist.md` (derived from §5, which stays here as
+   rationale), pending Alberto's sign-off and the real values its gates depend on.
 
 ## Notes
 

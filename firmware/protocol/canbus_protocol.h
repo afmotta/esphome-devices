@@ -47,20 +47,21 @@ inline constexpr uint8_t PROTO_V1 = 0x01;
 // and variable-length; receive lambdas guard against the relevant per-message minimum rather
 // than a fixed 8 (named constants, never inlined — NFR-2).
 inline constexpr std::size_t CAN_FRAME_MAX = 8;
-inline constexpr std::size_t HEADER_MIN = 2;             // [ver, type]
-inline constexpr std::size_t BUTTON_PAYLOAD_MIN = 4;     // [ver, type, button, event]
-inline constexpr std::size_t HEARTBEAT_PAYLOAD_MIN = 5;  // [ver, type, errors, up_lo, up_hi]
-inline constexpr std::size_t SENSOR_PAYLOAD_MIN = 8;     // [ver, status, meas_lo, meas_hi, v0..v3]
+inline constexpr std::size_t HEADER_MIN = 2;            // [ver, type]
+inline constexpr std::size_t BUTTON_PAYLOAD_MIN = 4;    // [ver, type, button, event]
+inline constexpr std::size_t HEARTBEAT_PAYLOAD_MIN = 5; // [ver, type, errors, up_lo, up_hi]
+inline constexpr std::size_t SENSOR_PAYLOAD_MIN = 8;    // [ver, status, meas_lo, meas_hi, v0..v3]
 
 // --------------- Categories (ID bits 28:25, 4 bits) ---------------
 // Lower value = higher CAN arbitration priority. 0-3 retained from v1.
-inline constexpr uint8_t CAT_SYSTEM = 0;   // emergency, errors, controller liveness (highest)
-inline constexpr uint8_t CAT_INPUT = 1;    // button events             node -> controller
-inline constexpr uint8_t CAT_OUTPUT = 2;   // commands / management     controller -> node
-inline constexpr uint8_t CAT_STATUS = 3;   // heartbeat, health         node -> controller
-inline constexpr uint8_t CAT_SENSOR = 4;   // environmental (ADR-0006)  node -> controller (low priority)
-// Values 5-14 are reserved for future message classes (e.g. CONFIG, DISCOVERY, BOOTLOADER);
-// assign them when those slices are designed.
+inline constexpr uint8_t CAT_SYSTEM = 0; // emergency, errors, controller liveness (highest)
+inline constexpr uint8_t CAT_INPUT = 1;  // button events             node -> controller
+inline constexpr uint8_t CAT_OUTPUT = 2; // commands / management     controller -> node
+inline constexpr uint8_t CAT_STATUS = 3; // heartbeat, health         node -> controller
+inline constexpr uint8_t CAT_SENSOR = 4; // environmental (ADR-0006)  node -> controller (low priority)
+// Values 5-14 are reserved for future message classes (e.g. CONFIG, DISCOVERY); assign them
+// when those slices are designed. BOOTLOADER is a name reservation only — ADR-0008 §4
+// deliberately forgoes a CAN bootloader, so no category value is allocated to it.
 inline constexpr uint8_t CAT_EXTENDED = 15; // escape: real class is a subtype byte in the payload
 
 // --------------- ID field layout ---------------
@@ -70,7 +71,7 @@ inline constexpr uint32_t CAT_FIELD_MASK = 0x0Fu;    // 4 bits
 inline constexpr uint32_t NODE_FIELD_MASK = 0x1FFFu; // 13 bits
 
 // Match category bits only (controller/gateway category-mask acceptance filter).
-inline constexpr uint32_t CAN_MASK_CATEGORY = CAT_FIELD_MASK << CAT_SHIFT;  // 0x1E000000
+inline constexpr uint32_t CAN_MASK_CATEGORY = CAT_FIELD_MASK << CAT_SHIFT; // 0x1E000000
 // Match category + node_id (a node's RX filter for OUTPUT frames addressed to it; used later).
 inline constexpr uint32_t CAN_MASK_ADDR =
     (CAT_FIELD_MASK << CAT_SHIFT) | (NODE_FIELD_MASK << NODE_SHIFT);
@@ -152,7 +153,7 @@ inline std::vector<uint8_t> button_payload(uint8_t button_index, uint8_t event_t
 inline std::vector<uint8_t> heartbeat_payload(uint16_t uptime_hours, uint8_t error_flags)
 {
   return {PROTO_V1, MSG_HEARTBEAT, error_flags,
-          (uint8_t) (uptime_hours & 0xFF), (uint8_t) ((uptime_hours >> 8) & 0xFF)};
+          (uint8_t)(uptime_hours & 0xFF), (uint8_t)((uptime_hours >> 8) & 0xFF)};
 }
 
 // Sensor (CAT_SENSOR): [ver, status, meas_lo, meas_hi, v0, v1, v2, v3] (ADR-0006).
@@ -162,11 +163,11 @@ inline std::vector<uint8_t> heartbeat_payload(uint16_t uptime_hours, uint8_t err
 inline std::vector<uint8_t> sensor_payload(uint16_t measurement_type, int32_t value,
                                            uint8_t status = SENSOR_STATUS_OK)
 {
-  uint32_t v = (uint32_t) value;
+  uint32_t v = (uint32_t)value;
   return {PROTO_V1, status,
-          (uint8_t) (measurement_type & 0xFF), (uint8_t) ((measurement_type >> 8) & 0xFF),
-          (uint8_t) (v & 0xFF), (uint8_t) ((v >> 8) & 0xFF),
-          (uint8_t) ((v >> 16) & 0xFF), (uint8_t) ((v >> 24) & 0xFF)};
+          (uint8_t)(measurement_type & 0xFF), (uint8_t)((measurement_type >> 8) & 0xFF),
+          (uint8_t)(v & 0xFF), (uint8_t)((v >> 8) & 0xFF),
+          (uint8_t)((v >> 16) & 0xFF), (uint8_t)((v >> 24) & 0xFF)};
 }
 
 // =============================================================================
@@ -184,22 +185,25 @@ inline uint8_t payload_event_type(const std::vector<uint8_t> &d) { return d.size
 inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
 inline uint16_t payload_uptime16(const std::vector<uint8_t> &d)
 {
-  if (d.size() < HEARTBEAT_PAYLOAD_MIN) return 0;
-  return (uint16_t) d[3] | ((uint16_t) d[4] << 8);
+  if (d.size() < HEARTBEAT_PAYLOAD_MIN)
+    return 0;
+  return (uint16_t)d[3] | ((uint16_t)d[4] << 8);
 }
 
 // Sensor content — status at byte 1, measurement_type uint16 LE at 2-3, value int32 LE at 4-7.
 inline uint8_t payload_sensor_status(const std::vector<uint8_t> &d) { return d.size() > 1 ? d[1] : SENSOR_STATUS_UNAVAILABLE; }
 inline uint16_t payload_measurement_type(const std::vector<uint8_t> &d)
 {
-  if (d.size() < SENSOR_PAYLOAD_MIN) return SENSOR_MEAS_INVALID;
-  return (uint16_t) d[2] | ((uint16_t) d[3] << 8);
+  if (d.size() < SENSOR_PAYLOAD_MIN)
+    return SENSOR_MEAS_INVALID;
+  return (uint16_t)d[2] | ((uint16_t)d[3] << 8);
 }
 inline int32_t payload_sensor_value32(const std::vector<uint8_t> &d)
 {
-  if (d.size() < SENSOR_PAYLOAD_MIN) return 0;
-  return (int32_t) ((uint32_t) d[4] | ((uint32_t) d[5] << 8) |
-                    ((uint32_t) d[6] << 16) | ((uint32_t) d[7] << 24));
+  if (d.size() < SENSOR_PAYLOAD_MIN)
+    return 0;
+  return (int32_t)((uint32_t)d[4] | ((uint32_t)d[5] << 8) |
+                   ((uint32_t)d[6] << 16) | ((uint32_t)d[7] << 24));
 }
 
 // Event type to string (for HA events)
