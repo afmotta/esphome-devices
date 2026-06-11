@@ -1,3 +1,7 @@
+## Deferred from: code review of spec-adr-0006-sensor-node-firmware.md (2026-06-11)
+
+- **`commission.py` writes `nodes.csv` before regeneration — mid-loop generator failure leaves artifacts inconsistent** [`firmware/tools/commission.py` `apply_assignment`] — the CSV is persisted, then `generate_nodes.main()` runs; if generation `sys.exit(1)`s on any invalid row (duplicate `(room, board)`, bad `sensors` value, …) the registry is updated while `nodes/` is partially regenerated and `node_map.h` stays stale. Interactive mode catches the SystemExit and continues with only a one-line message. Pre-existing write-then-validate ordering, surfaced — not caused — by the ADR-0006 sensors-column review; fixing it means validating before persisting (dry-run pass) or writing CSV+map atomically after success.
+
 ## Deferred from: code review of spec-adr-0004-approve-and-align-artifacts.md (2026-06-10)
 
 - **project-context.md still encodes the superseded ADR-0001 wire model** [`_bmad-output/project-context.md`, `firmware/protocol/canbus_protocol.h`, ADR-0007] — the project context still says CAN uses ADR-0001 location-as-address semantics, tells agents to derive room from the CAN ID, and even warns "Never reintroduce the flat `node_id` model," while the active protocol header and accepted ADR-0007 use flat `node_id` + payload-carried message detail. Pre-existing repo-context drift surfaced by the ADR-0004 approval review, not caused by this story. Needs a dedicated doc-alignment follow-up so future agents stop receiving contradictory global rules.
