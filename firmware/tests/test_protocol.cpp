@@ -66,8 +66,22 @@ int main()
 
   // --- event strings ---
   assert(event_type_str(EVT_CLICK) == "click");
-  assert(event_type_str(EVT_EXTRA_LONG_PRESS) == "extra_long_press");
   assert(event_type_str(0xFF) == "unknown");
+
+  // --- press-phase pair (ADR-0012) ---
+  // The gateway forwards on event_type_str(x) != "unknown", so the string mapping is the
+  // forwarding contract. 0x04/0x05 (the removed long/extra-long press) must stay
+  // unassigned and decode as "unknown": a not-yet-reflashed node emitting them must be
+  // logged-and-dropped, never misread as a hold event.
+  assert(EVT_HOLD == 0x06 && EVT_HOLD_RELEASE == 0x07);
+  assert(event_type_str(0x04) == "unknown" && event_type_str(0x05) == "unknown");
+  assert(event_type_str(EVT_HOLD) == "hold");
+  assert(event_type_str(EVT_HOLD_RELEASE) == "hold_release");
+  auto hp = button_payload(2, EVT_HOLD);
+  assert(hp.size() >= BUTTON_PAYLOAD_MIN);
+  assert(payload_version(hp) == PROTO_V1 && payload_type(hp) == MSG_BUTTON_EVENT);
+  assert(payload_button_index(hp) == 2 && payload_event_type(hp) == EVT_HOLD);
+  assert(payload_event_type(button_payload(2, EVT_HOLD_RELEASE)) == EVT_HOLD_RELEASE);
 
   std::printf("ALL PROTOCOL SELF-CHECKS PASSED\n");
   return 0;

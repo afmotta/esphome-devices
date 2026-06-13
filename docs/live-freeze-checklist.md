@@ -28,6 +28,13 @@ signed off.
 - [ ] **At least one bridge soak-tested in line** — an ADR-0005 segment bridge has passed its
       soak test on real hardware (its open item 5): burst-rate frame integrity, and
       watchdog/brownout/never-babble behavior observed under induced faults.
+- [ ] **Hold-gesture soak (ADR-0012)** — at least one button is driving a real continuous
+      action end-to-end (`hold` → ramp/travel, `hold_release` → stop) and at least one
+      derived long-press binding works (hold → release → action), and the §5 lost-release
+      pull-test passed: killing the HA automation mid-hold left the continuous action at
+      its bound, no runaway. Record the tuned threshold (ADR-0012 open item 1; also the
+      derived long-press threshold):
+  - `hold_ms`: _________
 - [ ] **Reflash-campaign runbook written and bench-timed** — `docs/reflash-campaign-runbook.md`
       is complete (no stub sections) and its per-board / fleet timings have been **measured on
       the bench**, validating the ADR-0008 §2 cost estimate before we rely on it.

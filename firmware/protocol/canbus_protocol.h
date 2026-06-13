@@ -86,14 +86,14 @@ inline constexpr uint8_t MSG_CONFIG_ACK = 0x03;
 inline constexpr uint8_t EVT_CLICK = 0x01;
 inline constexpr uint8_t EVT_DOUBLE_CLICK = 0x02;
 inline constexpr uint8_t EVT_TRIPLE_CLICK = 0x03;
-inline constexpr uint8_t EVT_LONG_PRESS = 0x04;
-inline constexpr uint8_t EVT_EXTRA_LONG_PRESS = 0x05;
-
-// Backward-compatible aliases for older YAML packages that still use the pre-PRD names.
-inline constexpr uint8_t EVT_DOUBLE = EVT_DOUBLE_CLICK;
-inline constexpr uint8_t EVT_TRIPLE = EVT_TRIPLE_CLICK;
-inline constexpr uint8_t EVT_LONG = EVT_LONG_PRESS;
-inline constexpr uint8_t EVT_EXTRA_LONG = EVT_EXTRA_LONG_PRESS;
+// 0x04/0x05 were long/extra-long press, removed pre-LIVE (ADR-0012 §2: a "long press" is
+// derived centrally from the HOLD -> HOLD_RELEASE pair). Left unassigned so a frame from a
+// not-yet-reflashed node decodes as "unknown" (logged, never forwarded) instead of
+// misdecoding as a hold event.
+// Press-phase pair (ADR-0012): HOLD fires while the button is still down (once the press
+// reaches hold_ms); HOLD_RELEASE fires when that hold ends. Every button emits these.
+inline constexpr uint8_t EVT_HOLD = 0x06;
+inline constexpr uint8_t EVT_HOLD_RELEASE = 0x07;
 
 // --------------- Error flags (heartbeat) ---------------
 inline constexpr uint8_t ERR_NONE = 0x00;
@@ -217,10 +217,10 @@ inline std::string event_type_str(uint8_t event_type)
     return "double_click";
   case EVT_TRIPLE_CLICK:
     return "triple_click";
-  case EVT_LONG_PRESS:
-    return "long_press";
-  case EVT_EXTRA_LONG_PRESS:
-    return "extra_long_press";
+  case EVT_HOLD:
+    return "hold";
+  case EVT_HOLD_RELEASE:
+    return "hold_release";
   default:
     return "unknown";
   }

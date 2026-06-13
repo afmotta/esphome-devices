@@ -1,10 +1,31 @@
 # =============================================================================
 # button.yaml — per-button package, include once per physical button
 # =============================================================================
+# The single gesture vocabulary (ADR-0012): every button emits
+#   click / double_click / triple_click  — release-time, node-detected
+#   hold          — fires WHILE the button is still down, once ON >= ${hold_ms}ms
+#   hold_release  — fires when that hold ends (never after a bare click)
+#
+# The mid-press trigger works because a final `ON for at least` timing entry
+# does not await a falling edge (ESPHome multi_click semantics; ADR-0012 §1).
+#
+# long_press / extra_long_press are NOT emitted (ADR-0012 §2): a "long press" is
+# derived centrally (HA / gateway fallback) from the hold -> hold_release pair —
+# their patterns would match a hold too and fire duplicates. Click patterns
+# coexist because they are timing-disjoint (ON <= 0.5s vs >= hold_ms); the
+# 0.5s..hold_ms gap is deliberate gesture separation.
+#
 # Required vars: ${button_index}, ${button_gpio}
 # Required parent substitutions:
 #   ${node_id}, ${debounce_ms}
+# Optional parent substitution:
+#   ${hold_ms} — hold recognition threshold; defaults to 800 (must stay above
+#   the 500ms click ceiling + margin; bench tuning is ADR-0012 open item 1).
+#   Fleet-wide it is also the derived long-press threshold.
 # =============================================================================
+
+substitutions:
+  hold_ms: "800"
 
 script:
   - id: btn${button_index}_send_event
@@ -68,22 +89,25 @@ binary_sensor:
               id: btn${button_index}_send_event
               event_type: !lambda 'return EVT_CLICK;'
 
-      # ----- Long press (1s to just under 3s) -----
-      # Capped at 2999ms so the extra-long pattern (>= 3s) is reachable;
-      # an inclusive "1s to 3s" here would always win at exactly 3s.
+      # ----- Hold (press-phase): fires at ${hold_ms}ms INTO the press -----
+      # The final `ON for at least` entry triggers without awaiting release —
+      # this is the event that starts a continuous action (dim ramp, cover move)
+      # or arms a derived long press in HA.
       - timing:
-          - ON for 1s to 2999ms
-          - OFF for at least 0.3s
+          - ON for at least ${hold_ms}ms
         then:
           - script.execute:
               id: btn${button_index}_send_event
-              event_type: !lambda 'return EVT_LONG_PRESS;'
+              event_type: !lambda 'return EVT_HOLD;'
 
-      # ----- Extra long press (3+ seconds) -----
+      # ----- Hold release: the same press, seen to its end -----
+      # Only a press that already qualified as a hold can match; a bare click
+      # (ON <= 0.5s) can never emit hold_release. Stops the continuous action /
+      # completes the derived long press.
       - timing:
-          - ON for at least 3s
-          - OFF for at least 0.3s
+          - ON for at least ${hold_ms}ms
+          - OFF for at least 0.05s
         then:
           - script.execute:
               id: btn${button_index}_send_event
-              event_type: !lambda 'return EVT_EXTRA_LONG_PRESS;'
+              event_type: !lambda 'return EVT_HOLD_RELEASE;'

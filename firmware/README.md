@@ -134,6 +134,35 @@ using the `canbus_protocol.h` constants/helpers merged in PR #19.
 
 ---
 
+## Button gestures (ADR-0012)
+
+Every button speaks one vocabulary (`packages/button.yaml`): **single / double / triple
+click** (release-time, node-detected) plus the press-phase pair — **`hold`** fires *while
+the button is still down* (once the press reaches `hold_ms`, default 800 ms, a substitution
+in `button.yaml`), **`hold_release`** fires when that hold ends. The pair drives continuous
+control: hold-to-dim, hold-to-move a cover.
+
+- **`long_press`/`extra_long_press` no longer exist** — a long press is *derived* in HA
+  as hold → hold_release (see the example in `gateway/ha_hold_automations.yaml`); their
+  node-side patterns would match a hold too and fire duplicates (ADR-0012 §2). The
+  constants were removed outright (pre-LIVE, nothing fielded); wire values 0x04/0x05 stay
+  unassigned so a not-yet-reflashed node's frames decode as `unknown` (logged, dropped)
+  instead of misreading as hold. If a binding ever needs the old long vs extra-long (3 s)
+  split, HA measures the hold→release gap — no firmware involved.
+- **Gateway:** no logic change — `hold`/`hold_release` forward to HA through the existing
+  ha_ready/ACK arbitration like any click (recompile picks up the new
+  `canbus_protocol.h` strings).
+- **HA-side:** copy `gateway/ha_hold_automations.yaml` into Home Assistant as the starting
+  point. **Runaway rule (ADR-0012 §5):** every action started by `hold` must reach a bound
+  on its own (count-bounded dim loop; covers bound at their end stops) so a lost
+  `hold_release` can never run away. Derived long presses satisfy it by construction — a
+  lost release means the action just doesn't fire.
+- Compile check without touching generated nodes:
+  `esphome compile firmware/tests/compile_sensor_node.yaml` (base node + all 8 buttons +
+  sensor kit).
+
+---
+
 ## ha_ready Arbitration Prototype (ADR-0003)
 
 The gateway carries a prototype of ADR-0003's HA-readiness arbitration: HA proves liveness

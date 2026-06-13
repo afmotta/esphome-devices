@@ -67,7 +67,9 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 
 **`on_multi_click` ordering:**
 
-- Patterns MUST be ordered longest-first: triple → double → single → long → extra_long. ESPHome matches the first satisfied pattern; shorter patterns shadow longer ones if listed first.
+- Patterns MUST be ordered longest-first: triple → double → single → hold → hold_release (`button.yaml`, ADR-0012 single vocabulary). ESPHome matches the first satisfied pattern; shorter patterns shadow longer ones if listed first.
+- A final `ON for at least X` timing entry fires WHILE the button is still held (no falling edge awaited) — this is how the `hold` event fires mid-press (ADR-0012 §1).
+- `long_press`/`extra_long_press` do not exist (ADR-0012 §2): their patterns would match a hold too and fire duplicates. A long press is derived centrally (HA) from hold → hold_release; do not re-add those patterns to `button.yaml` or the constants to the header. Wire values 0x04/0x05 are deliberately unassigned (hold is 0x06/0x07) — do not reuse them for new event types; an old-firmware frame must decode as "unknown", not as a new gesture.
 
 **Platform differences:**
 
@@ -156,7 +158,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 - Click detection happens on the node, not the gateway. Multi-click timing uses ESPHome's `on_multi_click` which runs locally. Do not attempt to reconstruct click sequences from raw CAN events on the gateway.
 - `MSG_BUTTON_EVENT` and `MSG_HEARTBEAT` both equal `0x01` — they are distinguished by the CAN ID category (CAT_INPUT vs CAT_STATUS), not the message type byte alone.
 - Node ID `0` is valid — it is not a null/unset sentinel. Node IDs start at 0.
-- The `debounce_ms` substitution applies to both `delayed_on` and `delayed_off` GPIO filters — it is not the same as `on_multi_click` timing thresholds, which are hardcoded in `button.yaml`.
+- The `debounce_ms` substitution applies to both `delayed_on` and `delayed_off` GPIO filters — it is not the same as `on_multi_click` timing thresholds, which are hardcoded in `button.yaml` (exception: the hold recognition threshold is the `hold_ms` substitution, default 800, ADR-0012 — fleet-wide it is also the derived long-press threshold).
 
 ---
 
