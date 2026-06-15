@@ -170,19 +170,65 @@ The gateway carries a prototype of ADR-0003's HA-readiness arbitration: HA prove
 service every 5 s; each button event forwarded to HA carries an `event_id` that HA must ACK
 via `ha_ack_event` before the fallback timeout. When HA is not ready — API disconnected,
 heartbeat stale, or manifest-hash mismatch — or an ACK is missed, the **fallback only logs**
-(`FALLBACK ...` at WARN): no relays exist yet, and the binding manifest is stubbed by a
-placeholder hash.
+(`FALLBACK ...` at WARN): no relays exist yet. The manifest hash is now real — the gateway
+compares the generated `BINDINGS_MANIFEST_HASH` (see Binding Manifest below), no longer a
+placeholder.
 
-- HA-side counterpart: copy `gateway/ha_arbitration_automations.yaml` into Home Assistant.
+- HA-side counterpart: wire the **generated** `gateway/ha_manifest_package.yaml` (readiness
+  heartbeat, hash baked in) into HA as a package, and copy `gateway/ha_arbitration_automations.yaml`
+  (the hand-maintained ACK automation) into Home Assistant. See Binding Manifest below.
 - Observability: the gateway exposes a diagnostic **HA Ready** binary sensor, and the logs
   carry the tuning data: `ACK ... rtt=` (round-trip per event), `FALLBACK ... waited=`
   (actual fallback latency — `ack_timeout_ms` plus up to 250 ms sweep granularity), and
   `LATE ACK ... late=+` (an ACK landing after its fallback fired: the double-action window).
 - Tuning (resolves ADR-0003 open item 2 empirically) via `gateway.yaml` substitutions:
-  `ha_heartbeat_ttl_ms` (default 15000) and `ack_timeout_ms` (default 500); `manifest_hash`
-  (default `dev-unbound`) must match the hash HA's heartbeat sends.
+  `ha_heartbeat_ttl_ms` (default 15000) and `ack_timeout_ms` (default 500). The manifest hash
+  HA must echo is the generated `BINDINGS_MANIFEST_HASH`, not a substitution (see below).
 - Pure logic lives in `protocol/ha_arbitration.h`; native test:
   `g++ -std=c++17 -Wall -Wextra firmware/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb`
+
+---
+
+## Binding Manifest (ADR-0009)
+
+`registry/bindings.yaml` is the binding manifest — ADR-0003's fallback behavior as data:
+each binding maps a gesture `(node_id, button, event)` to a controller action (`relay`/`op`).
+With `registry/nodes.csv` (identity + placement) it forms the central map; **git is the
+system of record** (ADR-0009), so push registry changes promptly — bindings are unrebuildable.
+
+- **Canonical hash:** `tools/bindings.py` computes the `manifest_hash` as SHA-256 over the
+  *parsed* manifest with sorted keys (formatting/comments don't matter), truncated to 16 hex.
+  `tools/generate_nodes.py` stamps it into `protocol/bindings.h` as `BINDINGS_MANIFEST_HASH`,
+  which the gateway compares against the hash HA echoes — agreement un-stubs `ha_ready`.
+- **Stdlib-only:** `bindings.py` ships a small reader for a strict YAML subset (scalars only,
+  no nesting) so the generator stays dependency-free. Native tests:
+  `python3 firmware/tests/test_bindings.py` and `python3 firmware/tests/test_generate_exports.py`.
+- **Generated artifacts (ADR-0009 §4/§7), one generator run, all committed:**
+  - `protocol/bindings.h` — `BINDINGS_MANIFEST_HASH` **plus** the compiled `BINDINGS[]`
+    fallback table (`struct BindingEntry`, `binding_find()`), frozen-additive and currently
+    empty (fallback is log-only, ADR-0003 open item 7).
+  - `registry/map.json` — the read-only export for non-C consumers (HVAC controller,
+    dashboards): `schema_version`, a deterministic `map_version` content marker (not a
+    wall-clock — unchanged input regenerates byte-for-byte), `manifest_hash`, and `nodes[]`.
+    Field shape is provisional (ADR-0009 open item 5: confirm with HVAC firmware before freezing).
+  - `gateway/ha_manifest_package.yaml` — the HA readiness-heartbeat automation with the hash
+    baked in, so HA echoes it automatically (no hand-paste). Wire it into HA once as a package.
+- **Workflow:** edit `bindings.yaml` → `python3 tools/generate_nodes.py` (validates every
+  binding against `nodes.csv`, prints the hash, regenerates all artifacts above) → commit and
+  **push** → `python3 tools/check_registry_pushed.py` → recompile/flash the gateway. No
+  re-paste step: the HA package carries the hash.
+- **Push-discipline gate (ADR-0009 §6 / open item 4):** `tools/check_registry_pushed.py` is
+  the mechanical pre-reflash check — it fails (non-zero) unless the registry (and the
+  generated artifacts compiled into the controller) is committed *and* `HEAD` is pushed to a
+  remote. ADR-0009 §6 makes the remote the backup; bindings are unrebuildable, so reflashing
+  a controller whose registry only exists locally is an unbacked-up house. Exit `0` = safe to
+  flash, `1` = gate failed, `2` = git error.
+- **Drift visibility (ADR-0009 §6):** the gateway exposes two read-only HA diagnostic
+  `text_sensor`s — **Binding Manifest Hash** (`BINDINGS_MANIFEST_HASH`) and **Node Map
+  Version** (`NODE_MAP_VERSION`, mirroring `map.json`'s `map_version`). Both are compile-time
+  constants published once at boot. Compare them on a dashboard against the committed
+  `registry/map.json`: a mismatch means "committed in git but not yet reflashed" — the static
+  map's failure mode — shows up there instead of as a misbehaving button.
 
 ---
 
