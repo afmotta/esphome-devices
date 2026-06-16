@@ -1,8 +1,9 @@
 ---
 adr: 0010
 title: 'Security posture: physical envelope as trust boundary, no bus cryptography, consequence-limiting invariants (accepted-risk record)'
-status: 'Proposed'
+status: 'Accepted'
 date: '2026-06-11'
+acceptedDate: '2026-06-16'
 deciders: ['Alberto']
 author: 'Winston (System Architect)'
 dependsOn:
@@ -24,12 +25,18 @@ relatedDocuments:
 
 ## Status
 
-**Proposed.** From the 2026-06-11 gap analysis: no document records the system's threat
-model or why the bus carries no authentication. For home infrastructure the likely right
-answer is "physical access is the boundary" — but an accepted-risk ADR is exactly the
-artifact that distinguishes a considered decision from an oversight, and writing it
-surfaced one concrete defect (unauthenticated OTA) and one rule that must hold at install
-time (the envelope rule, §2).
+**Accepted (2026-06-16) — implemented.** From the 2026-06-11 gap analysis: no document
+recorded the system's threat model or why the bus carries no authentication. For home
+infrastructure the right answer is "physical access is the boundary" — but an
+accepted-risk ADR is exactly the artifact that distinguishes a considered decision from an
+oversight, and writing it surfaced one concrete defect (unauthenticated OTA) and one rule
+that must hold at install time (the envelope rule, §2). Accepted and implemented in one
+pass: open item 1 — the OTA password, the only mandated code change — is closed on the
+gateway, and open item 5 — the no-security-critical-actuation constraint — is registered in
+project-context.md. The remaining open items (2 envelope audit, 3 HVAC sanity bounds, 4
+security-signal alerting) are deferred to their named owners. Named revisit triggers: an
+exterior device need (§2), an RP2350-class platform change (§3), or nodes gaining RX
+behavior (§4.1).
 
 ## Context
 
@@ -183,8 +190,9 @@ The bus is observable even though it is not authenticated, and the monitoring la
 
 ## Open items
 
-1. **Add `ota: password:`** to the gateway now; thread the pattern into controller/HVAC/
-   bridge configs as they gain OTA. (The one code change; small PR.)
+1. **Add `ota: password:`** — **done (2026-06-16):** `password: !secret ota_password` wired
+   into the gateway (the secret was already provisioned in `secrets.yaml`). Thread the same
+   pattern into controller/HVAC/bridge configs as they gain OTA.
 2. **Envelope audit at install time** — when the physical-topology ADR (queue #2) is
    drafted post-tubes, verify no planned wall box or cable run breaches §2; add the check
    to the commissioning runbook.
@@ -192,8 +200,9 @@ The bus is observable even though it is not authenticated, and the monitoring la
    controller (external firmware); recommended, not mandated here.
 4. **Security signals in the monitoring ADR** (queue #5) — unknown-node, node-vanished,
    and storm events get alerting treatment as security signals.
-5. **Standing constraint registration** — record "no security-critical actuation on this
-   bus" wherever future feature intake happens (project-context.md critical rules).
+5. **Standing constraint registration** — **done (2026-06-16):** "no security-critical
+   actuation on this bus without revisiting this ADR" recorded in project-context.md critical
+   rules. Re-record wherever future feature intake also happens.
 
 ## Notes
 

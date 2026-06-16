@@ -121,7 +121,10 @@ api:
           id(ha_hash_evaluated) = false;
 
 ota:
+  # ADR-0010 §5: authenticate OTA — the gateway is the most privileged device on the LAN,
+  # so an unauthenticated push is the one bus-external defect the security ADR found.
   - platform: esphome
+    password: !secret ota_password
 
 # --------------- ha_ready arbitration state (ADR-0003) ---------------
 globals:

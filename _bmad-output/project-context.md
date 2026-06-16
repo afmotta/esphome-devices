@@ -151,6 +151,7 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 - **Never assume HA event data fields are integers.** All fields in `esphome.canbus_button` and `esphome.canbus_heartbeat` are strings (`"7"`, not `7`). HA automation `event_data:` filters must use string values.
 - **Never skip the `x.size()` guard in CAN frame lambdas.** Malformed or short frames will crash without it.
 - **Never use Arduino framework on the gateway.** Native TWAI (`esp32_can`) requires `esp-idf`. Switching to Arduino silently breaks CAN.
+- **Never put security-critical actuation on the CAN bus.** Door locks, alarm arming, or any safety-critical actuator must not be driven from this bus without first revisiting ADR-0010. The bus is unauthenticated by decision (the physical envelope is the trust boundary), so any injected frame's worst case must stay behavioral and transient — never a lock thrown or an alarm disarmed. Standing constraint on all future feature intake.
 
 **Key non-obvious facts:**
 

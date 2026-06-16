@@ -7,6 +7,14 @@ wire-spec call), or actionable now. Not bugs.
 
 ---
 
+## Deferred from: ADR-0010 acceptance + implementation (2026-06-16)
+
+ADR-0010 (security posture — physical envelope as the trust boundary, no bus cryptography, four consequence-limiting invariants) was accepted and its one mandated code change shipped (gateway OTA password, §5 / open item 1), plus the standing no-security-critical-actuation constraint registered in `project-context.md` (open item 5). These remaining open items are deferred to their named owners.
+
+- **Envelope audit at install time (ADR-0010 open item 2)** [_blocked_ on the forthcoming physical-topology ADR, queue #2] — when cable routing and wall-box placement are specified post-tubes, verify no bus segment, stub, or node lands outside the physically secured envelope (§2 envelope rule); add the check to the commissioning runbook. A future exterior device is the named revisit trigger and requires an isolated segment behind a *filtering* (not forward-all) bridge — a deliberate ADR-0005 exception — designed at that time.
+- **HVAC sensor sanity bounds (ADR-0010 open item 3)** [_external_ HVAC firmware] — plausibility / rate-of-change clamps on the HVAC controller so spoofed `CAT_SENSOR` frames cannot drive absurd HVAC decisions. Recommended, not mandated (good engineering regardless); lives in the external HVAC firmware, not this repo.
+- **Security signals in the monitoring ADR (ADR-0010 open item 4)** [_blocked_ on the health/monitoring ADR, queue #5] — the three detection primitives (`esphome.canbus_node_unknown` = tamper/foreign-device alarm, already shipped in `gateway.yaml`; heartbeat-loss = node unplugged/tampered; storm/fault surfacing = bus DoS) must get *alerting* treatment as security signals, not just maintenance signals, when the monitoring ADR sets alerting policy.
+
 ## Deferred from: spec-adr-0009-central-map-binding-manifest.md (2026-06-13)
 
 ADR-0009 (central map & binding manifest — git as system of record) was accepted; its first implementation spec was **split** to stay within scope. The §4/§7 export pipeline, §6 drift-visibility entities, open items 3 (HA package) and 4 (push gate), and the two generator-review findings are all **resolved** (see [completed-work.md](completed-work.md)). What remains:
