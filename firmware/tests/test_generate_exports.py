@@ -69,16 +69,29 @@ def test_bindings_header_empty():
 
 def test_bindings_header_populated_and_sorted():
     rows = [
-        {"node_id": 101, "button": 3, "event": "double", "relay": 2, "op": "on"},
-        {"node_id": 100, "button": 0, "event": "single", "relay": 0, "op": "toggle"},
+        {"node_id": 101, "button": 3, "relay": 2, "op": "on"},
+        {"node_id": 100, "button": 0, "relay": 0, "op": "toggle"},
     ]
     h = g.render_bindings_header(HASH, rows)
     assert "inline constexpr BindingEntry BINDINGS[] = {" in h
     assert "sizeof(BINDINGS)" in h
-    # Sorted by (node_id, button, event): node 100 row precedes node 101.
-    i100 = h.index('{100, 0, "single", 0, "toggle"}')
-    i101 = h.index('{101, 3, "double", 2, "on"}')
+    # Keyed by (node_id, button) — no event (fallback is single-click only). Each entry carries
+    # a {relay_count, relays-array} list (ADR-0009 open item 1). Sorted: node 100 precedes 101.
+    i100 = h.index('{100, 0, 1, BINDING_RELAYS_0, "toggle"}')
+    i101 = h.index('{101, 3, 1, BINDING_RELAYS_1, "on"}')
     assert i100 < i101
+    assert "inline constexpr uint8_t BINDING_RELAYS_0[] = {0};" in h
+    assert "inline constexpr uint8_t BINDING_RELAYS_1[] = {2};" in h
+
+
+def test_bindings_header_multi_relay_fanout():
+    # A comma-list scalar fans one click out to several relays; the compiled entry holds the
+    # normalized (sorted, de-duplicated) relay list with its count (ADR-0009 open item 1).
+    h = g.render_bindings_header(
+        HASH, [{"node_id": 100, "button": 1, "relay": "2,0,1", "op": "toggle"}]
+    )
+    assert "inline constexpr uint8_t BINDING_RELAYS_0[] = {0, 1, 2};" in h
+    assert '{100, 1, 3, BINDING_RELAYS_0, "toggle"}' in h
 
 
 def test_node_map_emits_version_constant():
@@ -129,7 +142,7 @@ def test_generator_aborts_before_writing_node_files():
         # node_id 999 is not in nodes.csv -> manifest invalid -> generator aborts.
         (root / "registry" / "bindings.yaml").write_text(
             "schema_version: 1\nbindings:\n"
-            "  - node_id: 999\n    button: 0\n    event: single\n    relay: 0\n    op: toggle\n"
+            "  - node_id: 999\n    button: 0\n    relay: 0\n    op: toggle\n"
         )
         g.ROOT = root
         try:

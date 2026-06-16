@@ -12,6 +12,7 @@ relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0001-can-extended-id-location-as-address.md
   - _bmad-output/planning-artifacts/adrs/0002-runtime-assignable-node-addressing-and-commissioning.md
   - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
+  - _bmad-output/planning-artifacts/adrs/0013-gateway-local-relays-single-click-fallback.md
   - _bmad-output/planning-artifacts/architecture.md
 ---
 
@@ -40,6 +41,16 @@ fallback, placeholder manifest hash — to resolve open item 2 (timeout values) 
 
 The physical/electrical **topology** (where relays and circuits live) is explicitly
 **out of scope** here and parked for a future ADR at Alberto's request.
+
+**Partially superseded by ADR-0013 (Proposed, 2026-06-16).** Two aspects of the Decision
+below are replaced: the relay **transport** (Modbus/RS485 relay modules backed by ESPHome
+switch entities → **gateway-local outputs addressed by progressive id**, no Modbus addressing
+in the registry) and the **binding model** (per-event bindings with a three-way `mode` →
+**single-click-only fallback**, keyed `(node_id, button)`, no `event`/`mode`). The
+load-bearing core of this ADR is unchanged: one centralized controller, `ha_ready`/ACK
+arbitration, HA-drives-online / board-drives-offline, and manifest-hash agreement gating
+fallback authority. Read §"Binding model" and the relay-transport points below as
+**historical**; ADR-0013 is current for them.
 
 ## Context
 

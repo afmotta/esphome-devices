@@ -15,6 +15,7 @@ relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0006-sensor-data-transport-over-can.md
   - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
   - _bmad-output/planning-artifacts/adrs/0008-post-live-firmware-evolution-no-can-bootloader.md
+  - _bmad-output/planning-artifacts/adrs/0013-gateway-local-relays-single-click-fallback.md
   - firmware/registry/nodes.csv
   - firmware/protocol/node_map.h
   - firmware/tools/commission.py
@@ -213,10 +214,30 @@ never allocates `node_id`s or writes the registry.
 
 ## Open items
 
-1. **Binding action vocabulary** — the action side of `bindings.yaml` (relay channel
-   naming, Modbus addressing) is constrained by controller board selection (ADR-0003 open
-   item 7). Schema ships with a minimal `relay: <channel>, op: on|off|toggle` form and
-   grows additively.
+1. **Binding action vocabulary** — **Resolved by ADR-0013** (Proposed, 2026-06-16). The
+   action side of `bindings.yaml` is a progressive relay id plus one op; the compiled fallback
+   table stays log-only until the gateway's relay outputs exist (ADR-0003 open item 7). The
+   resolved form deliberately *narrows* ADR-0003's richer model (see that ADR's Modbus/multi-
+   mode binding scheme) to the minimum the house needs:
+   - **Progressive relay ids, no addresses.** `relay: N` is the gateway's `relay_N` output;
+     the gateway resolves id → physical output by position. No Modbus addresses live in the
+     registry — keeping address/topology a gateway-config concern, out of git meaning.
+   - **Single click only.** Fallback acts on the single click; double/triple/hold are HA-only
+     and do nothing when HA is down. So a binding is keyed by `(node_id, button)` with **no
+     `event` field** — you cannot author a fallback gesture that silently never fires (same
+     principle as the out-of-range-button guard).
+   - **Multi-relay fan-out (one click → several relays).** `relay` is either a single id
+     (`relay: 0`) or a **comma-list scalar** (`relay: "0,1,2"`). The fan-out is held in *one
+     scalar*, so the strict scalars-only/no-nesting reader (`tools/bindings.py`) is unchanged —
+     nested YAML/PyYAML stays the deferred Ask-First decision, not paid here. The list is
+     normalized (sorted, de-duplicated) before validation and hashing, so `"2,0"` and `"0,2"`
+     mean and hash the same. A single `op` applies to **every** listed relay; for an
+     all-on/all-off group prefer explicit `on`/`off` over `toggle` (which desyncs from mixed
+     start states). **Mixed per-relay ops are deliberately not expressible** — that genuinely
+     needs structure, the trigger for the PyYAML decision if a binding ever demands it.
+   - **Compiled table in lockstep.** `BindingEntry` is `{node_id, button, relay_count, relays,
+     op}` and `binding_find(node_id, button)` — safe to shape now: zero bindings are authored
+     and the only consumer of `bindings.h` is `BINDINGS_MANIFEST_HASH`.
 2. **Implementation slices** — `bindings.yaml` + canonical-hash function (natively
    testable, `ha_arbitration.h` pattern); generator extensions (bindings artifact, HA
    package, `map.json`); drift-visibility entities on the controller.

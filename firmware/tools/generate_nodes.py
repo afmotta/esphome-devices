@@ -145,19 +145,32 @@ def render_bindings_header(manifest_hash: str, bindings_list) -> str:
     compiled BINDINGS[] fallback table (ADR-0009 §4). Frozen-additive, mirrors node_map.h.
 
     Deterministic — no generation timestamp — so regenerating unchanged bindings produces no
-    diff. The table is the controller's fallback-bindings artifact; it is committed now and
+    diff. The table is the gateway's fallback-bindings artifact; it is committed now and
     grows as bindings.yaml is authored (today it is empty: fallback is still log-only,
-    ADR-0003 open item 7). event/op are stored as C strings (like node_map.h names) — no new
-    enums — so the action vocabulary can grow additively without a header redesign.
+    ADR-0003 open item 7). op is stored as a C string (like node_map.h names) — no new enums —
+    so the action vocabulary can grow additively without a header redesign.
+
+    Fallback acts on the single click only, so a binding is keyed by (node_id, button) with no
+    event field. A binding may drive several relays from one click (ADR-0009 open item 1): each
+    entry carries a {relay_count, relays} list rather than a single channel, so fan-out needs
+    no per-binding firmware change. One `op` applies to every relay in the list.
     """
-    ordered = sorted(bindings_list, key=lambda b: (b["node_id"], b["button"], str(b["event"])))
+    ordered = sorted(bindings_list, key=lambda b: (b["node_id"], b["button"]))
     if ordered:
+        # Each binding's relay list is a named static array the table points at; the list is
+        # normalized (sorted, de-duplicated) by the same parser the hash uses.
+        relay_lists = [bindings.parse_relays(b["relay"]) for b in ordered]
+        decls = "\n".join(
+            f"inline constexpr uint8_t BINDING_RELAYS_{i}[] = {{{', '.join(map(str, relays))}}};"
+            for i, relays in enumerate(relay_lists)
+        )
         rows = "\n".join(
-            f'    {{{b["node_id"]}, {b["button"]}, "{_c_str(str(b["event"]))}", '
-            f'{b["relay"]}, "{_c_str(str(b["op"]))}"}},'
-            for b in ordered
+            f'    {{{b["node_id"]}, {b["button"]}, '
+            f'{len(relays)}, BINDING_RELAYS_{i}, "{_c_str(str(b["op"]))}"}},'
+            for i, (b, relays) in enumerate(zip(ordered, relay_lists))
         )
         table = (
+            f"{decls}\n"
             f"inline constexpr BindingEntry BINDINGS[] = {{\n{rows}\n}};\n"
             "inline constexpr std::size_t BINDINGS_SIZE = sizeof(BINDINGS) / sizeof(BINDINGS[0]);\n"
         )
@@ -171,8 +184,7 @@ def render_bindings_header(manifest_hash: str, bindings_list) -> str:
     return (
         "#pragma once\n"
         "#include <cstdint>\n"
-        "#include <cstddef>\n"
-        "#include <cstring>\n\n"
+        "#include <cstddef>\n\n"
         "// =============================================================================\n"
         "// bindings.h — GENERATED from registry/bindings.yaml by tools/generate_nodes.py. DO NOT EDIT.\n"
         "// Binding-manifest identity + compiled fallback table for the ha_ready arbitration\n"
@@ -180,15 +192,18 @@ def render_bindings_header(manifest_hash: str, bindings_list) -> str:
         "// which the gateway compares against the hash Home Assistant echoes in its readiness\n"
         "// heartbeat (ADR-0003); a mismatch keeps ha_ready off. BINDINGS[] is the controller's\n"
         "// fallback action table — frozen-additive, currently log-only (ADR-0003 open item 7).\n"
+        "// Keyed by (node_id, button): fallback fires on the single click only. relays/relay_count\n"
+        "// carry one-or-more gateway relay ids so one click can fan out to several relays\n"
+        "// (ADR-0009 open item 1); the single `op` applies to every relay.\n"
         "// =============================================================================\n\n"
         f'inline constexpr char BINDINGS_MANIFEST_HASH[] = "{manifest_hash}";\n\n'
-        "struct BindingEntry { uint16_t node_id; uint8_t button; const char *event; "
-        "uint8_t relay; const char *op; };\n\n"
+        "struct BindingEntry { uint16_t node_id; uint8_t button; "
+        "uint8_t relay_count; const uint8_t *relays; const char *op; };\n\n"
         f"{table}\n"
-        "inline const BindingEntry *binding_find(uint16_t node_id, uint8_t button, const char *event) {\n"
+        "inline const BindingEntry *binding_find(uint16_t node_id, uint8_t button) {\n"
         "  for (std::size_t i = 0; i < BINDINGS_SIZE; i++)\n"
-        "    if (BINDINGS[i].node_id == node_id && BINDINGS[i].button == button &&\n"
-        "        std::strcmp(BINDINGS[i].event, event) == 0) return &BINDINGS[i];\n"
+        "    if (BINDINGS[i].node_id == node_id && BINDINGS[i].button == button)\n"
+        "      return &BINDINGS[i];\n"
         "  return nullptr;\n"
         "}\n"
     )

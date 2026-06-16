@@ -35,12 +35,10 @@ schema_version: 1
 bindings:
   - node_id: 100
     button: 0
-    event: single
     relay: 0
     op: toggle
   - node_id: 101
     button: 3
-    event: double
     relay: 2
     op: on
 """
@@ -50,8 +48,7 @@ FORM_B = """\
 schema_version: 1
 
 bindings:
-  - event: double      # key order shuffled
-    op: on
+  - op: on            # key order shuffled
     node_id: 101
     relay: 2
     button: 3
@@ -59,7 +56,6 @@ bindings:
     node_id: 100
     relay: 0
     button: 0
-    event: single
 """
 
 
@@ -90,7 +86,7 @@ def test_scalar_typing():
     p = _parse(FORM_A)
     b0 = p["bindings"][0]
     assert b0["node_id"] == 100 and isinstance(b0["node_id"], int)
-    assert b0["event"] == "single" and isinstance(b0["event"], str)
+    assert b0["op"] == "toggle" and isinstance(b0["op"], str)
 
 
 def test_validation_unknown_node_id():
@@ -105,12 +101,10 @@ schema_version: 1
 bindings:
   - node_id: 100
     button: 0
-    event: single
     relay: 0
     op: toggle
   - node_id: 100
     button: 0
-    event: single
     relay: 1
     op: on
 """
@@ -141,6 +135,38 @@ def test_validation_button_out_of_range():
     assert any("button" in e for e in negative), negative
     # An in-range button (0-7) stays valid.
     assert bindings.validate(_parse(FORM_A.replace("button: 3", "button: 7")), NODE_IDS) == []
+
+
+def test_multi_relay_parse_and_validate():
+    # One click → several relays via a comma-list scalar (no nesting). parse_relays
+    # normalizes to a sorted, de-duplicated int list; the binding validates clean.
+    assert bindings.parse_relays(0) == [0]
+    assert bindings.parse_relays("0,1,2") == [0, 1, 2]
+    assert bindings.parse_relays("2,0,0") == [0, 2], "not de-duplicated/sorted"
+    fan = _parse(FORM_A.replace("relay: 0", 'relay: "0,1,2"'))
+    assert bindings.validate(fan, NODE_IDS) == []
+
+
+def test_multi_relay_hash_representation_independent():
+    # "2,0", "0,2", and "0, 2 " are the same fan-out and must hash identically; and a single
+    # channel as int 0 vs scalar "0" must agree too (canonical_hash normalizes relay).
+    a = _parse(FORM_A.replace("relay: 0", 'relay: "0,2"'))
+    b = _parse(FORM_A.replace("relay: 0", 'relay: "2, 0 "'))
+    assert bindings.canonical_hash(a) == bindings.canonical_hash(b)
+    single_int = _parse(FORM_A)
+    single_str = _parse(FORM_A.replace("relay: 0", 'relay: "0"'))
+    assert bindings.canonical_hash(single_int) == bindings.canonical_hash(single_str)
+    # But a different channel set really does change the hash.
+    assert bindings.canonical_hash(a) != bindings.canonical_hash(single_int)
+
+
+def test_multi_relay_bad_channel_rejected():
+    not_int = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: "0,x"')), NODE_IDS)
+    assert any("relay" in e for e in not_int), not_int
+    negative = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: "-1,2"')), NODE_IDS)
+    assert any("relay" in e and ">= 0" in e for e in negative), negative
+    empty = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: ""')), NODE_IDS)
+    assert any("relay" in e for e in empty), empty
 
 
 def test_validation_bad_schema_version():
