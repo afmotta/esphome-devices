@@ -1,6 +1,6 @@
 # Proposal: merge `canbus` into `esphome-devices`
 
-**Status:** Proposed — 2026-07-05
+**Status:** Implemented 2026-07-05 (merge commit 1dc807f; afmotta/canbus archived)
 **Decision:** merge as a history-preserving subtree under `canbus/`, then archive `afmotta/canbus`.
 
 ---

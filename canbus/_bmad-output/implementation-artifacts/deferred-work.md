@@ -30,7 +30,7 @@ ADR-0010 (security posture — physical envelope as the trust boundary, no bus c
 ADR-0009 (central map & binding manifest — git as system of record) was accepted; its first implementation spec was **split** to stay within scope. The §4/§7 export pipeline, §6 drift-visibility entities, open items 3 (HA package) and 4 (push gate), and the two generator-review findings are all **resolved** (see [completed-work.md](completed-work.md)). What remains:
 
 - **Binding action vocabulary beyond minimal (ADR-0009 open item 1)** [_blocked_ on ADR-0003 controller-board selection, open item 7] — `bindings.yaml` ships the minimal `relay: <channel>, op: on|off|toggle` action form and grows additively; richer actions (timers, scenes, Modbus addressing) wait on the controller board decision.
-- **`map.json` field confirmation with HVAC firmware (ADR-0009 open item 5)** [_external_ project] — confirm the `map.json` shape against the HVAC controller firmware before freezing it; ties to the §7 export slice.
+- **`map.json` field confirmation with HVAC firmware (ADR-0009 open item 5)** [_in-repo since the 2026-07-05 subtree merge_] — confirm the `map.json` shape against the HVAC controller firmware before freezing it; ties to the §7 export slice.
 
 ## Deferred from: ADR-0012 acceptance + implementation (2026-06-12)
 
