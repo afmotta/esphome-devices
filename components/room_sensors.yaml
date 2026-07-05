@@ -83,5 +83,4 @@ packages:
         id: ${room_slug}_dew_point
         temperature: ${room_slug}_temp_abstracted
         humidity: ${room_slug}_humidity_abstracted
-        update_interval: 30s
         accuracy_decimals: 0
