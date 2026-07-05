@@ -12,7 +12,7 @@ the subcommands directly for scripting:
 
     python commission.py                # interactive menu
     python commission.py list
-    python commission.py assign --node-id 102 --room 5 --board 0 [--location "Kitchen"] [--floor 0]
+    python commission.py assign --node-id 102 --room 5 --board 0 [--location "Kitchen"] [--floor 0] [--room-slug cucina]
 """
 
 import argparse
@@ -23,7 +23,7 @@ import generate_nodes  # regenerate node_map.h after an edit
 
 HERE = Path(__file__).parent
 CSV_PATH = HERE.parent / "registry" / "nodes.csv"
-FIELDS = ["node_id", "floor", "room", "board", "location", "sensors"]
+FIELDS = generate_nodes.CSV_HEADER  # single source of the registry schema
 MAX_RB = 255  # room/board are uint8 in node_map.h
 
 
@@ -44,12 +44,14 @@ def write_rows(rows):
                         for k in FIELDS})
 
 
-def apply_assignment(rows, node_id, *, room=None, board=None, floor=None, location=None):
-    """Apply room/board/floor/location to the node_id row, persist, and regenerate node_map.h.
+def apply_assignment(rows, node_id, *, room=None, board=None, floor=None, location=None,
+                     room_slug=None):
+    """Apply room/board/floor/location/room_slug to the node_id row, persist, and regenerate
+    node_map.h.
 
     Fields left as None keep their existing value. Shared by the `assign` subcommand and the
     interactive flow so the write/regenerate logic lives in exactly one place. Raises SystemExit
-    on out-of-range input or unknown node_id.
+    on out-of-range input, an invalid climate join, or unknown node_id.
     """
     if room is not None and not (0 <= room <= MAX_RB):
         raise SystemExit(f"room out of range (0-{MAX_RB})")
@@ -68,26 +70,42 @@ def apply_assignment(rows, node_id, *, room=None, board=None, floor=None, locati
         match["floor"] = str(floor)
     if location is not None:
         match["location"] = location
+    if room_slug is not None:
+        match["room_slug"] = room_slug.strip()
+
+    # Validate the climate-zone join on the row's FINAL state before persisting, so an
+    # unknown slug / floor mismatch doesn't land in nodes.csv and wedge the generator
+    # (spec-map-json-contract; same pre-write stance as the room/board range checks).
+    final_slug = (match.get("room_slug") or "").strip()
+    final_sensors = (match.get("sensors") or "0").strip() == "1"
+    if final_slug or final_sensors:
+        err = generate_nodes.validate_room_slug(
+            final_slug, int(match["floor"]), final_sensors, generate_nodes.load_climate_zones())
+        if err:
+            raise SystemExit(err)
 
     write_rows(rows)
     print(f"Assigned node_id {node_id}: room={match['room']} board={match['board']} "
-          f"floor={match['floor']} location={match['location']!r}")
+          f"floor={match['floor']} location={match['location']!r} "
+          f"room_slug={final_slug or '-'}")
     generate_nodes.main()
     print("Regenerated node_map.h — reflash the gateway to apply.")
 
 
 def cmd_list(_args):
     rows = read_rows()
-    print(f"{'node_id':>8} {'room':>5} {'board':>6} {'floor':>6}  location")
+    print(f"{'node_id':>8} {'room':>5} {'board':>6} {'floor':>6} {'room_slug':<16}  location")
     for r in rows:
         flag = "  (unassigned)" if r["room"] == "0" and r["board"] == "0" else ""
-        print(f"{r['node_id']:>8} {r['room']:>5} {r['board']:>6} {r['floor']:>6}  {r['location']}{flag}")
+        slug = r.get("room_slug") or "-"
+        print(f"{r['node_id']:>8} {r['room']:>5} {r['board']:>6} {r['floor']:>6} "
+              f"{slug:<16}  {r['location']}{flag}")
 
 
 def cmd_assign(args):
     rows = read_rows()
     apply_assignment(rows, args.node_id, room=args.room, board=args.board,
-                     floor=args.floor, location=args.location)
+                     floor=args.floor, location=args.location, room_slug=args.room_slug)
 
 
 # --- Interactive prompts ---------------------------------------------------
@@ -149,9 +167,12 @@ def commission_interactive():
         board = prompt_int("board", 0, MAX_RB, match["board"])
         floor = prompt_int("floor", 0, None, match["floor"])
         location = prompt_str("location", match["location"])
+        room_slug = prompt_str("room_slug (climate zone, blank = none)",
+                               match.get("room_slug") or "")
 
         try:
-            apply_assignment(rows, node_id, room=room, board=board, floor=floor, location=location)
+            apply_assignment(rows, node_id, room=room, board=board, floor=floor,
+                             location=location, room_slug=room_slug)
         except SystemExit as exc:  # generate_nodes.main() sys.exit()s on a bad registry row (e.g. another row's value)
             print(f"  assignment failed: {exc}")
 
@@ -181,12 +202,14 @@ def main():
     ap = argparse.ArgumentParser(description="Phase-1 node commissioning: assign room/board and regenerate the gateway map.")
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("list", help="show the registry / current assignments")
-    a = sub.add_parser("assign", help="assign room/board (and optional location/floor) to a node_id")
+    a = sub.add_parser("assign", help="assign room/board (and optional location/floor/room_slug) to a node_id")
     a.add_argument("--node-id", type=int, required=True)
     a.add_argument("--floor", type=int)
     a.add_argument("--room", type=int)
     a.add_argument("--board", type=int)
     a.add_argument("--location")
+    a.add_argument("--room-slug", dest="room_slug",
+                   help="climate zone join (validated against components/rooms/**; '' clears)")
     args = ap.parse_args()
 
     if args.cmd is None:

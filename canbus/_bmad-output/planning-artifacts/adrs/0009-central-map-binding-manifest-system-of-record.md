@@ -144,7 +144,7 @@ future push mechanism transports the same artifacts, not new ones.
   controller (this is the same stateless-device principle ADR-0007 applied to nodes,
   applied to the controller's config).
 - **Drift visibility:** the controller exposes its compiled `manifest_hash` (and the map
-  generation timestamp) as read-only HA diagnostic entities. "Committed in git but not yet
+  version digest) as read-only HA diagnostic entities. "Committed in git but not yet
   reflashed" — the natural failure mode of a static map — becomes visible on a dashboard
   instead of discovered when a button misbehaves.
 
@@ -156,10 +156,14 @@ Two stable forms, both generated, both committed:
   the HVAC controller builds against this repo and includes it like the gateway does. Its
   shape (`NodeMapEntry`, sentinel `0xFF`/"unknown", `node_map_*()` accessors) is now
   frozen-additive: fields may be added, never changed or removed.
-- **Everything else:** `registry/map.json` — `schema_version`, generation timestamp,
-  `manifest_hash`, and the node list (id, floor, room, board, location, sensors). For
-  non-C consumers (dashboards, scripts, the HVAC controller's diagnostics if it prefers
-  JSON at build time).
+- **Everything else:** `registry/map.json` — `schema_version`, a deterministic
+  `map_version` content digest (SHA-256 over the sorted-keys export body, truncated to 16
+  hex characters — not a generation timestamp, so an unchanged registry regenerates
+  byte-identical), `manifest_hash`, and the node list (node_id, floor, room, board,
+  location, sensors, room_slug). For non-C consumers (dashboards, scripts, the HVAC
+  controller's diagnostics if it prefers JSON at build time). *(Wording ratified 2026-07-05
+  by `spec-map-json-contract` to match the shipped generator: `node_id` over the original
+  `id` shorthand; digest over timestamp.)*
 
 Authority boundaries per ADR-0006 §6 are unchanged: the HVAC controller reads exports; it
 never allocates `node_id`s or writes the registry.
@@ -245,8 +249,17 @@ never allocates `node_id`s or writes the registry.
    how the echoed hash is wired into the existing ACK service heartbeat.
 4. **Push-discipline gate** — evaluate a mechanical check (pre-LIVE) that the registry
    working tree is clean and pushed before a controller reflash is performed.
-5. **`map.json` field confirmation** with the HVAC controller firmware (external project)
-   before its shape is frozen.
+5. **`map.json` field confirmation** — **Resolved by `spec-map-json-contract`**
+   (2026-07-05, unblocked by the subtree merge: the HVAC consumer now lives in-repo). The
+   export is the frozen HVAC-consumer contract: the frozen-additive field list is
+   `schema_version`, `map_version`, `nodes[].node_id`, `nodes[].room_slug`,
+   `nodes[].location`, `nodes[].sensors`; `manifest_hash` (§3 arbitration) and `board`
+   (wall-box disambiguation) are explicitly outside the freeze. `nodes.csv` gained an
+   additive `room_slug` climate-zone join column (§2 migration precedent; canbus-owned,
+   validated against the climate room packages), and numeric `floor` converts to a climate
+   floor slug via a fixed table (0→`ground_floor`, 1→`first_floor`, 2→`second_floor`).
+   §7's wording is ratified against the shipped generator (`node_id`; deterministic
+   `map_version` digest).
 
 ## Notes
 

@@ -62,8 +62,15 @@ Generator idempotence: an unchanged registry regenerates byte-for-byte
 ## Integration with the climate system
 
 `firmware/registry/map.json` is the read-only export consumed by the HVAC
-controller (this repo) and dashboards; its field shape is provisional until
-confirmed against the consumer (ADR-0009 open item 5). Sensor-kit CAN frames
-(ADR-0006) feed the same controller. HA-side YAML (`home-assistant/canbus/
+controller (this repo) and dashboards. Its HVAC-consumer contract is **frozen**
+(ADR-0009 open item 5, closed by `spec-map-json-contract`): `schema_version`,
+`map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,
+`nodes[].sensors` are frozen-additive; `manifest_hash` and `board` are
+explicitly outside the freeze. `room_slug` is the climate-zone join key
+(validated against `components/rooms/**`; required when `sensors=1`), and
+numeric `floor` converts to a climate floor slug via `FLOOR_SLUGS`
+(0→`ground_floor`, 1→`first_floor`, 2→`second_floor`) in
+`firmware/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the
+same controller. HA-side YAML (`home-assistant/canbus/
 ha_*_automations.yaml`, generated `ha_manifest_package.yaml`) is imported into
 Home Assistant.

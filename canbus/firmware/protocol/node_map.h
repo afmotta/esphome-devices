@@ -10,7 +10,7 @@
 // NODE_MAP_VERSION mirrors registry/map.json's map_version for drift visibility (§6).
 // =============================================================================
 
-inline constexpr char NODE_MAP_VERSION[] = "08ba65f1e2523065";
+inline constexpr char NODE_MAP_VERSION[] = "09dcc0334d9b846a";
 
 struct NodeMapEntry { uint16_t node_id; uint8_t room; uint8_t board; const char *name; };
 

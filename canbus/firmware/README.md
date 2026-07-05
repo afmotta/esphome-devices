@@ -229,7 +229,18 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
   - `registry/map.json` — the read-only export for non-C consumers (HVAC controller,
     dashboards): `schema_version`, a deterministic `map_version` content marker (not a
     wall-clock — unchanged input regenerates byte-for-byte), `manifest_hash`, and `nodes[]`.
-    Field shape is provisional (ADR-0009 open item 5: confirm with HVAC firmware before freezing).
+    **Frozen HVAC-consumer contract** (ADR-0009 open item 5, closed 2026-07-05 by
+    `spec-map-json-contract`): the frozen-additive field list is `schema_version`,
+    `map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,
+    `nodes[].sensors` — fields may be added, never renamed, removed, or reinterpreted
+    without a new spec. `manifest_hash` (ha_ready arbitration) and `board` (wall-box
+    disambiguation) are explicitly **outside** the freeze: changing them needs no HVAC-side
+    compatibility review. `room_slug` joins a node to a climate zone — validated by the
+    generator against the climate room packages (`components/rooms/**`, never freehand),
+    required when `sensors=1`, empty = no climate zone. Numeric `floor` stays canbus
+    map-seed metadata; consumers derive the climate floor slug via the fixed table
+    0→`ground_floor`, 1→`first_floor`, 2→`second_floor` (`FLOOR_SLUGS` in
+    `generate_nodes.py`).
   - `home-assistant/canbus/ha_manifest_package.yaml` — the HA readiness-heartbeat automation with the hash
     baked in, so HA echoes it automatically (no hand-paste). Wire it into HA once as a package.
 - **Workflow:** edit `bindings.yaml` → `python3 tools/generate_nodes.py` (validates every

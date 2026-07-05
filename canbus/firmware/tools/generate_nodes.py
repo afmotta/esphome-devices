@@ -8,12 +8,22 @@ Usage:
     3. Generated configs appear in nodes/
 
 CSV format:
-    node_id,floor,room,board,location,sensors
-    100,0,7,0,"Ground floor hallway",0
+    node_id,floor,room,board,location,sensors,room_slug
+    100,0,7,0,"Ground floor hallway",0,
 
-The optional `sensors` column (blank/0 = none, 1 = SHT45+SEN66 kit) adds the ADR-0006
-sensor_kit package to the generated node. Sensor frames carry the host node's node_id,
-so a sensor-equipped node's registry room must be the sensors' physical room.
+The `sensors` column (blank/0 = none, 1 = SHT45+SEN66 kit) adds the ADR-0006 sensor_kit
+package to the generated node. Sensor frames carry the host node's node_id, so a
+sensor-equipped node's registry room must be the sensors' physical room.
+
+The `room_slug` column (spec-map-json-contract) joins a node to a climate zone. Values are
+validated against the climate room packages (components/rooms/**), never freehand;
+blank = not joined to a climate zone (corridors, stairwells, not-yet-commissioned). A
+sensors=1 node MUST carry a room_slug — its measurements are consumed per climate zone. The
+numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
+
+The CSV header must match CSV_HEADER exactly. Pre-live there is exactly one nodes.csv (the
+committed one), so there is no legacy-format tolerance: a schema change edits CSV_HEADER and
+the committed CSV together, in place (no migration shims — same doctrine as no PROTO bumps).
 
 Flat node_id model (ADR-0007): node_id is the node's only identity, carried in the 29-bit
 Extended CAN ID. It is the ONLY thing flashed into the node. floor/room/board/location are
@@ -28,6 +38,7 @@ and a single include.
 import csv
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -66,10 +77,19 @@ SENSOR_COMMENT = (
 SENSOR_PKG = "  sensor_kit: !include ../packages/sensor_kit.yaml\n"
 
 FLOOR_LABELS = {0: "Ground", 1: "First", 2: "Second", 3: "Third"}
+
+# Fixed floor number -> climate floor slug conversion (spec-map-json-contract CAP-2). The
+# numeric `floor` stays canbus map-seed metadata (not flashed, not range-validated); any
+# consumer deriving a climate floor slug for a node goes through this table. Floors outside
+# it (e.g. 3) simply have no climate floor and cannot host a room_slug.
+FLOOR_SLUGS = {0: "ground_floor", 1: "first_floor", 2: "second_floor"}
+
+# The registry schema, single source of truth: allocate_node.py and commission.py import it.
+CSV_HEADER = ["node_id", "floor", "room", "board", "location", "sensors", "room_slug"]
 EXAMPLE_ROWS = [
-    ["node_id", "floor", "room", "board", "location", "sensors"],
-    [100, 0, 7, 0, "Ground floor hallway", 0],
-    [101, 0, 8, 0, "Ground floor living room", 0],
+    CSV_HEADER,
+    [100, 0, 7, 0, "Ground floor hallway", 0, ""],
+    [101, 0, 8, 0, "Ground floor living room", 0, ""],
 ]
 
 # CAN ID layout — must match canbus_protocol.h: [category:4][node_id:13][reserved:12].
@@ -87,6 +107,55 @@ def can_id(category: int, node_id: int) -> int:
 def _c_str(s: str) -> str:
     """Escape a Python string for a C string literal."""
     return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+# A room package declares its slug as a `defaults:` entry at 2-space indent; parameter
+# passing inside `packages:` blocks is deeper-indented and must not match.
+_ROOM_SLUG_RE = re.compile(r'^\s{2}room_slug:\s*"?([a-z0-9_]+)"?\s*$')
+
+
+def load_climate_zones(rooms_dir: Path = None) -> dict:
+    """Read the known climate zones from the climate room packages: room_slug -> climate
+    floor slug. Sourced from components/rooms/** rather than a hardcoded set so the list
+    cannot drift as rooms are added, renamed, or removed (spec-map-json-contract open
+    question, resolved toward the shared source). Slugs come from file CONTENTS, not
+    filenames — ground_floor/bagno.yaml declares bagno_terra."""
+    if rooms_dir is None:
+        rooms_dir = ROOT.parent.parent / "components" / "rooms"
+    zones = {}
+    for floor_slug in FLOOR_SLUGS.values():
+        for path in sorted((rooms_dir / floor_slug).glob("*.yaml")):
+            for line in path.read_text().splitlines():
+                m = _ROOM_SLUG_RE.match(line)
+                if m:
+                    zones[m.group(1)] = floor_slug
+                    break
+    if not zones:
+        print(f"ERROR: no climate zones found under {rooms_dir} — cannot validate room_slug",
+              file=sys.stderr)
+        sys.exit(1)
+    return zones
+
+
+def validate_room_slug(room_slug: str, floor: int, has_sensors: bool, zones: dict):
+    """Return an error string (or None) for a row's climate-zone join (spec-map-json-contract).
+
+    - sensors=1 requires a room_slug: sensor measurements are consumed per climate zone.
+    - A non-empty room_slug must be a known climate zone — never a freehand string.
+    - The row's numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
+    Blank room_slug on a sensor-less node is valid: non-zone spaces, not-yet-commissioned."""
+    if not room_slug:
+        if has_sensors:
+            return "sensors=1 requires a room_slug (sensor data joins to a climate zone)"
+        return None
+    if room_slug not in zones:
+        return (f"unknown room_slug '{room_slug}' "
+                f"(known climate zones: {', '.join(sorted(zones))})")
+    floor_slug = FLOOR_SLUGS.get(floor)
+    if floor_slug != zones[room_slug]:
+        return (f"floor {floor} ({floor_slug or 'no climate floor'}) does not match "
+                f"room_slug '{room_slug}' ({zones[room_slug]})")
+    return None
 
 
 def write_node_map(entries, map_version: str, path: Path) -> None:
@@ -215,9 +284,14 @@ def build_map_export(export_nodes, manifest_hash: str) -> dict:
     map_version marker + the binding manifest_hash + the node list. Nodes are sorted by
     node_id so the export is stable regardless of CSV row order.
 
-    NOTE (ADR-0009 open item 5): the node field shape is provisional — confirm against the
-    HVAC controller firmware before freezing. Repo vocabulary (node_id) is used over the
-    ADR's shorthand 'id' until then.
+    FROZEN HVAC-consumer contract (ADR-0009 open item 5, closed by spec-map-json-contract):
+    `schema_version`, `map_version`, `nodes[].node_id`, `nodes[].room_slug`,
+    `nodes[].location`, `nodes[].sensors` are frozen-additive — fields may be added, never
+    renamed, removed, or reinterpreted without a new spec. `manifest_hash` (ha_ready
+    arbitration, §3) and `board` (wall-box disambiguation) are explicitly OUTSIDE the freeze:
+    changing them needs no HVAC-side compatibility review. `floor`/`room` stay canbus
+    map-seed metadata; a consumer derives a climate floor slug from `floor` via FLOOR_SLUGS.
+    An empty `room_slug` means the node is not joined to a climate zone.
     """
     nodes = [
         {
@@ -227,6 +301,7 @@ def build_map_export(export_nodes, manifest_hash: str) -> dict:
             "board": n["board"],
             "location": n["location"],
             "sensors": n["sensors"],
+            "room_slug": n["room_slug"],
         }
         for n in sorted(export_nodes, key=lambda n: n["node_id"])
     ]
@@ -335,15 +410,16 @@ def main():
 
     with open(csv_path, newline="") as f:
         reader = csv.DictReader(f)
-        # A misspelled sensors header ("Sensors", " sensors") would silently disable
-        # every sensor kit (row.get falls back to 0); a missing column is legitimate
-        # legacy format, a near-miss is an error.
+        # Strict header check: pre-live there is exactly one nodes.csv (the committed one),
+        # so a header that isn't exactly CSV_HEADER is an error, not a legacy format — a
+        # missing/misspelled column would otherwise silently disable every sensor kit or
+        # drop every climate join via the row.get defaults below.
         fields = reader.fieldnames or []
-        if "sensors" not in fields:
-            near = [c for c in fields if c.strip().lower() == "sensors"]
-            if near:
-                print(f"ERROR: CSV column '{near[0]}' — did you mean 'sensors'?", file=sys.stderr)
-                sys.exit(1)
+        if fields != CSV_HEADER:
+            print(f"ERROR: nodes.csv header {fields} does not match the expected "
+                  f"{CSV_HEADER} — pre-live, update the CSV in place.", file=sys.stderr)
+            sys.exit(1)
+        climate_zones = None  # loaded on the first row that needs a climate-join validation
         for row in reader:
             location = row["location"]
 
@@ -380,6 +456,18 @@ def main():
                       f"(room={room}, board={board}; valid: 0-{ROOM_BOARD_MAX})", file=sys.stderr)
                 sys.exit(1)
 
+            # Optional room_slug column (spec-map-json-contract): the climate-zone join key.
+            # Validated against the real climate zones — a sensors=1 node must join one.
+            room_slug = (row.get("room_slug") or "").strip()
+            if room_slug or has_sensors:
+                if climate_zones is None:
+                    climate_zones = load_climate_zones()
+                slug_err = validate_room_slug(room_slug, floor, has_sensors, climate_zones)
+                if slug_err:
+                    print(f"ERROR: {slug_err} (node_id {node_id}, CSV row {reader.line_num})",
+                          file=sys.stderr)
+                    sys.exit(1)
+
             # (room, board) is the gateway's location address; it must be unique among commissioned
             # nodes. (0, 0) is the unassigned placeholder (allocate_node.py seeds it) — exempt it so
             # multiple not-yet-commissioned nodes can coexist.
@@ -409,6 +497,7 @@ def main():
             export_nodes.append({
                 "node_id": node_id, "floor": floor, "room": room, "board": board,
                 "location": location, "sensors": 1 if has_sensors else 0,
+                "room_slug": room_slug,
             })
             node_files.append((
                 out_dir / f"{name}.yaml", yaml_content,

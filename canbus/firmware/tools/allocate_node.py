@@ -16,12 +16,13 @@ import argparse
 import csv
 from pathlib import Path
 
+from generate_nodes import CSV_HEADER as HEADER  # single source of the registry schema
+
 HERE = Path(__file__).parent
 REGISTRY = HERE.parent / "registry"
 CSV_PATH = REGISTRY / "nodes.csv"
 HWM_PATH = REGISTRY / "node_id_hwm"
 NODE_ID_MAX = 8191  # 13 bits, must match canbus_protocol.h / generate_nodes.py
-HEADER = ["node_id", "floor", "room", "board", "location", "sensors"]
 
 
 def existing_max() -> int:
@@ -41,26 +42,26 @@ def main():
         raise SystemExit(f"node_id space exhausted (max {NODE_ID_MAX})")
 
     new_csv = not CSV_PATH.exists()
-    if not new_csv:
-        # Migrate a pre-ADR-0006 CSV (no sensors column) before appending a 6-field
-        # row — otherwise DictReader files the trailing value under restkey and a
-        # later hand-edit to sensors=1 is silently ignored.
-        with open(CSV_PATH, newline="") as f:
-            rows = list(csv.reader(f))
-        if rows and "sensors" not in rows[0]:
-            rows[0].append("sensors")
-            for r in rows[1:]:
-                r.append("0")
-            with open(CSV_PATH, "w", newline="") as f:
-                csv.writer(f).writerows(rows)
-            print("Migrated nodes.csv: added sensors column (0 for existing rows).")
-    with open(CSV_PATH, "a", newline="") as f:
+    # "a+" (not "a"): the header check below needs a readable handle; writes still append.
+    with open(CSV_PATH, "a+", newline="") as f:
         w = csv.writer(f)
         if new_csv:
             w.writerow(HEADER)
+        else:
+            # Pre-live there is exactly one nodes.csv — the committed one — and a new column is
+            # added by editing HEADER and the CSV together, in place (no migration shims, same
+            # doctrine as the no-PROTO-bump rule). Fail loudly on a header mismatch instead of
+            # appending a row that DictReader would misalign.
+            f.seek(0)
+            existing = next(csv.reader(f), [])
+            if existing != HEADER:
+                raise SystemExit(f"nodes.csv header {existing} does not match the expected "
+                                 f"{HEADER} — pre-live, update the CSV in place.")
+            f.seek(0, 2)  # back to the end before appending
         # Identity-only: floor/room/board/location are placeholders until commissioning;
-        # sensors defaults to 0 (set it in nodes.csv when fitting the ADR-0006 kit).
-        w.writerow([next_id, 0, 0, 0, f"node {next_id} (unassigned)", 0])
+        # sensors defaults to 0 (set it in nodes.csv when fitting the ADR-0006 kit);
+        # room_slug is assigned at commissioning (climate-zone join, spec-map-json-contract).
+        w.writerow([next_id, 0, 0, 0, f"node {next_id} (unassigned)", 0, ""])
 
     HWM_PATH.write_text(f"{next_id}\n")
     print(f"Allocated node_id {next_id} (floor/room/board/location unassigned — set at commissioning).")

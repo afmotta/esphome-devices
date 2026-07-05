@@ -9,6 +9,8 @@ Covers the pure renderers added for the export slice:
   - render_bindings_header: empty manifest -> null table + size 0; populated -> sorted
     BINDINGS[] rows; the hash and binding_find accessor are always present.
   - render_ha_package: the manifest hash is baked into the generated heartbeat.
+  - room_slug climate join (spec-map-json-contract): the FLOOR_SLUGS conversion table, the
+    known-zone list read from components/rooms/**, and validate_room_slug's branches.
 """
 
 import json
@@ -21,8 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import generate_nodes as g  # noqa: E402
 
 NODES = [
-    {"node_id": 101, "floor": 0, "room": 8, "board": 0, "location": "Living room", "sensors": 0},
-    {"node_id": 100, "floor": 0, "room": 7, "board": 0, "location": "Hallway", "sensors": 1},
+    {"node_id": 101, "floor": 0, "room": 8, "board": 0, "location": "Living room",
+     "sensors": 0, "room_slug": ""},
+    {"node_id": 100, "floor": 0, "room": 7, "board": 0, "location": "Hallway",
+     "sensors": 1, "room_slug": "anticamera"},
 ]
 HASH = "d66767448ba37b2f"
 
@@ -32,12 +36,14 @@ def test_map_export_shape_and_node_sort():
     assert m["schema_version"] == 1
     assert m["manifest_hash"] == HASH
     assert len(m["map_version"]) == 16
-    # Nodes are sorted by node_id regardless of input order, and carry the full §7 field set.
+    # Nodes are sorted by node_id regardless of input order, and carry the full §7 field set
+    # incl. the frozen-contract room_slug join key (empty = no climate zone).
     assert [n["node_id"] for n in m["nodes"]] == [100, 101]
     assert m["nodes"][0] == {
         "node_id": 100, "floor": 0, "room": 7, "board": 0,
-        "location": "Hallway", "sensors": 1,
+        "location": "Hallway", "sensors": 1, "room_slug": "anticamera",
     }
+    assert m["nodes"][1]["room_slug"] == ""
     # Serializable as the committed map.json.
     json.dumps(m)
 
@@ -137,7 +143,7 @@ def test_generator_aborts_before_writing_node_files():
         for sub in ("registry", "protocol", "gateway"):
             (root / sub).mkdir()
         (root / "registry" / "nodes.csv").write_text(
-            "node_id,floor,room,board,location,sensors\n100,0,7,0,Hall,0\n"
+            "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
         )
         # node_id 999 is not in nodes.csv -> manifest invalid -> generator aborts.
         (root / "registry" / "bindings.yaml").write_text(
@@ -153,6 +159,64 @@ def test_generator_aborts_before_writing_node_files():
                 assert e.code == 1
             assert list((root / "nodes").glob("*.yaml")) == [], "node configs written before abort"
             assert not (root / "protocol" / "node_map.h").exists(), "node_map.h written before abort"
+        finally:
+            g.ROOT = saved_root
+
+
+def test_floor_slugs_conversion_table():
+    # CAP-2 (spec-map-json-contract): the fixed canbus-floor -> climate-floor-slug table.
+    # Frozen contract — a consumer resolves floor slugs through exactly this mapping.
+    assert g.FLOOR_SLUGS == {0: "ground_floor", 1: "first_floor", 2: "second_floor"}
+
+
+def test_load_climate_zones_reads_real_room_packages():
+    # The known-zone list comes from the climate room packages (file contents, not
+    # filenames): ground_floor/bagno.yaml declares bagno_terra — the documented trap.
+    zones = g.load_climate_zones()
+    assert len(zones) == 14, f"expected 14 climate zones, got {len(zones)}: {sorted(zones)}"
+    assert zones["bagno_terra"] == "ground_floor"
+    assert zones["soggiorno"] == "ground_floor"
+    assert zones["camera_nord"] == "first_floor"
+    assert zones["sottotetto"] == "second_floor"
+
+
+def test_validate_room_slug_branches():
+    zones = {"soggiorno": "ground_floor", "camera_nord": "first_floor"}
+    ok = g.validate_room_slug
+    # Blank slug: fine without sensors (non-zone space), rejected with sensors=1.
+    assert ok("", 0, False, zones) is None
+    assert "requires a room_slug" in ok("", 0, True, zones)
+    # Freehand / unknown slugs are rejected.
+    assert "unknown room_slug" in ok("living_room", 0, False, zones)
+    # Known slug on the right floor passes, with or without sensors.
+    assert ok("soggiorno", 0, False, zones) is None
+    assert ok("camera_nord", 1, True, zones) is None
+    # Numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
+    assert "does not match" in ok("camera_nord", 0, False, zones)
+    # A floor outside the conversion table cannot host a climate zone.
+    assert "does not match" in ok("soggiorno", 3, False, zones)
+
+
+def test_generator_rejects_stale_csv_header():
+    # Pre-live there is exactly one nodes.csv (the committed one): a header that isn't
+    # exactly CSV_HEADER aborts — no legacy tolerance, no silent row.get defaults. Schema
+    # changes edit CSV_HEADER and the committed CSV together, in place (no migration shims).
+    saved_root = g.ROOT
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        for sub in ("registry", "protocol"):
+            (root / sub).mkdir()
+        (root / "registry" / "nodes.csv").write_text(
+            "node_id,floor,room,board,location,sensors\n100,0,7,0,Hall,0\n"
+        )
+        g.ROOT = root
+        try:
+            try:
+                g.main()
+                raise AssertionError("expected SystemExit on a stale CSV header")
+            except SystemExit as e:
+                assert e.code == 1
+            assert list((root / "nodes").glob("*.yaml")) == [], "node configs written before abort"
         finally:
             g.ROOT = saved_root
 
