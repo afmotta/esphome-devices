@@ -35,11 +35,13 @@ FIRMWARE = Path(__file__).resolve().parent.parent
 # ADR-0009 system of record + the artifacts compiled into the controller. registry/ covers
 # nodes.csv / bindings.yaml / node_id_hwm / map.json; the headers and HA package are
 # generated but get flashed, so an uncommitted one would mean flashing unbacked-up state.
+# ha_manifest_package.yaml lives under home-assistant/canbus/, outside firmware/ (merge
+# Phase 4) — the path below is relative to FIRMWARE, hence the "../..".
 GUARDED_PATHS = [
     "registry",
     "protocol/node_map.h",
     "protocol/bindings.h",
-    "gateway/ha_manifest_package.yaml",
+    "../../home-assistant/canbus/ha_manifest_package.yaml",
 ]
 
 

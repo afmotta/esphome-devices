@@ -240,7 +240,7 @@ def build_map_export(export_nodes, manifest_hash: str) -> dict:
 
 
 def render_ha_package(manifest_hash: str) -> str:
-    """Render gateway/ha_manifest_package.yaml (ADR-0009 §4): the GENERATED Home Assistant
+    """Render home-assistant/canbus/ha_manifest_package.yaml (ADR-0009 §4): the GENERATED Home Assistant
     half of the readiness heartbeat, with the manifest hash baked in so HA echoes it
     automatically — retiring the interim hand-paste. Heartbeat only; the ACK automation
     stays hand-maintained in ha_arbitration_automations.yaml until bindings are real and
@@ -305,7 +305,7 @@ def write_exports(seen_node_ids, export_nodes, root: Path):
     print(f"  ✓ {map_path.name}  (read-only export, map_version {map_export['map_version']}, "
           f"{len(map_export['nodes'])} node(s))")
 
-    ha_path = root / "gateway" / "ha_manifest_package.yaml"
+    ha_path = root.parent.parent / "home-assistant" / "canbus" / "ha_manifest_package.yaml"
     ha_path.write_text(render_ha_package(manifest_hash))
     print(f"  ✓ {ha_path.name}  (HA readiness heartbeat echoes the hash automatically)")
 
@@ -435,7 +435,7 @@ def main():
 
     print(f"\nGenerated {count} node configs in {out_dir}/")
     print(f"Binding manifest hash: {manifest_hash}  "
-          f"(HA echoes it automatically via gateway/ha_manifest_package.yaml)")
+          f"(HA echoes it automatically via home-assistant/canbus/ha_manifest_package.yaml)")
     print("\n── CAN ID Map (Input id) ──")
     for floor in sorted(floor_groups):
         label = FLOOR_LABELS.get(floor, f"Floor {floor}")
