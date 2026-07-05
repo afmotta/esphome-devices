@@ -30,17 +30,17 @@ The board stays mounted and wired; a laptop reaches its USB port (USB reachabili
 substitution, so recompiling from the registry keeps the board's id and its central-map
 entry. No re-commissioning.
 
-1. Confirm the registry row for the board in `firmware/registry/nodes.csv` is current.
-2. Regenerate: `python3 firmware/tools/generate_nodes.py` (review the printed CAN-ID map).
-3. Compile: `esphome compile firmware/nodes/node<id>.yaml` (generated filenames are
+1. Confirm the registry row for the board in `canbus/firmware/registry/nodes.csv` is current.
+2. Regenerate: `python3 canbus/firmware/tools/generate_nodes.py` (review the printed CAN-ID map).
+3. Compile: `esphome compile canbus/firmware/nodes/node<id>.yaml` (generated filenames are
    zero-padded to 3 digits, e.g. `node007.yaml`).
 4. Reach the board's USB port through the wall-box / enclosure opening.
-5. Flash: `esphome upload firmware/nodes/node<id>.yaml`.
+5. Flash: `esphome upload canbus/firmware/nodes/node<id>.yaml`.
 6. Verify the board re-joins the bus (heartbeat seen at the controller) before moving on.
 
 > **Bridges:** skip the regenerate step (`bridge.yaml` is hand-maintained, not generated).
-> Compile and flash `firmware/bridge/bridge.yaml` directly over USB-serial (radios off per
-> ADR-0005). Ignore any `firmware/nodes/node<bridge_id>.yaml` that `generate_nodes.py` emits
+> Compile and flash `canbus/firmware/bridge/bridge.yaml` directly over USB-serial (radios off per
+> ADR-0005). Ignore any `canbus/firmware/nodes/node<bridge_id>.yaml` that `generate_nodes.py` emits
 > for the bridge's registry row — it is a decoy RP2040 node config and must never be flashed to
 > the ESP32-S3 bridge. Confirm the bridge resumes forwarding + heartbeating after reflash.
 
@@ -49,16 +49,16 @@ entry. No re-commissioning.
 Used when the board is damaged or in-place USB access is awkward. Optimised by ADR-0007's
 stateless nodes.
 
-1. On the bench, allocate a **fresh** `node_id` (`firmware/tools/allocate_node.py`), then
-   regenerate and build the spare: `python3 firmware/tools/generate_nodes.py`,
-   `esphome compile firmware/nodes/node<newid>.yaml`, `esphome upload …`. (`allocate_node.py`
+1. On the bench, allocate a **fresh** `node_id` (`canbus/firmware/tools/allocate_node.py`), then
+   regenerate and build the spare: `python3 canbus/firmware/tools/generate_nodes.py`,
+   `esphome compile canbus/firmware/nodes/node<newid>.yaml`, `esphome upload …`. (`allocate_node.py`
    only seeds the registry row; the node YAML doesn't exist until you regenerate.)
 2. **Retire the swapped-out board's registry row first** — reset its `(room, board)` to the
    `(0, 0)` placeholder (or delete the row). `node_id`s are never reused, so leaving the old
    row makes two rows share one `(room, board)`, which `generate_nodes.py` rejects.
 3. Swap the spare in for the fielded board.
 4. Press-to-identify and assign the new `node_id` its `(room, board)` / central-map entry
-   (`firmware/tools/commission.py`).
+   (`canbus/firmware/tools/commission.py`).
 5. Verify the new board reports correctly end-to-end.
 
 ## Time budget (ESTIMATES — TBD by bench)

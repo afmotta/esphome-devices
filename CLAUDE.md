@@ -30,7 +30,12 @@
 
 ### What This Is
 
-This is a **production ESPHome-based residential climate control system** for a three-floor HVAC installation in Milan, Italy. It's an active, live system that controls heating, cooling, and ventilation for a residential building.
+This repo hosts the ESPHome systems for Alberto's three-floor residence. It contains **two subsystems**:
+
+1. **Climate control** (everything outside `canbus/`) — a **production ESPHome-based residential climate control system**. It's an active, live system that controls heating, cooling, and ventilation for the building. This document describes it.
+2. **CAN bus wall buttons** (`canbus/`) — a pre-live CAN bus wall-button system (RP2040 nodes + ESP32-S3 gateway, dumb-nodes/smart-gateway design). See `canbus/CLAUDE.md` for its rules and `canbus/docs/canbus-smart-home-reference.md` for the protocol. Merged from `afmotta/canbus` (archived) with full history; old PR `#N` references in `canbus/` commit messages resolve in the archived repo. Its `registry/map.json` export and sensor CAN frames are consumed by the climate controller — that contract lives in-repo now.
+
+BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic N** (canbus). Historical canbus BMAD artifacts stay under `canbus/_bmad-output/`; new artifacts for both subsystems go to the root `_bmad-output/`.
 
 ### System Capabilities
 
@@ -93,6 +98,13 @@ This is a **production ESPHome-based residential climate control system** for a 
 
 ```
 esphome-devices/
+├── canbus/                    # CAN bus wall-button subsystem (see canbus/CLAUDE.md)
+│   ├── firmware/              # Nodes (generated), gateway, bridge, protocol headers,
+│   │   │                      #   registry (system of record), tools, native tests
+│   │   └── ...
+│   ├── docs/                  # Protocol reference, runbooks
+│   └── _bmad-output/          # Historical CAN-epic artifacts (frozen)
+│
 ├── vesta/                     # Vesta Climate Framework (open-source library)
 │   ├── packages/
 │   │   ├── components/        # Reusable YAML component packages
@@ -823,6 +835,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-05 | 1.2 | Merged afmotta/canbus as canbus/ subtree; documented two-subsystem layout and epic namespacing | AI Assistant |
 | 2026-03-23 | 1.1 | Updated repo structure for Vesta extraction, added entity ID naming convention, updated file references for Epics 18-20 | AI Assistant |
 | 2026-01-23 | 1.0 | Initial CLAUDE.md creation | AI Assistant |
 

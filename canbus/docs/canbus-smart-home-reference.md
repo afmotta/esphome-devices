@@ -84,7 +84,7 @@ ESPHome's `on_frame` CAN trigger provides the data bytes (`x`) but does not clea
 ## Project file structure
 
 ```
-firmware/
+canbus/firmware/
 ├── protocol/
 │   ├── canbus_protocol.h    # C++ header: all constants, CAN ID helpers, payload builders/decoders
 │   └── node_map.h           # GENERATED central node_id -> {room, board, name} map (gateway include)
