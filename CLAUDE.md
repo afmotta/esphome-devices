@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.1 |
-| **Last Updated** | March 23, 2026 |
+| **Version** | 1.3 |
+| **Last Updated** | July 5, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -32,7 +32,7 @@
 
 This repo hosts the ESPHome systems for Alberto's three-floor residence. It contains **two subsystems**:
 
-1. **Climate control** (everything outside `canbus/`) — a **production ESPHome-based residential climate control system**. It's an active, live system that controls heating, cooling, and ventilation for the building. This document describes it.
+1. **Climate control** (everything outside `canbus/`) — a **pre-live ESPHome-based residential climate control system** for heating, cooling, and ventilation. Controller hardware is not yet finalized (a master-controller swap is under consideration). This document describes it.
 2. **CAN bus wall buttons** (`canbus/`) — a pre-live CAN bus wall-button system (RP2040 nodes + ESP32-S3 gateway, dumb-nodes/smart-gateway design). See `canbus/CLAUDE.md` for its rules and `canbus/docs/canbus-smart-home-reference.md` for the protocol. Merged from `afmotta/canbus` (archived) with full history; old PR `#N` references in `canbus/` commit messages resolve in the archived repo. Its `registry/map.json` export and sensor CAN frames are consumed by the climate controller — that contract lives in-repo now.
 
 BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic N** (canbus). Historical canbus BMAD artifacts stay under `canbus/_bmad-output/`; new artifacts for both subsystems go to the root `_bmad-output/`.
@@ -835,6 +835,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-05 | 1.3 | Corrected climate-control status from "production/active, live" to pre-live; controller hardware swap under consideration | AI Assistant |
 | 2026-07-05 | 1.2 | Merged afmotta/canbus as canbus/ subtree; documented two-subsystem layout and epic namespacing | AI Assistant |
 | 2026-03-23 | 1.1 | Updated repo structure for Vesta extraction, added entity ID naming convention, updated file references for Epics 18-20 | AI Assistant |
 | 2026-01-23 | 1.0 | Initial CLAUDE.md creation | AI Assistant |
