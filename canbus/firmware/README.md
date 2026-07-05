@@ -143,7 +143,7 @@ in `button.yaml`), **`hold_release`** fires when that hold ends. The pair drives
 control: hold-to-dim, hold-to-move a cover.
 
 - **`long_press`/`extra_long_press` no longer exist** — a long press is *derived* in HA
-  as hold → hold_release (see the example in `gateway/ha_hold_automations.yaml`); their
+  as hold → hold_release (see the example in `home-assistant/canbus/ha_hold_automations.yaml`); their
   node-side patterns would match a hold too and fire duplicates (ADR-0012 §2). The
   constants were removed outright (pre-LIVE, nothing fielded); wire values 0x04/0x05 stay
   unassigned so a not-yet-reflashed node's frames decode as `unknown` (logged, dropped)
@@ -152,7 +152,7 @@ control: hold-to-dim, hold-to-move a cover.
 - **Gateway:** no logic change — `hold`/`hold_release` forward to HA through the existing
   ha_ready/ACK arbitration like any click (recompile picks up the new
   `canbus_protocol.h` strings).
-- **HA-side:** copy `gateway/ha_hold_automations.yaml` into Home Assistant as the starting
+- **HA-side:** copy `home-assistant/canbus/ha_hold_automations.yaml` into Home Assistant as the starting
   point. **Runaway rule (ADR-0012 §5):** every action started by `hold` must reach a bound
   on its own (count-bounded dim loop; covers bound at their end stops) so a lost
   `hold_release` can never run away. Derived long presses satisfy it by construction — a
@@ -174,8 +174,8 @@ heartbeat stale, or manifest-hash mismatch — or an ACK is missed, the **fallba
 compares the generated `BINDINGS_MANIFEST_HASH` (see Binding Manifest below), no longer a
 placeholder.
 
-- HA-side counterpart: wire the **generated** `gateway/ha_manifest_package.yaml` (readiness
-  heartbeat, hash baked in) into HA as a package, and copy `gateway/ha_arbitration_automations.yaml`
+- HA-side counterpart: wire the **generated** `home-assistant/canbus/ha_manifest_package.yaml` (readiness
+  heartbeat, hash baked in) into HA as a package, and copy `home-assistant/canbus/ha_arbitration_automations.yaml`
   (the hand-maintained ACK automation) into Home Assistant. See Binding Manifest below.
 - Observability: the gateway exposes a diagnostic **HA Ready** binary sensor, and the logs
   carry the tuning data: `ACK ... rtt=` (round-trip per event), `FALLBACK ... waited=`
@@ -230,7 +230,7 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
     dashboards): `schema_version`, a deterministic `map_version` content marker (not a
     wall-clock — unchanged input regenerates byte-for-byte), `manifest_hash`, and `nodes[]`.
     Field shape is provisional (ADR-0009 open item 5: confirm with HVAC firmware before freezing).
-  - `gateway/ha_manifest_package.yaml` — the HA readiness-heartbeat automation with the hash
+  - `home-assistant/canbus/ha_manifest_package.yaml` — the HA readiness-heartbeat automation with the hash
     baked in, so HA echoes it automatically (no hand-paste). Wire it into HA once as a package.
 - **Workflow:** edit `bindings.yaml` → `python3 tools/generate_nodes.py` (validates every
   binding against `nodes.csv`, prints the hash, regenerates all artifacts above) → commit and

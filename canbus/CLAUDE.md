@@ -64,6 +64,6 @@ Generator idempotence: an unchanged registry regenerates byte-for-byte
 `firmware/registry/map.json` is the read-only export consumed by the HVAC
 controller (this repo) and dashboards; its field shape is provisional until
 confirmed against the consumer (ADR-0009 open item 5). Sensor-kit CAN frames
-(ADR-0006) feed the same controller. HA-side YAML (`firmware/gateway/
+(ADR-0006) feed the same controller. HA-side YAML (`home-assistant/canbus/
 ha_*_automations.yaml`, generated `ha_manifest_package.yaml`) is imported into
 Home Assistant.
