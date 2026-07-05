@@ -1,0 +1,80 @@
+# generated: 2026-06-01
+# last_updated: 2026-06-02
+# project: canbus
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-01
+last_updated: 2026-06-05
+last_updated_by: bmad-create-story
+project: canbus
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Firmware Project Foundation
+  epic-1: done
+  1-1-move-firmware-to-firmware-directory: done
+  1-2-resolve-hardware-open-questions: done
+  1-3-author-canbus-protocol-header: done
+  1-4-validate-code-generation-pipeline: done
+  epic-1-retrospective: done
+
+  # Epic 2: Node Firmware — Button Events & Heartbeat Over CAN
+  epic-2: done
+  2-1-base-node-configuration-spi-and-mcp2515-setup: done
+  2-2-per-button-package-5-event-types-via-on-multi-click: done
+  2-3-node-heartbeat-and-can-frame-receive-lambda-safety: done
+  epic-2-retrospective: done
+
+  # Epic 3: Gateway Firmware — Home Assistant Integration
+  epic-3: done
+  3-1-gateway-base-configuration-twai-esp-idf-and-native-api: done
+  3-2-gateway-cat-input-handler-button-events-to-home-assistant: done
+  3-3-gateway-cat-status-handler-heartbeat-logging: done
+  epic-3-retrospective: done
+
+  # Epic 4: PoC Validation & Sign-off
+  epic-4: done
+  4-1-bench-assembly-and-hardware-commissioning: done
+  4-2-button-event-acceptance-matrix-node-100: done
+  4-3-button-event-acceptance-matrix-node-101-and-poc-sign-off: done
+  epic-4-retrospective: optional
+
+  # Epic 5: Post-PoC — Command Reliability & Fault Surfacing
+  # NOT YET FORMALIZED in epics.md — drafted ahead of schedule; sequence AFTER Epic 4 sign-off.
+  # Epic kept 'backlog' (not 'in-progress'): the story file exists but work is not active.
+  # Run sprint-planning/correct-course to register Epic 5 in the planning epic breakdown.
+  epic-5: backlog
+  5-1-gateway-command-reliability: ready-for-dev

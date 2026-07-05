@@ -1,0 +1,204 @@
+# =============================================================================
+# ha_hold_automations.yaml — Home Assistant reference automations for ADR-0012
+# =============================================================================
+# This is HOME ASSISTANT configuration, not ESPHome config. Copy these automations
+# into HA (automations.yaml include, or recreate them in the UI) and replace the
+# EXAMPLE node_id / button / entity_id values with real ones. In the target
+# architecture these are GENERATED from the binding manifest (ADR-0009; ADR-0012
+# open item 3) — until then, this file is the hand-maintained template.
+#
+# Gesture contract (ADR-0012, single vocabulary): EVERY button fires
+#   event: "hold"          — at ~hold_ms INTO the press (button still down) -> START
+#   event: "hold_release"  — when the press ends                            -> STOP
+# plus the usual click/double_click/triple_click. Nodes do NOT emit
+# long_press/extra_long_press — a long press is DERIVED here (see the last
+# example). Events arrive as esphome.canbus_button with node_id/button/event
+# as STRINGS (gateway convention).
+#
+# THE RUNAWAY RULE (ADR-0012 §5, enforced at review): every action started by
+# "hold" must reach a bound on its own. A lost hold_release (frame loss, HA
+# restart mid-gesture) may land the light at full/min brightness or the cover at
+# an end stop — never in an endless loop.
+#   - Dimmer: the repeat loop is COUNT-bounded (count x step_pct covers the full
+#     range; the loop halts at the bound even if the release never arrives).
+#   - Cover:  bounded for free by the end stops; hold_release merely stops early.
+# =============================================================================
+
+# --------------- Hold-to-dim: brightness up (EXAMPLE) ---------------
+# Pair this with the "down" twin below on a second button (two-button up/down is
+# the recommended pattern — ADR-0012 §5; boards have eight buttons).
+- id: canbus_hold_dim_up_example
+  alias: "CAN hold-to-dim: brightness up (EXAMPLE)"
+  description: >-
+    Ramps brightness up in 5% steps every 250ms while the button is held. The
+    loop is bounded at 20 iterations (= full range), so a lost hold_release ends
+    at 100% brightness, never a runaway loop (ADR-0012 §5).
+  mode: restart
+  triggers:
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "2"
+        event: "hold"
+  actions:
+    - repeat:
+        count: 20
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: light.example_dimmer
+            data:
+              brightness_step_pct: 5
+              transition: 0.25
+          # Step cadence doubles as release polling: wait one step interval for
+          # hold_release; on timeout, keep ramping.
+          - wait_for_trigger:
+              - trigger: event
+                event_type: esphome.canbus_button
+                event_data:
+                  node_id: "100"
+                  button: "2"
+                  event: "hold_release"
+            timeout:
+              milliseconds: 250
+          - if:
+              - condition: template
+                value_template: "{{ wait.trigger is not none }}"
+            then:
+              - stop: "hold released"
+
+# --------------- Hold-to-dim: brightness down (EXAMPLE) ---------------
+- id: canbus_hold_dim_down_example
+  alias: "CAN hold-to-dim: brightness down (EXAMPLE)"
+  description: >-
+    Twin of the up-ramp on the adjacent button; identical bound. Note the light
+    stays on at minimum brightness when the bound is reached (brightness_step_pct
+    never turns it off) — click the button (single click = toggle binding) to
+    turn it off.
+  mode: restart
+  triggers:
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "3"
+        event: "hold"
+  actions:
+    - repeat:
+        count: 20
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: light.example_dimmer
+            data:
+              brightness_step_pct: -5
+              transition: 0.25
+          - wait_for_trigger:
+              - trigger: event
+                event_type: esphome.canbus_button
+                event_data:
+                  node_id: "100"
+                  button: "3"
+                  event: "hold_release"
+            timeout:
+              milliseconds: 250
+          - if:
+              - condition: template
+                value_template: "{{ wait.trigger is not none }}"
+            then:
+              - stop: "hold released"
+
+# --------------- Hold-to-move: cover open / close (EXAMPLE) ---------------
+# Covers satisfy the runaway rule for free: end stops are physical bounds, so a
+# lost hold_release means "cover fully open/closed", which is also what holding
+# to the end means. hold_release just stops the travel early.
+- id: canbus_hold_cover_open_example
+  alias: "CAN hold-to-move: cover open (EXAMPLE)"
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "4"
+        event: "hold"
+  actions:
+    - action: cover.open_cover
+      target:
+        entity_id: cover.example_cover
+
+- id: canbus_hold_cover_close_example
+  alias: "CAN hold-to-move: cover close (EXAMPLE)"
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "5"
+        event: "hold"
+  actions:
+    - action: cover.close_cover
+      target:
+        entity_id: cover.example_cover
+
+- id: canbus_hold_cover_stop_example
+  alias: "CAN hold-to-move: cover stop on release (EXAMPLE)"
+  description: >-
+    One stop automation serves both directions: whichever button's hold started
+    the travel, its release stops it.
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "4"
+        event: "hold_release"
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "5"
+        event: "hold_release"
+  actions:
+    - action: cover.stop_cover
+      target:
+        entity_id: cover.example_cover
+
+# --------------- Derived long press (EXAMPLE) ---------------
+# Nodes do not emit long_press/extra_long_press (ADR-0012 §2): a long press IS
+# "hold followed by hold_release", reconstructed here. By default fold the old
+# long/extra-long distinction into this one gesture. If a binding ever needs the
+# 3s split back, measure the gap instead: wait_for_trigger with a timeout of
+# (3s - hold_ms); release before the timeout = long press, after = extra-long —
+# which can even fire AT the 3s mark while still held, something node-side
+# detection never could.
+# Failure mode: a lost hold_release means the action simply does not fire
+# (press again) — a derived long press cannot run away, so the §5 rule is
+# satisfied by construction.
+- id: canbus_derived_long_press_example
+  alias: "CAN derived long press (EXAMPLE)"
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: esphome.canbus_button
+      event_data:
+        node_id: "100"
+        button: "6"
+        event: "hold"
+  actions:
+    - wait_for_trigger:
+        - trigger: event
+          event_type: esphome.canbus_button
+          event_data:
+            node_id: "100"
+            button: "6"
+            event: "hold_release"
+      timeout:
+        seconds: 10
+      continue_on_timeout: false
+    - action: scene.turn_on
+      target:
+        entity_id: scene.example_scene

@@ -1,0 +1,113 @@
+# =============================================================================
+# button.yaml — per-button package, include once per physical button
+# =============================================================================
+# The single gesture vocabulary (ADR-0012): every button emits
+#   click / double_click / triple_click  — release-time, node-detected
+#   hold          — fires WHILE the button is still down, once ON >= ${hold_ms}ms
+#   hold_release  — fires when that hold ends (never after a bare click)
+#
+# The mid-press trigger works because a final `ON for at least` timing entry
+# does not await a falling edge (ESPHome multi_click semantics; ADR-0012 §1).
+#
+# long_press / extra_long_press are NOT emitted (ADR-0012 §2): a "long press" is
+# derived centrally (HA / gateway fallback) from the hold -> hold_release pair —
+# their patterns would match a hold too and fire duplicates. Click patterns
+# coexist because they are timing-disjoint (ON <= 0.5s vs >= hold_ms); the
+# 0.5s..hold_ms gap is deliberate gesture separation.
+#
+# Required vars: ${button_index}, ${button_gpio}
+# Required parent substitutions:
+#   ${node_id}, ${debounce_ms}
+# Optional parent substitution:
+#   ${hold_ms} — hold recognition threshold; defaults to 800 (must stay above
+#   the 500ms click ceiling + margin; bench tuning is ADR-0012 open item 1).
+#   Fleet-wide it is also the derived long-press threshold.
+# =============================================================================
+
+substitutions:
+  hold_ms: "800"
+
+script:
+  - id: btn${button_index}_send_event
+    parameters:
+      event_type: uint8_t
+    then:
+      - lambda: |-
+          ESP_LOGD("btn", "node ${node_id} btn${button_index}: %s", event_type_str(event_type).c_str());
+          auto err = id(can0).send_data(can_id(CAT_INPUT, ${node_id}), true,
+              button_payload(${button_index}, event_type));
+          if (err != canbus::ERROR_OK) {
+            ESP_LOGW("btn", "node ${node_id} btn${button_index} TX failed (err=%d), event %s dropped",
+                (int) err, event_type_str(event_type).c_str());
+          }
+
+binary_sensor:
+  - platform: gpio
+    name: "Node ${node_id} Button ${button_index}"
+    id: btn_${button_index}
+    pin:
+      number: ${button_gpio}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_ms}ms
+      - delayed_off: ${debounce_ms}ms
+
+    on_multi_click:
+      # ----- Triple click -----
+      - timing:
+          - ON for at most 0.5s
+          - OFF for 0.05s to 0.29s
+          - ON for at most 0.5s
+          - OFF for 0.05s to 0.29s
+          - ON for at most 0.5s
+          - OFF for at least 0.3s
+        then:
+          - script.execute:
+              id: btn${button_index}_send_event
+              event_type: !lambda 'return EVT_TRIPLE_CLICK;'
+
+      # ----- Double click -----
+      - timing:
+          - ON for at most 0.5s
+          - OFF for 0.05s to 0.29s
+          - ON for at most 0.5s
+          - OFF for at least 0.3s
+        then:
+          - script.execute:
+              id: btn${button_index}_send_event
+              event_type: !lambda 'return EVT_DOUBLE_CLICK;'
+
+      # ----- Single click -----
+      - timing:
+          - ON for at most 0.5s
+          - OFF for at least 0.3s
+        then:
+          - script.execute:
+              id: btn${button_index}_send_event
+              event_type: !lambda 'return EVT_CLICK;'
+
+      # ----- Hold (press-phase): fires at ${hold_ms}ms INTO the press -----
+      # The final `ON for at least` entry triggers without awaiting release —
+      # this is the event that starts a continuous action (dim ramp, cover move)
+      # or arms a derived long press in HA.
+      - timing:
+          - ON for at least ${hold_ms}ms
+        then:
+          - script.execute:
+              id: btn${button_index}_send_event
+              event_type: !lambda 'return EVT_HOLD;'
+
+      # ----- Hold release: the same press, seen to its end -----
+      # Only a press that already qualified as a hold can match; a bare click
+      # (ON <= 0.5s) can never emit hold_release. Stops the continuous action /
+      # completes the derived long press.
+      - timing:
+          - ON for at least ${hold_ms}ms
+          - OFF for at least 0.05s
+        then:
+          - script.execute:
+              id: btn${button_index}_send_event
+              event_type: !lambda 'return EVT_HOLD_RELEASE;'

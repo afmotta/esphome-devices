@@ -1,0 +1,89 @@
+# =============================================================================
+# base_node.yaml — shared package included by every node
+# =============================================================================
+# Required substitutions:
+#   ${node_id}  (the node's only identity — name/friendly_name are derived from it)
+#
+# Flat node_id model (ADR-0007): the node's only identity is its node_id, carried in the
+# 29-bit Extended CAN ID. room/board/behaviour live in a central node_id->{...} map on the
+# controller/HA — never on the node. TX ids are computed at send time via can_id(CAT_*, node_id).
+# This node is transmit-only (button events + heartbeat); management/commissioning RX is a
+# later slice.
+# =============================================================================
+
+esphome:
+  includes:
+    - ../protocol/canbus_protocol.h
+  name: node_${node_id}
+  friendly_name: "Node ${node_id}"
+  on_boot:
+    priority: 200
+    then:
+      - lambda: |-
+          ESP_LOGI("canbus", "Node ${node_id} online");
+          ESP_LOGI("canbus", "  Input  CAN ID: 0x%08X", can_id(CAT_INPUT,  ${node_id}));
+          ESP_LOGI("canbus", "  Status CAN ID: 0x%08X", can_id(CAT_STATUS, ${node_id}));
+
+rp2040:
+  board: rpipico
+
+logger:
+  level: DEBUG
+
+packages:
+  btn0: !include { file: button.yaml, vars: { button_index: "0", button_gpio: "24" } }
+  btn1: !include { file: button.yaml, vars: { button_index: "1", button_gpio: "23" } }
+  btn2: !include { file: button.yaml, vars: { button_index: "2", button_gpio: "22" } }
+  btn3: !include { file: button.yaml, vars: { button_index: "3", button_gpio: "21" } }
+  btn4: !include { file: button.yaml, vars: { button_index: "4", button_gpio: "25" } }
+  btn5: !include { file: button.yaml, vars: { button_index: "5", button_gpio: "20" } }
+  btn6: !include { file: button.yaml, vars: { button_index: "6", button_gpio: "19" } }
+  btn7: !include { file: button.yaml, vars: { button_index: "7", button_gpio: "10" } }
+
+globals:
+  - id: error_flags
+    type: uint8_t
+    initial_value: "0"
+  # millis() is uint32 ms and wraps every ~49.7 days. Count the wraps so reported uptime
+  # survives past the ms ceiling (the 30s heartbeat observes every wrap — see below).
+  - id: uptime_rollovers
+    type: uint16_t
+    initial_value: "0"
+  - id: last_millis
+    type: uint32_t
+    initial_value: "0"
+
+# --------------- SPI bus for MCP2515 ---------------
+spi:
+  clk_pin: GPIO2
+  mosi_pin: GPIO3
+  miso_pin: GPIO4
+
+# --------------- CAN bus ---------------
+canbus:
+  - platform: mcp2515
+    id: can0
+    use_extended_id: true
+    # Component default TX id (CAT_STATUS base). Every send specifies an explicit can_id +
+    # use_extended_id, so this is only the component default and is never relied on.
+    can_id: 0x06000000
+    cs_pin: GPIO9
+    clock: 16MHZ
+    bit_rate: 125KBPS
+
+# --------------- Heartbeat every 30 seconds ---------------
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          // millis() is uint32 ms and wraps every ~49.7 days. The 30s heartbeat reliably
+          // observes each wrap (a wrap can't hide between two ticks), so count rollovers to
+          // reconstruct true uptime, then report hours as a uint16 saturating at 65535 (~7.5yr).
+          uint32_t now = millis();
+          if (now < id(last_millis)) id(uptime_rollovers) += 1;
+          id(last_millis) = now;
+          uint64_t ms = ((uint64_t) id(uptime_rollovers) << 32) | now;
+          uint64_t hours = ms / 3600000ULL;
+          uint16_t uptime_h = hours > 65535ULL ? 65535 : (uint16_t) hours;
+          id(can0).send_data(can_id(CAT_STATUS, ${node_id}), true,
+                             heartbeat_payload(uptime_h, id(error_flags)));

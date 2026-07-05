@@ -1,0 +1,227 @@
+#pragma once
+#include <vector>
+#include <string>
+#include <cstdint>
+#include <cstddef>
+
+// =============================================================================
+// CAN Bus Smart Home Protocol v1 — flat node_id, 29-bit Extended IDs (ADR-0007)
+// =============================================================================
+//
+// 29-bit Extended CAN ID, uniform across all categories:
+//
+//   Bit: 28 27 26 25 │ 24 .............. 12 │ 11 ............. 0
+//        C  C  C  C   │ N  N  ........  N     │ r  r  ........  r
+//
+//   C = category (4 bits, 0-15)   — message class + arbitration priority (lower = higher)
+//   N = node_id  (13 bits, 0-8191) — flat, meaningless, assigned at flash time
+//   r = reserved (12 bits)         — future per-category low fields; MUST be 0 for now
+//
+// A node's identity is its flat node_id. (room, board, behaviour) live in a central
+// node_id -> {...} map on the controller/HA (ADR-0007) — never on the node. The CAN ID
+// carries only the message class + node_id; ALL message content lives in the payload.
+//
+// Node -> controller payloads (uniform [version][type] header, then content):
+//   Byte 0:  protocol version
+//   Byte 1:  message type
+//   Byte 2+: message-specific content
+//     INPUT  (button):    [ver, MSG_BUTTON_EVENT, button_index, event_type]
+//     STATUS (heartbeat): [ver, MSG_HEARTBEAT, error_flags, uptime_lo, uptime_hi]  (uint16 LE)
+//
+// Controller -> node (OUTPUT) payloads carry command/config params: [ver, subtype, ...];
+// the node_id in the ID addresses the target (defined by the controller in a later slice).
+//
+// Scope of this header (PR-A): the ID framework + the node TX path (button + heartbeat).
+// Sensors (CAT_SENSOR, ADR-0006) and the OUTPUT command set land in later slices; the
+// reserved low 12 bits stay 0 until a consumer needs to hardware-filter on them.
+// =============================================================================
+
+// --------------- Protocol version ---------------
+// Versioning policy: until the project is declared LIVE, PROTO_V1 stays 0x01 and breaking
+// changes are absorbed in place (every node is reflashed in lock-step — there is no fielded
+// firmware to stay compatible with). Going live is Alberto's call; only after that does a
+// breaking change require a version bump.
+inline constexpr uint8_t PROTO_V1 = 0x01;
+
+// Frame sizing. Content moved into the ID-addressed/short payloads, so frames are <= 8 bytes
+// and variable-length; receive lambdas guard against the relevant per-message minimum rather
+// than a fixed 8 (named constants, never inlined — NFR-2).
+inline constexpr std::size_t CAN_FRAME_MAX = 8;
+inline constexpr std::size_t HEADER_MIN = 2;            // [ver, type]
+inline constexpr std::size_t BUTTON_PAYLOAD_MIN = 4;    // [ver, type, button, event]
+inline constexpr std::size_t HEARTBEAT_PAYLOAD_MIN = 5; // [ver, type, errors, up_lo, up_hi]
+inline constexpr std::size_t SENSOR_PAYLOAD_MIN = 8;    // [ver, status, meas_lo, meas_hi, v0..v3]
+
+// --------------- Categories (ID bits 28:25, 4 bits) ---------------
+// Lower value = higher CAN arbitration priority. 0-3 retained from v1.
+inline constexpr uint8_t CAT_SYSTEM = 0; // emergency, errors, controller liveness (highest)
+inline constexpr uint8_t CAT_INPUT = 1;  // button events             node -> controller
+inline constexpr uint8_t CAT_OUTPUT = 2; // commands / management     controller -> node
+inline constexpr uint8_t CAT_STATUS = 3; // heartbeat, health         node -> controller
+inline constexpr uint8_t CAT_SENSOR = 4; // environmental (ADR-0006)  node -> controller (low priority)
+// Values 5-14 are reserved for future message classes (e.g. CONFIG, DISCOVERY); assign them
+// when those slices are designed. BOOTLOADER is a name reservation only — ADR-0008 §4
+// deliberately forgoes a CAN bootloader, so no category value is allocated to it.
+inline constexpr uint8_t CAT_EXTENDED = 15; // escape: real class is a subtype byte in the payload
+
+// --------------- ID field layout ---------------
+inline constexpr uint8_t CAT_SHIFT = 25;
+inline constexpr uint8_t NODE_SHIFT = 12;
+inline constexpr uint32_t CAT_FIELD_MASK = 0x0Fu;    // 4 bits
+inline constexpr uint32_t NODE_FIELD_MASK = 0x1FFFu; // 13 bits
+
+// Match category bits only (controller/gateway category-mask acceptance filter).
+inline constexpr uint32_t CAN_MASK_CATEGORY = CAT_FIELD_MASK << CAT_SHIFT; // 0x1E000000
+// Match category + node_id (a node's RX filter for OUTPUT frames addressed to it; used later).
+inline constexpr uint32_t CAN_MASK_ADDR =
+    (CAT_FIELD_MASK << CAT_SHIFT) | (NODE_FIELD_MASK << NODE_SHIFT);
+
+// --------------- Message types (payload byte 1) ---------------
+inline constexpr uint8_t MSG_BUTTON_EVENT = 0x01;
+inline constexpr uint8_t MSG_HEARTBEAT = 0x01;
+inline constexpr uint8_t MSG_CONFIG_WRITE = 0x02;
+inline constexpr uint8_t MSG_CONFIG_ACK = 0x03;
+
+// --------------- Button event types (payload) ---------------
+inline constexpr uint8_t EVT_CLICK = 0x01;
+inline constexpr uint8_t EVT_DOUBLE_CLICK = 0x02;
+inline constexpr uint8_t EVT_TRIPLE_CLICK = 0x03;
+// 0x04/0x05 were long/extra-long press, removed pre-LIVE (ADR-0012 §2: a "long press" is
+// derived centrally from the HOLD -> HOLD_RELEASE pair). Left unassigned so a frame from a
+// not-yet-reflashed node decodes as "unknown" (logged, never forwarded) instead of
+// misdecoding as a hold event.
+// Press-phase pair (ADR-0012): HOLD fires while the button is still down (once the press
+// reaches hold_ms); HOLD_RELEASE fires when that hold ends. Every button emits these.
+inline constexpr uint8_t EVT_HOLD = 0x06;
+inline constexpr uint8_t EVT_HOLD_RELEASE = 0x07;
+
+// --------------- Error flags (heartbeat) ---------------
+inline constexpr uint8_t ERR_NONE = 0x00;
+inline constexpr uint8_t ERR_CAN_TX_FAIL = 0x01;
+inline constexpr uint8_t ERR_CAN_BUS_OFF = 0x02;
+// Segment bridge only (ADR-0005): the store-and-forward queue dropped frames.
+inline constexpr uint8_t ERR_BRIDGE_QUEUE_OVERFLOW = 0x04;
+
+// --------------- Sensor measurement types (CAT_SENSOR, ADR-0006) ---------------
+// A uint16 in the payload that *implies* the value's encoding (see sensor_payload below).
+inline constexpr uint16_t SENSOR_MEAS_INVALID = 0;     // reserved
+inline constexpr uint16_t SENSOR_SHT45_TEMP = 1;       // int32, centi-degC (x100)
+inline constexpr uint16_t SENSOR_SHT45_RH = 2;         // uint32, x100 (0-10000 = 0-100%)
+inline constexpr uint16_t SENSOR_SEN66_TEMP = 3;       // int32, centi-degC
+inline constexpr uint16_t SENSOR_SEN66_RH = 4;         // uint32, x100
+inline constexpr uint16_t SENSOR_SEN66_PM1_0 = 5;      // uint32, x10 ug/m3
+inline constexpr uint16_t SENSOR_SEN66_PM2_5 = 6;      // uint32, x10 ug/m3
+inline constexpr uint16_t SENSOR_SEN66_PM4_0 = 7;      // uint32, x10 ug/m3
+inline constexpr uint16_t SENSOR_SEN66_PM10 = 8;       // uint32, x10 ug/m3
+inline constexpr uint16_t SENSOR_SEN66_VOC_INDEX = 9;  // uint32, 1-500
+inline constexpr uint16_t SENSOR_SEN66_NOX_INDEX = 10; // uint32, 1-500
+inline constexpr uint16_t SENSOR_SEN66_CO2 = 11;       // uint32, ppm
+// 12-65535 reserved.
+
+// --------------- Sensor status (payload byte 1) ---------------
+inline constexpr uint8_t SENSOR_STATUS_OK = 0;           // value valid; publish it
+inline constexpr uint8_t SENSOR_STATUS_WARMING_UP = 1;   // present, not ready; ignore value
+inline constexpr uint8_t SENSOR_STATUS_UNAVAILABLE = 2;  // no reading; ignore value
+inline constexpr uint8_t SENSOR_STATUS_ERROR = 3;        // sensor error; ignore value
+inline constexpr uint8_t SENSOR_STATUS_OUT_OF_RANGE = 4; // out of range; ignore value
+
+// =============================================================================
+// CAN ID helpers — 29-bit Extended IDs (send with use_extended_id = true)
+// =============================================================================
+
+inline uint32_t can_id(uint8_t category, uint16_t node_id)
+{
+  return ((static_cast<uint32_t>(category) & CAT_FIELD_MASK) << CAT_SHIFT) |
+         ((static_cast<uint32_t>(node_id) & NODE_FIELD_MASK) << NODE_SHIFT);
+}
+
+inline uint8_t can_id_category(uint32_t id) { return (id >> CAT_SHIFT) & CAT_FIELD_MASK; }
+inline uint16_t can_id_node(uint32_t id) { return (id >> NODE_SHIFT) & NODE_FIELD_MASK; }
+
+// =============================================================================
+// Payload builders — identity is the node_id in the ID; content is in the payload
+// =============================================================================
+
+// Button event: [ver, type, button_index, event_type].
+inline std::vector<uint8_t> button_payload(uint8_t button_index, uint8_t event_type)
+{
+  return {PROTO_V1, MSG_BUTTON_EVENT, button_index, event_type};
+}
+
+// Heartbeat: [ver, type, error_flags, uptime_lo, uptime_hi].
+// uptime_hours is a little-endian uint16 (bytes 3-4); 0xFFFF means "at least 65535 h".
+inline std::vector<uint8_t> heartbeat_payload(uint16_t uptime_hours, uint8_t error_flags)
+{
+  return {PROTO_V1, MSG_HEARTBEAT, error_flags,
+          (uint8_t)(uptime_hours & 0xFF), (uint8_t)((uptime_hours >> 8) & 0xFF)};
+}
+
+// Sensor (CAT_SENSOR): [ver, status, meas_lo, meas_hi, v0, v1, v2, v3] (ADR-0006).
+// measurement_type is a uint16 LE; value is a 32-bit LE quantity whose signed/unsigned
+// interpretation is implied by measurement_type (int32 for temperature; uint32 otherwise).
+// int32 covers every defined quantity, so the builder takes int32 raw.
+inline std::vector<uint8_t> sensor_payload(uint16_t measurement_type, int32_t value,
+                                           uint8_t status = SENSOR_STATUS_OK)
+{
+  uint32_t v = (uint32_t)value;
+  return {PROTO_V1, status,
+          (uint8_t)(measurement_type & 0xFF), (uint8_t)((measurement_type >> 8) & 0xFF),
+          (uint8_t)(v & 0xFF), (uint8_t)((v >> 8) & 0xFF),
+          (uint8_t)((v >> 16) & 0xFF), (uint8_t)((v >> 24) & 0xFF)};
+}
+
+// =============================================================================
+// Payload decoders — for controller/gateway use
+// =============================================================================
+
+inline uint8_t payload_version(const std::vector<uint8_t> &d) { return d.size() > 0 ? d[0] : 0; }
+inline uint8_t payload_type(const std::vector<uint8_t> &d) { return d.size() > 1 ? d[1] : 0; }
+
+// Button-event content (after the [ver, type] header).
+inline uint8_t payload_button_index(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
+inline uint8_t payload_event_type(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : 0; }
+
+// Heartbeat content — errors at byte 2, uptime a little-endian uint16 at bytes 3-4.
+inline uint8_t payload_errors(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
+inline uint16_t payload_uptime16(const std::vector<uint8_t> &d)
+{
+  if (d.size() < HEARTBEAT_PAYLOAD_MIN)
+    return 0;
+  return (uint16_t)d[3] | ((uint16_t)d[4] << 8);
+}
+
+// Sensor content — status at byte 1, measurement_type uint16 LE at 2-3, value int32 LE at 4-7.
+inline uint8_t payload_sensor_status(const std::vector<uint8_t> &d) { return d.size() > 1 ? d[1] : SENSOR_STATUS_UNAVAILABLE; }
+inline uint16_t payload_measurement_type(const std::vector<uint8_t> &d)
+{
+  if (d.size() < SENSOR_PAYLOAD_MIN)
+    return SENSOR_MEAS_INVALID;
+  return (uint16_t)d[2] | ((uint16_t)d[3] << 8);
+}
+inline int32_t payload_sensor_value32(const std::vector<uint8_t> &d)
+{
+  if (d.size() < SENSOR_PAYLOAD_MIN)
+    return 0;
+  return (int32_t)((uint32_t)d[4] | ((uint32_t)d[5] << 8) |
+                   ((uint32_t)d[6] << 16) | ((uint32_t)d[7] << 24));
+}
+
+// Event type to string (for HA events)
+inline std::string event_type_str(uint8_t event_type)
+{
+  switch (event_type)
+  {
+  case EVT_CLICK:
+    return "click";
+  case EVT_DOUBLE_CLICK:
+    return "double_click";
+  case EVT_TRIPLE_CLICK:
+    return "triple_click";
+  case EVT_HOLD:
+    return "hold";
+  case EVT_HOLD_RELEASE:
+    return "hold_release";
+  default:
+    return "unknown";
+  }
+}
