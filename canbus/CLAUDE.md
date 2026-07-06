@@ -67,7 +67,7 @@ controller (this repo) and dashboards. Its HVAC-consumer contract is **frozen**
 `map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,
 `nodes[].sensors` are frozen-additive; `manifest_hash` and `board` are
 explicitly outside the freeze. `room_slug` is the climate-zone join key
-(validated against `components/rooms/**`; required when `sensors=1`), and
+(validated against `hvac/rooms/**`; required when `sensors=1`), and
 numeric `floor` converts to a climate floor slug via `FLOOR_SLUGS`
 (0→`ground_floor`, 1→`first_floor`, 2→`second_floor`) in
 `firmware/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the

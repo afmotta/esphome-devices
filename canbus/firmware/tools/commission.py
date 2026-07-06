@@ -211,7 +211,7 @@ def main():
     a.add_argument("--board", type=int)
     a.add_argument("--location")
     a.add_argument("--room-slug", dest="room_slug",
-                   help="climate zone join (validated against components/rooms/**; '' clears)")
+                   help="climate zone join (validated against hvac/rooms/**; '' clears)")
     args = ap.parse_args()
 
     if args.cmd is None:

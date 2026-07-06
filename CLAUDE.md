@@ -99,9 +99,11 @@ BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic
 > **Note:** the tree below predates the in-progress layered restructure (see
 > `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/MIGRATION-MAP.md`)
 > and will be rewritten as the four-system map in migration Phase 6. Until
-> then: there is no top-level `home-assistant/` any more (AD-5) — HA-side
-> artifacts live per-system at `canbus/home-assistant/`,
-> `lighting/home-assistant/`, and `hvac/home-assistant/dashboards/`.
+> then: `canbus/` and `lighting/` aren't yet shown as top-level entries below
+> (their own `CLAUDE.md`s are current); `hvac/` is shown since Phase 4 gathered
+> it. There is no top-level `home-assistant/` any more (AD-5) — HA-side
+> artifacts live per-system at `canbus/home-assistant/`, `lighting/home-assistant/`,
+> and `hvac/home-assistant/dashboards/` (shown below).
 
 ```
 esphome-devices/
@@ -147,14 +149,15 @@ esphome-devices/
 │   ├── *_ethernet.yaml        # Ethernet network configs
 │   └── wifi.yaml              # WiFi network config
 │
-├── components/                # Project-specific components (non-Vesta)
+├── hvac/                       # HVAC (climate control) application system — see hvac/CLAUDE.md
 │   ├── room_sensors.yaml      # Room sensor failover wiring
 │   ├── mev_modbus.yaml        # MEV Modbus device driver
 │   ├── mev_demand.yaml        # MEV demand signal aggregation
-│   └── rooms/                 # Room-specific configurations
-│       ├── ground_floor/      # Ground floor rooms
-│       ├── first_floor/       # First floor rooms
-│       └── second_floor/      # Second floor rooms
+│   ├── rooms/                 # Room-specific configurations
+│   │   ├── ground_floor/      # Ground floor rooms
+│   │   ├── first_floor/       # First floor rooms
+│   │   └── second_floor/      # Second floor rooms
+│   └── home-assistant/        # Dashboards (Lovelace)
 │
 ├── devices/                   # Main device configurations (entry points)
 │   ├── climate-control.yaml   # Main HVAC system
@@ -186,12 +189,12 @@ esphome-devices/
 - Examples: `a6.yaml`, `a16.yaml`, `waveshare-s3.yaml`, `s1-pro-multi-sense.yaml`
 - Network configs: `[board]_ethernet.yaml`, `wifi.yaml`
 
-#### Component Configs (`components/`)
+#### Component Configs (`hvac/`)
 - Pattern: `[component_type]_[variant].yaml` or `[feature].yaml`
 - Examples: `modbus_relay_board.yaml`, `pid_autotune.yaml`, `fancoil.yaml`
 - Descriptive, function-based names
 
-#### Room Configs (`components/rooms/`)
+#### Room Configs (`hvac/rooms/`)
 - Pattern: Italian room names in snake_case
 - Floor aggregators: `[floor]-floor.yaml`
 - Room files: `[room_name].yaml`
@@ -321,13 +324,13 @@ Device Config (devices/climate-control.yaml)
 ├── Board Package (boards/waveshare-s3.yaml)
 │   ├── Base Package (boards/base.yaml)
 │   └── Network Package (boards/*_ethernet.yaml or wifi.yaml)
-├── Hardware Packages (components/modbus_*_board.yaml)
-└── Floor Packages (components/rooms/*/floor.yaml)
-    └── Room Packages (components/rooms/*/*.yaml)
-        ├── Sensors (components/room_sensors.yaml)
-        ├── Radiant (components/radiant.yaml)
-        ├── Fancoil (components/fancoil.yaml)
-        └── Boost Coordinator (components/fancoil_boost_coordinator.yaml)
+├── Hardware Packages (vesta/packages/devices/modbus-io/modbus_relay_board.yaml)
+└── Floor Packages (hvac/rooms/*/floor.yaml)
+    └── Room Packages (hvac/rooms/*/*.yaml)
+        ├── Sensors (hvac/room_sensors.yaml)
+        ├── Radiant (vesta/packages/components/radiant.yaml)
+        ├── Fancoil (vesta/packages/components/fancoil.yaml)
+        └── Boost Coordinator (vesta/packages/coordinators/fancoil_boost.yaml)
 ```
 
 #### Conditional Package Inclusion
@@ -545,7 +548,7 @@ git diff --staged | grep -i "password\|secret\|api_key"
 
 ### Adding a New Room
 
-1. Create room config file in `components/rooms/[floor]/[room_name].yaml`
+1. Create room config file in `hvac/rooms/[floor]/[room_name].yaml`
 2. Include sensor, radiant, fancoil packages with room-specific vars
 3. Add room package to floor aggregator (`[floor]-floor.yaml`)
 4. Assign relay numbers (ensure no conflicts)
@@ -555,7 +558,7 @@ git diff --staged | grep -i "password\|secret\|api_key"
 
 Example:
 ```yaml
-# components/rooms/ground_floor/new_room.yaml
+# hvac/rooms/ground_floor/new_room.yaml
 defaults:
   room_slug: new_room
   room_name: "New Room"
@@ -645,7 +648,7 @@ external_components:
 | `vesta/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `vesta/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
 | `vesta/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
-| `components/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
+| `hvac/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 
 ### Key Documentation Files
 

@@ -236,7 +236,7 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
     without a new spec. `manifest_hash` (ha_ready arbitration) and `board` (wall-box
     disambiguation) are explicitly **outside** the freeze: changing them needs no HVAC-side
     compatibility review. `room_slug` joins a node to a climate zone — validated by the
-    generator against the climate room packages (`components/rooms/**`, never freehand),
+    generator against the climate room packages (`hvac/rooms/**`, never freehand),
     required when `sensors=1`, empty = no climate zone. Numeric `floor` stays canbus
     map-seed metadata; consumers derive the climate floor slug via the fixed table
     0→`ground_floor`, 1→`first_floor`, 2→`second_floor` (`FLOOR_SLUGS` in

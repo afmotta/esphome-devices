@@ -1,8 +1,4 @@
 - source_spec: none
-  summary: Phase 4 — HVAC gathering (move components/rooms and components/*.yaml into hvac/, update all !include paths and the spec-map-json-contract room_slug glob)
-  evidence: Split from MIGRATION-MAP.md multi-phase restructure; user chose one-phase-at-a-time on 2026-07-05
-
-- source_spec: none
   summary: Phase 5 — composition layer (move gateway.yaml/bridge.yaml into devices/, extract gateway monolith into canbus/packages/ and lighting/packages/, write bindings-arbitration contract spec)
   evidence: Split from MIGRATION-MAP.md multi-phase restructure; user chose one-phase-at-a-time on 2026-07-05
 
@@ -25,3 +21,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-phase-2-lighting-is-born.md`, `_bmad-output/implementation-artifacts/spec-phase-3-ha-split-completes.md`
   summary: two manual HA-side package re-point steps need doing on the live Home Assistant instance once convenient — (1) hold/hold_release automations moved to lighting/home-assistant/ (Phase 2), (2) arbitration automation + manifest package moved to canbus/home-assistant/ (Phase 3). Bundle into one HA session; confirm HA reloads both packages without error.
   evidence: Surfaced by Blind Hunter review of Phase 2 and Phase 3; this repo has no visibility into the live HA config, so nothing in-repo can confirm the human actually did these steps
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-phase-4-hvac-gathering.md`
+  summary: architectural invariants stated as prose in system CLAUDE.mds (e.g. hvac/CLAUDE.md's "hvac only reads registry/map.json, never writes it") have no mechanical enforcement (grep/lint/test) — matches this project's own documented pattern of status-hygiene drift needing a tooling gate, not another action item
+  evidence: Surfaced by Blind Hunter review of Phase 4; fixing this needs a real check wired into the push gate or CI, out of scope for a docs/path-relocation phase
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-phase-4-hvac-gathering.md`
+  summary: hvac/CLAUDE.md duplicates the entity-ID naming convention verbatim from root CLAUDE.md rather than referencing it (deliberate for now, since root CLAUDE.md isn't being rewritten until Phase 6) — the two copies can drift the moment either is edited; Phase 6's root CLAUDE.md rewrite should resolve which copy is canonical
+  evidence: Surfaced by an independent Blind Hunter pass on Phase 4; the duplication was a conscious choice this phase, but needs closing out, not left indefinite
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-phase-4-hvac-gathering.md`
+  summary: .github/copilot-instructions.md and docs/ha-dashboard-config.yaml still reference the old components/ path (not caught by the original "wider living docs" exclusion list by name, but same category — left untouched per scope discipline). copilot-instructions.md in particular is an active AI-instructions file parallel to CLAUDE.md and arguably more load-bearing than PRD/epics docs; worth a follow-up sweep
+  evidence: Surfaced by an independent Blind Hunter pass on Phase 4; flagged for visibility since copilot-instructions.md's staleness could actively mislead Copilot-assisted edits, unlike pure planning-history prose

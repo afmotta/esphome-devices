@@ -35,9 +35,9 @@ packages:
       update_interval: 2s
       id_offset: 16
       controller_name: "Relay Board 2"
-  ground_floor: !include ../components/rooms/ground_floor/ground-floor.yaml
-  first_floor: !include ../components/rooms/first_floor/first-floor.yaml
-  second_floor: !include ../components/rooms/second_floor/second-floor.yaml
+  ground_floor: !include ../hvac/rooms/ground_floor/ground-floor.yaml
+  first_floor: !include ../hvac/rooms/first_floor/first-floor.yaml
+  second_floor: !include ../hvac/rooms/second_floor/second-floor.yaml
   seasonal_mode: !include
     file: ../vesta/packages/coordinators/seasonal_mode.yaml
     vars:

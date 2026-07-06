@@ -10,7 +10,7 @@ Covers the pure renderers added for the export slice:
     BINDINGS[] rows; the hash and binding_find accessor are always present.
   - render_ha_package: the manifest hash is baked into the generated heartbeat.
   - room_slug climate join (spec-map-json-contract): the FLOOR_SLUGS conversion table, the
-    known-zone list read from components/rooms/**, and validate_room_slug's branches.
+    known-zone list read from hvac/rooms/**, and validate_room_slug's branches.
 """
 
 import json

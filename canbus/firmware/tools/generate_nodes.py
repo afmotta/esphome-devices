@@ -16,7 +16,7 @@ package to the generated node. Sensor frames carry the host node's node_id, so a
 sensor-equipped node's registry room must be the sensors' physical room.
 
 The `room_slug` column (spec-map-json-contract) joins a node to a climate zone. Values are
-validated against the climate room packages (components/rooms/**), never freehand;
+validated against the climate room packages (hvac/rooms/**), never freehand;
 blank = not joined to a climate zone (corridors, stairwells, not-yet-commissioned). A
 sensors=1 node MUST carry a room_slug — its measurements are consumed per climate zone. The
 numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
@@ -117,12 +117,12 @@ _ROOM_SLUG_RE = re.compile(r'^\s{2}room_slug:\s*"?([a-z0-9_]+)"?\s*$')
 
 def load_climate_zones(rooms_dir: Path = None) -> dict:
     """Read the known climate zones from the climate room packages: room_slug -> climate
-    floor slug. Sourced from components/rooms/** rather than a hardcoded set so the list
+    floor slug. Sourced from hvac/rooms/** rather than a hardcoded set so the list
     cannot drift as rooms are added, renamed, or removed (spec-map-json-contract open
     question, resolved toward the shared source). Slugs come from file CONTENTS, not
     filenames — ground_floor/bagno.yaml declares bagno_terra."""
     if rooms_dir is None:
-        rooms_dir = ROOT.parent.parent / "components" / "rooms"
+        rooms_dir = REPO_ROOT / "hvac" / "rooms"
     zones = {}
     for floor_slug in FLOOR_SLUGS.values():
         for path in sorted((rooms_dir / floor_slug).glob("*.yaml")):
