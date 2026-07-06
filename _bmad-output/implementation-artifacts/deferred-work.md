@@ -34,6 +34,10 @@
   summary: hvac/CLAUDE.md duplicates the entity-ID naming convention verbatim from root CLAUDE.md rather than referencing it (deliberate for now, since root CLAUDE.md isn't being rewritten until Phase 6) — the two copies can drift the moment either is edited; Phase 6's root CLAUDE.md rewrite should resolve which copy is canonical
   evidence: Surfaced by an independent Blind Hunter pass on Phase 4; the duplication was a conscious choice this phase, but needs closing out, not left indefinite
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-phase-5b1-bindings-arbitration-contract.md`
+  summary: add an explicit frozen-tuple pin on bindings.py's VALID_OPS to test_bindings.py (subset check — ("on","off","toggle") must remain present; additions allowed per frozen-additive) so removal of an op fails a test instead of only the validator's behavior changing silently
+  evidence: Surfaced by the Phase 5b-1 inline review; not done in that slice because its frozen Never barred touching existing tests — one-line addition for any later canbus slice
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-phase-4-hvac-gathering.md`
   summary: .github/copilot-instructions.md and docs/ha-dashboard-config.yaml still reference the old components/ path (not caught by the original "wider living docs" exclusion list by name, but same category — left untouched per scope discipline). copilot-instructions.md in particular is an active AI-instructions file parallel to CLAUDE.md and arguably more load-bearing than PRD/epics docs; worth a follow-up sweep
   evidence: Surfaced by an independent Blind Hunter pass on Phase 4; flagged for visibility since copilot-instructions.md's staleness could actively mislead Copilot-assisted edits, unlike pure planning-history prose

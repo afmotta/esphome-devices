@@ -20,6 +20,7 @@ g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_protocol.cpp -o /tmp/pro
 g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb
 g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_node_health.cpp -o /tmp/health && /tmp/health
 g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
+g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract
 
 # ESPHome configs still valid
 esphome config locals/climate-control.yaml
