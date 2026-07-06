@@ -84,7 +84,7 @@ Depth correction found during implementation: the tools do **not** all sit at th
 - `python3 canbus/firmware/tools/check_registry_pushed.py` -- expected: exit 0 (push gate green)
 - `grep -rn "firmware/registry" --include="*.py" --include="*.md" --include="*.yaml" .` -- expected: no output
 
-**Note:** `test_push_gate.py` passed cleanly on the first battery run (all 6 tests). On a later re-run its temp-repo fixtures failed with `1Password: failed to fill whole buffer` from `git commit` -- confirmed via a standalone repro (`git commit` fails the same way outside this repo, works with `-c commit.gpgsign=false`) to be the 1Password SSH-signing agent becoming unavailable mid-session, unrelated to this diff. Not patched (never disable signing to route around an environment issue) -- re-run once 1Password is unlocked to confirm green.
+**Note:** `test_push_gate.py`'s temp-repo fixtures transiently failed mid-session with `1Password: failed to fill whole buffer` from `git commit` -- traced to the 1Password SSH-signing agent becoming unavailable (confirmed via a standalone repro outside this repo), unrelated to this diff. Not patched (never disable signing to route around an environment issue) -- re-ran clean (all 6 tests) after the user unlocked 1Password, confirming the battery is fully green.
 
 ## Suggested Review Order
 
