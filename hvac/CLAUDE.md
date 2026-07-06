@@ -5,7 +5,8 @@ This is the HVAC application system (layered-restructure spine,
 It is **pre-live**: controller hardware is not yet finalized (a master-controller
 swap is under consideration). Everything below is scoped to `hvac/`; entry
 points that compose HVAC packages (`devices/climate-control.yaml`, its
-`locals/`/`remotes/` variants) stay in `devices/` per AD-4.
+`devices/locals/` and `devices/remotes/` deployment variants) stay in
+`devices/` (entry points and their variants live together).
 
 ## What's here
 

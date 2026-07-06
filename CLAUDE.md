@@ -159,16 +159,19 @@ esphome-devices/
 │   │   └── second_floor/      # Second floor rooms
 │   └── home-assistant/        # Dashboards (Lovelace)
 │
-├── devices/                   # Main device configurations (entry points)
+├── devices/                   # Main device configurations (entry points and their deployment variants, gathered together)
 │   ├── climate-control.yaml   # Main HVAC system
 │   ├── room-sensor-soggiorno.yaml # Standalone room sensor
-│   └── wall-sensor.yaml       # Wall-mounted sensor (SEN66)
+│   ├── wall-sensor.yaml       # Wall-mounted sensor (SEN66)
+│   ├── gateway.yaml           # CAN bus gateway firmware
+│   ├── bridge.yaml            # CAN bus segment bridge firmware
+│   ├── secrets.yaml.example   # Template for devices/secrets.yaml (gateway's secrets)
+│   ├── locals/                # Local development/deployment configs
+│   └── remotes/               # Remote GitHub-based deployment configs
 │
 ├── libs/                      # Custom Python/C++ components
 │   └── s1_pro/                # LD2450 radar driver
 │
-├── locals/                    # Local development/deployment configs
-├── remotes/                   # Remote GitHub-based deployment configs
 ├── docs/                      # Project documentation and guides
 │
 ├── _bmad/                     # BMAD framework (agents, workflows, tasks)
@@ -448,22 +451,22 @@ git push origin [branch]
 
 ```bash
 # Compile configuration
-esphome compile locals/climate-control.yaml
+esphome compile devices/locals/climate-control.yaml
 
 # Upload to device over network
-esphome run locals/climate-control.yaml
+esphome run devices/locals/climate-control.yaml
 
 # Upload over USB (initial flash)
-esphome run locals/climate-control.yaml --device /dev/ttyUSB0
+esphome run devices/locals/climate-control.yaml --device /dev/ttyUSB0
 
 # View logs
-esphome logs locals/climate-control.yaml
+esphome logs devices/locals/climate-control.yaml
 ```
 
 ### Remote/Production Deployment
 
 ```yaml
-# remotes/climate-control.yaml references GitHub
+# devices/remotes/climate-control.yaml references GitHub
 substitutions:
   github_ref: main
   github_username: !secret github_username
@@ -526,7 +529,7 @@ Each epic includes a detailed testing checklist (see `docs/epic-*-testing-checkl
 
 ```bash
 # Always validate before committing
-esphome config locals/climate-control.yaml
+esphome config devices/locals/climate-control.yaml
 
 # Check for syntax errors
 grep -r "TODO\|FIXME" .
@@ -665,8 +668,8 @@ external_components:
 
 | Path | Use Case |
 |------|----------|
-| `locals/climate-control.yaml` | Local development and testing |
-| `remotes/climate-control.yaml` | Production deployment via GitHub |
+| `devices/locals/climate-control.yaml` | Local development and testing |
+| `devices/remotes/climate-control.yaml` | Production deployment via GitHub |
 | `devices/climate-control.yaml` | Core device configuration |
 
 ---

@@ -9,7 +9,7 @@ Key concepts (read these files first):
 - `components/` — reusable component packages which are included with `packages:` and expect `vars` (examples: `components/pid_sensors.yaml`, `components/modbus_master.yaml`, `components/fancoil.yaml`).
 - `components/deprecated/` — obsolete components moved during Epic 2 (Oct 2025) for reference only; do NOT use in new configurations.
 - `devices/` — top-level device definitions that assemble `packages:` (example: `devices/gruppo-miscelazione.yaml`).
-- `locals/secrets.yaml` — substitution keys and sensitive values (do NOT print secrets in output or add them to commits).
+- `devices/locals/secrets.yaml` — substitution keys and sensitive values (do NOT print secrets in output or add them to commits).
 
 Patterns and conventions to preserve:
 
@@ -21,7 +21,7 @@ Patterns and conventions to preserve:
 
 What to avoid:
 
-- Never commit secrets or expand `locals/secrets.yaml` values into code or PR text.
+- Never commit secrets or expand `devices/locals/secrets.yaml` values into code or PR text.
 - Avoid inlining package internals into device files; maintain reusable `components/` and `boards/` separation.
 - Do NOT use components from `components/deprecated/` — they are retained for historical reference only.
 
@@ -35,8 +35,8 @@ Typical edit checklist for changes to behavior:
 
 Integration notes:
 
-- The repo relies on ESPHome composition: devices assemble `packages` defined in `components/` and `boards/` using substitutions from `locals/secrets.yaml`.
-- There is a `packages.config` entry (see `locals/secrets.yaml`) that can point to the repo itself for config updates — treat remote package fetching with care.
+- The repo relies on ESPHome composition: devices assemble `packages` defined in `components/` and `boards/` using substitutions from `devices/locals/secrets.yaml`.
+- There is a `packages.config` entry (see `devices/locals/secrets.yaml`) that can point to the repo itself for config updates — treat remote package fetching with care.
 
 Examples from the repo:
 

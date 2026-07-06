@@ -1,6 +1,6 @@
 - source_spec: none
-  summary: Phase 5 — composition layer (move gateway.yaml/bridge.yaml into devices/, extract gateway monolith into canbus/packages/ and lighting/packages/, write bindings-arbitration contract spec)
-  evidence: Split from MIGRATION-MAP.md multi-phase restructure; user chose one-phase-at-a-time on 2026-07-05
+  summary: Phase 5b — gateway monolith extraction (split gateway.yaml into canbus/packages/ [CAN decode, health, arbitration/ha_ready, HA event firing] and lighting/packages/ [fallback actuation, ADR-0013 open item 2], write the bindings→arbitration contract spec + drift test)
+  evidence: Split from Phase 5 during scope routing on 2026-07-06 — higher-risk code-splitting refactor separated from the mechanical Phase 5a relocation (`_bmad-output/implementation-artifacts/spec-phase-5a-composition-layer-moves.md`, gateway/bridge/locals/remotes moves), per user's explicit choice to review them separately
 
 - source_spec: none
   summary: Phase 6 — flatten canbus (move protocol/packages/nodes/tools/tests up out of firmware/, rewrite root CLAUDE.md as system map, trim canbus/CLAUDE.md)

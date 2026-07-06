@@ -85,10 +85,10 @@ All values confirmed from V1.1 Eagle schematic. Use these in Story 2.1
 ## Onboarding: `secrets.yaml`
 
 The gateway reads three secrets at config load. ESPHome resolves `!secret` from a
-`secrets.yaml` next to the config file, so it lives in `canbus/firmware/gateway/` (the gateway is the
-only secrets user). There is no pre-flight validation — if `secrets.yaml` is missing or any key
+`secrets.yaml` next to the config file, so it lives in `devices/` (the gateway is the
+only secrets user there). There is no pre-flight validation — if `secrets.yaml` is missing or any key
 is absent, `esphome compile`/`run` **fails at config load** with a missing-secret error (ESPHome
-default behavior). Copy `gateway/secrets.yaml.example` to `canbus/firmware/gateway/secrets.yaml` before
+default behavior). Copy `devices/secrets.yaml.example` to `devices/secrets.yaml` before
 the first build:
 
 | Key                  | Value                                            |
@@ -266,7 +266,7 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
 
 The bus is segmented (ADR-0005, accepted 2026-06-10): a backbone segment plus per-zone
 secondaries in a strict loop-free tree, joined by store-and-forward **software bridges**.
-`bridge/bridge.yaml` is the bridge firmware, targeting the **LilyGO T-2CAN** (ESP32-S3).
+`devices/bridge.yaml` is the bridge firmware, targeting the **LilyGO T-2CAN** (ESP32-S3).
 The board's two CAN ports are asymmetric: one is the S3's built-in TWAI controller
 (backbone side — interrupt-driven RX with a deep driver queue, suiting the aggregate
 backbone traffic), the other an MCP2515 on SPI (zone side) with a hardware reset line on
@@ -283,7 +283,7 @@ weaker TX side, 3 buffers — sustains at 125 kbps). A drop anywhere latches
 - Identity: bridges share the flat `node_id` space (ADR-0007). Allocate an id with
   `tools/allocate_node.py`, set it as the `node_id` substitution, and commission it like a
   node so the gateway names it. (`generate_nodes.py` will also emit an unused
-  `nodes/nodeNNN.yaml` for a bridge id — ignore it; `bridge/bridge.yaml` is the config.)
+  `nodes/nodeNNN.yaml` for a bridge id — ignore it; `devices/bridge.yaml` is the config.)
 - Board, pins, MCP2515 clock (16 MHz), and the GPIO9 reset sequence come from LilyGO's
   reference firmware:
   <https://github.com/Xinyuan-LilyGO/T-2Can/blob/main/esphome/can.yaml>

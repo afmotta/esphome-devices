@@ -39,7 +39,7 @@ entry. No re-commissioning.
 6. Verify the board re-joins the bus (heartbeat seen at the controller) before moving on.
 
 > **Bridges:** skip the regenerate step (`bridge.yaml` is hand-maintained, not generated).
-> Compile and flash `canbus/firmware/bridge/bridge.yaml` directly over USB-serial (radios off per
+> Compile and flash `devices/bridge.yaml` directly over USB-serial (radios off per
 > ADR-0005). Ignore any `canbus/firmware/nodes/node<bridge_id>.yaml` that `generate_nodes.py` emits
 > for the bridge's registry row — it is a decoy RP2040 node config and must never be flashed to
 > the ESP32-S3 bridge. Confirm the bridge resumes forwarding + heartbeating after reflash.
