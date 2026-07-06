@@ -174,8 +174,8 @@ heartbeat stale, or manifest-hash mismatch — or an ACK is missed, the **fallba
 compares the generated `BINDINGS_MANIFEST_HASH` (see Binding Manifest below), no longer a
 placeholder.
 
-- HA-side counterpart: wire the **generated** `home-assistant/canbus/ha_manifest_package.yaml` (readiness
-  heartbeat, hash baked in) into HA as a package, and copy `home-assistant/canbus/ha_arbitration_automations.yaml`
+- HA-side counterpart: wire the **generated** `canbus/home-assistant/ha_manifest_package.yaml` (readiness
+  heartbeat, hash baked in) into HA as a package, and copy `canbus/home-assistant/ha_arbitration_automations.yaml`
   (the hand-maintained ACK automation) into Home Assistant. See Binding Manifest below.
 - Observability: the gateway exposes a diagnostic **HA Ready** binary sensor, and the logs
   carry the tuning data: `ACK ... rtt=` (round-trip per event), `FALLBACK ... waited=`
@@ -241,7 +241,7 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
     map-seed metadata; consumers derive the climate floor slug via the fixed table
     0→`ground_floor`, 1→`first_floor`, 2→`second_floor` (`FLOOR_SLUGS` in
     `generate_nodes.py`).
-  - `home-assistant/canbus/ha_manifest_package.yaml` — the HA readiness-heartbeat automation with the hash
+  - `canbus/home-assistant/ha_manifest_package.yaml` — the HA readiness-heartbeat automation with the hash
     baked in, so HA echoes it automatically (no hand-paste). Wire it into HA once as a package.
 - **Workflow:** edit `bindings.yaml` → `python3 tools/generate_nodes.py` (validates every
   binding against `nodes.csv`, prints the hash, regenerates all artifacts above) → commit and

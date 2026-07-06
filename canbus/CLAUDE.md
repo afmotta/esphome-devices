@@ -71,6 +71,6 @@ explicitly outside the freeze. `room_slug` is the climate-zone join key
 numeric `floor` converts to a climate floor slug via `FLOOR_SLUGS`
 (0→`ground_floor`, 1→`first_floor`, 2→`second_floor`) in
 `firmware/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the
-same controller. HA-side YAML (`home-assistant/canbus/
-ha_*_automations.yaml`, generated `ha_manifest_package.yaml`) is imported into
+same controller. HA-side YAML (`canbus/home-assistant/
+ha_arbitration_automations.yaml`, generated `ha_manifest_package.yaml`) is imported into
 Home Assistant.

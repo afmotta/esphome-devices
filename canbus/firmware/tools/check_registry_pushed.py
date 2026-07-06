@@ -35,15 +35,15 @@ FIRMWARE = Path(__file__).resolve().parent.parent
 # ADR-0009 system of record + the artifacts compiled into the controller. registry/ covers
 # nodes.csv / bindings.yaml / node_id_hwm / map.json; the headers and HA package are
 # generated but get flashed, so an uncommitted one would mean flashing unbacked-up state.
-# registry/ was elevated to repo root by migration Phase 1 (previously firmware/registry/).
-# ha_manifest_package.yaml already lived under home-assistant/canbus/, outside firmware/,
-# from an earlier merge (Phase 4) — unrelated to this move. Both paths below are relative to
-# FIRMWARE, hence the "../..".
+# registry/ lives at repo root, two levels up from FIRMWARE (canbus/firmware/), hence
+# "../..". ha_manifest_package.yaml lives under canbus/home-assistant/ — a sibling of
+# firmware/ inside canbus/, so only one level up. (History: both paths moved during the
+# esphome-devices layered restructure; see MIGRATION-MAP.md if the depth ever looks wrong.)
 GUARDED_PATHS = [
     "../../registry",
     "protocol/node_map.h",
     "protocol/bindings.h",
-    "../../home-assistant/canbus/ha_manifest_package.yaml",
+    "../home-assistant/ha_manifest_package.yaml",
 ]
 
 

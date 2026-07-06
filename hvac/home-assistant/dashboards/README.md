@@ -36,7 +36,7 @@ This dashboard system provides complete visibility and control over the 3-floor,
 ## Dashboard Structure
 
 ```
-home-assistant/dashboards/
+hvac/home-assistant/dashboards/
 ├── climate-overview.yaml          # Main entry point
 ├── ground-floor.yaml              # Ground floor overview
 ├── first-floor.yaml               # First floor overview
@@ -73,7 +73,7 @@ home-assistant/dashboards/
 1. **Copy dashboard files to Home Assistant:**
    ```bash
    # Copy to your Home Assistant config directory
-   cp -r /path/to/esphome-devices/home-assistant/dashboards /config/esphome-devices/home-assistant/
+   cp -r /path/to/esphome-devices/hvac/home-assistant/dashboards /config/esphome-devices/hvac/home-assistant/
    ```
 
 2. **Edit `configuration.yaml`** and add:
@@ -86,35 +86,35 @@ home-assistant/dashboards/
          title: Climate Control
          icon: mdi:home-thermometer
          show_in_sidebar: true
-         filename: /config/esphome-devices/home-assistant/dashboards/climate-overview.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/climate-overview.yaml
 
        ground-floor:
          mode: yaml
          title: Ground Floor
          icon: mdi:home-floor-0
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/ground-floor.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/ground-floor.yaml
 
        first-floor:
          mode: yaml
          title: First Floor
          icon: mdi:home-floor-1
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/first-floor.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/first-floor.yaml
 
        second-floor:
          mode: yaml
          title: Second Floor
          icon: mdi:home-floor-2
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/second-floor.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/second-floor.yaml
 
        system-monitoring:
          mode: yaml
          title: System Monitoring
          icon: mdi:monitor-dashboard
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/system-monitoring.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/system-monitoring.yaml
    ```
 
 3. **Restart Home Assistant**
@@ -151,7 +151,7 @@ home-assistant/dashboards/
          title: Climate Control
          icon: mdi:home-thermometer
          show_in_sidebar: true
-         filename: /config/esphome-devices/home-assistant/dashboards/climate-overview.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/climate-overview.yaml
 
        # Floor dashboards - navigation only (not in sidebar)
        ground-floor:
@@ -159,21 +159,21 @@ home-assistant/dashboards/
          title: Ground Floor
          icon: mdi:home-floor-0
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/ground-floor.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/ground-floor.yaml
 
        first-floor:
          mode: yaml
          title: First Floor
          icon: mdi:home-floor-1
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/first-floor.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/first-floor.yaml
 
        second-floor:
          mode: yaml
          title: Second Floor
          icon: mdi:home-floor-2
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/second-floor.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/second-floor.yaml
 
        # System monitoring - navigation only (not in sidebar)
        system-monitoring:
@@ -181,7 +181,7 @@ home-assistant/dashboards/
          title: System Monitoring
          icon: mdi:monitor-dashboard
          show_in_sidebar: false
-         filename: /config/esphome-devices/home-assistant/dashboards/system-monitoring.yaml
+         filename: /config/esphome-devices/hvac/home-assistant/dashboards/system-monitoring.yaml
    ```
 
    **Note**: Only the main "Climate Control" dashboard appears in the sidebar. All other dashboards are accessed via navigation buttons within the dashboard hierarchy.
@@ -190,10 +190,10 @@ home-assistant/dashboards/
 
    ```bash
    # Option A: If this repo is inside HA config directory
-   cd /config/esphome-devices/home-assistant/dashboards
+   cd /config/esphome-devices/hvac/home-assistant/dashboards
 
    # Option B: Copy from external location
-   cp -r /path/to/esphome-devices/home-assistant/dashboards /config/esphome-devices/home-assistant/
+   cp -r /path/to/esphome-devices/hvac/home-assistant/dashboards /config/esphome-devices/hvac/home-assistant/
    ```
 
 3. **Restart Home Assistant** to load the dashboard configurations.

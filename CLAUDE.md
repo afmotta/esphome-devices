@@ -96,6 +96,13 @@ BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic
 
 ## Repository Structure
 
+> **Note:** the tree below predates the in-progress layered restructure (see
+> `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/MIGRATION-MAP.md`)
+> and will be rewritten as the four-system map in migration Phase 6. Until
+> then: there is no top-level `home-assistant/` any more (AD-5) — HA-side
+> artifacts live per-system at `canbus/home-assistant/`,
+> `lighting/home-assistant/`, and `hvac/home-assistant/dashboards/`.
+
 ```
 esphome-devices/
 ├── registry/                  # house system-of-record (nodes.csv, node_id_hwm, bindings.yaml,
@@ -160,8 +167,6 @@ esphome-devices/
 ├── locals/                    # Local development/deployment configs
 ├── remotes/                   # Remote GitHub-based deployment configs
 ├── docs/                      # Project documentation and guides
-├── home-assistant/            # HA dashboards and configurations
-│   └── dashboards/            # Lovelace dashboard configs
 │
 ├── _bmad/                     # BMAD framework (agents, workflows, tasks)
 ├── _bmad-output/              # BMAD artifacts (epics, stories, analysis)
