@@ -5,7 +5,7 @@ purpose: build-substrate
 altitude: initiative
 paradigm: 'layered monorepo — shared infrastructure + application systems, composition at entry points'
 scope: 'Repo-level system boundaries, registry ownership, and cross-system contracts for esphome-devices (canbus infra, lighting, hvac, vesta)'
-status: draft
+status: final
 created: '2026-07-05'
 updated: '2026-07-05'
 binds: []
@@ -44,43 +44,43 @@ graph TD
 
 - **Binds:** all
 - **Prevents:** organizing by merge history (`canbus/` = "whatever came from the old repo"), which fuses transport with lighting and leaves the lighting system nameless; new code defaulting into the repo root.
-- **Rule:** The repo contains exactly these named systems: `canbus/` (infrastructure), `lighting/` (application), `hvac/` (application), `vesta/` (library) — plus the shared `registry/`, `boards/`, the `devices/` composition layer, `docs/`, and BMAD trees. Every new file lands inside exactly one of these homes; nothing system-owned lives ambient at root. Historical `canbus/_bmad-output/` stays frozen in place.
+- **Rule:** The repo contains exactly these named systems: `canbus/` (infrastructure), `lighting/` (application), `hvac/` (application), `vesta/` (library) — plus the shared `registry/`, `boards/`, `libs/` (custom external components), the `devices/` composition layer, `docs/`, and BMAD trees. Every new file lands inside exactly one of these homes; nothing system-owned lives ambient at root. Historical `canbus/_bmad-output/` stays frozen in place — never edited; a decision superseding a frozen-tree ADR lives in root `_bmad-output/` and cites the superseded ADR id.
 
 ### AD-2 — Dependency direction
 
 - **Binds:** all
 - **Prevents:** infrastructure accumulating application semantics; lateral app-to-app coupling; vesta absorbing house-specific concepts.
-- **Rule:** Applications (`lighting/`, `hvac/`) may depend on `canbus/` and `vesta/`. `canbus/` depends on no application; its tooling may read application data only where a frozen contract (AD-6) names the path. `vesta/` depends on nothing in-repo. `lighting/` and `hvac/` never depend on each other — they interact only through the registry and AD-6 contracts. `devices/` may compose from everything.
+- **Rule:** Applications (`lighting/`, `hvac/`) may depend on `canbus/` and `vesta/`. `canbus/` depends on no application; its tooling may read application data only where a frozen contract (AD-6) names the path. `vesta/` depends on nothing in-repo. `lighting/` and `hvac/` never include or reference each other's config or code — cross-app behavior is expressed as HA automations (AD-5 decides the home) or through the registry and AD-6 contracts. `devices/` may compose from everything.
 
 ### AD-3 — House registry: one mechanism, per-system file ownership
 
 - **Binds:** registry/, canbus tooling, lighting, hvac
 - **Prevents:** split push gates and duplicated hash surfaces; registry files with no owner; application schema edits treated as infra changes (or vice versa).
-- **Rule:** `registry/` is a top-level directory — the single house system-of-record (git-versioned, unrebuildable data). The *mechanism* (generator, push gate, canonicalization, manifest hash) is owned by canbus. Each data file has exactly one owning system: `nodes.csv` + `node_id_hwm` → canbus; `bindings.yaml` → lighting; `map.json` → generated output whose consumer contract is owned by hvac (frozen per `spec-map-json-contract`). A schema change requires its file's owner; a mechanism change requires canbus. One push gate covers the whole registry.
+- **Rule:** `registry/` is a top-level directory — the single house system-of-record (git-versioned, unrebuildable data). The *mechanism* (generator, push gate, canonicalization, manifest hash) is owned by canbus. Each data file has exactly one owning system: `nodes.csv` + `node_id_hwm` → canbus; `bindings.yaml` → lighting; `map.json` → generated output whose consumer contract is owned by hvac (frozen per `spec-map-json-contract`). A schema change requires its file's owner; a mechanism change requires canbus. A schema change that needs generator/mechanism support is one commit wearing two hats: the file's owner defines the semantics, canbus owns the mechanism edit, and the commit carries the initiating system's epic prefix. One push gate covers the whole registry.
 
 ### AD-4 — Systems own packages; devices own composition
 
 - **Binds:** all firmware configs
 - **Prevents:** mapping physical boards to systems (the gateway hosts infra + lighting today; a future master controller may host lighting + hvac); entry points hoarding logic that belongs in a system's packages.
-- **Rule:** Reusable behavior lives in `<system>/packages/`. Hand-maintained deployable entry points (climate-control, gateway, bridge, room sensors, plus their `locals/` and `remotes/` variants) live in `devices/` and compose packages across systems. Generated node firmware is exempt (AD-8) and stays in `canbus/nodes/`. A board hosting two systems means one entry point including two systems' packages — never a new hybrid system.
+- **Rule:** Reusable behavior lives in `<system>/packages/`. Hand-maintained deployable entry points (climate-control, gateway, bridge, room sensors, plus their `locals/` and `remotes/` variants) live in `devices/` and compose packages across systems. Generated node firmware is exempt (AD-8) and stays in `canbus/nodes/`. `devices/` holds only configs flashed to house hardware: compile-check configs live in their system's `tests/`, examples in `vesta/examples/`. A board hosting two systems means one entry point including two systems' packages — never a new hybrid system.
 
 ### AD-5 — HA artifacts live with their system
 
 - **Binds:** everything Home Assistant imports
 - **Prevents:** HA automations detached from the system whose behavior they encode; a monolithic `home-assistant/` dir regrowing.
-- **Rule:** `<system>/home-assistant/` is the only HA import surface: hold automations → `lighting/home-assistant/`; arbitration automations + generated manifest package → `canbus/home-assistant/`; dashboards → `hvac/home-assistant/`. Generators write HA-side output into the owning system's folder. The path convention *is* the answer to "what does HA import".
+- **Rule:** `<system>/home-assistant/` is the only HA import surface: hold automations → `lighting/home-assistant/`; arbitration automations + generated manifest package → `canbus/home-assistant/`; dashboards → `hvac/home-assistant/`. Generators write HA-side output into the owning system's folder. An automation belongs to the system whose *actuated behavior* it encodes, regardless of trigger source — a button-driven climate automation lives in `hvac/home-assistant/`. The path convention *is* the answer to "what does HA import".
 
 ### AD-6 — Cross-system contract rule
 
 - **Binds:** every boundary crossed by two systems
 - **Prevents:** implicit contracts drifting silently across the new seams (the exact risk the repo merge was meant to kill).
-- **Rule:** A cross-system boundary is not a contract until it has (a) a frozen spec naming the fields and (b) a test that fails when either side drifts — the `spec-map-json-contract` pattern generalized. Current instances: map.json → hvac (spec + tests exist); bindings.yaml → arbitration (spec + test due when the lighting carve-out lands, Phase 5); ADR-0006 sensor frames → hvac controller (test due when the consumer code is born).
+- **Rule:** A cross-system boundary is not a contract until it has (a) a frozen spec naming the fields and (b) a test that fails when either side drifts — the `spec-map-json-contract` pattern generalized. Frozen is additive-by-default; changing a frozen field is done by the contract's owner, updating spec + test + all consumers in one commit (AD-9), with the owner's epic prefix as the ack. Current instances: map.json → hvac (spec + tests exist); bindings.yaml → arbitration (spec + test due when the lighting carve-out lands, Phase 5); the `node_map.h` frozen-additive export → its firmware consumers (same treatment); ADR-0006 sensor frames → hvac controller (test due when the consumer code is born).
 
 ### AD-7 — Arbitration is infra-owned and semantics-blind
 
 - **Binds:** gateway firmware, registry/bindings.yaml, lighting fallback
 - **Prevents:** a lighting schema edit silently breaking manifest-hash agreement; infra growing meaning-aware gate logic; having to extract arbitration from lighting later if hvac-on-CAN wants HA-down fallback.
-- **Rule:** canbus owns canonicalization, the manifest hash, `ha_ready`, and the fallback gate; it hashes canonical bytes without interpreting them. lighting owns what the bytes mean (schema, ops, fan-out). The contract surface between them is the compiled `BindingEntry` / `bindings.h` shape (an AD-6 contract once split). Infra never adds meaning-aware logic to the gate; lighting never re-canonicalizes.
+- **Rule:** canbus owns canonicalization, the manifest hash, `ha_ready`, and the fallback gate. Canonicalization is necessarily schema-aware (it normalizes the fields it hashes — already true of `canonical_hash` today), so any lighting schema change that alters canonical form is an AD-6 contract change: owner-led, hash impact stated, both sides' manifests regenerated in the same commit. The *gate* stays semantics-blind — arbitration logic never interprets what a binding does. lighting owns binding meaning (schema, ops, fan-out) and never re-canonicalizes; the compiled `BindingEntry` / `bindings.h` shape is the contract surface (an AD-6 contract once split).
 
 ### AD-8 — Generated artifacts stay in the generator's territory `[ADOPTED]`
 
@@ -109,7 +109,8 @@ graph TD
 | Registry file ownership | one file per system, owner named in `registry/README.md`; mechanism = canbus |
 | Epic / commit prefixes | `CAN-Epic N`, `LIGHT-Epic N`, `HVAC-Epic N` |
 | Contract specs | `_bmad-output/specs/spec-*` + drift-breaking test, per AD-6 |
-| Verification battery | python registry tests, native C++ protocol tests, `esphome compile` checks, push gate, regeneration idempotence — run per slice (AD-9) |
+| `boards/` ownership | house-shared, no owning system; an edit must leave every `devices/` entry point that includes the board compiling |
+| Verification battery | python registry tests, native C++ protocol tests, `esphome compile` of affected entry points, push gate, regeneration idempotence — run per slice (AD-9) |
 
 ## Stack
 
@@ -117,12 +118,12 @@ Existing reality, unchanged by this spine — no new technology is bound.
 
 | Name | Version |
 | --- | --- |
-| ESPHome | 2026.3.0+ (as pinned by installation) |
+| ESPHome | 2026.3.0+ (`min_version` on hvac boards; canbus configs unpinned; vesta test harness pins 2026.5.3) |
 | Python (registry tooling, stdlib-only) | 3.x |
 | C++ (protocol headers, native tests) | C++17 |
 | Home Assistant | 2024.x+ |
 | CAN bus | 125 kbps, 29-bit extended IDs (ADR-0001) |
-| Modbus RTU (hvac boards, current transport) | 9600 8N1 |
+| Modbus RTU (hvac boards, current transport) | 38400 8E1 on the master bus (`waveshare-s3`); 9600 8N1 in A6/A16 configs — pre-existing repo inconsistency, flagged for reconciliation outside this spine |
 
 ## Structural Seed
 
@@ -161,3 +162,4 @@ Deployment envelope (unchanged by this spine): node firmware flashed via USB pre
 | boards/ package unification (gateway vs climate master, both Waveshare family) | Merge proposal's advice stands: let it fall out, don't force it |
 | Vesta extraction to its own repo | Orthogonal to this restructure; AD-2 already isolates it |
 | `scripts/`, root `secrets.yaml` layout | No divergence risk; whoever touches them next follows AD-1's "one home" rule |
+| Standing battery automation (CI) | No CI exists; the battery runs per-slice and on human initiative — revisit together with the status-hygiene mechanical gate, or at live-freeze |

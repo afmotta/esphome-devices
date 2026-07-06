@@ -40,9 +40,10 @@ This is the reference point every later phase is compared against.
 ## Phase 1 — Registry elevation *(AD-3)* — size M
 
 - `git mv canbus/firmware/registry registry`
-- Update the registry-relative path anchor in every tool (`generate_nodes.py`, `bindings.py`,
-  `allocate_node.py`, `commission.py`, `check_registry_pushed.py`) and every Python test — all
-  anchor on `Path(__file__)`, so this is one constant per file.
+- Update the registry-relative path anchor in the four tools that carry one (`generate_nodes.py`,
+  `allocate_node.py`, `commission.py`, `check_registry_pushed.py` — all anchor on `Path(__file__)`,
+  one constant each); `bindings.py` takes paths from its callers, so update the callers and every
+  Python test instead.
 - Add `registry/README.md`: the AD-3 ownership table (nodes.csv+node_id_hwm → canbus;
   bindings.yaml → lighting; map.json → generated, contract owned by hvac; mechanism → canbus).
 - Update doc references: `canbus/CLAUDE.md`, root `CLAUDE.md`, protocol reference,
@@ -62,7 +63,8 @@ This is the reference point every later phase is compared against.
 - `git mv` arbitration automations + generated `ha_manifest_package.yaml` → `canbus/home-assistant/`;
   dashboards → `hvac/home-assistant/dashboards/` (creates `hvac/`).
 - Teach `generate_nodes.py` the new manifest output path; regenerate.
-- Delete the now-empty top-level `home-assistant/`; port its README content to the system folders.
+- Delete the now-empty top-level `home-assistant/`; port `home-assistant/canbus/README.md` content
+  to the receiving system folders.
 - Manual HA step: re-point remaining package includes.
 - **Verify:** battery; regeneration writes to the new path and is idempotent.
 
@@ -70,8 +72,7 @@ This is the reference point every later phase is compared against.
 
 - `git mv components/rooms hvac/rooms`; `git mv components/*.yaml hvac/` (mev_modbus, mev_demand,
   room_sensors); remove empty `components/`.
-- Update every `!include` path in `devices/climate-control.yaml`, room/floor aggregators, and any
-  vesta example that cites `components/`.
+- Update every `!include` path in `devices/climate-control.yaml` and the room/floor aggregators.
 - Update the generator's `room_slug` validation glob (`components/rooms/**` → `hvac/rooms/**`) and
   the same path in `spec-map-json-contract` + its test — this is an AD-6 contract edit: spec, code,
   and test move in this one commit.
@@ -86,6 +87,10 @@ This is the reference point every later phase is compared against.
 - `git mv canbus/firmware/gateway/gateway.yaml devices/gateway.yaml` (+ `secrets.yaml`,
   `secrets.yaml.example`; update `.gitignore` paths). Fix its includes of `protocol/*.h`.
 - `git mv canbus/firmware/bridge/bridge.yaml devices/bridge.yaml`; same include fixes.
+- `git mv locals devices/locals && git mv remotes devices/remotes` (AD-4: variants live with their
+  entry points); fix their `!include`/package references. The GitHub paths cited *inside*
+  `remotes/*.yaml` (`devices/climate-control.yaml@main`) don't change — only the citing files move.
+  Battery paths shift accordingly (`devices/locals/climate-control.yaml`).
 - Code slice (can trail as its own commits, same phase): extract the gateway monolith into
   `canbus/packages/` (CAN decode, health, arbitration/`ha_ready`, HA event firing) and
   `lighting/packages/` (fallback actuation — lands with ADR-0013 open item 2, when relay outputs
