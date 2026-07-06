@@ -143,7 +143,7 @@ in `button.yaml`), **`hold_release`** fires when that hold ends. The pair drives
 control: hold-to-dim, hold-to-move a cover.
 
 - **`long_press`/`extra_long_press` no longer exist** — a long press is *derived* in HA
-  as hold → hold_release (see the example in `home-assistant/canbus/ha_hold_automations.yaml`); their
+  as hold → hold_release (see the example in `lighting/home-assistant/ha_hold_automations.yaml`); their
   node-side patterns would match a hold too and fire duplicates (ADR-0012 §2). The
   constants were removed outright (pre-LIVE, nothing fielded); wire values 0x04/0x05 stay
   unassigned so a not-yet-reflashed node's frames decode as `unknown` (logged, dropped)
@@ -152,7 +152,7 @@ control: hold-to-dim, hold-to-move a cover.
 - **Gateway:** no logic change — `hold`/`hold_release` forward to HA through the existing
   ha_ready/ACK arbitration like any click (recompile picks up the new
   `canbus_protocol.h` strings).
-- **HA-side:** copy `home-assistant/canbus/ha_hold_automations.yaml` into Home Assistant as the starting
+- **HA-side:** copy `lighting/home-assistant/ha_hold_automations.yaml` into Home Assistant as the starting
   point. **Runaway rule (ADR-0012 §5):** every action started by `hold` must reach a bound
   on its own (count-bounded dim loop; covers bound at their end stops) so a lost
   `hold_release` can never run away. Derived long presses satisfy it by construction — a
