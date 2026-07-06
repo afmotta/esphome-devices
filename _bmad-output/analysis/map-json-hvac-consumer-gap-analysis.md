@@ -9,7 +9,7 @@
 
 ## Purpose
 
-`canbus/firmware/registry/map.json` is the read-only export the HVAC (climate) controller
+`registry/map.json` is the read-only export the HVAC (climate) controller
 is expected to consume (`canbus/CLAUDE.md`, "Integration with the climate system";
 ADR-0009 §7 in `canbus/_bmad-output/planning-artifacts/adrs/0009-central-map-binding-manifest-system-of-record.md`).
 Its node field shape is explicitly provisional: the `build_map_export()` docstring in
@@ -26,8 +26,8 @@ observations. It deliberately makes **no design decisions** (see §6).
 
 ## 1. Current map.json shape
 
-Verbatim content of `canbus/firmware/registry/map.json` (generated from
-`canbus/firmware/registry/nodes.csv` by `canbus/firmware/tools/generate_nodes.py`,
+Verbatim content of `registry/map.json` (generated from
+`registry/nodes.csv` by `canbus/firmware/tools/generate_nodes.py`,
 `build_map_export()`):
 
 ```json
@@ -62,7 +62,7 @@ Verbatim content of `canbus/firmware/registry/map.json` (generated from
 |-------|-----------|--------|
 | `schema_version` | Integer, currently `1`. The export contract is frozen-additive per ADR-0009 §7 (fields may be added, never changed or removed). | `build_map_export()` in `generate_nodes.py`; ADR-0009 §7 |
 | `map_version` | 16-hex **deterministic content digest**: SHA-256 over the sorted-keys JSON of the export body, truncated to 16 chars (`_digest()` in `generate_nodes.py`). It is content identity, *not* a timestamp — a deliberate divergence from ADR-0009 §7's "generation timestamp" wording (Alberto's call, recorded in the `_digest()` docstring) so an unchanged registry regenerates byte-for-byte. The same value is compiled into the gateway as `NODE_MAP_VERSION` (`canbus/firmware/protocol/node_map.h`) for ADR-0009 §6 drift visibility. | `generate_nodes.py` (`_digest()`, `write_node_map()` docstring) |
-| `manifest_hash` | Canonical hash of `canbus/firmware/registry/bindings.yaml` (the button-binding manifest, ADR-0009 §3). Used by the gateway↔Home-Assistant `ha_ready` arbitration heartbeat; it identifies *button bindings*, not placement. | `write_exports()` in `generate_nodes.py`; `spec-adr-0009-central-map-binding-manifest.md` |
+| `manifest_hash` | Canonical hash of `registry/bindings.yaml` (the button-binding manifest, ADR-0009 §3). Used by the gateway↔Home-Assistant `ha_ready` arbitration heartbeat; it identifies *button bindings*, not placement. | `write_exports()` in `generate_nodes.py`; `spec-adr-0009-central-map-binding-manifest.md` |
 | `nodes[]` | One entry per physical wall-button board, copied from `nodes.csv`, sorted by `node_id` so the export is stable regardless of CSV row order. | `build_map_export()` docstring |
 
 ### 1.2 Per-node fields
@@ -148,7 +148,7 @@ zones without nodes and (in principle) nodes in spaces that are not climate zone
 ## 4. Gaps (factual observations, not decisions)
 
 1. **No machine-readable join key.** map.json identifies rooms by a uint8 code plus
-   free-text English `location` (`canbus/firmware/registry/nodes.csv`); the climate
+   free-text English `location` (`registry/nodes.csv`); the climate
    system keys every entity, sensor, PID, and UDP provider on an Italian `room_slug`
    (`components/room_sensors.yaml`, `components/rooms/**`). The only way to join the two
    today is a human reading the `location` string.
@@ -247,7 +247,7 @@ zones without nodes and (in principle) nodes in spaces that are not climate zone
 ## 6. Open questions for the spec (deliberately not answered here)
 
 1. **Where does the join key live?** Options include: an additive `room_slug` column in
-   `canbus/firmware/registry/nodes.csv` (per the §2 additive-column precedent); a
+   `registry/nodes.csv` (per the §2 additive-column precedent); a
    separate mapping file (registry-side or climate-side) keyed `room`/`node_id` →
    `room_slug`; or a room-code meaning table that both sides consume. Not decided here.
 2. **Who owns the join artifact** — the canbus registry (git system of record, ADR-0009)

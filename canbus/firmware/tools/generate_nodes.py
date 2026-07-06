@@ -45,6 +45,7 @@ from pathlib import Path
 import bindings  # binding-manifest reader + canonical hash (ADR-0009)
 
 ROOT = Path(__file__).resolve().parent.parent  # firmware/
+REPO_ROOT = ROOT.parent.parent  # repo root (registry/ lives here, elevated out of firmware/)
 
 TEMPLATE = """\
 # =============================================================================
@@ -348,13 +349,17 @@ def render_ha_package(manifest_hash: str) -> str:
     )
 
 
-def write_exports(seen_node_ids, export_nodes, root: Path):
+def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):
     """Validate registry/bindings.yaml against the registry, then emit every binding-derived
     artifact from one source in one run (ADR-0009 §4/§7): bindings.h (hash + table), map.json
     (read-only export), and ha_manifest_package.yaml (HA echoes the hash). Returns
     (manifest_hash, map_version) — the latter is also compiled into node_map.h for drift
-    visibility (§6). Aborts (sys.exit) on an invalid manifest, writing nothing."""
-    bindings_path = root / "registry" / "bindings.yaml"
+    visibility (§6). Aborts (sys.exit) on an invalid manifest, writing nothing.
+
+    `root` anchors firmware-internal outputs (protocol/); `repo_root` anchors registry/ and
+    home-assistant/, both elevated out of firmware/ — pass the caller's REPO_ROOT rather than
+    re-deriving it here, so there is exactly one place that knows the repo-root depth."""
+    bindings_path = repo_root / "registry" / "bindings.yaml"
     if not bindings_path.exists():
         print(f"Creating empty {bindings_path} ...")
         bindings_path.write_text("schema_version: 1\nbindings: []\n")
@@ -375,12 +380,12 @@ def write_exports(seen_node_ids, export_nodes, root: Path):
           f"{len(manifest['bindings'])} binding(s))")
 
     map_export = build_map_export(export_nodes, manifest_hash)
-    map_path = root / "registry" / "map.json"
+    map_path = repo_root / "registry" / "map.json"
     map_path.write_text(json.dumps(map_export, indent=2) + "\n")
     print(f"  ✓ {map_path.name}  (read-only export, map_version {map_export['map_version']}, "
           f"{len(map_export['nodes'])} node(s))")
 
-    ha_path = root.parent.parent / "home-assistant" / "canbus" / "ha_manifest_package.yaml"
+    ha_path = repo_root / "home-assistant" / "canbus" / "ha_manifest_package.yaml"
     ha_path.write_text(render_ha_package(manifest_hash))
     print(f"  ✓ {ha_path.name}  (HA readiness heartbeat echoes the hash automatically)")
 
@@ -388,7 +393,7 @@ def write_exports(seen_node_ids, export_nodes, root: Path):
 
 
 def main():
-    csv_path = ROOT / "registry" / "nodes.csv"
+    csv_path = REPO_ROOT / "registry" / "nodes.csv"
     out_dir = ROOT / "nodes"
     out_dir.mkdir(exist_ok=True)
 
@@ -511,7 +516,7 @@ def main():
     # invalid manifest, so validating here means a bad bindings.yaml never leaves nodes/ or
     # node_map.h half-regenerated (validate-before-persist). It also yields map_version, which
     # is compiled into node_map.h for §6 drift visibility.
-    manifest_hash, map_version = write_exports(seen_node_ids, export_nodes, ROOT)
+    manifest_hash, map_version = write_exports(seen_node_ids, export_nodes, ROOT, REPO_ROOT)
 
     # Manifest validated — now persist the node artifacts.
     for path, content, log in node_files:

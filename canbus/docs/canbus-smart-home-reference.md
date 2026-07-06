@@ -84,6 +84,11 @@ ESPHome's `on_frame` CAN trigger provides the data bytes (`x`) but does not clea
 ## Project file structure
 
 ```
+registry/                    # house system-of-record, elevated out of firmware/ (migration Phase 1)
+├── nodes.csv                # Node registry: node_id, floor, room, board, location
+├── node_id_hwm               # persistent monotonic node_id high-water mark
+├── bindings.yaml             # binding manifest (owned by lighting)
+└── map.json                  # GENERATED read-only export (contract owned by hvac)
 canbus/firmware/
 ├── protocol/
 │   ├── canbus_protocol.h    # C++ header: all constants, CAN ID helpers, payload builders/decoders
@@ -95,12 +100,9 @@ canbus/firmware/
 │   ├── gateway.yaml         # Gateway config for Waveshare ESP32-S3-RS485-CAN
 │   ├── secrets.yaml.example # wifi + api_encryption_key template (gateway is the only secrets user)
 │   └── secrets.yaml         # local, gitignored
-├── registry/
-│   ├── nodes.csv            # Node registry: node_id, floor, room, board, location
-│   └── node_id_hwm          # persistent monotonic node_id high-water mark
 ├── tools/
 │   ├── allocate_node.py     # allocate the next node_id and register it
-│   ├── generate_nodes.py    # reads registry/nodes.csv -> per-node YAML + protocol/node_map.h
+│   ├── generate_nodes.py    # reads ../../registry/nodes.csv -> per-node YAML + protocol/node_map.h
 │   └── commission.py        # assign room/board to a node_id, regenerate node_map.h
 ├── tests/
 │   └── test_protocol.cpp    # standalone native round-trip test for canbus_protocol.h

@@ -49,7 +49,7 @@ ADR-0009 named `map.json` as the read-only export for non-C consumers (HVAC cont
 
 ## Success signal
 
-`canbus/firmware/registry/nodes.csv` carries a validated `room_slug` column; `canbus/firmware/registry/map.json` exports `node_id`/`room_slug`/`location`/`sensors` per node as the frozen HVAC-read contract, with floor convertible via a fixed table and `manifest_hash`/`board` explicitly outside the freeze; ADR-0009 §7's text matches the generator's real behavior. A climate-side reader can join any commissioned node to its climate zone using only fields present in `map.json` — no free-text guessing, no reading generator source to understand `map_version`.
+`registry/nodes.csv` carries a validated `room_slug` column; `registry/map.json` exports `node_id`/`room_slug`/`location`/`sensors` per node as the frozen HVAC-read contract, with floor convertible via a fixed table and `manifest_hash`/`board` explicitly outside the freeze; ADR-0009 §7's text matches the generator's real behavior. A climate-side reader can join any commissioned node to its climate zone using only fields present in `map.json` — no free-text guessing, no reading generator source to understand `map_version`.
 
 ## Assumptions
 

@@ -42,8 +42,8 @@ context:
 - `_bmad-output/planning-artifacts/adrs/0009-central-map-binding-manifest-system-of-record.md` -- target ADR to ratify (frontmatter + Status prose).
 - `_bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md` -- open item 2 to mark Resolved-by-ADR-0009 (in-place ~~strike~~ + **Resolved**, per ADR-0003 item 4 exemplar).
 - `_bmad-output/planning-artifacts/adrs/0003-centralized-single-controller-with-onboard-fallback.md` -- open item 1 to mark Resolved-by-ADR-0009.
-- `firmware/registry/bindings.yaml` -- NEW manifest: `schema_version: 1` + `bindings` list keyed `(node_id, button, event)` → `relay`/`op` (§2).
-- `firmware/registry/nodes.csv` -- existing registry; validation source for binding node_ids (unchanged).
+- `registry/bindings.yaml` -- NEW manifest: `schema_version: 1` + `bindings` list keyed `(node_id, button, event)` → `relay`/`op` (§2).
+- `registry/nodes.csv` -- existing registry; validation source for binding node_ids (unchanged).
 - `firmware/tools/bindings.py` -- NEW stdlib module: constrained-subset loader, registry validation, `canonical_hash()` (§3).
 - `firmware/tools/generate_nodes.py` -- extend `main()`: load+validate bindings, compute hash, emit `bindings.h`, print the hash in the run summary.
 - `firmware/protocol/bindings.h` -- NEW generated: `BINDINGS_MANIFEST_HASH` constant, node_map.h-style header (the full `BINDINGS[]` table + a generated-at stamp are the deferred slice).
@@ -60,7 +60,7 @@ context:
 - [x] `adrs/0007-...md` + `adrs/0003-...md` -- mark ADR-0007 open item 2 and ADR-0003 open item 1 Resolved-by-ADR-0009 in place -- close the items ADR-0009 answers.
 - [x] `firmware/tools/bindings.py` -- NEW: constrained-subset YAML reader for the fixed schema (scalars only, no nesting/anchors), registry validation (known node_id, unique key), `canonical_hash(parsed)` = SHA-256 over `json.dumps(sort_keys=True)` truncated to 16 hex -- the testable hash core.
 - [x] `firmware/tests/test_bindings.py` -- NEW: assert hash determinism (key/order/whitespace-invariant), sensitivity (op change flips hash), empty-manifest stability, and validation rejects unknown node_id + duplicate key -- locks the I/O matrix.
-- [x] `firmware/registry/bindings.yaml` -- NEW: `schema_version: 1` + a minimal `bindings` seed (or empty list) referencing only existing nodes 100/101 -- the manifest source of record.
+- [x] `registry/bindings.yaml` -- NEW: `schema_version: 1` + a minimal `bindings` seed (or empty list) referencing only existing nodes 100/101 -- the manifest source of record.
 - [x] `firmware/tools/generate_nodes.py` -- extend `main()`: import `bindings`, load+validate, compute hash, emit `bindings.h`, surface the hash in the summary -- one run stamps the gateway's hash source.
 - [x] `firmware/gateway/gateway.yaml` -- include `bindings.h`, remove the `manifest_hash` substitution, compare `BINDINGS_MANIFEST_HASH` in the `ha_readiness_heartbeat` service lambda -- un-stub the arbitration.
 - [x] `firmware/gateway/ha_arbitration_automations.yaml` + `firmware/README.md` -- set the heartbeat hash to the generated value, document the manifest/hash/test + interim re-paste -- HA echoes the real hash; guidance current.
@@ -125,7 +125,7 @@ context:
   [`0009...md:29`](../planning-artifacts/adrs/0009-central-map-binding-manifest-system-of-record.md#L29)
 
 - The manifest itself: empty-but-valid seed, schema documented in comments.
-  [`bindings.yaml:26`](../../firmware/registry/bindings.yaml#L26)
+  [`bindings.yaml:26`](../../../registry/bindings.yaml#L26)
 
 **Tests (last)**
 

@@ -31,6 +31,14 @@ NODES = [
 HASH = "d66767448ba37b2f"
 
 
+def test_repo_root_depth_invariant():
+    # Guards the depth assumption baked into this file's temp fixtures (ROOT nested two
+    # levels below REPO_ROOT, mirroring canbus/firmware/ under the real repo root). If a
+    # future refactor changes the real nesting, this fails loudly instead of the fixtures
+    # silently drifting out of sync with generate_nodes.py's actual path arithmetic.
+    assert g.REPO_ROOT == g.ROOT.parent.parent
+
+
 def test_map_export_shape_and_node_sort():
     m = g.build_map_export(NODES, HASH)
     assert m["schema_version"] == 1
@@ -124,11 +132,12 @@ def test_generator_node_map_version_matches_map_json():
     # The generator is byte-stable (unchanged input regenerates no diff), so running it in
     # place leaves the working tree clean.
     firmware = Path(__file__).resolve().parent.parent
+    repo_root = firmware.parent.parent
     subprocess.run(
         [sys.executable, "tools/generate_nodes.py"],
         cwd=firmware, check=True, capture_output=True, text=True,
     )
-    map_version = json.loads((firmware / "registry" / "map.json").read_text())["map_version"]
+    map_version = json.loads((repo_root / "registry" / "map.json").read_text())["map_version"]
     header = (firmware / "protocol" / "node_map.h").read_text()
     assert f'NODE_MAP_VERSION[] = "{map_version}";' in header
 
@@ -136,21 +145,25 @@ def test_generator_node_map_version_matches_map_json():
 def test_generator_aborts_before_writing_node_files():
     # validate-before-persist: an invalid bindings.yaml must abort the generator before any
     # node artifact (nodes/*.yaml, node_map.h) is written, so a bad manifest can't leave the
-    # tree half-regenerated. Driven against a temp ROOT so the real registry is untouched.
-    saved_root = g.ROOT
+    # tree half-regenerated. Driven against a temp ROOT/REPO_ROOT so the real registry is
+    # untouched. ROOT mirrors the real two-level nesting (canbus/firmware/) below REPO_ROOT,
+    # where registry/ lives (migration Phase 1 layout).
+    saved_root, saved_repo_root = g.ROOT, g.REPO_ROOT
     with tempfile.TemporaryDirectory() as d:
-        root = Path(d)
-        for sub in ("registry", "protocol", "gateway"):
-            (root / sub).mkdir()
-        (root / "registry" / "nodes.csv").write_text(
+        repo_root = Path(d)
+        root = repo_root / "canbus" / "firmware"
+        for sub in ("protocol", "gateway"):
+            (root / sub).mkdir(parents=True)
+        (repo_root / "registry").mkdir()
+        (repo_root / "registry" / "nodes.csv").write_text(
             "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
         )
         # node_id 999 is not in nodes.csv -> manifest invalid -> generator aborts.
-        (root / "registry" / "bindings.yaml").write_text(
+        (repo_root / "registry" / "bindings.yaml").write_text(
             "schema_version: 1\nbindings:\n"
             "  - node_id: 999\n    button: 0\n    relay: 0\n    op: toggle\n"
         )
-        g.ROOT = root
+        g.ROOT, g.REPO_ROOT = root, repo_root
         try:
             try:
                 g.main()
@@ -160,7 +173,7 @@ def test_generator_aborts_before_writing_node_files():
             assert list((root / "nodes").glob("*.yaml")) == [], "node configs written before abort"
             assert not (root / "protocol" / "node_map.h").exists(), "node_map.h written before abort"
         finally:
-            g.ROOT = saved_root
+            g.ROOT, g.REPO_ROOT = saved_root, saved_repo_root
 
 
 def test_floor_slugs_conversion_table():
@@ -201,15 +214,18 @@ def test_generator_rejects_stale_csv_header():
     # Pre-live there is exactly one nodes.csv (the committed one): a header that isn't
     # exactly CSV_HEADER aborts — no legacy tolerance, no silent row.get defaults. Schema
     # changes edit CSV_HEADER and the committed CSV together, in place (no migration shims).
-    saved_root = g.ROOT
+    # ROOT mirrors the real two-level nesting (canbus/firmware/) below REPO_ROOT, where
+    # registry/ lives (migration Phase 1 layout).
+    saved_root, saved_repo_root = g.ROOT, g.REPO_ROOT
     with tempfile.TemporaryDirectory() as d:
-        root = Path(d)
-        for sub in ("registry", "protocol"):
-            (root / sub).mkdir()
-        (root / "registry" / "nodes.csv").write_text(
+        repo_root = Path(d)
+        root = repo_root / "canbus" / "firmware"
+        (root / "protocol").mkdir(parents=True)
+        (repo_root / "registry").mkdir()
+        (repo_root / "registry" / "nodes.csv").write_text(
             "node_id,floor,room,board,location,sensors\n100,0,7,0,Hall,0\n"
         )
-        g.ROOT = root
+        g.ROOT, g.REPO_ROOT = root, repo_root
         try:
             try:
                 g.main()
@@ -218,7 +234,7 @@ def test_generator_rejects_stale_csv_header():
                 assert e.code == 1
             assert list((root / "nodes").glob("*.yaml")) == [], "node configs written before abort"
         finally:
-            g.ROOT = saved_root
+            g.ROOT, g.REPO_ROOT = saved_root, saved_repo_root
 
 
 def test_ha_package_bakes_hash():

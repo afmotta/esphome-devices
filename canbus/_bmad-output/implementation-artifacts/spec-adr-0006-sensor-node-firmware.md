@@ -61,7 +61,7 @@ context:
 **Execution:**
 - [x] `firmware/packages/sensor_kit.yaml` -- new package: `i2c:` bus (substitutions `i2c_sda`/`i2c_scl`, defaults GPIO0/GPIO1, marked UNVERIFIED), `sht4x` (0x44) + `sen6x` (0x6B) at `update_interval: 30s`, one shared `script` `sensor_send(meas: uint16, value: int32, status: uint8)` that logs and sends via `can0`, per-measurement `on_value` lambdas mapping float → (scaled int32, status) per ADR §4 -- the core deliverable. *(Implemented with `sensor_send(meas, raw, scale, is_signed)` — the float→(value, status) mapping lives once in the script instead of 11 per-sensor lambdas.)*
 - [x] `firmware/tools/generate_nodes.py` -- parse optional `sensors` column (blank/0 = off, back-compat with missing column); when truthy, add `sensor_kit: !include ../packages/sensor_kit.yaml` to the generated `packages:` block + header comment -- wires the package into the sanctioned provisioning flow.
-- [x] `firmware/registry/nodes.csv` -- add `sensors` column, `0` for node100/node101. *(Also synced the two other CSV writers: `commission.py` would have silently dropped the column on every save; `allocate_node.py` now seeds `sensors=0`.)*
+- [x] `registry/nodes.csv` -- add `sensors` column, `0` for node100/node101. *(Also synced the two other CSV writers: `commission.py` would have silently dropped the column on every save; `allocate_node.py` now seeds `sensors=0`.)*
 - [x] `firmware/tests/compile_sensor_node.yaml` -- hand-maintained compile-check config (`node_id: "999"`, includes base_node + sensor_kit) -- validates the build without touching generated `nodes/`.
 - [x] `_bmad-output/planning-artifacts/adrs/0006-sensor-data-transport-over-can.md` -- frontmatter `Accepted`, rewrite Status section (accepted 2026-06-11; protocol layer merged PR #19; node TX path this change; consumer external), mark open items 1–2 resolved (`sen6x` is an official ESPHome component), keep 3–5 open/deferred.
 - [x] `firmware/README.md` -- "Sensor kit (ADR-0006)" section: components, cadence, status mapping, UNVERIFIED I2C pin warning (verify against pinned CANBed schematic before flashing), `sensors` column usage.
@@ -148,7 +148,7 @@ context:
   [`compile_sensor_node.yaml:1`](../../firmware/tests/compile_sensor_node.yaml#L1)
 
 - Registry gains the column; both real nodes stay sensor-less (deployment is Alberto's call).
-  [`nodes.csv:1`](../../firmware/registry/nodes.csv#L1)
+  [`nodes.csv:1`](../../../registry/nodes.csv#L1)
 
 - Onboarding doc: status mapping, frame pacing, the honest sht4x-publishes-nothing caveat, pin warning.
   [`README.md:104`](../../firmware/README.md#L104)

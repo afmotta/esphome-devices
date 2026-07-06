@@ -56,7 +56,7 @@ context: ['{project-root}/_bmad-output/project-context.md']
 - `firmware/tools/commission.py` -- the only file changed; add interactive flow + shared assignment helper, make subcommand optional
 - `firmware/tools/allocate_node.py` -- reference only: how rows are seeded (identity-only placeholders); do not change
 - `firmware/tools/generate_nodes.py` -- `main()` regenerates `node_map.h`; called as-is after each assignment
-- `firmware/registry/nodes.csv` -- the registry edited in place; columns `node_id,floor,room,board,location`
+- `registry/nodes.csv` -- the registry edited in place; columns `node_id,floor,room,board,location`
 
 ## Tasks & Acceptance
 

@@ -98,9 +98,11 @@ BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic
 
 ```
 esphome-devices/
+├── registry/                  # house system-of-record (nodes.csv, node_id_hwm, bindings.yaml,
+│                               #   map.json); per-file ownership, see registry/README.md
 ├── canbus/                    # CAN bus wall-button subsystem (see canbus/CLAUDE.md)
-│   ├── firmware/              # Nodes (generated), gateway, bridge, protocol headers,
-│   │   │                      #   registry (system of record), tools, native tests
+│   ├── firmware/              # Nodes (generated), gateway, bridge, protocol headers, tools,
+│   │   │                      #   native tests
 │   │   └── ...
 │   ├── docs/                  # Protocol reference, runbooks
 │   └── _bmad-output/          # Historical CAN-epic artifacts (frozen)

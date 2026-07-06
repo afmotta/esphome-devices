@@ -30,7 +30,7 @@ The board stays mounted and wired; a laptop reaches its USB port (USB reachabili
 substitution, so recompiling from the registry keeps the board's id and its central-map
 entry. No re-commissioning.
 
-1. Confirm the registry row for the board in `canbus/firmware/registry/nodes.csv` is current.
+1. Confirm the registry row for the board in `registry/nodes.csv` is current.
 2. Regenerate: `python3 canbus/firmware/tools/generate_nodes.py` (review the printed CAN-ID map).
 3. Compile: `esphome compile canbus/firmware/nodes/node<id>.yaml` (generated filenames are
    zero-padded to 3 digits, e.g. `node007.yaml`).

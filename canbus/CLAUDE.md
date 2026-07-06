@@ -23,7 +23,7 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
 ## Hard rules
 
 - **Never hand-edit `firmware/nodes/`** — node YAMLs are generated. Edit
-  `firmware/registry/nodes.csv` / `registry/bindings.yaml`, then run
+  `registry/nodes.csv` / `registry/bindings.yaml`, then run
   `python3 canbus/firmware/tools/generate_nodes.py`.
 - **Git is the system of record for the registry** (ADR-0009). Bindings are
   unrebuildable; before reflashing the gateway run
@@ -57,11 +57,11 @@ esphome compile canbus/firmware/tests/compile_sensor_node.yaml
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte
-(`generate_nodes.py` then `git diff --exit-code canbus/firmware`).
+(`generate_nodes.py` then `git diff --exit-code canbus/firmware registry`).
 
 ## Integration with the climate system
 
-`firmware/registry/map.json` is the read-only export consumed by the HVAC
+`registry/map.json` is the read-only export consumed by the HVAC
 controller (this repo) and dashboards. Its HVAC-consumer contract is **frozen**
 (ADR-0009 open item 5, closed by `spec-map-json-contract`): `schema_version`,
 `map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,

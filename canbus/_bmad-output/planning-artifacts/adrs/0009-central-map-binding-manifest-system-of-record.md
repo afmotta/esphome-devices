@@ -16,7 +16,7 @@ relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0007-flat-node-id-with-central-meaning-map.md
   - _bmad-output/planning-artifacts/adrs/0008-post-live-firmware-evolution-no-can-bootloader.md
   - _bmad-output/planning-artifacts/adrs/0013-gateway-local-relays-single-click-fallback.md
-  - firmware/registry/nodes.csv
+  - registry/nodes.csv
   - firmware/protocol/node_map.h
   - firmware/tools/commission.py
   - firmware/tools/allocate_node.py
@@ -47,7 +47,7 @@ ADR-0007 moved all meaning off the nodes and into "a central map" — but delibe
 its schema, storage, and backup open. What shipped in Phase 1 (PRs #16–#17, #21) created a
 de-facto answer without recording it:
 
-- `firmware/registry/nodes.csv` + `node_id_hwm` in **git** hold identity, placement, and
+- `registry/nodes.csv` + `node_id_hwm` in **git** hold identity, placement, and
   hardware fit; `generate_nodes.py` compiles them into `node_map.h`, baked into the gateway
   at flash time; `commission.py`/`allocate_node.py` are the only writers. Edits are static:
   edit → regenerate → reflash.
@@ -72,7 +72,7 @@ is ever authoritative.**
 
 ### 1. System of record: the git repository
 
-`firmware/registry/` in this repo is the single authoritative home of all meaning:
+`registry/` in this repo is the single authoritative home of all meaning:
 identity, placement, hardware fit, and bindings. The controller carries a *compiled copy*
 (`node_map.h`, bindings artifact), HA carries a *generated copy* (automations package),
 the HVAC controller carries a *read-only export*. The bus is never authoritative —

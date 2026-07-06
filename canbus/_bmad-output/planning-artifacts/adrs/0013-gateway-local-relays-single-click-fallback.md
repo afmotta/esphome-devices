@@ -16,7 +16,7 @@ relatedDocuments:
   - _bmad-output/planning-artifacts/adrs/0003-centralized-single-controller-with-onboard-fallback.md
   - _bmad-output/planning-artifacts/adrs/0009-central-map-binding-manifest-system-of-record.md
   - _bmad-output/planning-artifacts/adrs/0012-hold-release-button-gestures-continuous-control.md
-  - firmware/registry/bindings.yaml
+  - registry/bindings.yaml
   - firmware/tools/bindings.py
   - firmware/tools/generate_nodes.py
   - firmware/protocol/bindings.h
