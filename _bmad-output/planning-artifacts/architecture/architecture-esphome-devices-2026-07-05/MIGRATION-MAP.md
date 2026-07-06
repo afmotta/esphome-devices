@@ -91,12 +91,17 @@ This is the reference point every later phase is compared against.
   entry points); fix their `!include`/package references. The GitHub paths cited *inside*
   `remotes/*.yaml` (`devices/climate-control.yaml@main`) don't change — only the citing files move.
   Battery paths shift accordingly (`devices/locals/climate-control.yaml`).
-- Code slice (can trail as its own commits, same phase): extract the gateway monolith into
-  `canbus/packages/` (CAN decode, health, arbitration/`ha_ready`, HA event firing) and
-  `lighting/packages/` (fallback actuation — lands with ADR-0013 open item 2, when relay outputs
-  become real). The seam follows AD-7: hash/gate → canbus package; binding meaning → lighting.
+- Code slice (Phase 5b, sequenced after the 5a moves; seam revised in the 2026-07-06 scoping
+  session, AD-7 as amended): extract the gateway monolith into `canbus/packages/`
+  (heartbeat/health decode, node discovery, aliveness events — transport health is infra) and
+  `lighting/packages/` (button decode → HA event firing, the `ha_ready` gate *instance*;
+  arbitration pure logic stays the shared canbus header `ha_arbitration.h`). Fallback
+  actuation still lands with ADR-0013 when relay outputs become real. The physical split of
+  the two package sets onto separate devices is deferred to ADR-0013's relay-hardware
+  decision; until then `devices/gateway.yaml` composes both (AD-4).
 - Write the bindings → arbitration contract spec + drift test (AD-6): the compiled
-  `BindingEntry`/`bindings.h` surface.
+  `BindingEntry`/`bindings.h` surface. Sequenced *before* the package extraction as its own
+  low-risk slice.
 - **Verify:** battery + `esphome compile` of gateway and bridge from `devices/`.
 
 ## Phase 6 — Flatten canbus + context rewrite *(AD-1, AD-10)* — size M

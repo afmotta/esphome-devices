@@ -1,6 +1,10 @@
 - source_spec: none
-  summary: Phase 5b — gateway monolith extraction (split gateway.yaml into canbus/packages/ [CAN decode, health, arbitration/ha_ready, HA event firing] and lighting/packages/ [fallback actuation, ADR-0013 open item 2], write the bindings→arbitration contract spec + drift test)
-  evidence: Split from Phase 5 during scope routing on 2026-07-06 — higher-risk code-splitting refactor separated from the mechanical Phase 5a relocation (`_bmad-output/implementation-artifacts/spec-phase-5a-composition-layer-moves.md`, gateway/bridge/locals/remotes moves), per user's explicit choice to review them separately
+  summary: Phase 5b-1 — bindings→arbitration contract spec + drift test (AD-6) on the compiled BindingEntry/bindings.h surface; low-risk additive slice, sequenced first
+  evidence: Split from Phase 5 during scope routing on 2026-07-06; ordering (contract first, extraction second) chosen explicitly by Alberto
+
+- source_spec: none
+  summary: Phase 5b-2 — gateway package extraction per the revised model (AD-7 as amended 2026-07-06 — canbus/packages/ gets heartbeat/health/discovery; lighting/packages/ gets button decode → HA events + the ha_ready gate instance; ha_arbitration.h stays a shared canbus header; devices/gateway.yaml composes both until ADR-0013's relay-hardware decision triggers the physical device split)
+  evidence: Scope revised in the 2026-07-06 reasoning session with Alberto — original Phase 5 text put HA event firing in canbus and fallback actuation in lighting; the settled model splits CAN consumers by domain instead (lighting = buttons, hvac = sensors, canbus = transport health)
 
 - source_spec: none
   summary: Phase 6 — flatten canbus (move protocol/packages/nodes/tools/tests up out of firmware/, rewrite root CLAUDE.md as system map, trim canbus/CLAUDE.md)
