@@ -2,10 +2,11 @@
 title: 'Migration Phase 6b — Context & documentation rewrite'
 type: 'chore'
 created: '2026-07-07'
-status: 'in-review'
+status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'fffa7e06d8329946430943b9b3ab686961e04504'
+final_revision: '6c7f99e'
 context: ['{project-root}/_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md']
 warnings: ['oversized']
 ---
@@ -182,3 +183,55 @@ not an HVAC engineering rule, so AD-10 doesn't require moving it.
   - `[medium]` `[patch]` Root `CLAUDE.md` claimed "each system directory (canbus/, lighting/, hvac/, vesta/) carries its own CLAUDE.md" but `vesta/CLAUDE.md` doesn't exist (Edge Case Hunter) — reworded to scope the claim to canbus/lighting/hvac and note vesta/ carries README.md/CONTRIBUTING.md instead.
   - `[low]` `[patch]` `MEMORY.md`'s index hook for `project_layered_restructure_spine.md` still read "migration map pending — check before placing files" after this phase rewrote that memory file's own body to say the migration landed (Blind Hunter) — updated the index hook to match.
   - Also independently caught (own re-inspection, before either subagent report): the implementation subagent had added `node_type`/`originSessionId` frontmatter fields and quote-style changes to `project_canbus_merged_as_subtree.md` beyond the spec's "literal path substitution only" instruction — reverted frontmatter to its original form, keeping only the two path fixes.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Rewrote root `CLAUDE.md` as the AD-10 map (accurate four-system Repository
+Structure tree, HVAC-only rule content relocated out), trimmed `canbus/CLAUDE.md`'s design
+principle to the amended AD-7 split, and made `hvac/CLAUDE.md` the sole owner of its own
+rules (PID architecture, Modbus/relay appendices, HVAC Common Tasks). Fixed stale pre-merge/
+pre-flatten path citations in 8 Claude Code memory files. No code or YAML behavior change.
+
+**Files changed:**
+- `CLAUDE.md` — Repository Structure rewritten to the real four-system tree; removed
+  restructure-in-progress note; removed Entity ID/PID/Modbus/relay/HVAC-Common-Tasks content
+  (relocated); Changelog bumped to 1.4.
+- `hvac/CLAUDE.md` — gained PID architecture, full Modbus register map, Common Tasks
+  (room/PID/Modbus), and Appendices A–D relocated from root; dropped its "pending Phase 6
+  rewrite" deferral sentence.
+- `canbus/CLAUDE.md` — "Design principle" section rewritten to state the amended AD-7 split
+  (canbus = transport health; lighting = button decode/HA events; hvac = direct sensor-frame
+  consumer).
+- 8 files under `/Users/alberto/.claude/projects/-Users-alberto-src-esphome-devices/memory/`
+  (`project_layered_restructure_spine.md`, `project_canbus_merged_as_subtree.md`,
+  `feedback_prelive_no_migration_shims.md`, `feedback_momentary_buttons_no_state.md`,
+  `project_gateway_ha_event_firing_approach.md`, `project_esphome_globals_no_custom_structs.md`,
+  `project_node_refactor_standard_shape.md`, `project_proto_version_bump_policy.md`) —
+  literal path substitutions to current final paths.
+- `MEMORY.md` (memory index) — patched during review: stale hook line for
+  `project_layered_restructure_spine.md` updated to match its rewritten body.
+- `_bmad-output/implementation-artifacts/deferred-work.md` — one new deferred item logged
+  (pre-existing `architecture.md` line-number citation risk).
+
+**Review findings breakdown:** 2 patches applied (1 medium, 1 low), 1 deferred (low,
+pre-existing, not caused by this phase), 16 rejected as noise/false-alarms after verification
+against the actual files (e.g. claimed orphaned Room Configs section, claimed stale ToC,
+claimed untouched `project_gateway_split_model.md` needing a fix — all confirmed fine on
+inspection).
+
+**Verification performed:** repo-wide grep sweeps for stale path strings (clean outside the
+one explicitly-excepted frozen historical doc, `canbus/docs/merge-into-esphome-devices-proposal.md`);
+manual read-through of all three rewritten `CLAUDE.md` files; manual diff of all 8 memory
+files against captured pre-edit content to confirm only path literals changed; `git diff --stat`
+confirmed only the expected repo files changed.
+
+**Residual risks:** none blocking. `.github/copilot-instructions.md` and
+`docs/ha-dashboard-config.yaml` remain stale from a pre-Epic-2 layout (already logged as a
+separate deferred item from Phase 4, out of this phase's scope). `.claude/worktrees/**` stale
+copies remain (risk-register item, not part of this phase's "context/documentation rewrite"
+scope).
+
+Follow-up review recommended: false — two small, localized, low-consequence patches; no
+behavior/security/data impact.
