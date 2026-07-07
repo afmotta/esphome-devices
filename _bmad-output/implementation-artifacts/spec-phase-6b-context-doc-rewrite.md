@@ -184,6 +184,18 @@ not an HVAC engineering rule, so AD-10 doesn't require moving it.
   - `[low]` `[patch]` `MEMORY.md`'s index hook for `project_layered_restructure_spine.md` still read "migration map pending — check before placing files" after this phase rewrote that memory file's own body to say the migration landed (Blind Hunter) — updated the index hook to match.
   - Also independently caught (own re-inspection, before either subagent report): the implementation subagent had added `node_type`/`originSessionId` frontmatter fields and quote-style changes to `project_canbus_merged_as_subtree.md` beyond the spec's "literal path substitution only" instruction — reverted frontmatter to its original form, keeping only the two path fixes.
 
+### 2026-07-07 — Review pass (follow-up)
+- intent_gap: 0
+- bad_spec: 0
+- patch: 2 (medium 1, low 1)
+- defer: 2 (medium 1, low 1)
+- reject: 12 (low 12)
+- addressed_findings:
+  - `[medium]` `[patch]` `canbus/CLAUDE.md:8` heading "Design principle: dumb nodes, smart gateway" was left untouched while the body beneath it was rewritten to the amended AD-7 domain split — heading contradicted its own body (Blind Hunter) — retitled to "Design principle: dumb nodes, domain-split gateway".
+  - `[low]` `[patch]` Root `CLAUDE.md`'s Repository Structure tree gained a new `scripts/ # Repo-level helper scripts` line this phase, but `scripts/` is empty and untracked on disk — described aspirational content as current (Blind Hunter + Edge Case Hunter, same finding) — comment now reads "Repo-level helper scripts (currently empty)".
+  - `[medium]` `[defer]` Root `CLAUDE.md`'s "Key Documentation Files" table and "Getting Help" section cite non-existent `docs/architecture-diagram.md` / `docs/prd.md` (real paths are under `_bmad-output/planning-artifacts/`); confirmed identical in the pre-Phase-6b baseline, so pre-existing and outside this phase's Repository-Structure-only scope (Blind Hunter) — logged to deferred-work.md.
+  - `[low]` `[defer]` Resolved which `architecture.md` the prior pass's deferred entry meant (`canbus/_bmad-output/planning-artifacts/architecture.md`) and found it already documents the single-lambda→`homeassistant.event:` reversal, meaning memory file `project_gateway_ha_event_firing_approach.md`'s claim that architecture.md "still contradicts this" is itself now stale; fixing the memory's reasoning is barred by this spec's own path-substitution-only scope (Blind Hunter) — logged to deferred-work.md.
+
 ## Auto Run Result
 
 Status: done
@@ -232,6 +244,45 @@ confirmed only the expected repo files changed.
 separate deferred item from Phase 4, out of this phase's scope). `.claude/worktrees/**` stale
 copies remain (risk-register item, not part of this phase's "context/documentation rewrite"
 scope).
+
+Follow-up review recommended: false — two small, localized, low-consequence patches; no
+behavior/security/data impact.
+
+### Follow-up review pass — 2026-07-07
+
+Status: done
+
+**Summary:** Fresh adversarial + edge-case review pass on the completed Phase 6b work
+(triggered by re-running this spec after it was already `done`). Found and fixed two small
+in-scope defects the first pass missed, and deferred two confirmed pre-existing issues that
+are out of this phase's scope.
+
+**Files changed this pass:**
+- `canbus/CLAUDE.md` — retitled the "Design principle" heading (was "dumb nodes, smart
+  gateway", contradicting the AD-7-split body beneath it) to "dumb nodes, domain-split
+  gateway".
+- `CLAUDE.md` — Repository Structure tree's new `scripts/` line now notes "(currently
+  empty)" instead of implying it already holds helper scripts.
+- `_bmad-output/implementation-artifacts/deferred-work.md` — two new deferred items logged
+  (stale `docs/architecture-diagram.md`/`docs/prd.md` citations in root `CLAUDE.md`;
+  resolution + deeper staleness finding on the prior pass's `architecture.md` citation-risk
+  entry).
+
+**Review findings breakdown:** 2 patches applied (1 medium, 1 low), 2 deferred (1 medium, 1
+low — both confirmed pre-existing and outside this phase's scope), 12 rejected after
+verification against the actual files (e.g. claimed canbus Hard-rules duplication, claimed
+unverified memory files that on inspection already had correct paths, claimed missing
+memory cross-links that the spec's own "literal substitutions only" boundary explicitly
+bars adding).
+
+**Verification performed:** direct inspection of every confirmed finding against the live
+tree (`ls`/`find`/`grep` for `docs/architecture-diagram.md`, `docs/prd.md`, `scripts/`
+contents, `canbus/_bmad-output/planning-artifacts/architecture.md` lines 156-167/579,
+`docs/modbus-register-map.md`, and the two memory files claimed unverified); confirmed
+which findings predate this phase via `git show <baseline>:CLAUDE.md`.
+
+**Residual risks:** none blocking. The two deferred items are pre-existing documentation
+citation drift, unrelated to this phase's path-flatten/relocation work.
 
 Follow-up review recommended: false — two small, localized, low-consequence patches; no
 behavior/security/data impact.

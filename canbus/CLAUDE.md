@@ -5,7 +5,7 @@ full history preserved). It is **pre-live**: nodes are not yet walled in.
 Everything below is scoped to `canbus/`; the rest of the repo is the climate
 control system (see root `CLAUDE.md`).
 
-## Design principle: dumb nodes, smart gateway
+## Design principle: dumb nodes, domain-split gateway
 
 - **Nodes are frozen firmware** (CANBed RP2040, no WiFi/OTA, flashed via USB
   before wall installation). They detect button gestures locally and send

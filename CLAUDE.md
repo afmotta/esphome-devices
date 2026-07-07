@@ -198,7 +198,7 @@ esphome-devices/
 ├── _bmad/                     # BMAD framework (agents, workflows, tasks)
 ├── _bmad-output/              # BMAD artifacts (epics, stories, analysis)
 │
-├── scripts/                   # Repo-level helper scripts
+├── scripts/                   # Repo-level helper scripts (currently empty)
 ├── secrets.yaml               # (gitignored) Credentials and secrets
 └── TODO.md                    # Feature backlog (Italian)
 ```
