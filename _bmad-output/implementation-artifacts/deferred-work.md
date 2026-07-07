@@ -2,6 +2,10 @@
   summary: Phase 6b — context rewrite (root CLAUDE.md rewritten as the four-system map, canbus/CLAUDE.md trimmed to infra-only, Claude memory files updated to final paths)
   evidence: Split from Phase 6 during scope routing on 2026-07-07 — the phase's own name has a "+" joining two different kinds of work; 6a (mechanical flatten) is battery-testable, 6b is judgment-call documentation authoring reviewed once final paths exist, per user's explicit choice
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-phase-6b-context-doc-rewrite.md`
+  summary: memory file `project_gateway_ha_event_firing_approach.md` cites `architecture.md (lines 153-162, 416, 579)` for the single-lambda-vs-YAML-action decision reversal; those line numbers were never verified against the current `architecture.md` and may have drifted independent of this restructure (architecture.md itself is a planning doc outside this phase's path-flatten scope)
+  evidence: Surfaced by Blind Hunter review of Phase 6b; pre-existing citation-rot risk, not caused by this phase's path substitutions, but worth a follow-up check next time that memory file or architecture.md is touched
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-phase-6a-flatten-canbus.md`
   summary: canbus/packages/base_node.yaml and canbus/packages/health.yaml both declare `id: can0` for their respective CAN bus components (mcp2515 vs esp32_can) — a latent id collision if any future entry point ever composes both packages together. Confirmed no current entry point does (base_node.yaml: generated node YAMLs + compile_sensor_node.yaml only; health.yaml: devices/gateway.yaml only). Documented with a cross-reference comment in both files; renaming was out of scope for a mechanical flatten phase (base_node.yaml affects every generated node across the fleet)
   evidence: Surfaced by both Blind Hunter and Edge Case Hunter review of Phase 6a — pre-existing naming coincidence, made adjacency-visible (not caused) by merging the two packages into one directory this phase

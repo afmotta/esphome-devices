@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.3 |
-| **Last Updated** | July 5, 2026 |
+| **Version** | 1.4 |
+| **Last Updated** | July 7, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -30,12 +30,27 @@
 
 ### What This Is
 
-This repo hosts the ESPHome systems for Alberto's three-floor residence. It contains **two subsystems**:
+This repo hosts the ESPHome systems for Alberto's three-floor residence, organized as a
+**layered systems monorepo** (see `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`):
 
-1. **Climate control** (everything outside `canbus/`) — a **pre-live ESPHome-based residential climate control system** for heating, cooling, and ventilation. Controller hardware is not yet finalized (a master-controller swap is under consideration). This document describes it.
-2. **CAN bus wall buttons** (`canbus/`) — a pre-live CAN bus wall-button system (RP2040 nodes + ESP32-S3 gateway, dumb-nodes/smart-gateway design). See `canbus/CLAUDE.md` for its rules and `canbus/docs/canbus-smart-home-reference.md` for the protocol. Merged from `afmotta/canbus` (archived) with full history; old PR `#N` references in `canbus/` commit messages resolve in the archived repo. Its `registry/map.json` export and sensor CAN frames are consumed by the climate controller — that contract lives in-repo now.
+1. **`canbus/`** (infrastructure) — a pre-live CAN bus transport system (RP2040 nodes +
+   ESP32-S3 gateway): frames, heartbeats, node discovery/health, the bus definition. See
+   `canbus/CLAUDE.md` for its rules and `canbus/docs/canbus-smart-home-reference.md` for
+   the protocol. Merged from `afmotta/canbus` (archived) with full history; old PR `#N`
+   references in `canbus/` commit messages resolve in the archived repo.
+2. **`lighting/`** (application) — button decode → Home Assistant events and hold
+   automations, built on the canbus transport. See `lighting/CLAUDE.md`.
+3. **`hvac/`** (application) — a **pre-live ESPHome-based residential climate control
+   system** for heating, cooling, and ventilation. Controller hardware is not yet
+   finalized (a master-controller swap is under consideration). Consumes
+   `registry/map.json` and sensor CAN frames directly (contract lives in-repo). See
+   `hvac/CLAUDE.md`.
+4. **`vesta/`** (library) — the extractable, open-source climate-control component
+   framework that `hvac/` composes from.
 
-BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic N** (canbus). Historical canbus BMAD artifacts stay under `canbus/_bmad-output/`; new artifacts for both subsystems go to the root `_bmad-output/`.
+BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
+**HVAC-Epic N** (climate). Historical canbus BMAD artifacts stay under
+`canbus/_bmad-output/`; new artifacts for all systems go to the root `_bmad-output/`.
 
 ### System Capabilities
 
@@ -96,27 +111,44 @@ BMAD epics are namespaced going forward: **HVAC-Epic N** (climate) vs **CAN-Epic
 
 ## Repository Structure
 
-> **Note:** the tree below predates the in-progress layered restructure (see
-> `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/MIGRATION-MAP.md`)
-> and will be rewritten as the four-system map in migration Phase 6. Until
-> then: `canbus/` and `lighting/` aren't yet shown as top-level entries below
-> (their own `CLAUDE.md`s are current); `hvac/` is shown since Phase 4 gathered
-> it. There is no top-level `home-assistant/` any more (AD-5) — HA-side
-> artifacts live per-system at `canbus/home-assistant/`, `lighting/home-assistant/`,
-> and `hvac/home-assistant/dashboards/` (shown below).
+This is a **layered systems monorepo** (see `ARCHITECTURE-SPINE.md`, AD-1/AD-10): one
+shared infrastructure layer (`canbus/`), two application systems on top (`lighting/`,
+`hvac/`), one extractable library (`vesta/`), and a `devices/` composition layer where
+deployable entry points assemble packages across systems. **Each in-repo system directory
+(`canbus/`, `lighting/`, `hvac/`) carries its own `CLAUDE.md` with its own rules** — this
+root file is the map, not the rulebook (AD-10). Read the relevant system's `CLAUDE.md`
+before working inside it. `vesta/` is the one exception: it's an extractable open-source
+library with its own `README.md`/`CONTRIBUTING.md` instead of a `CLAUDE.md`.
 
 ```
 esphome-devices/
 ├── registry/                  # house system-of-record (nodes.csv, node_id_hwm, bindings.yaml,
 │                               #   map.json); per-file ownership, see registry/README.md
-├── canbus/                    # CAN bus wall-button subsystem (see canbus/CLAUDE.md)
-│   ├── firmware/              # Nodes (generated), gateway, bridge, protocol headers, tools,
-│   │   │                      #   native tests
-│   │   └── ...
-│   ├── docs/                  # Protocol reference, runbooks
-│   └── _bmad-output/          # Historical CAN-epic artifacts (frozen)
+├── canbus/                    # CAN bus infrastructure system (see canbus/CLAUDE.md)
+│   ├── protocol/               # Wire protocol + arbitration headers, native tests' target
+│   ├── packages/               # Node-side and gateway-side ESPHome packages
+│   ├── nodes/                  # Generated node firmware (never hand-edited)
+│   ├── tools/                  # Registry/generator tooling (generate_nodes.py, etc.)
+│   ├── tests/                  # Python + native C++ tests
+│   ├── home-assistant/         # Arbitration automations, generated manifest package
+│   ├── docs/                   # Protocol reference, runbooks
+│   └── _bmad-output/           # Historical CAN-epic artifacts (frozen)
 │
-├── vesta/                     # Vesta Climate Framework (open-source library)
+├── lighting/                  # Lighting application system (see lighting/CLAUDE.md)
+│   ├── packages/               # Button-decode/HA-event + fallback packages
+│   └── home-assistant/         # Hold automations
+│
+├── hvac/                       # HVAC (climate control) application system (see hvac/CLAUDE.md)
+│   ├── room_sensors.yaml      # Room sensor failover wiring
+│   ├── mev_modbus.yaml        # MEV Modbus device driver
+│   ├── mev_demand.yaml        # MEV demand signal aggregation
+│   ├── rooms/                 # Room-specific configurations
+│   │   ├── ground_floor/      # Ground floor rooms
+│   │   ├── first_floor/       # First floor rooms
+│   │   └── second_floor/      # Second floor rooms
+│   └── home-assistant/        # Dashboards (Lovelace)
+│
+├── vesta/                     # Vesta Climate Framework (open-source library, see vesta docs)
 │   ├── packages/
 │   │   ├── components/        # Reusable YAML component packages
 │   │   │   ├── pid.yaml               # PID controller
@@ -140,30 +172,19 @@ esphome-devices/
 │   ├── README.md              # Vesta project overview
 │   └── CONTRIBUTING.md        # Contribution guidelines
 │
-├── boards/                    # Board hardware definitions
-│   ├── base.yaml              # Common ESPHome settings
-│   ├── a6.yaml                # KC868-A6 master board (mixing valves)
-│   ├── a16.yaml               # KC868-A16 slave boards (relays)
-│   ├── waveshare-s3.yaml      # ESP32-S3-POE board
+├── boards/                    # Board hardware definitions (shared, no owning system)
+│   ├── base.yaml               # Common ESPHome settings
+│   ├── a6.yaml / a6_ethernet.yaml           # KC868-A6 master board (mixing valves)
+│   ├── a16.yaml / a16_ethernet.yaml         # KC868-A16 slave boards (relays)
+│   ├── waveshare-s3.yaml / waveshare-s3-ethernet.yaml / waveshare-s3-wifi.yaml # ESP32-S3-POE board
 │   ├── s1-pro-multi-sense.yaml # Sensor board
-│   ├── *_ethernet.yaml        # Ethernet network configs
-│   └── wifi.yaml              # WiFi network config
-│
-├── hvac/                       # HVAC (climate control) application system — see hvac/CLAUDE.md
-│   ├── room_sensors.yaml      # Room sensor failover wiring
-│   ├── mev_modbus.yaml        # MEV Modbus device driver
-│   ├── mev_demand.yaml        # MEV demand signal aggregation
-│   ├── rooms/                 # Room-specific configurations
-│   │   ├── ground_floor/      # Ground floor rooms
-│   │   ├── first_floor/       # First floor rooms
-│   │   └── second_floor/      # Second floor rooms
-│   └── home-assistant/        # Dashboards (Lovelace)
+│   └── wifi.yaml                # WiFi network config
 │
 ├── devices/                   # Main device configurations (entry points and their deployment variants, gathered together)
 │   ├── climate-control.yaml   # Main HVAC system
 │   ├── room-sensor-soggiorno.yaml # Standalone room sensor
 │   ├── wall-sensor.yaml       # Wall-mounted sensor (SEN66)
-│   ├── gateway.yaml           # CAN bus gateway firmware
+│   ├── gateway.yaml           # CAN bus gateway firmware (composes canbus + lighting packages)
 │   ├── bridge.yaml            # CAN bus segment bridge firmware
 │   ├── secrets.yaml.example   # Template for devices/secrets.yaml (gateway's secrets)
 │   ├── locals/                # Local development/deployment configs
@@ -177,6 +198,7 @@ esphome-devices/
 ├── _bmad/                     # BMAD framework (agents, workflows, tasks)
 ├── _bmad-output/              # BMAD artifacts (epics, stories, analysis)
 │
+├── scripts/                   # Repo-level helper scripts
 ├── secrets.yaml               # (gitignored) Credentials and secrets
 └── TODO.md                    # Feature backlog (Italian)
 ```
@@ -206,78 +228,6 @@ esphome-devices/
 #### Device Configs (`devices/`)
 - Pattern: kebab-case descriptive names
 - Examples: `climate-control.yaml`, `room-sensor-soggiorno.yaml`
-
-### Entity ID Naming Convention
-
-**Pattern**: `{scope}_{component}[_{mode}][_{aspect}]`
-
-| Position | Dimension | Required | Examples |
-|----------|-----------|----------|---------|
-| 1st | Scope | Yes | `soggiorno`, `cucina`, `camera_nord`, `ground_floor` |
-| 2nd | Component | Yes | `radiant`, `fancoil`, `mev`, `pump`, `mixing` |
-| 3rd | Mode | Optional | `heat`, `cool`, `pid`, `boost` |
-| 4th | Aspect | Optional | `output`, `setpoint`, `kp`, `ki`, `kd`, `status` |
-
-**Rules**:
-1. Room names are atomic tokens (`camera_nord` is one slug, not two dimensions)
-2. Floor scope is only used when no room applies (entity is floor-scoped)
-3. Board-level hardware entities (`relay_1`, `dac_output_1`) are excluded — they keep their own convention
-4. Each dimension is always a single underscore-delimited token
-5. Convention applies to entity IDs only — file names and variable names are separate concerns
-
-**Example Entity IDs**:
-
-```
-# Room-scoped radiant floor control
-soggiorno_radiant                    # Radiant floor switch/output
-soggiorno_radiant_pid                # PID climate entity
-soggiorno_radiant_pid_output         # PID output value
-soggiorno_radiant_pid_setpoint       # PID target temperature
-soggiorno_radiant_pid_kp             # PID proportional gain
-soggiorno_radiant_override           # Manual override switch
-soggiorno_radiant_override_value     # Manual override percentage
-soggiorno_radiant_pwm                # Slow PWM relay driver
-
-# Room-scoped fancoil control
-soggiorno_fancoil_pid                # Fancoil PID climate entity
-soggiorno_boost_state                # Boost coordinator state
-soggiorno_boost_active               # Boost active flag
-soggiorno_temp_delta                  # Temperature delta from setpoint
-soggiorno_temp_trend                  # Temperature rate of change
-
-# Room-scoped sensors (failover tiers)
-soggiorno_temp_udp                   # UDP temperature (primary)
-soggiorno_temp_ha                    # Home Assistant temperature (fallback)
-soggiorno_temp_abstracted            # Failover-resolved temperature
-soggiorno_humidity_abstracted        # Failover-resolved humidity
-soggiorno_dew_point                  # Calculated dew point
-soggiorno_sensor_tier                # Active failover tier
-
-# Floor-scoped aggregates
-ground_floor_radiant_any_zone_open   # Any radiant zone active
-ground_floor_max_dew_point           # Max dew point for protection
-ground_floor_fancoil_boost_threshold # Boost activation threshold
-
-# Floor-scoped MEV
-first_floor_mev_fan_speed            # MEV fan speed control
-first_floor_mev_co2_demand           # CO2-based demand signal
-first_floor_mev_alarm_active         # Master alarm indicator
-```
-
-**Key Insight**: PID is a *mode of operation* ("radiant under PID control"), not a separate component. This keeps the model flat with a maximum of 4 segments.
-
-**Italian Terms** (used throughout):
-- `soggiorno` = living room
-- `cucina` = kitchen
-- `bagno` = bathroom
-- `camera` = bedroom
-- `anticamera` = entry hall
-- `lavanderia` = laundry room
-- `sottotetto` = attic
-- `locale_tecnico` = technical room
-- `piano_terra` = ground floor
-- `primo_piano` = first floor
-- `secondo_piano` = second floor
 
 ### Code Style
 
@@ -360,46 +310,12 @@ packages:
       fancoil_relay: relay_5
 ```
 
-### PID Control Architecture
-
-**Dual PID Pattern**: Each zone has two PID controllers - one for heat mode, one for cool mode.
-
-```yaml
-climate:
-  # Heat mode PID
-  - platform: pid
-    id: pid_heat_${room_slug}
-    name: "PID Heat ${room_name}"
-    sensor: ${temperature_sensor}
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-
-  # Cool mode PID
-  - platform: pid
-    id: pid_cool_${room_slug}
-    name: "PID Cool ${room_name}"
-    sensor: ${temperature_sensor}
-    control_parameters:
-      kp: 1.2
-      ki: 0.008
-      kd: 0.08
-```
-
-**Mode Synchronization**: All zones switch between heat/cool modes simultaneously based on a master mode register (Modbus register 200).
-
 ### Modbus Communication Architecture
 
-**Master/Slave Pattern**:
+**Master/Slave Pattern** (HVAC-specific; see `hvac/CLAUDE.md` for the PID architecture and full
+register map):
 - **Master** (KC868-A6): Polls room sensors, writes to registers, coordinates mode
 - **Slaves** (KC868-A16): Read from master registers, control local zones
-
-**Register Map** (simplified):
-- `200`: Climate mode (0=off, 1=heat, 2=cool)
-- `300`: Master heartbeat counter
-- `400-407`: Ground floor room sensor data (temp/humidity)
-- `408-415`: First floor room sensor data
 
 **Polling Intervals**:
 - Master polls sensors: 30 seconds
@@ -549,76 +465,8 @@ git diff --staged | grep -i "password\|secret\|api_key"
 
 ## Common Tasks
 
-### Adding a New Room
-
-1. Create room config file in `hvac/rooms/[floor]/[room_name].yaml`
-2. Include sensor, radiant, fancoil packages with room-specific vars
-3. Add room package to floor aggregator (`[floor]-floor.yaml`)
-4. Assign relay numbers (ensure no conflicts)
-5. Add Modbus register mappings if using remote sensors
-6. Test compilation
-7. Deploy and verify
-
-Example:
-```yaml
-# hvac/rooms/ground_floor/new_room.yaml
-defaults:
-  room_slug: new_room
-  room_name: "New Room"
-  temperature_sensor: sensor.new_room_temp
-  radiant_relay: relay_6
-  fancoil_relay: relay_10
-
-packages:
-  sensors: !include ../../room_sensors.yaml
-  radiant: !include ../../radiant.yaml
-  fancoil: !include ../../fancoil.yaml
-```
-
-### Modifying PID Parameters
-
-PID parameters are set at component inclusion:
-
-```yaml
-packages:
-  pid: !include
-    file: pid.yaml
-    vars:
-      circuit_slug: "radiant_soggiorno"
-      circuit_name: "Radiant Soggiorno"
-      sensor: sensor.soggiorno_temp
-      kp: 0.8      # Proportional gain
-      ki: 0.005    # Integral gain
-      kd: 0.05     # Derivative gain
-```
-
-**Auto-tuning** is available via `pid_autotune.yaml` component.
-
-### Adding Modbus Devices
-
-1. Determine Modbus address (must be unique on bus)
-2. Add to appropriate board's `modbus_controller` list
-3. Create component package with register mappings
-4. Include component in device config with parameters
-5. Verify RS485 wiring (A to A, B to B, proper termination)
-
-### Debugging Modbus Issues
-
-```yaml
-# Enable verbose modbus logging
-logger:
-  level: DEBUG
-  logs:
-    modbus_controller: DEBUG
-    modbus: DEBUG
-```
-
-Common issues:
-- Wrong baud rate (must be 9600)
-- Incorrect address
-- Missing termination resistors
-- Swapped A/B wires
-- Too many devices on bus (> 30)
+HVAC-specific tasks (adding a room, modifying PID parameters, adding/debugging Modbus
+devices) are documented in `hvac/CLAUDE.md` — house-wide tasks only are listed here.
 
 ### Creating Custom Components
 
@@ -763,23 +611,14 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Ensure all substitution variables are defined
 - Check ESPHome version (min 2026.3.0)
 
-**Modbus Issues**:
-- Enable DEBUG logging for modbus_controller
-- Check register addresses and data types
-- Verify baud rate (9600, 8N1)
-- Inspect RS485 wiring and termination
-
-**PID Tuning**:
-- Use auto-tune feature first (`pid_autotune.yaml`)
-- Start with conservative gains (low Kp, very low Ki/Kd)
-- Increase gradually while monitoring stability
-- Different gains for heat vs. cool modes
-
 **Sensor Failover**:
 - Check failover logs in Home Assistant
 - Verify Modbus sensor data age < 30s
 - Ensure HA sensors are available and updating
 - Monitor emergency shutdown triggers
+
+HVAC-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
+sensor-address appendices and PID tuning guidelines are documented in `hvac/CLAUDE.md`.
 
 ### Community and Support
 
@@ -789,65 +628,11 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 ---
 
-## Appendices
-
-### A. Modbus Register Quick Reference
-
-| Range | Purpose | Data Type |
-|-------|---------|-----------|
-| 200 | Climate mode (0=off, 1=heat, 2=cool) | uint16 |
-| 300 | Master heartbeat counter | uint16 |
-| 400-407 | Ground floor room sensors (temp/humidity pairs) | int16 (scaled ×100) |
-| 408-415 | First floor room sensors | int16 (scaled ×100) |
-
-### B. Relay Assignment Reference
-
-**Ground Floor Distribution Board (A16, Address 0x02)**:
-- Relays 1-4: Zone radiant floor circuits
-- Relays 5-8: Fancoil units
-- Relays 9-12: (Reserved/future use)
-- Relays 13-16: Pumps and auxiliary
-
-**First Floor Distribution Board (A16, Address 0x03)**:
-- Relays 1-8: Zone radiant floor circuits
-- Relays 9-12: Fancoil units
-- Relays 13-16: MEV and auxiliary
-
-### C. Sensor Address Assignments
-
-| Device | Modbus Address | Location |
-|--------|---------------|----------|
-| Master A6 | 0x01 | Technical room |
-| Slave A16 #1 | 0x02 | Ground floor |
-| Slave A16 #2 | 0x03 | First floor |
-| Room sensor Soggiorno | 0x0A (10) | Living room |
-| Room sensor Cucina | 0x0B (11) | Kitchen |
-| Room sensor Bagno | 0x0C (12) | Bathroom |
-| Room sensor Anticamera | 0x0D (13) | Entry hall |
-| 0-10V Adapter | 0x1E (30) | Second floor fancoil |
-
-### D. PID Tuning Guidelines
-
-**Radiant Floor (Slow System)**:
-- Kp: 0.5 - 1.0 (start at 0.8)
-- Ki: 0.001 - 0.01 (start at 0.005)
-- Kd: 0.01 - 0.1 (start at 0.05)
-
-**Fancoil (Fast System)**:
-- Kp: 1.0 - 2.0 (start at 1.2)
-- Ki: 0.005 - 0.02 (start at 0.008)
-- Kd: 0.05 - 0.2 (start at 0.08)
-
-**Cooling Mode** (typically needs higher gains than heating):
-- Increase all parameters by 20-50%
-- Cooling has faster response due to air circulation
-
----
-
 ## Changelog
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-07 | 1.4 | Migration Phase 6b: rewrote Repository Structure to the actual four-system tree (canbus/lighting/hvac/vesta + top-level registry/devices); removed the "predates restructure" note; moved HVAC-only rules (entity-ID convention, PID architecture, Modbus/relay appendices, HVAC Common Tasks) to `hvac/CLAUDE.md` per AD-10 (root is the map, not the rules) | AI Assistant |
 | 2026-07-05 | 1.3 | Corrected climate-control status from "production/active, live" to pre-live; controller hardware swap under consideration | AI Assistant |
 | 2026-07-05 | 1.2 | Merged afmotta/canbus as canbus/ subtree; documented two-subsystem layout and epic namespacing | AI Assistant |
 | 2026-03-23 | 1.1 | Updated repo structure for Vesta extraction, added entity ID naming convention, updated file references for Epics 18-20 | AI Assistant |
