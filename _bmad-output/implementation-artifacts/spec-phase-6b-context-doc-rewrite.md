@@ -6,7 +6,7 @@ status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'fffa7e06d8329946430943b9b3ab686961e04504'
-final_revision: 'aff8830'
+final_revision: '74cf744'
 context: ['{project-root}/_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md']
 warnings: ['oversized']
 ---
