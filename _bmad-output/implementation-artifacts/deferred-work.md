@@ -1,12 +1,4 @@
 - source_spec: none
-  summary: Phase 5b-1 — bindings→arbitration contract spec + drift test (AD-6) on the compiled BindingEntry/bindings.h surface; low-risk additive slice, sequenced first
-  evidence: Split from Phase 5 during scope routing on 2026-07-06; ordering (contract first, extraction second) chosen explicitly by Alberto
-
-- source_spec: none
-  summary: Phase 5b-2 — gateway package extraction per the revised model (AD-7 as amended 2026-07-06 — canbus/packages/ gets heartbeat/health/discovery; lighting/packages/ gets button decode → HA events + the ha_ready gate instance; ha_arbitration.h stays a shared canbus header; devices/gateway.yaml composes both until ADR-0013's relay-hardware decision triggers the physical device split)
-  evidence: Scope revised in the 2026-07-06 reasoning session with Alberto — original Phase 5 text put HA event firing in canbus and fallback actuation in lighting; the settled model splits CAN consumers by domain instead (lighting = buttons, hvac = sensors, canbus = transport health)
-
-- source_spec: none
   summary: Phase 6 — flatten canbus (move protocol/packages/nodes/tools/tests up out of firmware/, rewrite root CLAUDE.md as system map, trim canbus/CLAUDE.md)
   evidence: Split from MIGRATION-MAP.md multi-phase restructure; user chose one-phase-at-a-time on 2026-07-05
 
