@@ -1,48 +1,41 @@
 # =============================================================================
-# gateway.yaml — CAN Bus ↔ Home Assistant bridge
+# gateway.yaml — CAN Bus ↔ Home Assistant bridge (composition entry point)
 # =============================================================================
 # Hardware: Waveshare ESP32-S3-RS485-CAN
-# Role:     Listens for CAN button events and heartbeats, fires HA events keyed by node_id.
-#           HA resolves node_id -> room/behaviour via the central map (ADR-0007).
+# Role:     Composes two systems' packages onto one physical device (AD-4;
+#           AD-7 as amended 2026-07-06):
+#             canbus/packages/health.yaml   — bus + transport health (infra)
+#             lighting/packages/buttons.yaml — button events + ha_ready gate
+#           This file owns only identity, board, network, api encryption/OTA,
+#           the shared protocol-header includes, and substitution overrides.
+#           The physical split into separate devices is deferred to ADR-0013's
+#           relay-hardware decision; until then this single entry point hosts
+#           both package sets.
 #
-# Flat node_id model (ADR-0007): identity is the node_id in the 29-bit Extended ID; all
-# content is in the payload. OUTPUT command / commissioning services are a later slice
-# (relay control is Modbus/API per ADR-0003), so this gateway is input-only for now.
-#
-# ha_ready arbitration (ADR-0003 open item 2): HA proves readiness by calling
-# ha_readiness_heartbeat with the binding-manifest hash; button events forwarded to HA
-# carry an event_id that HA must ACK via ha_ack_event before ack_timeout_ms. Fallback
-# actions only LOG (no relays yet). The manifest hash is BINDINGS_MANIFEST_HASH, generated
-# from registry/bindings.yaml into protocol/bindings.h (ADR-0009 §3); HA must echo it.
-# HA-side counterpart: ha_arbitration_automations.yaml (copy into Home Assistant).
+# PACKAGE ORDER: keep canbus (defines the can0 bus) before lighting
+# (`!extend`s it). Empirically ESPHome 2026.5.0 resolves !extend regardless of
+# package order, so this is defensive convention expressing the real dependency
+# direction — do not rely on the order-tolerance across ESPHome upgrades.
 # =============================================================================
 
 substitutions:
   # Tunable on hardware to resolve ADR-0003 open item 2 (values are milliseconds).
   ha_heartbeat_ttl_ms: "15000"
   ack_timeout_ms: "500"
-  # Aliveness: a mapped node is LOST after 3 missed 30 s heartbeats (ADR-0011 §1, the same
-  # 3x-cadence staleness doctrine as ADR-0006). Tunable on the bench (ADR-0011 open item 6).
+  # Aliveness: a mapped node is LOST after 3 missed 30 s heartbeats (ADR-0011 §1).
   node_lost_timeout_ms: "90000"
+  # CAN transceiver pins on this board.
+  can_tx_pin: GPIO15
+  can_rx_pin: GPIO16
+
+packages:
+  # canbus first: defines can0 (see PACKAGE ORDER above).
+  health: !include ../canbus/packages/health.yaml
+  buttons: !include ../lighting/packages/buttons.yaml
 
 esphome:
   name: canbus-gateway
   friendly_name: "CAN Bus Gateway"
-  # Drift visibility (ADR-0009 §6): publish the compiled map/binding identities once. They are
-  # compile-time constants (node_map.h / bindings.h), so the diagnostics below never poll — the
-  # state is set here and pushed to HA on connect. See the text_sensor block.
-  on_boot:
-    then:
-      - text_sensor.template.publish:
-          id: binding_manifest_hash
-          state: !lambda 'return std::string(BINDINGS_MANIFEST_HASH);'
-      - text_sensor.template.publish:
-          id: node_map_version
-          state: !lambda 'return std::string(NODE_MAP_VERSION);'
-      # nodes_total is the compiled fleet size — a constant, published once (ADR-0011 §2).
-      - sensor.template.publish:
-          id: nodes_total_sensor
-          state: !lambda 'return (float) NODE_MAP_SIZE;'
   includes:
     - ../canbus/firmware/protocol/canbus_protocol.h
     - ../canbus/firmware/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
@@ -66,344 +59,14 @@ wifi:
   password: !secret wifi_password
 
 # --------------- Home Assistant API ---------------
+# Encryption only — the arbitration services/automations come from
+# lighting/packages/buttons.yaml and merge into this block.
 api:
   encryption:
     key: !secret api_encryption_key
-  # Commissioning / OUTPUT-command services land in the commissioning slice; the
-  # services below are the ADR-0003 arbitration surface only.
-  services:
-    # HA calls this every few seconds (see ha_arbitration_automations.yaml). The hash the
-    # caller sends must match the local BINDINGS_MANIFEST_HASH; a mismatch keeps ha_ready off
-    # (ADR-0003: hash mismatch disables HA authority).
-    - service: ha_readiness_heartbeat
-      variables:
-        manifest_hash: string
-      then:
-        - lambda: |-
-            // The generated manifest hash (protocol/bindings.h); kept opaque — never
-            // spliced into a log format string in case a future hash form contains '%'.
-            static const char *LOCAL_HASH = BINDINGS_MANIFEST_HASH;
-            id(last_ha_hb_ms) = millis();
-            id(ha_hb_seen) = true;
-            const bool ok = (strcmp(manifest_hash.c_str(), LOCAL_HASH) == 0);
-            // Log on the first heartbeat of a session too: ha_hash_ok starts false, so
-            // a boot-time mismatch would otherwise never WARN.
-            if (!id(ha_hash_evaluated) || ok != id(ha_hash_ok)) {
-              if (ok)
-                ESP_LOGI("arb", "Manifest hash match ('%s'); HA authority enabled", LOCAL_HASH);
-              else
-                ESP_LOGW("arb", "Manifest hash mismatch: HA='%s' local='%s'; HA authority disabled",
-                         manifest_hash.c_str(), LOCAL_HASH);
-            }
-            id(ha_hash_evaluated) = true;
-            id(ha_hash_ok) = ok;
-    # HA's generated automation ACKs each forwarded button event by event_id. The rtt /
-    # late logs are the empirical data for tuning ack_timeout_ms (ADR-0003 open item 2):
-    # a LATE ACK means the fallback already fired — that lateness is the double-action window.
-    - service: ha_ack_event
-      variables:
-        event_id: int
-      then:
-        - lambda: |-
-            PendingAck acked{};
-            uint32_t deadline = 0;
-            if (pending_ack(pending_acks_store(), (uint32_t) event_id, &acked)) {
-              ESP_LOGI("arb", "ACK event_id=%u rtt=%ums", (unsigned) event_id,
-                       (unsigned) (millis() - (acked.deadline_ms - ${ack_timeout_ms})));
-            } else if (expired_take(expired_ring_store(), (uint32_t) event_id, &deadline)) {
-              ESP_LOGW("arb", "LATE ACK after fallback: event_id=%u late=+%ums (double-action window)",
-                       (unsigned) event_id, (unsigned) (millis() - deadline));
-            } else {
-              ESP_LOGD("arb", "ACK for unknown event_id=%u (never pending)", (unsigned) event_id);
-            }
-  # Any client disconnect conservatively revokes readiness — we cannot tell which
-  # client was HA, and failing toward fallback is the safe direction. The next
-  # heartbeat (<= 5s away) re-proves readiness for the new session; without this, a
-  # stale hash/heartbeat would keep ha_ready true for up to the TTL across an HA
-  # restart with a changed manifest.
-  on_client_disconnected:
-    then:
-      - lambda: |-
-          id(ha_hb_seen) = false;
-          id(ha_hash_ok) = false;
-          id(ha_hash_evaluated) = false;
 
 ota:
   # ADR-0010 §5: authenticate OTA — the gateway is the most privileged device on the LAN,
   # so an unauthenticated push is the one bus-external defect the security ADR found.
   - platform: esphome
     password: !secret ota_password
-
-# --------------- ha_ready arbitration state (ADR-0003) ---------------
-globals:
-  - id: last_ha_hb_ms
-    type: uint32_t
-    initial_value: '0'
-  - id: ha_hb_seen   # last_ha_hb_ms == 0 is a valid timestamp, not a sentinel
-    type: bool
-    initial_value: 'false'
-  - id: ha_hash_ok
-    type: bool
-    initial_value: 'false'
-  - id: ha_hash_evaluated   # whether any heartbeat was hash-checked this API session
-    type: bool
-    initial_value: 'false'
-  - id: next_event_id
-    type: uint32_t
-    initial_value: '1'
-  # The pending-ACK list lives in ha_arbitration.h (pending_acks_store()) — ESPHome
-  # globals cannot carry a custom struct type (storage is declared before user includes).
-  # --------------- Aliveness state (ADR-0011) ---------------
-  # Count of fallback firings (ha-not-ready + ack-timeout), surfaced as an aggregate so a
-  # degraded night is visible on reconnect (ADR-0011 §3). The per-node watch state lives in
-  # node_health.h (node_health_store()) — a custom struct, same reason as the pending-ACK list.
-  - id: fallback_events
-    type: uint32_t
-    initial_value: '0'
-  - id: health_edges   # edge bitmask staged by the heartbeat handler for the if-blocks below
-    type: uint8_t
-    initial_value: '0'
-  - id: lost_node_idx  # store index staged by the sweep for the declarative node_lost event (-1 = none)
-    type: int
-    initial_value: '-1'
-
-binary_sensor:
-  - platform: template
-    id: ha_ready_sensor
-    name: "HA Ready"
-    entity_category: diagnostic
-    # is_connected() is true for ANY API client (a laptop log session counts) — the
-    # HA-specific liveness term is the heartbeat TTL, not this flag.
-    lambda: |-
-      return ha_ready(api::global_api_server->is_connected(), id(ha_hash_ok), id(ha_hb_seen),
-                      id(last_ha_hb_ms), millis(), ${ha_heartbeat_ttl_ms});
-
-# --------------- Drift-visibility diagnostics (ADR-0009 §6) ---------------
-# Read-only entities exposing the identities the gateway COMPILED. Compare against
-# registry/map.json in git: a mismatch means "committed but not yet reflashed" — the static
-# map's failure mode — and shows on a dashboard instead of surfacing as a misbehaving button.
-# Published once from on_boot (constants); update_interval: never so they don't poll.
-text_sensor:
-  - platform: template
-    id: binding_manifest_hash
-    name: "Binding Manifest Hash"
-    entity_category: diagnostic
-    update_interval: never
-  - platform: template
-    id: node_map_version
-    name: "Node Map Version"
-    entity_category: diagnostic
-    update_interval: never
-  # Aliveness aggregate (ADR-0011 §2): names of mapped nodes not currently heard (never seen
-  # or lost). Published by the sweep; survives the HA blind window like the diagnostics above.
-  - platform: template
-    id: nodes_missing_sensor
-    name: "Nodes Missing"
-    entity_category: diagnostic
-    update_interval: never
-
-# --------------- Aliveness aggregates (ADR-0011 §2) ---------------
-# Fleet-level counts (NOT per-node entities — the ESP32 carries ~6 aggregates regardless of
-# fleet size; per-node entities are materialized HA-side from the edge events, open item 2).
-# No lambda + update_interval never: published explicitly (nodes_total at boot, the rest by
-# the sweep), so they never poll and re-publish on reconnect.
-sensor:
-  - platform: template
-    id: nodes_online_sensor
-    name: "Nodes Online"
-    entity_category: diagnostic
-    accuracy_decimals: 0
-    update_interval: never
-  - platform: template
-    id: nodes_total_sensor
-    name: "Nodes Total"
-    entity_category: diagnostic
-    accuracy_decimals: 0
-    update_interval: never
-  - platform: template
-    id: fallback_events_sensor
-    name: "Fallback Events"
-    entity_category: diagnostic
-    accuracy_decimals: 0
-    update_interval: never
-
-interval:
-  # Sweep pending ACKs; each expired event fires its (log-only) fallback exactly once.
-  # The 250ms granularity means actual fallback latency is ack_timeout_ms + 0-250ms;
-  # "waited" in the log is the measured time since the event was forwarded.
-  - interval: 250ms
-    then:
-      - lambda: |-
-          const uint32_t now = millis();
-          const auto expired = pending_expire(pending_acks_store(), now);
-          for (const auto &e : expired) {
-            expired_record(expired_ring_store(), e.event_id, e.deadline_ms);
-            id(fallback_events)++;   // degraded-mode visibility aggregate (ADR-0011 §3)
-            ESP_LOGW("arb", "FALLBACK (ack timeout): node=%u btn=%u %s event_id=%u waited=%ums",
-                     (unsigned) e.node_id, (unsigned) e.button,
-                     event_type_str(e.event_type).c_str(), (unsigned) e.event_id,
-                     (unsigned) (now - (e.deadline_ms - ${ack_timeout_ms})));
-          }
-
-  # Aliveness sweep (ADR-0011 §1-2): detect the silence transition per mapped node, fire one
-  # canbus_node_lost edge per tick (the announce queue spreads simultaneous losses over ticks,
-  # dropping none), and refresh the fleet aggregates. Entities — not a stream — so they
-  # re-publish on HA reconnect and survive the degraded "blind window" by construction.
-  - interval: 5s
-    then:
-      - lambda: |-
-          const uint32_t now = millis();
-          NodeHealth *hs = node_health_store();
-          for (std::size_t i = 0; i < NODE_MAP_SIZE; i++)
-            health_check_lost(hs[i], now, ${node_lost_timeout_ms});
-          id(nodes_online_sensor).publish_state((float) health_nodes_online(hs, NODE_MAP_SIZE));
-          id(fallback_events_sensor).publish_state((float) id(fallback_events));
-          std::string missing;
-          for (std::size_t i = 0; i < NODE_MAP_SIZE; i++) {
-            if (health_is_missing(hs[i])) {
-              if (!missing.empty()) missing += ", ";
-              missing += NODE_MAP[i].name;
-            }
-          }
-          id(nodes_missing_sensor).publish_state(missing);
-          id(lost_node_idx) = health_take_unannounced_lost(hs, NODE_MAP_SIZE);
-      - if:
-          condition:
-            lambda: 'return id(lost_node_idx) >= 0;'
-          then:
-            - homeassistant.event:
-                event: esphome.canbus_node_lost
-                data:
-                  node_id: !lambda 'return to_string(NODE_MAP[id(lost_node_idx)].node_id);'
-                  name: !lambda 'return std::string(NODE_MAP[id(lost_node_idx)].name);'
-
-# --------------- CAN Bus (native ESP32 TWAI) ---------------
-canbus:
-  - platform: esp32_can
-    id: can0
-    use_extended_id: true
-    # Component default TX id = CAT_OUTPUT base. Every send sets an explicit can_id +
-    # use_extended_id, so this is only the component default and is never relied on.
-    can_id: 0x04000000
-    tx_pin: GPIO15
-    rx_pin: GPIO16
-    bit_rate: 125KBPS
-    on_frame:
-      # ---- All button events (CAT_INPUT) ----
-      # Identity (node_id) is decoded from the frame can_id; button/event from the payload.
-      - can_id: 0x02000000        # CAT_INPUT << CAT_SHIFT
-        can_id_mask: 0x1E000000   # CAN_MASK_CATEGORY (category bits only)
-        use_extended_id: true
-        then:
-          - if:
-              condition:
-                lambda: 'if (x.size() < BUTTON_PAYLOAD_MIN) return false; return x[0] == PROTO_V1 && payload_type(x) == MSG_BUTTON_EVENT;'
-              then:
-                - lambda: |-
-                    ESP_LOGI("gw", "Button node=%u btn%u %s",
-                             (unsigned) can_id_node(can_id),
-                             (unsigned) payload_button_index(x),
-                             event_type_str(payload_event_type(x)).c_str());
-                # Only forward recognized event types to HA; unknown types are logged above but not fired.
-                # ADR-0003 arbitration: ha_ready -> forward with event_id + track the ACK;
-                # not ready -> the local fallback path runs immediately (log-only prototype).
-                - if:
-                    condition:
-                      lambda: 'return event_type_str(payload_event_type(x)) != "unknown";'
-                    then:
-                      - if:
-                          condition:
-                            lambda: |-
-                              return ha_ready(api::global_api_server->is_connected(), id(ha_hash_ok),
-                                              id(ha_hb_seen), id(last_ha_hb_ms), millis(),
-                                              ${ha_heartbeat_ttl_ms});
-                          then:
-                            # Pending entry first, so an ACK can never beat the bookkeeping;
-                            # next_event_id increments after the event so the data lambda
-                            # below reads the same id.
-                            - lambda: |-
-                                pending_add(pending_acks_store(), id(next_event_id), millis(), ${ack_timeout_ms},
-                                            can_id_node(can_id), payload_button_index(x), payload_event_type(x));
-                            - homeassistant.event:
-                                event: esphome.canbus_button
-                                data:
-                                  # node_id is the identity; room/board/name resolved from the
-                                  # compiled central map (node_map.h). Unknown node -> 255/"unknown".
-                                  node_id: !lambda 'return to_string(can_id_node(can_id));'
-                                  room: !lambda 'return to_string(node_map_room(can_id_node(can_id)));'
-                                  board: !lambda 'return to_string(node_map_board(can_id_node(can_id)));'
-                                  name: !lambda 'return std::string(node_map_name(can_id_node(can_id)));'
-                                  button: !lambda 'return to_string(payload_button_index(x));'
-                                  event: !lambda 'return std::string(event_type_str(payload_event_type(x)));'
-                                  event_id: !lambda 'return to_string(id(next_event_id));'
-                            - lambda: 'id(next_event_id)++;'
-                          else:
-                            - lambda: |-
-                                id(fallback_events)++;   // degraded-mode visibility aggregate (ADR-0011 §3)
-                                ESP_LOGW("arb", "FALLBACK (ha not ready): node=%u btn=%u %s",
-                                         (unsigned) can_id_node(can_id), (unsigned) payload_button_index(x),
-                                         event_type_str(payload_event_type(x)).c_str());
-
-      # ---- All heartbeats (CAT_STATUS) ----
-      - can_id: 0x06000000        # CAT_STATUS << CAT_SHIFT
-        can_id_mask: 0x1E000000   # CAN_MASK_CATEGORY
-        use_extended_id: true
-        then:
-          - if:
-              condition:
-                lambda: 'if (x.size() < HEARTBEAT_PAYLOAD_MIN) return false; return x[0] == PROTO_V1;'
-              then:
-                - lambda: |-
-                    const unsigned node   = can_id_node(can_id);
-                    const char    *name   = node_map_name(node);
-                    const uint16_t uptime = payload_uptime16(x);
-                    const uint8_t  errors = payload_errors(x);
-                    if (errors != ERR_NONE) {
-                      ESP_LOGW("gw", "Node %u (%s) uptime=%uh error=0x%02X",
-                               node, name, (unsigned) uptime, (unsigned) errors);
-                    } else {
-                      ESP_LOGD("gw", "Heartbeat node=%u (%s) uptime=%uh error=0x%02X",
-                               node, name, (unsigned) uptime, (unsigned) errors);
-                    }
-                # Aliveness (ADR-0011 §1-2): a heartbeat from a MAPPED node refreshes its
-                # last_seen and yields the edge events to forward. Edges are staged into a
-                # global so the if-blocks below can fire the (declarative) HA events; the
-                # node_lost edge is absence-detected by the sweep interval, not here.
-                - lambda: |-
-                    const int hi = node_health_index(can_id_node(can_id));
-                    id(health_edges) = (hi >= 0)
-                        ? health_on_heartbeat(node_health_store()[hi], millis(), payload_errors(x))
-                        : HEALTH_EDGE_NONE;
-                - if:
-                    condition:
-                      lambda: 'return (id(health_edges) & HEALTH_EDGE_RECOVERED) != 0;'
-                    then:
-                      - homeassistant.event:
-                          event: esphome.canbus_node_recovered
-                          data:
-                            node_id: !lambda 'return to_string(can_id_node(can_id));'
-                            name: !lambda 'return std::string(node_map_name(can_id_node(can_id)));'
-                - if:
-                    condition:
-                      lambda: 'return (id(health_edges) & HEALTH_EDGE_ERROR) != 0;'
-                    then:
-                      - homeassistant.event:
-                          event: esphome.canbus_node_error
-                          data:
-                            node_id: !lambda 'return to_string(can_id_node(can_id));'
-                            name: !lambda 'return std::string(node_map_name(can_id_node(can_id)));'
-                            # Hex like the WARN log — error_flags is a bitmask, not a count.
-                            error_flags: !lambda |-
-                              char buf[7];
-                              snprintf(buf, sizeof(buf), "0x%02X", (unsigned) payload_errors(x));
-                              return std::string(buf);
-                # Discovery: an unknown node_id heartbeating is a live, uncommissioned node —
-                # surface it to HA so the operator can identify (press its button) and commission it.
-                - if:
-                    condition:
-                      lambda: 'return !node_map_known(can_id_node(can_id));'
-                    then:
-                      - homeassistant.event:
-                          event: esphome.canbus_node_unknown
-                          data:
-                            node_id: !lambda 'return to_string(can_id_node(can_id));'

@@ -34,7 +34,13 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   place (no PROTO_V2, no shims).
 - **ESPHome globals can't hold custom structs** (storage is emitted before user
   includes) — own struct state via a header accessor (see `pending_acks_store`
-  in `gateway.yaml`).
+  in `lighting/packages/buttons.yaml`, `node_health_store` in
+  `canbus/packages/health.yaml`).
+- **Gateway-side packages live at `canbus/packages/`** (transport health +
+  the bus definition; distinct from node-side `firmware/packages/` until
+  Phase 6 merges them). `devices/gateway.yaml` composes them with
+  `lighting/packages/buttons.yaml` — canbus package first (it defines `can0`;
+  lighting `!extend`s it).
 - **`on_frame` guards**: validate payloads with `if:`/`condition:` blocks so
   action lambdas stay clean — no redundant re-checks inside lambdas.
 

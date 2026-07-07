@@ -181,9 +181,13 @@ placeholder.
   carry the tuning data: `ACK ... rtt=` (round-trip per event), `FALLBACK ... waited=`
   (actual fallback latency — `ack_timeout_ms` plus up to 250 ms sweep granularity), and
   `LATE ACK ... late=+` (an ACK landing after its fallback fired: the double-action window).
-- Tuning (resolves ADR-0003 open item 2 empirically) via `gateway.yaml` substitutions:
+- Tuning (resolves ADR-0003 open item 2 empirically) via `devices/gateway.yaml` substitutions:
   `ha_heartbeat_ttl_ms` (default 15000) and `ack_timeout_ms` (default 500). The manifest hash
   HA must echo is the generated `BINDINGS_MANIFEST_HASH`, not a substitution (see below).
+- Since migration Phase 5b-2 the arbitration instance lives in
+  `lighting/packages/buttons.yaml` and transport health + the bus in
+  `canbus/packages/health.yaml`; `devices/gateway.yaml` composes both (canbus
+  package first — it defines `can0`, lighting `!extend`s it).
 - Pure logic lives in `protocol/ha_arbitration.h`; native test:
   `g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb`
 
