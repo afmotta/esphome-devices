@@ -16,18 +16,18 @@ control system (see root `CLAUDE.md`).
   anytime.
 
 Full protocol and architecture: `docs/canbus-smart-home-reference.md`.
-Operational detail (pins, arbitration, health, manifest): `firmware/README.md`.
+Operational detail (pins, arbitration, health, manifest): `README.md`.
 ADR specs live in `_bmad-output/implementation-artifacts/` (historical record —
 new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
 
 ## Hard rules
 
-- **Never hand-edit `firmware/nodes/`** — node YAMLs are generated. Edit
+- **Never hand-edit `canbus/nodes/`** — node YAMLs are generated. Edit
   `registry/nodes.csv` / `registry/bindings.yaml`, then run
-  `python3 canbus/firmware/tools/generate_nodes.py`.
+  `python3 canbus/tools/generate_nodes.py`.
 - **Git is the system of record for the registry** (ADR-0009). Bindings are
   unrebuildable; before reflashing the gateway run
-  `python3 canbus/firmware/tools/check_registry_pushed.py` (exit 0 = safe).
+  `python3 canbus/tools/check_registry_pushed.py` (exit 0 = safe).
 - **Momentary buttons have no state** — never add button-state/bitmask fields
   to frames or HA payloads; buttons emit events only.
 - **No PROTO version bump until live** — pre-live breaking changes are made in
@@ -36,11 +36,11 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   includes) — own struct state via a header accessor (see `pending_acks_store`
   in `lighting/packages/buttons.yaml`, `node_health_store` in
   `canbus/packages/health.yaml`).
-- **Gateway-side packages live at `canbus/packages/`** (transport health +
-  the bus definition; distinct from node-side `firmware/packages/` until
-  Phase 6 merges them). `devices/gateway.yaml` composes them with
-  `lighting/packages/buttons.yaml` — canbus package first (it defines `can0`;
-  lighting `!extend`s it).
+- **`canbus/packages/`** holds both node-side (`base_node.yaml`, `button.yaml`,
+  `sensor_kit.yaml`) and gateway-side (`health.yaml` — transport health + the
+  bus definition) packages since Phase 6a merged them. `devices/gateway.yaml`
+  composes `health.yaml` with `lighting/packages/buttons.yaml` — canbus
+  package first (it defines `can0`; lighting `!extend`s it).
 - **`on_frame` guards**: validate payloads with `if:`/`condition:` blocks so
   action lambdas stay clean — no redundant re-checks inside lambdas.
 
@@ -48,23 +48,23 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
 
 ```bash
 # Python (stdlib-only, no deps)
-python3 canbus/firmware/tests/test_bindings.py
-python3 canbus/firmware/tests/test_generate_exports.py
-python3 canbus/firmware/tests/test_push_gate.py
+python3 canbus/tests/test_bindings.py
+python3 canbus/tests/test_generate_exports.py
+python3 canbus/tests/test_push_gate.py
 
 # Native C++ protocol logic (no ESPHome deps)
-g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_protocol.cpp -o /tmp/proto && /tmp/proto
-g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb
-g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_node_health.cpp -o /tmp/health && /tmp/health
-g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
-g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract
+g++ -std=c++17 -Wall -Wextra canbus/tests/test_protocol.cpp -o /tmp/proto && /tmp/proto
+g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb
+g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health && /tmp/health
+g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
+g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract
 
 # ESPHome compile check without touching generated nodes
-esphome compile canbus/firmware/tests/compile_sensor_node.yaml
+esphome compile canbus/tests/compile_sensor_node.yaml
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte
-(`generate_nodes.py` then `git diff --exit-code canbus/firmware registry`).
+(`generate_nodes.py` then `git diff --exit-code canbus registry`).
 
 ## Integration with the climate system
 
@@ -77,7 +77,7 @@ explicitly outside the freeze. `room_slug` is the climate-zone join key
 (validated against `hvac/rooms/**`; required when `sensors=1`), and
 numeric `floor` converts to a climate floor slug via `FLOOR_SLUGS`
 (0→`ground_floor`, 1→`first_floor`, 2→`second_floor`) in
-`firmware/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the
+`canbus/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the
 same controller. HA-side YAML (`canbus/home-assistant/
 ha_arbitration_automations.yaml`, generated `ha_manifest_package.yaml`) is imported into
 Home Assistant.

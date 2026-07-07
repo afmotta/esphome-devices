@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Standalone native test for tools/bindings.py (no ESPHome required).
-Run:  python3 firmware/tests/test_bindings.py
+Run:  python3 canbus/tests/test_bindings.py
 
 Covers the ADR-0009 §3 canonical-hash contract (determinism under key/binding/whitespace
 reordering, sensitivity to data changes, empty-manifest stability) and the strict-subset

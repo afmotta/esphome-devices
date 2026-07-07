@@ -1,4 +1,0 @@
-# ESPHome build output and local secrets — ignored at any depth
-# (build dirs are created next to whichever config esphome runs: gateway/, nodes/, …).
-.esphome/
-secrets.yaml

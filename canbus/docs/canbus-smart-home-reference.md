@@ -89,20 +89,21 @@ registry/                    # house system-of-record, elevated out of firmware/
 ├── node_id_hwm               # persistent monotonic node_id high-water mark
 ├── bindings.yaml             # binding manifest (owned by lighting)
 └── map.json                  # GENERATED read-only export (contract owned by hvac)
-canbus/firmware/
+canbus/                       # flattened out of firmware/ (Phase 6a); gateway.yaml/bridge.yaml
+                              #   live in devices/ (Phase 5a)
+├── README.md                 # Operational detail: pins, arbitration, health, manifest
 ├── protocol/
 │   ├── canbus_protocol.h    # C++ header: all constants, CAN ID helpers, payload builders/decoders
 │   └── node_map.h           # GENERATED central node_id -> {room, board, name} map (gateway include)
-├── packages/
+├── packages/                # node-side (base_node, button, sensor_kit) + gateway-side (health.yaml,
+│   │                        #   canbus's half of the Phase 5b-2 gateway split)
 │   ├── base_node.yaml       # Shared node package: SPI, MCP2515, heartbeat, AND the standard 8-button set
-│   └── button.yaml          # Per-button package: GPIO + on_multi_click with 5 event types
-├── gateway/
-│   ├── gateway.yaml         # Gateway config for Waveshare ESP32-S3-RS485-CAN
-│   ├── secrets.yaml.example # wifi + api_encryption_key template (gateway is the only secrets user)
-│   └── secrets.yaml         # local, gitignored
+│   ├── button.yaml          # Per-button package: GPIO + on_multi_click with 5 event types
+│   ├── sensor_kit.yaml      # Opt-in ADR-0006 sensor kit (SHT45 + SEN66)
+│   └── health.yaml          # Gateway-side: bus definition + transport health (see devices/gateway.yaml)
 ├── tools/
 │   ├── allocate_node.py     # allocate the next node_id and register it
-│   ├── generate_nodes.py    # reads ../../registry/nodes.csv -> per-node YAML + protocol/node_map.h
+│   ├── generate_nodes.py    # reads registry/nodes.csv -> per-node YAML + protocol/node_map.h
 │   └── commission.py        # assign room/board to a node_id, regenerate node_map.h
 ├── tests/
 │   └── test_protocol.cpp    # standalone native round-trip test for canbus_protocol.h

@@ -22,9 +22,9 @@ from pathlib import Path
 import generate_nodes  # regenerate node_map.h after an edit
 
 HERE = Path(__file__).parent
-# HERE is canbus/firmware/tools/ — three levels below repo root, where registry/ was
-# elevated to (migration Phase 1).
-CSV_PATH = HERE.parent.parent.parent / "registry" / "nodes.csv"
+# HERE is canbus/tools/ — two levels below repo root (flattened out of
+# firmware/, Phase 6a), where registry/ was elevated to (Phase 1).
+CSV_PATH = HERE.parent.parent / "registry" / "nodes.csv"
 FIELDS = generate_nodes.CSV_HEADER  # single source of the registry schema
 MAX_RB = 255  # room/board are uint8 in node_map.h
 

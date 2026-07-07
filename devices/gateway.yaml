@@ -37,11 +37,11 @@ esphome:
   name: canbus-gateway
   friendly_name: "CAN Bus Gateway"
   includes:
-    - ../canbus/firmware/protocol/canbus_protocol.h
-    - ../canbus/firmware/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
-    - ../canbus/firmware/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
-    - ../canbus/firmware/protocol/node_health.h   # gateway-resident aliveness pure logic (ADR-0011 §1)
-    - ../canbus/firmware/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
+    - ../canbus/protocol/canbus_protocol.h
+    - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
+    - ../canbus/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
+    - ../canbus/protocol/node_health.h   # gateway-resident aliveness pure logic (ADR-0011 §1)
+    - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
 
 esp32:
   variant: esp32s3

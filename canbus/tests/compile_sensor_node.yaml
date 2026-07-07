@@ -7,8 +7,8 @@
 # a scratch value — nothing reserves it, so NEVER flash this config to hardware;
 # it exists only for esphome config/compile.
 #
-#   esphome config  firmware/tests/compile_sensor_node.yaml
-#   esphome compile firmware/tests/compile_sensor_node.yaml
+#   esphome config  canbus/tests/compile_sensor_node.yaml
+#   esphome compile canbus/tests/compile_sensor_node.yaml
 # =============================================================================
 
 substitutions:

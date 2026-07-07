@@ -44,8 +44,8 @@ from pathlib import Path
 
 import bindings  # binding-manifest reader + canonical hash (ADR-0009)
 
-ROOT = Path(__file__).resolve().parent.parent  # firmware/
-REPO_ROOT = ROOT.parent.parent  # repo root (registry/ lives here, elevated out of firmware/)
+ROOT = Path(__file__).resolve().parent.parent  # canbus/ (flattened out of firmware/, Phase 6a)
+REPO_ROOT = ROOT.parent  # repo root (registry/ lives here, elevated out of firmware/)
 
 TEMPLATE = """\
 # =============================================================================
@@ -356,7 +356,7 @@ def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):
     (manifest_hash, map_version) — the latter is also compiled into node_map.h for drift
     visibility (§6). Aborts (sys.exit) on an invalid manifest, writing nothing.
 
-    `root` anchors firmware-internal outputs (protocol/); `repo_root` anchors registry/
+    `root` anchors canbus-internal outputs (protocol/); `repo_root` anchors registry/
     (elevated out of firmware/) and canbus/home-assistant/ — pass the caller's REPO_ROOT
     rather than re-deriving it here, so there is exactly one place that knows the
     repo-root depth."""

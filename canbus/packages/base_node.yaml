@@ -60,6 +60,8 @@ spi:
   miso_pin: GPIO4
 
 # --------------- CAN bus ---------------
+# NOTE: health.yaml (canbus/packages/) also declares `id: can0` for its esp32_can bus. See
+# that file's note — never composed together today, but the id would collide if that changes.
 canbus:
   - platform: mcp2515
     id: can0

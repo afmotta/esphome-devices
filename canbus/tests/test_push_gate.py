@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Standalone native test for tools/check_registry_pushed.py — the ADR-0009 open item 4
-push-discipline gate. Run:  python3 firmware/tests/test_push_gate.py
+push-discipline gate. Run:  python3 canbus/tests/test_push_gate.py
 
 Builds throwaway git repos (a work repo + a bare "remote") so the clean/pushed checks run
 against real git state, no network. Covers: clean+pushed passes; uncommitted and untracked

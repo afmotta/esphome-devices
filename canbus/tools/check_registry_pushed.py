@@ -29,21 +29,22 @@ import subprocess
 import sys
 from pathlib import Path
 
-# firmware/ — guarded paths and git invocations are relative to it.
-FIRMWARE = Path(__file__).resolve().parent.parent
+# canbus/ (flattened out of firmware/, Phase 6a) — guarded paths and git invocations
+# are relative to it.
+CANBUS_ROOT = Path(__file__).resolve().parent.parent
 
 # ADR-0009 system of record + the artifacts compiled into the controller. registry/ covers
 # nodes.csv / bindings.yaml / node_id_hwm / map.json; the headers and HA package are
 # generated but get flashed, so an uncommitted one would mean flashing unbacked-up state.
-# registry/ lives at repo root, two levels up from FIRMWARE (canbus/firmware/), hence
-# "../..". ha_manifest_package.yaml lives under canbus/home-assistant/ — a sibling of
-# firmware/ inside canbus/, so only one level up. (History: both paths moved during the
+# registry/ lives at repo root, one level up from CANBUS_ROOT, hence "../registry".
+# ha_manifest_package.yaml lives under canbus/home-assistant/ — a sibling of protocol/
+# inside canbus/, so no "../" at all. (History: both paths moved during the
 # esphome-devices layered restructure; see MIGRATION-MAP.md if the depth ever looks wrong.)
 GUARDED_PATHS = [
-    "../../registry",
+    "../registry",
     "protocol/node_map.h",
     "protocol/bindings.h",
-    "../home-assistant/ha_manifest_package.yaml",
+    "home-assistant/ha_manifest_package.yaml",
 ]
 
 
@@ -96,7 +97,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        errors = check(FIRMWARE, GUARDED_PATHS)
+        errors = check(CANBUS_ROOT, GUARDED_PATHS)
     except GitError as exc:
         print(f"✗ push gate: cannot check git state: {exc}", file=sys.stderr)
         raise SystemExit(2)

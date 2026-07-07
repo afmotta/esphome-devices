@@ -19,9 +19,9 @@ from pathlib import Path
 from generate_nodes import CSV_HEADER as HEADER  # single source of the registry schema
 
 HERE = Path(__file__).parent
-# HERE is canbus/firmware/tools/ — three levels below repo root, where registry/ was
-# elevated to (migration Phase 1).
-REGISTRY = HERE.parent.parent.parent / "registry"
+# HERE is canbus/tools/ — two levels below repo root (flattened out of
+# firmware/, Phase 6a), where registry/ was elevated to (Phase 1).
+REGISTRY = HERE.parent.parent / "registry"
 CSV_PATH = REGISTRY / "nodes.csv"
 HWM_PATH = REGISTRY / "node_id_hwm"
 NODE_ID_MAX = 8191  # 13 bits, must match canbus_protocol.h / generate_nodes.py

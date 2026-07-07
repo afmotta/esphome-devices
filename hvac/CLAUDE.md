@@ -95,7 +95,7 @@ first_floor_mev_alarm_active         # Master alarm indicator
 CAN-bus wall-button node to a climate zone. The known-zone list is read from
 this directory's room files (`hvac/rooms/**`, by file *contents* not
 filenames — `ground_floor/bagno.yaml` declares `bagno_terra`) by
-`canbus/firmware/tools/generate_nodes.py`'s `load_climate_zones()`, so it
+`canbus/tools/generate_nodes.py`'s `load_climate_zones()`, so it
 can't drift as rooms are added, renamed, or removed. hvac only reads
 `registry/map.json`; it never writes the registry (ADR-0009 §7 authority
 boundary).

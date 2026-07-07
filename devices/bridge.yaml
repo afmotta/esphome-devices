@@ -56,8 +56,8 @@ esphome:
   name: canbus-bridge-${node_id}
   friendly_name: "CAN Bridge ${node_id}"
   includes:
-    - ../canbus/firmware/protocol/canbus_protocol.h
-    - ../canbus/firmware/protocol/bridge_forwarding.h
+    - ../canbus/protocol/canbus_protocol.h
+    - ../canbus/protocol/bridge_forwarding.h
   # MCP2515 hardware reset pulse before its component initializes (the
   # mcp2515 below carries setup_priority -100 so it sets up after this runs).
   # Sequence and timing from LilyGO's reference firmware.

@@ -52,7 +52,7 @@ connected to MCP2515 OSC1/OSC2) has `value="16MHz"`.
 ## Complete MCP2515 SPI Pin Reference (CANBed RP2040 V1.1)
 
 All values confirmed from V1.1 Eagle schematic. Use these in Story 2.1
-(`canbus/firmware/packages/base_node.yaml`) and Story 1.4 (`canbus/firmware/tools/generate_nodes.py` template).
+(`canbus/packages/base_node.yaml`) and Story 1.4 (`canbus/tools/generate_nodes.py` template).
 
 | Signal      | RP2040 GPIO | Net name | Template assumption | Correct?  |
 | ----------- | ----------- | -------- | ------------------- | --------- |
@@ -130,7 +130,7 @@ using the `canbus_protocol.h` constants/helpers merged in PR #19.
 - > **⚠️ Still unverified:** SEN66 power over the QwiicBus run (ADR-0006 open item 3) —
   > confirm voltage/current against the host rail and fan inrush per run.
 - Compile check without touching generated nodes:
-  `esphome compile canbus/firmware/tests/compile_sensor_node.yaml`.
+  `esphome compile canbus/tests/compile_sensor_node.yaml`.
 
 ---
 
@@ -158,7 +158,7 @@ control: hold-to-dim, hold-to-move a cover.
   `hold_release` can never run away. Derived long presses satisfy it by construction — a
   lost release means the action just doesn't fire.
 - Compile check without touching generated nodes:
-  `esphome compile canbus/firmware/tests/compile_sensor_node.yaml` (base node + all 8 buttons +
+  `esphome compile canbus/tests/compile_sensor_node.yaml` (base node + all 8 buttons +
   sensor kit).
 
 ---
@@ -189,7 +189,7 @@ placeholder.
   `canbus/packages/health.yaml`; `devices/gateway.yaml` composes both (canbus
   package first — it defines `can0`, lighting `!extend`s it).
 - Pure logic lives in `protocol/ha_arbitration.h`; native test:
-  `g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb`
+  `g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb`
 
 ### Health monitoring (ADR-0011)
 
@@ -208,7 +208,7 @@ heartbeat; HA cannot notice the silence of a device it has never heard from.
   existing **HA Ready**. ~6 entities regardless of fleet size — per-node entities are materialized
   HA-side from the edge events by the generated package (ADR-0011 open item 2, deferred).
 - Pure logic lives in `protocol/node_health.h` (no ESPHome deps, like `ha_arbitration.h`); native test:
-  `g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_node_health.cpp -o /tmp/health && /tmp/health`
+  `g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health && /tmp/health`
 
 ---
 
@@ -225,7 +225,7 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
   which the gateway compares against the hash HA echoes — agreement un-stubs `ha_ready`.
 - **Stdlib-only:** `bindings.py` ships a small reader for a strict YAML subset (scalars only,
   no nesting) so the generator stays dependency-free. Native tests:
-  `python3 canbus/firmware/tests/test_bindings.py` and `python3 canbus/firmware/tests/test_generate_exports.py`.
+  `python3 canbus/tests/test_bindings.py` and `python3 canbus/tests/test_generate_exports.py`.
 - **Generated artifacts (ADR-0009 §4/§7), one generator run, all committed:**
   - `protocol/bindings.h` — `BINDINGS_MANIFEST_HASH` **plus** the compiled `BINDINGS[]`
     fallback table (`struct BindingEntry`, `binding_find()`), frozen-additive and currently
@@ -292,7 +292,7 @@ weaker TX side, 3 buffers — sustains at 125 kbps). A drop anywhere latches
   reference firmware:
   <https://github.com/Xinyuan-LilyGO/T-2Can/blob/main/esphome/can.yaml>
 - Pure forwarding logic lives in `protocol/bridge_forwarding.h`; native test:
-  `g++ -std=c++17 -Wall -Wextra canbus/firmware/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge`
+  `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge`
 - Before wall installation, the ADR-0005 open item 5 soak test must observe on hardware:
   zone-side RX behavior under bursts (ESPHome polls the MCP2515 from `loop()`; 2 RX
   buffers), and watchdog/brownout recovery degrading to *silent* — never holding a segment

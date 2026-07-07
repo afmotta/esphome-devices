@@ -13,10 +13,10 @@ hash) is owned by canbus; each data file has exactly one owning system.
 
 A schema change to `nodes.csv` or `bindings.yaml` requires that file's owning
 system. A mechanism change (generator, canonicalization, push gate) requires
-canbus. One push gate (`canbus/firmware/tools/check_registry_pushed.py`)
+canbus. One push gate (`canbus/tools/check_registry_pushed.py`)
 covers the whole registry.
 
-The compiled artifacts derived from this data (`canbus/firmware/protocol/node_map.h`,
-`canbus/firmware/protocol/bindings.h`) are canbus-owned and covered by the
+The compiled artifacts derived from this data (`canbus/protocol/node_map.h`,
+`canbus/protocol/bindings.h`) are canbus-owned and covered by the
 same push gate — an uncommitted compiled header is as unsafe to flash as an
 uncommitted registry file.

@@ -124,6 +124,10 @@ interval:
                   name: !lambda 'return std::string(NODE_MAP[id(lost_node_idx)].name);'
 
 # --------------- CAN Bus (native ESP32 TWAI) ---------------
+# NOTE: base_node.yaml (canbus/packages/) also declares `id: can0` for its MCP2515 bus.
+# The two are never composed into the same entry point today (this file: devices/gateway.yaml
+# only; base_node.yaml: generated node YAMLs + compile_sensor_node.yaml only) — if that ever
+# changes, one of the two ids must be renamed first (found during Phase 6a's package merge).
 canbus:
   - platform: esp32_can
     id: can0
