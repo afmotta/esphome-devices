@@ -1,7 +1,7 @@
 ---
 adr: 0014
 title: 'Standardized controller & Modbus I/O hardware: LilyGO T-Connect Pro + Waveshare RTU family for both lighting and HVAC, interchangeable spares'
-status: 'Proposed'
+status: 'Accepted'
 date: '2026-07-10'
 deciders: ['Alberto']
 author: 'Claude (Fable 5)'
@@ -26,7 +26,7 @@ relatedDocuments:
 
 ## Status
 
-**Proposed.** First root-tree ADR (per AD-1 the frozen `canbus/_bmad-output/` tree is never
+**Accepted** (2026-07-10). First root-tree ADR (per AD-1 the frozen `canbus/_bmad-output/` tree is never
 edited; this file is the disposition record for frozen ADR-0013, which stays marked Proposed in
 place). Partially supersedes ADR-0013: only §1's *realization* (gateway-local outputs) is
 replaced — by the Modbus relay banks its own transport-agnostic design anticipated. Resolves

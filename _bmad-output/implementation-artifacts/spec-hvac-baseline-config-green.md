@@ -2,11 +2,12 @@
 title: 'HVAC baseline config green — wire boost_active/last_mode_change_time in fancoil_boost.yaml'
 type: 'bug'
 created: '2026-07-10'
-status: 'ready-for-dev'
-review_loop_iteration: 0
+status: 'done'
+review_loop_iteration: 1
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
-final_revision: ''
+final_revision: 'bf037dd (vesta submodule)'
+baseline_commit: '843d96163c8f9cde72d35cc3dacb5c4ab75f8c98'
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md']
 warnings: []
 ---
@@ -135,19 +136,19 @@ choice to raise with Alberto.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `fancoil_boost.yaml` -- add `boost_active_global`/`last_mode_change_time_global`
+- [x] `fancoil_boost.yaml` -- add `boost_active_global`/`last_mode_change_time_global`
   optional vars + doc-comment updates -- gives the coordinator the two ids every consumer
   already expects
-- [ ] `fancoil_boost.yaml` -- add the two `globals:` entries -- backing state the autotune
+- [x] `fancoil_boost.yaml` -- add the two `globals:` entries -- backing state the autotune
   button can assign directly (`id(x) = false`) and the floor aggregator can read raw
-- [ ] `fancoil_boost.yaml` -- wire both globals + a new `boost_active_sensor` publish into
+- [x] `fancoil_boost.yaml` -- wire both globals + a new `boost_active_sensor` publish into
   the select's two existing `set_action` branches -- every boost-state transition updates
   both the internal flag/timestamp and the HA-visible mirror in one place
-- [ ] `fancoil_boost.yaml` -- add the new `binary_sensor: platform: template` entry -- makes
+- [x] `fancoil_boost.yaml` -- add the new `binary_sensor: platform: template` entry -- makes
   `binary_sensor.climate_control_{room}_boost_active` resolve for the dashboards that already
   reference it
-- [ ] `vesta/docs/fancoil-boost.md` -- document the two new vars and the new exposed entity
-- [ ] Run `esphome config devices/locals/climate-control.yaml` -- confirm all three
+- [x] `vesta/docs/fancoil-boost.md` -- document the two new vars and the new exposed entity
+- [x] Run `esphome config devices/locals/climate-control.yaml` -- confirm all three
   previously-failing IDs now resolve and config exits 0
 
 **Acceptance Criteria:**
@@ -203,8 +204,154 @@ primitive types natively, that constraint only bites for structs.
 
 ## Spec Change Log
 
+- 2026-07-10: `binary_sensor.template` in ESPHome 2026.5.0 does not accept
+  `update_interval` (that option only exists on `sensor.template`/polling platforms;
+  `esphome config` rejected it with "invalid option ... Did you mean [internal]?"). Dropped
+  the option — the entity is still push-only (no `lambda:`, so it never polls), updated
+  solely via `binary_sensor.template.publish` from the two `set_action` branches, same
+  intended behavior as originally specified.
+
+- 2026-07-10 (review loop 1, bad_spec): Blind Hunter and Edge Case Hunter both independently
+  flagged that `${zone_slug}_boost_state`'s `restore_value: true` restores the select's
+  option from flash on boot via `publish_state`, which does **not** invoke `set_action`. The
+  original Code Map only initialized the two new globals to their static defaults
+  (`false`/`0`) and never accounted for boot-time resync, so a reboot mid-boost would leave
+  `boost_active_global` silently `false` and `${zone_slug}_boost_active_sensor` unpublished
+  ("unknown" in HA) despite the select correctly restoring "Fancoil Boost". **KEEP** (verified
+  working, not touched by this amendment): the two `globals:` entries and their placement,
+  wiring both globals + the new binary_sensor publish into both `set_action` branches
+  symmetrically, the binary_sensor's push-only design (no `lambda:`/`update_interval`), the
+  unwrapped `value: millis()` raw-expression form for `globals.set` (confirmed compiles under
+  ESPHome 2026.5.0 — `esphome compile` succeeded), and the doc-table additions.
+  **Amendment**: extend the existing `${zone_slug}_boost_update_idle` script (already runs
+  `on_boot` at priority -100 for exactly this class of restore-resync, previously only
+  re-published the text_sensor) to also set `boost_active_global` from the restored select
+  option and publish the binary_sensor to match — no separate boot hook needed.
+  `last_mode_change_time_global` is deliberately left unsynced on boot (stays `0`, matching
+  the non-restoring `globals:` declaration): ESPHome globals have no restore-across-reboot
+  story here, and per ADR-0014 §5 this house has no RTC yet (SNTP only) and already accepts
+  that timestamps don't survive a power-loss reboot — treating a reboot as time-zero is
+  consistent with that accepted limitation, not a new gap.
+  Two secondary findings folded into the same pass (both `bad_spec`, low severity, no
+  loopback needed on their own): the new binary_sensor was missing `entity_category:
+  diagnostic` and an `icon:` that every sibling entity in this file has — added
+  (`entity_category: diagnostic`, `icon: mdi:fan-auto`); and the new "Raw globals" header
+  comment named house-specific consumer files (`ground-floor.yaml`,
+  `pid_autotune_with_fancoil.yaml`) inside `vesta/`, which is the extractable open-source
+  library — reworded to describe the *pattern* (external lambdas reading/assigning via
+  `id(x)`) generically instead of naming this house's specific files.
+  Re-verified: `esphome config` and `esphome compile` both green after the amendment.
+
 ## Review Triage Log
+
+**Iteration 1** (2026-07-10):
+- bad_spec (high) — boot-restore resync gap for the two new globals + binary_sensor →
+  addressed via Spec Change Log amendment above; re-derived in place (fix-forward, see note)
+  rather than full revert, because the destructive `git checkout` step this workflow
+  prescribes for bad_spec loopbacks was blocked by the auto-mode safety classifier
+  (irreversible discard of already-validated uncommitted work with no user sign-off). The
+  net result is identical to revert-and-redo: the flawed increment is gone, replaced by the
+  amended one, verified green.
+- bad_spec (low) — missing `entity_category`/`icon` on new binary_sensor → fixed in the same
+  pass, see change log.
+- bad_spec (low) — vesta header comment hardcoded house-specific filenames → fixed in the
+  same pass, see change log.
+- defer — `pid_autotune_with_fancoil.yaml`'s autotune button writes
+  `id(${boost_active_global}) = false` directly, bypassing `select.set`/`set_action`
+  entirely, so after an autotune-triggered deactivation the select, radiant override switch,
+  and the new binary_sensor can disagree with the raw global until the next real transition.
+  Pre-existing design in a file this spec's Boundaries explicitly forbid touching (its
+  `boost_active_global` contract was declared "already correct" — this spec only had to make
+  the id exist); the desync was latent and unobservable before this fix (the file didn't even
+  compile), now exposed. Logged to `deferred-work.md`.
+- defer — `vesta/docs/fancoil-boost.md`'s Diagnostic Sensors table lists three entities
+  (`{zone_slug}_cooling_mode`, `{zone_slug}_time_in_mode`, `{zone_slug}_saturation_duration`)
+  that don't exist in `fancoil_boost.yaml` before or after this change — pre-existing doc
+  drift, unrelated to this fix. Logged to `deferred-work.md`.
+- reject — re-selecting the currently-active option (e.g. HA re-issuing "Fancoil Boost" while
+  already boosted) would re-stamp `last_mode_change_time_global` to `millis()` with no real
+  transition. Real but negligible: only feeds a display metric
+  (`ground_floor_time_in_current_mode`), min_time_in_state anti-cycling is driven by the
+  script `delay:`s (independent of this global), and nothing in this codebase currently
+  calls `select.set` with an unchanged value.
+- reject — unwrapped `value: millis()` questioned as possibly not compiling as intended;
+  verified via ESPHome source (`globals.set`'s `value` is `cv.templatable(cv.string_strict)`
+  with `to_exp=cg.RawExpression`, so a bare literal is emitted as raw C++) and via a
+  successful `esphome compile`. Non-issue.
+
+**Iteration 2** (2026-07-10, re-review of the iteration-1 amendment only — no bad_spec/
+intent_gap this round, so `review_loop_iteration` was not incremented further):
+- patch — the on_boot resync lambda and the `binary_sensor.template.publish` step
+  duplicated the same "is boosting" boolean via two independently-written expressions →
+  merged into one lambda that computes `boosting` once and calls
+  `id(${zone_slug}_boost_active_sensor).publish_state(boosting)` directly instead of a
+  separate publish action.
+- patch — the comment above `${zone_slug}_boost_update_idle` said it resyncs "the raw
+  globals" (plural) but only touched `boost_active_global`, contradicting itself for
+  `last_mode_change_time_global` → reworded to precisely state what's resynced (reported
+  state only), why `last_mode_change_time_global` intentionally isn't (no RTC, ADR-0014 §5),
+  and that physical outputs are intentionally not replayed here (see defer below).
+- patch — `boost_active_global`/`last_mode_change_time_global` were documented under
+  "Optional vars" but not under "# Exposes:", even though the header comment describes them
+  as public interface for external consumers → added both to `# Exposes:`.
+- defer — the boot-restore resync (this spec's own fix) only updates *reported* state
+  (globals + binary_sensor + text_sensor), not the physical outputs `set_action` drives
+  (radiant override switch/value, radiant PWM, fancoil PID mode) — a mid-boost reboot
+  restores the select to "Fancoil Boost" but leaves hardware at power-on defaults while now
+  confidently reporting "boosting". Pre-existing gap in the coordinator's boot-restore story
+  (the select's `restore_value` never replayed `set_action`'s hardware side, before or after
+  this spec) — fixing it needs a real design decision (component-init ordering at boot
+  priority -100, whether hardware replay on boot is even desired), out of scope for a
+  targeted two-id wiring fix. Logged to `deferred-work.md`.
+- reject — `last_mode_change_time_global` not resyncing on boot re-flagged in round 2;
+  already an intentional, documented decision from iteration 1 (see Spec Change Log), not a
+  new finding.
+- reject — remaining round-2 findings (hardcoded true/false per select branch instead of a
+  shared "apply state" primitive, confusable `_boost_active` vs. `_boost_active_sensor`
+  naming, no sanity check for select-restore edge cases like an OTA that changes the options
+  list, redundant writes on a same-value `select.set`) are code-quality/robustness
+  suggestions, not correctness bugs, and several call for centralizing logic across
+  `set_action`'s two branches — which the spec's Boundaries explicitly forbid altering
+  ("Do not rename ... or change the select's existing options/transitions"). No change.
+- Re-verified: `esphome config` and `esphome compile` both green after the round-2 patches.
 
 ## Auto Run Result
 
-Status: ready-for-dev — not yet executed.
+Status: implemented, config + compile green, review loops 1 and 2 complete (all findings
+triaged — 6 fixed in place across two passes, 3 deferred, 3 rejected as non-issues).
+
+## Suggested Review Order
+
+**State wiring (the fix)**
+
+- Two new globals backing the ids every consumer already expected; `boost_active_global`
+  optional var default matches `soggiorno.yaml`/`cucina.yaml`'s existing explicit pass.
+  [`fancoil_boost.yaml:119`](../../vesta/packages/coordinators/fancoil_boost.yaml#L119)
+
+- Both `set_action` branches set the two globals + publish the new binary_sensor
+  symmetrically — boost on sets `true`/stamps `millis()`, boost off sets `false`/stamps
+  `millis()` (Design Notes: any transition counts, not just activation).
+  [`fancoil_boost.yaml:159`](../../vesta/packages/coordinators/fancoil_boost.yaml#L159)
+  [`fancoil_boost.yaml:182`](../../vesta/packages/coordinators/fancoil_boost.yaml#L182)
+
+- New `binary_sensor.{zone_slug}_boost_active_sensor` — push-only (no `lambda`), makes
+  `binary_sensor.climate_control_{room}_boost_active` resolve for existing dashboard refs.
+  [`fancoil_boost.yaml:311`](../../vesta/packages/coordinators/fancoil_boost.yaml#L311)
+
+**Boot-restore resync (review-loop finding, iteration 1)**
+
+- `select: restore_value: true` restores the option from flash without invoking
+  `set_action` — this on_boot lambda (already ran for the text_sensor) now also resyncs
+  `boost_active_global` and the binary_sensor to match. Deliberately does not resync
+  `last_mode_change_time_global` (no RTC yet) or replay hardware outputs (deferred).
+  [`fancoil_boost.yaml:282`](../../vesta/packages/coordinators/fancoil_boost.yaml#L282)
+
+**Docs**
+
+- Optional-vars/Exposes table entries for the two new globals and the new entity.
+  [`fancoil-boost.md:144`](../../vesta/docs/fancoil-boost.md#L144)
+
+**ADR + planning**
+
+- ADR-0014 marked Accepted, unblocking this phase's implementation plan.
+  [`0014-standardized-controller-modbus-io-hardware.md:4`](../planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md#L4)
