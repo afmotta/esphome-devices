@@ -78,8 +78,10 @@ Integration facts, recorded here because the Waveshare wiki 403-blocks automated
 
 - **T-Connect Pro pins:** CAN TWAI TX=IO6 / RX=IO7; RS485 TX=IO17 / RX=IO18 (same pins as
   today's `modbus_uart`); W5500 SPI SCLK=IO12, MOSI=IO11, MISO=IO13, CS=IO10, INT=IO9, RST=IO48;
-  RS232 TX=IO4 / RX=IO5 (repurposed, §5); I²C SDA=IO39 / SCL=IO40; display/touch/LoRa unused.
-  No RTC, no PoE.
+  RS232 TX=IO4 / RX=IO5 — **unused, free** (§5 revises the original plan to repurpose these; the
+  I²C bridge below replaces that); I²C SDA=IO39 / SCL=IO40 — hosts the (unused) onboard touch
+  controller plus two new external boards added in §5: a DS2484 1-Wire bridge (0x18) and an RTC
+  breakout (0x51 if PCF85063-based); display/LoRa unused. No PoE.
 - **Relay 32CH:** coils 0x0000–0x001F (channels 1–32), FC 0x01 read / 0x05 write single /
   0x0F write multiple; write values 0xFF00=on, 0x0000=off, 0x5500=toggle; device address via
   holding register 0x4000 (works on broadcast address 0x00); defaults 9600 8N1, address 0x01.
@@ -126,10 +128,11 @@ pre-addressed spares swap without re-addressing: relay bank **0x2** on both buse
 
 | Gap | Mitigation |
 |---|---|
-| No RTC | `time: platform: homeassistant` (`ha_time`); seasonal-mode already takes its clock via the `time_id` var |
 | No PoE | DC supply; power topology remains with the parked power/electrical ADR (gap-analysis queue #2) |
-| No free GPIO for 1-Wire (2× DS18B20 supply-water sensors, the mixing-valve PID inputs) | Repurpose the unused RS232 header pins (IO4); fallback: DS2484 I²C→1-Wire bridge on IO39/40 (ESPHome `one_wire` platform `ds2484`) |
+| No free GPIO for 1-Wire (2× DS18B20 supply-water sensors, the mixing-valve PID inputs) | **Revised 2026-07-10, Alberto:** use a DS2484 I²C→1-Wire bridge (ESPHome `one_wire` platform `ds2484`, address 0x18) on the shared I²C bus (SDA=IO39/SCL=IO40) as the primary design, not a GPIO-repurposing fallback — the I²C bridge supplies correct bus power to the DS18B20s, which a bare GPIO one-wire bus does not. This also frees the RS232 pins (IO4/IO5) entirely; they're unused, not repurposed. |
+| No RTC | **Revised 2026-07-10, Alberto:** restore it with a cheap external I²C RTC breakout on the same shared bus, rather than relying on `homeassistant` time alone. Concrete part: a **PCF85063** breakout — the exact chip `boards/waveshare-s3.yaml` already used via ESPHome's native `pcf85063` component (proven in this repo, address 0x51), so this is zero new component risk. Alberto's example link (Adafruit #5188) is a **DS3231** board — a fine chip, but ESPHome 2026.5.0 has no native `ds3231` time component (only `pcf85063` and `ds1307`); either source a PCF85063/DS1307-based breakout instead, or accept adding external-component risk to use the DS3231 one. `homeassistant` time still syncs the RTC on `on_time_sync` (same pattern as the original board); the RTC, not `ha_time`, is the `time_id` `seasonal_mode` takes, restoring clock autonomy across a reboot with HA/NTP both unreachable. |
 | Onboard relay / free-GPIO map undocumented | Verify from the LilyGO schematic during the board-file phase; not part of any contract |
+| Two new I²C devices share one bus with the unused touch controller | Confirm no address collision with the onboard CST226SE touch chip at bring-up (DS2484 default 0x18, PCF85063 default 0x51 — neither is a documented touch-chip address, but touch was never characterized for this decision) |
 | Display / touch / LoRa unused | Left unconfigured; backlight (IO46) held off |
 
 ## Implementation plan
@@ -142,7 +145,7 @@ slices (in-place edits, no shims, each slice lands green with its consumers):
 |---|---|---|---|
 | P1 | `spec-hvac-baseline-config-green` | Clear the pre-existing `esphome config devices/locals/climate-control.yaml` failures (missing IDs documented as baseline in `spec-phase-4-hvac-gathering.md`) so later gates are meaningful | — |
 | P2 | `spec-vesta-modbus-relay-32ch` | 32-ch aggregator package reusing `modbus_relay_switch.yaml`; verify negative `id_offset` substitution arithmetic (else document the 1-based fallback); vesta docs + example compile | — |
-| P3 | `spec-hvac-controller-swap-t-connect-pro` | `boards/t-connect-pro*.yaml` (esp-idf, W5500, `modbus_uart`, `ha_time`) + swap `devices/climate-control.yaml` onto them as the board's first consumer | P1, P2 |
+| P3 | `spec-hvac-controller-swap-t-connect-pro` | `boards/t-connect-pro*.yaml` (esp-idf, W5500, `modbus_uart`, shared I²C bus) + swap `devices/climate-control.yaml` onto them, adding the restored PCF85063 RTC and DS2484 1-Wire bridge there, as the board's first consumer | P1, P2 |
 | P4 | `spec-light-gateway-swap-t-connect-pro` | Gateway board swap + Ethernet + CAN pins IO6/7 + relay bank (`relay_0..31`) exposed as HA switches + the on-boot store registration; fallback stays log-only | P2, P3 |
 | P5 | `spec-light-fallback-actuation` | `lighting/protocol/binding_actuation.h` + native test; wire both fallback branches (single-click only, `binding_find`, op fan-out); `bindings.py` MAX_RELAY_ID=31 + tests; fix the stale "input-only/Modbus" gateway comment | P4 |
 | P6 | `spec-hardware-docs-sweep` | CLAUDE.md/docs/runbooks; commissioning utilities (address reg 0x4000); delete orphaned `boards/a6*.yaml`/`a16*.yaml`; annotate the resolved spine Deferred rows | P3–P5 |
@@ -173,7 +176,8 @@ open pending the circuit inventory.
   acceptable for a lights-on/off safety floor, and the relay bank itself becomes a fallback
   dependency (bank offline ⇒ neither HA nor fallback can switch — same blast radius as the old
   local-relay design, one cable more).
-- Losing the RTC costs clock autonomy when HA and NTP are both unreachable across a reboot.
+- Two more small boards to source, mount, and wire (RTC breakout, DS2484 bridge) versus the
+  original single-board design — both cheap, both on the same already-free I²C bus.
 - Vendor concentration (LilyGO + Waveshare families); accepted for a house.
 - The T-Connect Pro's display/touch/LoRa are dead weight; the Lite (no screen) variant is the
   natural buy where offered.
@@ -196,8 +200,10 @@ open pending the circuit inventory.
 
 1. **Bring-up verification list** (first hardware session): Waveshare parity/baud support vs
    the 38400 8E1 target (MEV is the constraint); onboard-relay pins and free-GPIO audit from the
-   LilyGO schematic; whether IO4 works as the 1-Wire GPIO or the DS2484 bridge is needed;
-   confirm the physical analog board is the (B) voltage variant.
+   LilyGO schematic; confirm the physical analog board is the (B) voltage variant; confirm the
+   DS2484 (0x18) and the RTC breakout (0x51 if PCF85063) don't collide on the I²C bus with the
+   unused onboard touch controller; source a PCF85063- or DS1307-based RTC breakout specifically
+   (not the DS3231/Adafruit-5188 example — no native ESPHome component for that chip today).
 2. **Lighting circuit inventory** → binding authoring + generated HA automations (ADR-0013 open
    item 4), and whether one 32-ch bank suffices (else raise the §2 bound with a second bank).
 3. **Power/PoE**: deferred to the parked power/electrical ADR (gap-analysis queue #2, blocked on
