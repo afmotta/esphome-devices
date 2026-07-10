@@ -1,16 +1,19 @@
 # =============================================================================
 # gateway.yaml — CAN Bus ↔ Home Assistant bridge (composition entry point)
 # =============================================================================
-# Hardware: Waveshare ESP32-S3-RS485-CAN
+# Hardware: LilyGO T-Connect Pro
 # Role:     Composes two systems' packages onto one physical device (AD-4;
 #           AD-7 as amended 2026-07-06):
 #             canbus/packages/health.yaml   — bus + transport health (infra)
 #             lighting/packages/buttons.yaml — button events + ha_ready gate
-#           This file owns only identity, board, network, api encryption/OTA,
-#           the shared protocol-header includes, and substitution overrides.
-#           The physical split into separate devices is deferred to ADR-0013's
-#           relay-hardware decision; until then this single entry point hosts
-#           both package sets.
+#           This file owns identity/network-mode substitutions, api
+#           encryption/OTA passwords, the shared protocol-header includes,
+#           and the relay bank. The board file (boards/t-connect-pro.yaml)
+#           owns the physical network implementation (Ethernet vs WiFi
+#           pins), esp32/api/ota scaffolding. Per ADR-0014, the physical
+#           split deferred by ADR-0013 resolves as: no further split — hvac
+#           is already a separate physical device; lighting + canbus
+#           continue sharing this entry point.
 #
 # PACKAGE ORDER: keep canbus (defines the can0 bus) before lighting
 # (`!extend`s it). Empirically ESPHome 2026.5.0 resolves !extend regardless of
@@ -24,18 +27,45 @@ substitutions:
   ack_timeout_ms: "500"
   # Aliveness: a mapped node is LOST after 3 missed 30 s heartbeats (ADR-0011 §1).
   node_lost_timeout_ms: "90000"
-  # CAN transceiver pins on this board.
-  can_tx_pin: GPIO15
-  can_rx_pin: GPIO16
+  # CAN transceiver pins on this board (T-Connect Pro onboard TWAI, per ADR-0014).
+  can_tx_pin: GPIO6
+  can_rx_pin: GPIO7
+  # Encryption only — the arbitration services/automations come from
+  # lighting/packages/buttons.yaml and merge onto the board file's api: block.
+  encryption_key: !secret api_encryption_key
+  # ADR-0010 §5: authenticate OTA — the gateway is the most privileged device
+  # on the LAN, so an unauthenticated push is the one bus-external defect the
+  # security ADR found.
+  ota_password: !secret ota_password
+  # `defaults:` (climate-control.yaml's pattern) only resolves for a file
+  # loaded via `!include` — it is a no-op on a file compiled directly, which
+  # is how the gateway (no locals/remotes wrapper, by design) is built. These
+  # go in `substitutions:` instead so the board file's ${device_name}/
+  # ${friendly_name} actually resolve.
+  device_name: canbus-gateway
+  friendly_name: "CAN Bus Gateway"
 
 packages:
-  # canbus first: defines can0 (see PACKAGE ORDER above).
+  # Board first: provides modbus_uart (consumed by the relays package below)
+  # and the network/api/ota scaffolding the other packages extend.
+  base: !include
+    file: ../boards/t-connect-pro.yaml
+    vars:
+      enable_ethernet: true
+  # canbus next: defines can0 (see PACKAGE ORDER above) before lighting !extends it.
   health: !include ../canbus/packages/health.yaml
   buttons: !include ../lighting/packages/buttons.yaml
+  relays: !include
+    file: ../vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml
+    vars:
+      controller_id: relay_board_1
+      controller_name: "Relay Board 1"
+      modbus_address: 0x2
+      modbus_bus_id: rs485_bus
+      update_interval: 2s
+      id_offset: -1
 
 esphome:
-  name: canbus-gateway
-  friendly_name: "CAN Bus Gateway"
   includes:
     - ../canbus/protocol/canbus_protocol.h
     - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
@@ -43,30 +73,10 @@ esphome:
     - ../canbus/protocol/node_health.h   # gateway-resident aliveness pure logic (ADR-0011 §1)
     - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
 
-esp32:
-  variant: esp32s3
-  flash_size: 16MB
-  framework:
-    type: esp-idf
-
 # --------------- Logging ---------------
 logger:
   level: DEBUG
 
-# --------------- Network: WiFi ---------------
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-# --------------- Home Assistant API ---------------
-# Encryption only — the arbitration services/automations come from
-# lighting/packages/buttons.yaml and merge into this block.
-api:
-  encryption:
-    key: !secret api_encryption_key
-
-ota:
-  # ADR-0010 §5: authenticate OTA — the gateway is the most privileged device on the LAN,
-  # so an unauthenticated push is the one bus-external defect the security ADR found.
-  - platform: esphome
-    password: !secret ota_password
+modbus:
+  id: rs485_bus
+  uart_id: modbus_uart

@@ -2,10 +2,11 @@
 title: 'Lighting gateway swap — T-Connect Pro + Waveshare Relay 32CH, exposed to HA (ADR-0013 item 3)'
 type: 'feature'
 created: '2026-07-10'
-status: 'ready-for-dev'
+status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
+baseline_commit: '2977a0f56c02502dfaa9b25f8ad052357f7ab726'
 final_revision: ''
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md', '{project-root}/_bmad-output/implementation-artifacts/spec-vesta-modbus-relay-32ch.md', '{project-root}/_bmad-output/implementation-artifacts/spec-hvac-controller-swap-t-connect-pro.md']
 warnings: []
@@ -149,13 +150,13 @@ choices; there is no new design decision for Alberto to weigh in on.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Read `boards/t-connect-pro.yaml` (from P3) and
+- [x] Read `boards/t-connect-pro.yaml` (from P3) and
   `vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml` (from P2, including its
   Design Notes for the `id_offset` finding) before editing anything
-- [ ] Rewrite `devices/gateway.yaml` per the Code Map: board composition, CAN pin retarget,
+- [x] Rewrite `devices/gateway.yaml` per the Code Map: board composition, CAN pin retarget,
   secrets substitutions, relay bank package, `modbus:` bus binding, header comment fixes
-- [ ] Run `esphome compile devices/gateway.yaml`
-- [ ] Run the full canbus verification battery (python + native C++ tests) to confirm
+- [x] Run `esphome compile devices/gateway.yaml`
+- [x] Run the full canbus verification battery (python + native C++ tests) to confirm
   nothing in the unchanged `health.yaml`/`buttons.yaml` behavior regressed
 
 **Acceptance Criteria:**
@@ -178,8 +179,27 @@ choices; there is no new design decision for Alberto to weigh in on.
 
 ## Design Notes
 
-_Fill in: which `id_offset` was used (from P2's finding) and the resulting relay-id range
-(`relay_0..31` or `relay_1..32`)._
+**`id_offset: -1` used → `relay_0..relay_31`.** P2 confirmed negative `id_offset` works when
+passed as a numeric `vars:` value on the `!include` (not a quoted string / `substitutions:`
+value); this spec follows that exact convention, giving lighting ADR-0013's 0-based
+progressive-id scheme directly — no shift-by-one needed at the binding layer.
+
+**`defaults:` doesn't work without a wrapper — deviation from the spec's literal Code Map.**
+The spec's Code Map called for `defaults: {device_name: canbus-gateway, friendly_name: "CAN
+Bus Gateway"}` at the top of `devices/gateway.yaml`, matching `devices/climate-control.yaml`'s
+pattern. Empirically this doesn't work: ESPHome's `defaults:` key (`CONF_DEFAULTS` in
+`yaml_util.py`) is only popped and applied as substitution context inside
+`IncludeFile.load()` — i.e. only for a file loaded via `!include`. `climate-control.yaml`'s
+own `defaults:` block only resolves because it is itself `!include`d from
+`devices/locals/climate-control.yaml` / `devices/remotes/climate-control.yaml`. Confirmed by
+reproducing the same `${device_name}`/`${friendly_name}` unresolved-substitution failure when
+compiling `devices/climate-control.yaml` directly (no wrapper). Since this spec's Boundaries
+explicitly forbid adding a `devices/locals/gateway.yaml` wrapper (the gateway's direct-secrets
+deployment model is a deliberate, pre-existing difference from climate-control), `device_name`/
+`friendly_name` are set directly in `devices/gateway.yaml`'s `substitutions:` block instead —
+functionally identical resolution, same values, no wrapper added. A comment in the file
+explains why `defaults:` was not used, so nobody "fixes" it back to the pattern that doesn't
+work standalone.
 
 The relay bank's `update_interval: 2s` is a starting point, not a tuned value — ADR-0014's
 Risks section flags that polling 32 coils could queue ahead of a fallback-triggered write
@@ -208,6 +228,105 @@ genuinely shippable, independently useful state, not a partial one.
 
 ## Review Triage Log
 
+### 2026-07-10 — Blind Hunter + Edge Case Hunter (parallel, review-loop 1)
+
+No `intent_gap` or `bad_spec` findings — no loopback triggered. `esphome config`/`compile`
+re-verified passing after patches applied.
+
+**Patched (4, applied directly to this diff):**
+1. The `# canbus first: defines can0` comment stayed physically above the new `base:` (board
+   file) package entry instead of `health:` (the entry that actually defines `can0`) —
+   misattributed can0 ownership to the board file. Moved the comment to sit above `health:`
+   and added a short note on `base:` explaining what it actually provides (`modbus_uart`,
+   network/api/ota scaffolding).
+2. The OTA-authentication rationale comment ("ADR-0010 §5: authenticate OTA — the gateway is
+   the most privileged device on the LAN...") was deleted along with the inline `ota:` block
+   this spec removed, and not carried anywhere else — the security justification became
+   unrecorded. Restored above the `ota_password` substitution in `gateway.yaml`.
+3. The comment explaining that `lighting/packages/buttons.yaml`'s `api.services`/
+   `on_client_disconnected` additions merge onto the board file's `api:` block was likewise
+   lost with the deleted inline `api:` block. Restored above the `encryption_key`
+   substitution.
+4. The file header still claimed this entry point "owns... network," but the physical network
+   implementation (Ethernet vs WiFi pins) now lives entirely in `boards/t-connect-pro.yaml`;
+   gateway.yaml only selects `enable_ethernet: true`. Reworded to state what each file
+   actually owns.
+
+**Deferred (2, appended to `deferred-work.md`):**
+- `boards/t-connect-pro.yaml` requires `wifi_ssid`/`wifi_password` secrets even with
+  `enable_ethernet: true` — confirmed empirically (dummy-secrets test, real secrets restored
+  unmodified afterward). Pre-existing P3 board-file behavior (climate-control.yaml has the
+  identical requirement), out of this spec's scope to fix (would mean touching the shared
+  board file).
+- The 32 relay switches use `modbus_relay_switch.yaml`'s default `restore_mode: DISABLED` —
+  no deliberate reboot/reconnect behavior decision exists for real lighting circuits.
+  Pre-existing package default, newly relevant now that these switches are live and
+  HA-controllable; natural fit for P5.
+
+**Rejected (7, no action — noise, already-accounted-for design choices, or out of scope):**
+- `id_offset: -1`'s negative-offset arithmetic having no persisted regression check —
+  duplicate of an existing P2 `deferred-work.md` entry, not new.
+- Relay 0 rendering as "Relay 0" in Home Assistant (0-based label) — deliberate per
+  ADR-0013's progressive-id convention, not a defect.
+- `controller_name` plumbed through but unused by the 32-ch package — already documented and
+  accepted in P2's spec as intentional interface parity, not this spec's decision to revisit.
+- Mirrored `modbus_address: 0x2` across the gateway's and HVAC's independent RS485 segments —
+  ADR-0014 §4's deliberate spare-swap design, with its tradeoffs already recorded in the ADR.
+- `update_interval: 2s` not re-validated for 32-coil traffic — already tracked in
+  `deferred-work.md` from the HVAC P3 spec; same root cause, not gateway-specific.
+- No naming/area/binding metadata on the 32 relay switches yet — explicitly deferred to P5 by
+  this spec's own Intent section, not a gap in this spec.
+- The `device_name`/`friendly_name` substitution-leak mechanism being "fragile" — it's the
+  correct, documented workaround for the `defaults:`-doesn't-work-without-a-wrapper
+  constraint (see Design Notes); no better option available within this spec's Boundaries.
+
 ## Auto Run Result
 
-Status: ready-for-dev — not yet executed.
+Status: in-review — implementation complete, review-loop 1 complete (parallel Blind Hunter +
+Edge Case Hunter, zero bad_spec/intent_gap findings), 4 patches applied directly and
+re-verified, 2 items deferred to `deferred-work.md`, 7 rejected as noise or already
+out-of-scope. `esphome config`/`compile devices/gateway.yaml` both exit 0 (esp-idf, ~65s
+build, RAM 11.1%, Flash 6.9%) both before and after the patch round; `switch.relay_0..relay_31`
+present, non-internal (32 total); `can_tx_pin`/`can_rx_pin` resolve to `GPIO6`/`GPIO7`;
+`ha_heartbeat_ttl_ms`/`ack_timeout_ms`/`node_lost_timeout_ms` unchanged. Full canbus
+verification battery (3 Python suites, 5 native C++ tests) all pass. `git diff --stat` shows
+only `devices/gateway.yaml` changed (plus this spec file). Build artifacts
+(`devices/.esphome/`, an auto-generated `devices/.gitignore` redundant with the root
+`.gitignore`'s existing `.esphome/` rule) were cleaned up, not committed. One deviation from
+the spec's literal Code Map, documented in Design Notes: `device_name`/`friendly_name` land in
+`substitutions:` rather than a `defaults:` block, because `defaults:` only resolves for
+`!include`d files and this spec correctly forbids adding a wrapper. Ready to present.
+
+## Suggested Review Order
+
+**Board composition (the physical hardware swap)**
+
+- Start here: board file swap onto the shared T-Connect Pro, Ethernet enabled.
+  [`gateway.yaml:51`](../../devices/gateway.yaml#L51)
+
+- CAN transceiver retargeted to the new board's onboard pins.
+  [`gateway.yaml:30`](../../devices/gateway.yaml#L30)
+
+- `modbus:` bus binding — the board only defines the physical UART; this is entry-point composition (AD-4).
+  [`gateway.yaml:80`](../../devices/gateway.yaml#L80)
+
+**Relay bank (closes ADR-0013 open item 3)**
+
+- 32-ch relay package included at the mirrored address `0x2`, 0-based ids via `id_offset: -1`.
+  [`gateway.yaml:58`](../../devices/gateway.yaml#L58)
+
+**Secrets/identity resolution (the `defaults:` deviation from the spec's Code Map)**
+
+- `device_name`/`friendly_name` moved into `substitutions:`, not `defaults:` — see Design Notes for why.
+  [`gateway.yaml:45`](../../devices/gateway.yaml#L45)
+
+- Restored security-rationale comments the deleted inline `api:`/`ota:` blocks used to carry.
+  [`gateway.yaml:33`](../../devices/gateway.yaml#L33)
+
+**Documentation accuracy (review-driven fixes)**
+
+- Header reworded to state what this file owns vs. what the board file owns.
+  [`gateway.yaml:9`](../../devices/gateway.yaml#L9)
+
+- `can0`-ownership comment moved to sit above the package that actually defines it.
+  [`gateway.yaml:55`](../../devices/gateway.yaml#L55)
