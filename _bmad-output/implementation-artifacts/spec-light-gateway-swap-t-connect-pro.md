@@ -7,7 +7,7 @@ review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
 baseline_commit: '2977a0f56c02502dfaa9b25f8ad052357f7ab726'
-final_revision: ''
+final_revision: '08adc733eee9315d1c47b2cd6d404d00df99811a'
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md', '{project-root}/_bmad-output/implementation-artifacts/spec-vesta-modbus-relay-32ch.md', '{project-root}/_bmad-output/implementation-artifacts/spec-hvac-controller-swap-t-connect-pro.md']
 warnings: []
 ---
