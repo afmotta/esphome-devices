@@ -38,33 +38,35 @@ untouched; only the board include and the two relay-board includes change.
 | CAN (TWAI, onboard transceiver) | TX=IO6, RX=IO7 — unconsumed by HVAC (hvac-on-CAN stays deferred); only matters if this board is later reused for a CAN-consuming entry point |
 | W5500 Ethernet (SPI) | SCLK=IO12, MOSI=IO11, MISO=IO13, CS=IO10, INT=IO9, RST=IO48 |
 | RS232 | TX=IO4, RX=IO5 — **unused, free** (an earlier revision of this plan repurposed IO4 for 1-Wire; superseded below) |
-| I²C | SDA=IO39, SCL=IO40 — hosts the (unused) onboard touch controller plus two new external boards this spec adds: a DS2484 1-Wire bridge and a PCF85063 RTC breakout |
-| No PoE, no onboard relay/GPIO-expander usable for climate relays (all relays now live on the Modbus bank) |
+| I²C | SDA=IO39, SCL=IO40 — hosts the (unused) onboard touch controller plus one new external board this spec adds: a DS2484 1-Wire bridge |
+| No PoE, no onboard relay/GPIO-expander usable for climate relays (all relays now live on the Modbus bank); no dedicated RTC hardware for now (SNTP instead — see below) |
 
 **Revised 2026-07-10 (Alberto, after this spec was first drafted):** 1-Wire moves to a
 **DS2484 I²C→1-Wire bridge** (ESPHome `one_wire` platform `ds2484`, address `0x18`) instead of
 a bare GPIO one-wire bus on IO4 — the I²C bridge supplies correct bus power to the two
-DS18B20 supply-water sensors, which a plain GPIO one-wire bus does not. **The RTC is also
-restored** (not dropped) via a cheap external **PCF85063** I²C breakout (address `0x51`) on
-the same bus — the exact chip/ESPHome component `boards/waveshare-s3.yaml` already used
-onboard, just moved to an external breakout on the new board's I²C pins (IO39/40) instead of
-its old onboard PCA9554-adjacent bus (IO42/41). (Alberto's example part, Adafruit #5188, is a
-DS3231 board — ESPHome 2026.5.0 has no native `ds3231` time component; source a PCF85063- or
-DS1307-based breakout instead, both natively supported.) Both new I²C devices, and the RTC's
-`homeassistant`-time sync source, are **hvac-only** — lighting has no use for wall-clock time
-or 1-Wire sensors — so per AD-4 they belong in `devices/climate-control.yaml`, not the shared
-board file (see Code Map).
+DS18B20 supply-water sensors, which a plain GPIO one-wire bus does not. This is hvac-only
+(lighting has no use for 1-Wire sensors), so per AD-4 it belongs in
+`devices/climate-control.yaml`, not the shared board file (see Code Map).
+
+**Revised 2026-07-10 (Alberto, second pass, same day):** the RTC question (this spec first
+proposed restoring a PCF85063 breakout) is deferred — **start with ESPHome's native `sntp`
+time platform** (no hardware, syncs over the network; confirmed present in ESPHome 2026.5.0,
+`DEPENDENCIES = ["network"]`) and revisit dedicated RTC hardware only if operational
+experience shows it's needed (ADR-0014 Open item 4). `seasonal_mode`'s `time_id` var takes
+this SNTP source instead of the old board's `pcf85063_time`. SNTP is also hvac-only in this
+spec's scope (nothing in lighting currently consumes wall-clock time), so it lands in
+`devices/climate-control.yaml` alongside DS2484, not the shared board file — same AD-4
+reasoning, kept consistent with the 1-Wire placement above.
 
 **Confirmed zero-consumer sweep** (so dropping the OLD onboard peripherals is safe, not a
 guess): grepped the full repo for `\bdi[1-8]\b`, `rgb_led`, `rtttl_buzzer`, `rtttl_play`,
 `homeassistant_time`, `pcf85063` outside `boards/waveshare-s3.yaml` itself — the **only** hit
 is `devices/climate-control.yaml:46` (`time_id: pcf85063_time`, the `seasonal_mode` var —
-**unchanged by this spec**, since the restored RTC keeps the same id, see Code Map). Every
-other onboard-peripheral id (`di1..di8`, `rgb_led`, `rtttl_buzzer`/`rtttl_play`,
-`homeassistant_time`) has no other consumer in the repo and is dropped cleanly. Note this
-sweep is about the OLD board's onboard PCF85063 instance (wired to different pins, part of
-the hardware being retired) — it is not evidence against the NEW external PCF85063 breakout
-this spec adds; that's a different physical device that happens to share a component name.
+**this spec changes it** to the new SNTP source's id, see Code Map). Every onboard-peripheral
+id from the old board (`di1..di8`, `rgb_led`, `rtttl_buzzer`/`rtttl_play`,
+`homeassistant_time`, `pcf85063` itself — the old board's onboard RTC instance, a different
+physical device from anything this spec adds) has no other consumer in the repo and is
+dropped cleanly.
 
 ## Boundaries & Constraints
 
@@ -97,10 +99,11 @@ this spec adds; that's a different physical device that happens to share a compo
   the `modbus:` bus binding (`id: rs485_bus`), the CAN bus (unconsumed by hvac; would be
   canbus's `health.yaml` if this board were ever composed into a CAN-consuming entry point),
   no relay/analog output definitions (those come entirely from the Modbus boards), and —
-  **revised from this spec's first draft** — no `one_wire:`, no RTC, and no
-  `time: platform: homeassistant` either: all three are hvac-only (the DS18B20 supply-water
-  sensors and `seasonal_mode`'s calendar logic are hvac concerns; lighting has no use for
-  wall-clock time), so they belong in `devices/climate-control.yaml`, consuming the board's
+  **revised from this spec's first draft** — no `one_wire:` and no `time:` block of any kind
+  (neither the originally-planned `homeassistant`/`pcf85063` pair nor the current `sntp`
+  platform): both are hvac-only (the DS18B20 supply-water sensors and `seasonal_mode`'s
+  calendar logic are hvac concerns; lighting has no current use for wall-clock time), so they
+  belong in `devices/climate-control.yaml`, and `one_wire` additionally consumes the board's
   shared `i2cbus`.
 - `devices/climate-control.yaml` changes: board include → `t-connect-pro.yaml`; the two 8-ch
   relay includes (`relays_1` @0x2 offset 8, `relays_2` @0x3 offset 16) collapse into **one**
@@ -110,11 +113,9 @@ this spec adds; that's a different physical device that happens to share a compo
   (`hvac/mev_modbus.yaml` @0x10, included from `first-floor.yaml`) is untouched; the
   `one_wire_01` block changes from a bare GPIO bus (`pin: GPIO21`) to the DS2484 I²C bridge
   (`i2c_id: i2cbus, address: 0x18`) — its id stays `one_wire_01`, so `mixing_pump.yaml`'s
-  `one_wire_bus_id` references need no change; a new `time:` block (two entries:
-  `platform: homeassistant` syncing a `platform: pcf85063` RTC, id kept as `pcf85063_time` —
-  same id as before, so `seasonal_mode`'s `time_id` var needs **no change**) plus an
-  `esphome.on_boot: [pcf85063.read_time]` hook (restoring the exact boot-time RTC read the
-  old board file used to do) are added.
+  `one_wire_bus_id` references need no change; a new `time: [{platform: sntp, id: sntp_time}]`
+  block is added (no RTC, no on_boot hook — SNTP needs neither); `seasonal_mode`'s `time_id`
+  var changes from `pcf85063_time` to `sntp_time`.
 - **Depends on P1 and P2 being done first**: this spec's own verification (`esphome config`/
   `compile` on the full climate-control tree) is only meaningful once P1's baseline fix is in
   place, and the 32-ch relay package (P2) must exist before it can be included here.
@@ -152,7 +153,7 @@ zero-consumer sweep above; there's no open design choice for Alberto.
     variant files), `enable_ethernet: true` default.
   - `packages: network_package: ${ethernet_package if enable_ethernet else wifi_package}`
   - `esphome: {name: ${device_name}, friendly_name: ${friendly_name}, min_version:
-    2026.3.0, comment: "LilyGO T-Connect Pro"}` — no `on_boot` RTC-write hook (no RTC).
+    2026.3.0, comment: "LilyGO T-Connect Pro"}` — no `on_boot` hook (no RTC to sync).
   - `esp32: {variant: esp32s3, flash_size: 16MB, framework: {type: esp-idf}}` (fallback
     `arduino` only if compile proves esp-idf incompatible — see Boundaries).
   - `psram: {mode: octal, speed: 80MHz}` (T-Connect Pro is 8MB octal PSRAM, same as today).
@@ -163,8 +164,9 @@ zero-consumer sweep above; there's no open design choice for Alberto.
     data_bits: 8, parity: EVEN}]` — same params as today, same physical pins (T-Connect
     Pro's RS485 happens to share IO17/18 with the old board).
   - `i2c: [{sda: GPIO39, scl: GPIO40, id: i2cbus, scan: false, frequency: 100kHz}]` — the
-    bus only; no devices declared here (RTC and DS2484 are hvac-only, see Boundaries).
-  - No `time:` block at all in the board file — moved entirely to `devices/climate-control.yaml`.
+    bus only; no devices declared here (DS2484 is hvac-only, see Boundaries).
+  - No `time:` block at all in the board file — SNTP lives in `devices/climate-control.yaml`
+    (hvac-only for now; nothing in lighting currently needs wall-clock time).
   - No `pca9554:`, `binary_sensor:` (di1-8/status/boot-button), `output:` (buzzer),
     `rtttl:`, `light:` (RGB), `switch:` (the 8 onboard relays), or custom `api.actions:` —
     all dropped per the confirmed zero-consumer sweep. Keep `button:` (restart/factory_reset/
@@ -183,19 +185,13 @@ zero-consumer sweep above; there's no open design choice for Alberto.
     `relays: !include {file: ../vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml,
     vars: {controller_id: relay_board_1, controller_name: "Relay Board 1", modbus_address:
     0x2, modbus_bus_id: rs485_bus, update_interval: 2s, id_offset: 0}}`.
-  - `packages.seasonal_mode.vars.time_id` (~line 46): **unchanged** — stays `pcf85063_time`
-    (the restored RTC keeps the same id the old board file used).
+  - `packages.seasonal_mode.vars.time_id` (~line 46): `pcf85063_time` → `sntp_time`.
   - `one_wire` block (~lines 74-77): replace the `platform: gpio, pin: GPIO21` entry with
     `platform: ds2484, id: one_wire_01, i2c_id: i2cbus, address: 0x18` (id unchanged, so
     `mixing_pump.yaml`'s `one_wire_bus_id: one_wire_01` var passes need no edits).
-  - New `time:` block (add near the `one_wire:` block): `platform: homeassistant` with
-    `on_time_sync: [pcf85063.write_time]`, plus `platform: pcf85063, id: pcf85063_time,
-    i2c_id: i2cbus` (default address `0x51`) — restores the exact two-source time setup
-    `boards/waveshare-s3.yaml` used to provide, just moved here since it's hvac-only.
-  - New `esphome.on_boot` entry: `[pcf85063.read_time]` (the old board file's boot hook,
-    now here since `esphome.climate-control.yaml` doesn't otherwise set `esphome:` — check
-    whether `defaults:`-only composition still lets you add an `esphome:` key alongside it;
-    it does, ESPHome merges top-level keys from packages and the entry point additively).
+  - New `time:` block (add near the `one_wire:` block): a single entry,
+    `platform: sntp, id: sntp_time` — no RTC, no `on_boot` hook, no `on_time_sync` action;
+    SNTP needs none of them (it syncs itself over the network on its own schedule).
   - `analog_outputs_1` package block: untouched (still `modbus_address: 0x1, id_offset: 0`).
   - The two `binary_sensor: !extend any_pid_requesting_{heat,cool}` blocks: untouched (they
     reference room-level PID ids, not board hardware).
@@ -219,9 +215,8 @@ zero-consumer sweep above; there's no open design choice for Alberto.
 - [ ] Create `boards/t-connect-pro.yaml`, `boards/t-connect-pro-ethernet.yaml`,
   `boards/t-connect-pro-wifi.yaml` per the Code Map
 - [ ] Swap `devices/climate-control.yaml`'s board include, collapse the two relay-board
-  includes into one 32-ch include, switch `one_wire_01` to the DS2484 bridge, add the
-  restored `time:` block (homeassistant + pcf85063) and its `on_boot` RTC-read hook
-  (`seasonal_mode`'s `time_id` needs no change — same id, `pcf85063_time`)
+  includes into one 32-ch include, switch `one_wire_01` to the DS2484 bridge, add a
+  `time: platform: sntp` block, and update `seasonal_mode`'s `time_id` to `sntp_time`
 - [ ] Run `esphome config` then `esphome compile` on `devices/locals/climate-control.yaml`;
   if compile fails on a genuine esp-idf incompatibility, switch the board file's framework to
   `arduino` and record the failing component in Design Notes
@@ -258,6 +253,11 @@ per P4) — this is ADR-0014 §4's mirrored-addressing decision so a spare 32CH 
 either system without re-addressing. Don't "helpfully" pick a different address to avoid
 confusion between the two systems' banks; the whole point is that they're identical.
 
+SNTP (not a hardware RTC) is a deliberate ADR-0014 decision, not a placeholder to silently
+upgrade during this spec — if `seasonal_mode`'s calendar logic needs a clock that survives a
+reboot with no network, that's ADR-0014 Open item 4 (a future spec adding a PCF85063
+breakout on the same `i2cbus`), not something to preempt here.
+
 ## Verification
 
 **Commands:**
@@ -270,10 +270,11 @@ confusion between the two systems' banks; the whole point is that they're identi
   collapsed to one entry (compare against the pre-spec two-entry baseline)
 - `grep -n "GPIO21" devices/climate-control.yaml boards/t-connect-pro*.yaml` -- expected: no
   hits (the bare-GPIO one-wire bus is fully retired)
-- `grep -n "pcf85063" devices/climate-control.yaml` -- expected: hits (the restored RTC lives
-  here now); `grep -n "pcf85063" boards/t-connect-pro.yaml` -- expected: no hits (RTC is
-  entry-point-owned, not board-owned)
+- `grep -n "pcf85063" devices/climate-control.yaml boards/t-connect-pro.yaml` -- expected: no
+  hits (no RTC hardware in this spec's scope; SNTP replaces it)
 - `grep -n "ds2484" devices/climate-control.yaml` -- expected: one hit (the `one_wire:` block)
+- `grep -n "platform: sntp\|sntp_time" devices/climate-control.yaml` -- expected: hits in the
+  new `time:` block and the `seasonal_mode` include's `time_id` var
 
 **Manual checks (if no CLI):**
 - Read the new `boards/t-connect-pro.yaml` top to bottom against `boards/waveshare-s3.yaml`:
@@ -290,6 +291,13 @@ restored via an external PCF85063 I²C breakout. Both now live on the board's I�
 (SDA=IO39/SCL=IO40) at the entry-point level (hvac-only), not the shared board file. Updated
 throughout this spec before any execution began — no code was written against the superseded
 design.
+
+### 2026-07-10 — Second revision, same day (spec still not yet run)
+Alberto reconsidered the RTC piece of the prior revision: instead of adding the PCF85063
+breakout now, start with ESPHome's native `sntp` time platform (no hardware) and only add
+dedicated RTC hardware later if operational experience shows it's needed (now ADR-0014 Open
+item 4). The DS2484 1-Wire decision from the previous revision is unaffected. Updated
+throughout this spec before any execution began.
 
 ## Review Triage Log
 
