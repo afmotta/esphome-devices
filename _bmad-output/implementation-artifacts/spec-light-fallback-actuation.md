@@ -7,7 +7,7 @@ review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
 baseline_commit: 'e3a19c30105f295f45e6529a0061ffd080577652'
-final_revision: ''
+final_revision: '98cf3978bde61a0a2eff190f4a9c4ac2548a4fc9'
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md', '{project-root}/_bmad-output/implementation-artifacts/spec-light-gateway-swap-t-connect-pro.md', '{project-root}/canbus/_bmad-output/planning-artifacts/adrs/0013-gateway-local-relays-single-click-fallback.md']
 warnings: []
 ---
