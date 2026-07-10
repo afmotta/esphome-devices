@@ -2,10 +2,11 @@
 title: 'Lighting fallback actuation — binding_actuation.h + relay store, wires both fallback branches (ADR-0013 items 1-2)'
 type: 'feature'
 created: '2026-07-10'
-status: 'ready-for-dev'
+status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
+baseline_commit: 'e3a19c30105f295f45e6529a0061ffd080577652'
 final_revision: ''
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md', '{project-root}/_bmad-output/implementation-artifacts/spec-light-gateway-swap-t-connect-pro.md', '{project-root}/canbus/_bmad-output/planning-artifacts/adrs/0013-gateway-local-relays-single-click-fallback.md']
 warnings: []
@@ -169,23 +170,23 @@ and the frozen `BindingEntry` contract; nothing here is an open design question 
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Read `canbus/protocol/bindings.h`, `canbus/protocol/canbus_protocol.h` (for
+- [x] Read `canbus/protocol/bindings.h`, `canbus/protocol/canbus_protocol.h` (for
   `EVT_CLICK` and the other `EVT_*` constants), `canbus/protocol/ha_arbitration.h` (the
   accessor-pattern precedent), and `lighting/packages/buttons.yaml` fully before writing code
-- [ ] Confirm P4's `id_offset` finding (0-based vs 1-based relay ids) from its spec's Design
+- [x] Confirm P4's `id_offset` finding (0-based vs 1-based relay ids) from its spec's Design
   Notes before writing the `on_boot` registration or picking `MAX_RELAY_ID`'s exact value
-- [ ] Create `lighting/protocol/binding_actuation.h` per the Code Map
-- [ ] Create `lighting/protocol/relay_store.h` per the Code Map
-- [ ] Create `lighting/tests/test_binding_actuation.cpp` covering: in-bounds single relay,
+- [x] Create `lighting/protocol/binding_actuation.h` per the Code Map
+- [x] Create `lighting/protocol/relay_store.h` per the Code Map
+- [x] Create `lighting/tests/test_binding_actuation.cpp` covering: in-bounds single relay,
   in-bounds fan-out, out-of-bounds rejection (including the exact boundary — `MAX_RELAYS - 1`
   in bounds, `MAX_RELAYS` itself out), and `is_fallback_gesture` true for `EVT_CLICK` / false
   for `EVT_DOUBLE_CLICK`/`EVT_TRIPLE_CLICK`/`EVT_HOLD`/`EVT_HOLD_RELEASE`
-- [ ] Add the two new header paths to `devices/gateway.yaml`'s `esphome.includes:`
-- [ ] Wire `lighting/packages/buttons.yaml`'s `on_boot` registration (32 explicit lines) and
+- [x] Add the two new header paths to `devices/gateway.yaml`'s `esphome.includes:`
+- [x] Wire `lighting/packages/buttons.yaml`'s `on_boot` registration (32 explicit lines) and
   both fallback branches per the Code Map
-- [ ] Add `MAX_RELAY_ID = 31` + the validator check to `canbus/tools/bindings.py`
-- [ ] Add `test_validation_relay_out_of_bounds()` to `canbus/tests/test_bindings.py`
-- [ ] Run the full verification battery (below)
+- [x] Add `MAX_RELAY_ID = 31` + the validator check to `canbus/tools/bindings.py`
+- [x] Add `test_validation_relay_out_of_bounds()` to `canbus/tests/test_bindings.py`
+- [x] Run the full verification battery (below)
 
 **Acceptance Criteria:**
 - Given `lighting/tests/test_binding_actuation.cpp`, when compiled and run with
@@ -208,8 +209,31 @@ and the frozen `BindingEntry` contract; nothing here is an open design question 
 
 ## Design Notes
 
-_Fill in during execution: confirm which `id_offset`/relay-id numbering P4 actually used,
-and the exact 32-line `on_boot` registration block that resulted._
+**P4 landed 0-based ids (`id_offset: -1`) → `relay_0..relay_31`.** Confirmed from P4's spec
+Design Notes. `MAX_RELAY_ID = 31` (inclusive top), `MAX_RELAYS = 32` (count) in the two
+mirrored constants; the `on_boot` registration is `relay_store(0) = id(relay_0);` through
+`relay_store(31) = id(relay_31);`, 32 explicit lines, matching those ids exactly.
+
+**Spec Code Map bug found and fixed: cross-directory includes must be flat, not relative.**
+The Code Map called for `binding_actuation.h` to `#include "../../canbus/protocol/bindings.h"`
+and `"../../canbus/protocol/canbus_protocol.h"`. This doesn't compile under `esphome compile`:
+ESPHome flattens every `esphome.includes:` entry into one `src/` directory regardless of its
+original repo location (confirmed against the existing convention in
+`canbus/protocol/bridge_forwarding.h`/`node_health.h`, which only ever include same-directory
+siblings by flat filename — this spec is the first cross-directory case). Fixed by switching
+`binding_actuation.h` to flat includes (`"bindings.h"`, `"canbus_protocol.h"`), which resolve
+correctly once ESPHome flattens the tree. `relay_store.h`'s `#include "binding_actuation.h"`
+was already flat (same-directory sibling) and needed no change.
+
+**Consequence for native testing: the g++ command needs `-I` flags.** GCC's quote-include
+lookup for a nested `#include "bindings.h"` starts at the directory of the file containing
+that directive (`lighting/protocol/`, not the top-level test file's directory), so the flat
+include that ESPHome needs does *not* resolve for a bare `g++ ... test_binding_actuation.cpp`
+compile — a genuinely new problem, since no existing native test in this repo has a
+cross-directory header dependency. Fixed by adding `-Icanbus/protocol -Ilighting/protocol` to
+the compile command (see Verification, which now differs from this spec's original literal
+command list). This is a deviation from the spec's literal Verification section, not from any
+Boundary — no ESPHome dependency was introduced, only an include-path search directory.
 
 `relay_store.h` is deliberately **not** natively tested — it requires real
 `esphome::switch_::Switch` objects that only exist inside a compiled ESPHome binary. This
@@ -227,7 +251,9 @@ deserves a distinct, louder signal, not to be lost among ordinary fallback-firin
 ## Verification
 
 **Commands:**
-- `g++ -std=c++17 -Wall -Wextra lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act`
+- `g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act`
+  (`-I` flags added post-hoc — see Design Notes: ESPHome's flattened-include build needs flat
+  filenames, which a bare g++ compile of a nested file can't resolve without them)
 - `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract`
 - `python3 canbus/tests/test_bindings.py`
 - `python3 canbus/tests/test_generate_exports.py`
@@ -248,6 +274,122 @@ deserves a distinct, louder signal, not to be lost among ordinary fallback-firin
 
 ## Review Triage Log
 
+### 2026-07-10 — Blind Hunter + Edge Case Hunter (parallel, review-loop 1)
+
+No `intent_gap` or `bad_spec` findings — no loopback triggered. `esphome compile`/native/
+Python tests re-verified passing after patches applied.
+
+**Patched (6, applied directly to this diff):**
+1. `lighting/tests/test_binding_actuation.cpp`'s own build/run comment omitted the `-I` flags
+   this spec's Design Notes had already discovered were required — anyone following the
+   file's own instructions hit `fatal error: 'bindings.h' file not found`. Corrected the
+   comment to the working command.
+2. Neither `canbus/CLAUDE.md` (which lists every other native test's exact `g++` invocation)
+   nor `lighting/CLAUDE.md` (no "Test & verify" section at all) documented how to run the new
+   test. Added the correct `-I`-flagged command to `canbus/CLAUDE.md`'s existing list and
+   added a new "Test & verify" section to `lighting/CLAUDE.md`.
+3. The ~13-line actuation sequence (gesture-gate → `binding_find` → bounds-check → relay loop
+   / `ESP_LOGE`) was duplicated near-verbatim across both fallback branches in
+   `buttons.yaml`. Extracted into one shared `fire_binding_fallback(node_id, button)` helper
+   in `relay_store.h`; both branches now call it behind their own `is_fallback_gesture` gate,
+   keeping the counter/log unconditional at each call site as before.
+4. Asymmetric defensive posture: an out-of-bounds relay id logged loudly (`ESP_LOGE`), but an
+   unrecognized `op` string was a silent no-op, and `relay_apply_op` didn't null-guard `op`
+   at all (a stale/hand-edited `bindings.h` with a null `op` would crash `strcmp`). Both
+   fixed together: `relay_apply_op` now null-guards `op` and logs `ESP_LOGE` on an
+   unrecognized-but-non-null value, symmetric with the relay-bounds handling.
+5. `binding_actuation.h` used `std::size_t` without directly including `<cstddef>` — compiled
+   today only via transitive includes from `bindings.h`/`canbus_protocol.h`, both described
+   elsewhere as generated/frozen (so churn dropping that transitive include is plausible).
+   Added the direct include.
+6. `relay_store(uint8_t i)` indexed its fixed 32-entry array with no internal bounds check —
+   every call site in this diff happens to be pre-guarded, but the function itself provided
+   none of the defense-in-depth `binding_relays_in_bounds()` already established as this
+   spec's own philosophy. Added a bounds check returning a static dummy slot for
+   out-of-range `i`, preserving the `Switch *&` return signature.
+
+**Deferred (3, appended to `deferred-work.md`):**
+- `toggle` op across the double-action window can silently revert a relay to its start state
+  with no error — real, but fixing it needs an architectural idempotency/dedup decision, out
+  of scope for "wire the fallback."
+- `relay_apply_op`'s dispatch logic (including its new null-guard/logging paths) has no
+  automated test coverage — could use a mock Switch, but that's a new testing pattern this
+  spec didn't introduce, matching the existing pure/glue architectural split.
+- `MAX_RELAY_ID` (Python) vs `MAX_RELAYS` (C++) sync has no automated cross-language contract
+  check, only a "find-both-and-bump" comment — independently flagged by both reviewers.
+
+**Rejected (4, no action — noise or already-accounted-for design choices):**
+- 32 hand-written `relay_store(i) = id(relay_i);` lines as a drift risk — deliberately scoped
+  this way per this spec's own explicit Boundaries (no macro/loop synthesis), already
+  cross-referenced in comments across all three artifacts that must move together.
+- Two test-fragility notes about `FORM_A.replace()` (no occurrence-count assertion, `any()`
+  instead of exact-error-count checks) — both match the pre-existing convention used by every
+  other test in `canbus/tests/test_bindings.py`, not introduced by this diff.
+- No lint/validation warning when a fan-out binding uses `op: toggle` across multiple relays —
+  ADR-0013 §3 already documents this as prose guidance, not enforcement; adding validation
+  for it is scope creep this spec's Boundaries explicitly warn against ("do not invent...
+  speculatively").
+
 ## Auto Run Result
 
-Status: ready-for-dev — not yet executed.
+Status: in-review — implementation complete, review-loop 1 complete (parallel Blind Hunter +
+Edge Case Hunter, zero bad_spec/intent_gap findings), 6 patches applied directly and
+re-verified, 3 items deferred to `deferred-work.md`, 4 rejected as noise or already
+out-of-scope. `esphome compile devices/gateway.yaml` exits 0 (esp-idf, ~68-75s build);
+`lighting/tests/test_binding_actuation.cpp` and all 5 canbus native tests pass; all 3 canbus
+Python test suites pass (15/15 binding-manifest tests including the new
+`test_validation_relay_out_of_bounds`); generator idempotence holds (`generate_nodes.py`
+touched no tracked file under `canbus/`/`registry/` beyond this spec's own source edits).
+`git diff --stat` matches the expected file set exactly. One spec Code Map bug found and
+fixed during implementation (documented in Design Notes): cross-directory includes must be
+flat, not relative, because ESPHome flattens `esphome.includes:` into one `src/` directory —
+this also meant the native test's g++ invocation needed `-I` flags, propagated into this
+spec's Verification section and both CLAUDE.md files during review. Ready to present.
+
+## Suggested Review Order
+
+**Pure logic (the natively-tested core)**
+
+- Start here: which gesture types the fallback acts on, and the relay-bounds defense-in-depth check.
+  [`binding_actuation.h:31`](../../lighting/protocol/binding_actuation.h#L31)
+
+- The mirrored Python-side bound this pure logic must stay in sync with.
+  [`bindings.py:50`](../../canbus/tools/bindings.py#L50)
+
+**ESPHome glue (the review-driven refactor)**
+
+- `fire_binding_fallback()` — the one actuation entry point, extracted during review to remove duplication between both fallback branches.
+  [`relay_store.h:68`](../../lighting/protocol/relay_store.h#L68)
+
+- `relay_apply_op()` — null-guards both `sw` and `op`, logs loudly on an unrecognized op (review-driven symmetry fix).
+  [`relay_store.h:45`](../../lighting/protocol/relay_store.h#L45)
+
+- `relay_store()` — added its own bounds check as defense-in-depth (review-driven).
+  [`relay_store.h:28`](../../lighting/protocol/relay_store.h#L28)
+
+**Call sites (`lighting/packages/buttons.yaml`)**
+
+- The 32-line `on_boot` registration — explicit lines, not a loop, because ESPHome lambdas can't synthesize `id(relay_N)` for a compile-time-variable N.
+  [`buttons.yaml:44`](../../lighting/packages/buttons.yaml#L44)
+
+- `ha not ready` branch: click-gated call to the shared helper (was ~13 duplicated lines before review).
+  [`buttons.yaml:282`](../../lighting/packages/buttons.yaml#L282)
+
+- ACK-timeout sweep branch: the same pattern, the ADR-0003 double-action window case.
+  [`buttons.yaml:209`](../../lighting/packages/buttons.yaml#L209)
+
+**Validation bound (closes ADR-0013 open item 1)**
+
+- `MAX_RELAY_ID` validator check — the Python half of the two-language constant this spec introduces.
+  [`bindings.py:195`](../../canbus/tools/bindings.py#L195)
+
+**Peripherals**
+
+- New native test for the pure logic, including the exact `MAX_RELAYS` boundary.
+  [`test_binding_actuation.cpp`](../../lighting/tests/test_binding_actuation.cpp)
+
+- New Python test for the validator bound.
+  [`test_bindings.py:169`](../../canbus/tests/test_bindings.py#L169)
+
+- Two new `esphome.includes:` entries wiring the new headers into the gateway.
+  [`gateway.yaml:75`](../../devices/gateway.yaml#L75)

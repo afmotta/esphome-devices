@@ -63,6 +63,11 @@ g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health &&
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract
 
+# Lighting's fallback-actuation pure logic (needs -I flags: it includes canbus'
+# frozen headers by flat filename, the form ESPHome's flattened build needs —
+# see lighting/protocol/binding_actuation.h's own header comment)
+g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act
+
 # ESPHome compile check without touching generated nodes
 esphome compile canbus/tests/compile_sensor_node.yaml
 ```

@@ -55,3 +55,21 @@ package alongside canbus's).
 - Entity-ID/automation-naming conventions are lighting's own to set once real
   fallback code lands — not yet decided (see Deferred in the architecture
   spine).
+
+## Test & verify (from repo root)
+
+```bash
+# Fallback gesture-gate/bounds-check pure logic (no ESPHome deps). -I flags
+# required: binding_actuation.h includes canbus's frozen headers by flat
+# filename — the form ESPHome's flattened esphome.includes: build needs, which
+# a bare g++ compile of a nested file can't resolve without them.
+g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol \
+  lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act
+```
+
+`relay_store.h` (the relay-id -> `Switch*` glue and `fire_binding_fallback()`)
+is deliberately not natively tested — it needs real `esphome::switch_::Switch`
+objects that only exist inside a compiled ESPHome binary, the same split
+`ha_arbitration.h`'s pure logic vs. `buttons.yaml`'s lambda glue already
+follows. It's exercised by `esphome compile devices/gateway.yaml` and,
+eventually, hardware bring-up.

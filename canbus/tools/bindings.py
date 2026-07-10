@@ -43,6 +43,11 @@ SCHEMA_VERSION = 1
 REQUIRED_KEYS = ("node_id", "button", "relay", "op")
 # Buttons are the gesture index into the standard 8-button set (0-7, packages/base_node.yaml).
 BUTTON_MAX = 7
+# One Waveshare Modbus RTU Relay 32CH bank on the gateway (ADR-0014), ids 0-31
+# (devices/gateway.yaml's `id_offset: -1` -> relay_0..relay_31). Keep in sync
+# with lighting/protocol/binding_actuation.h's MAX_RELAYS — a second bank
+# (ADR-0014 open item 2) is a find-both-and-bump change, not silent drift.
+MAX_RELAY_ID = 31
 # Minimal action vocabulary (ADR-0009 open item 1): a relay id (or comma-list for fan-out)
 # plus one op. relay ids are progressive (relay_0, relay_1, ...) gateway outputs — no Modbus
 # addresses in the registry; the gateway resolves id -> output by position.
@@ -187,6 +192,10 @@ def validate(parsed: dict, valid_node_ids: set) -> list:
             relays = parse_relays(b["relay"])
             if any(r < 0 for r in relays):
                 errors.append(f"{where}: relay channels must be >= 0, got {b['relay']!r}")
+            if any(r > MAX_RELAY_ID for r in relays):
+                errors.append(
+                    f"{where}: relay channel out of range (valid: 0-{MAX_RELAY_ID}), got {b['relay']!r}"
+                )
         except BindingError as e:
             errors.append(f"{where}: {e}")
         # A button outside the standard 8-button set (0-7) is a silently dead binding —

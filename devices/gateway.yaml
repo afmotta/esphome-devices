@@ -72,6 +72,8 @@ esphome:
     - ../canbus/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
     - ../canbus/protocol/node_health.h   # gateway-resident aliveness pure logic (ADR-0011 §1)
     - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
+    - ../lighting/protocol/binding_actuation.h   # fallback gesture/bounds pure logic (ADR-0013 §1-2)
+    - ../lighting/protocol/relay_store.h   # relay-id -> Switch* glue (ADR-0013 §1-2)
 
 # --------------- Logging ---------------
 logger:

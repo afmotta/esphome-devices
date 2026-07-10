@@ -5,8 +5,9 @@
 # CAT_INPUT button frames, firing esphome.canbus_button HA events, and this
 # system's ha_ready gate INSTANCE — the readiness/ACK api services, the
 # manifest-hash agreement over registry/bindings.yaml, the pending-ACK sweep,
-# and the (still log-only, ADR-0013 open item 2) fallback path. The arbitration
-# PURE LOGIC stays the shared canbus header ha_arbitration.h; this file only
+# and the fallback path (ADR-0013 §1-2: click-only actuation against the
+# relay bank via binding_actuation.h/relay_store.h). The arbitration PURE
+# LOGIC stays the shared canbus header ha_arbitration.h; this file only
 # instantiates it with lighting's policy.
 #
 # Extends can0, which canbus/packages/health.yaml defines — by convention
@@ -14,8 +15,10 @@
 # order, but the dependency direction is real).
 #
 # Requires from the composing entry point:
-#   esphome.includes: canbus_protocol.h, node_map.h, ha_arbitration.h, bindings.h
+#   esphome.includes: canbus_protocol.h, node_map.h, ha_arbitration.h,
+#     bindings.h, binding_actuation.h, relay_store.h
 #   api encryption (this file only adds services/automations to the api block)
+#   32 relay switches registered as relay_0..relay_31 (the ADR-0014 relay bank)
 # =============================================================================
 
 substitutions:
@@ -31,6 +34,45 @@ esphome:
         - text_sensor.template.publish:
             id: binding_manifest_hash
             state: !lambda 'return std::string(BINDINGS_MANIFEST_HASH);'
+        # Register every physical relay switch into relay_store() (ADR-0013 §1-2)
+        # so the fallback path below can resolve a binding's relay id to a real
+        # Switch*. ESPHome YAML/lambdas have no loop construct that can
+        # synthesize id(relay_N) for a compile-time-variable N, so these are 32
+        # explicit lines, not a loop. ids match devices/gateway.yaml's P4
+        # relay bank (`id_offset: -1` -> relay_0..relay_31).
+        - lambda: |-
+            relay_store(0) = id(relay_0);
+            relay_store(1) = id(relay_1);
+            relay_store(2) = id(relay_2);
+            relay_store(3) = id(relay_3);
+            relay_store(4) = id(relay_4);
+            relay_store(5) = id(relay_5);
+            relay_store(6) = id(relay_6);
+            relay_store(7) = id(relay_7);
+            relay_store(8) = id(relay_8);
+            relay_store(9) = id(relay_9);
+            relay_store(10) = id(relay_10);
+            relay_store(11) = id(relay_11);
+            relay_store(12) = id(relay_12);
+            relay_store(13) = id(relay_13);
+            relay_store(14) = id(relay_14);
+            relay_store(15) = id(relay_15);
+            relay_store(16) = id(relay_16);
+            relay_store(17) = id(relay_17);
+            relay_store(18) = id(relay_18);
+            relay_store(19) = id(relay_19);
+            relay_store(20) = id(relay_20);
+            relay_store(21) = id(relay_21);
+            relay_store(22) = id(relay_22);
+            relay_store(23) = id(relay_23);
+            relay_store(24) = id(relay_24);
+            relay_store(25) = id(relay_25);
+            relay_store(26) = id(relay_26);
+            relay_store(27) = id(relay_27);
+            relay_store(28) = id(relay_28);
+            relay_store(29) = id(relay_29);
+            relay_store(30) = id(relay_30);
+            relay_store(31) = id(relay_31);
 
 api:
   # Commissioning / OUTPUT-command services land in the commissioning slice; the
@@ -161,6 +203,11 @@ interval:
                      (unsigned) e.node_id, (unsigned) e.button,
                      event_type_str(e.event_type).c_str(), (unsigned) e.event_id,
                      (unsigned) (now - (e.deadline_ms - ${ack_timeout_ms})));
+            // ADR-0003 double-action window: HA had the event but didn't ACK in
+            // time, so the fallback now does what HA might also still do. Only
+            // the actuation is click-gated; the counter/log above stay unconditional.
+            if (is_fallback_gesture(e.event_type))
+              fire_binding_fallback(e.node_id, e.button);
           }
   # Re-publish the fallback aggregate every 5s so it survives HA reconnects (same cadence
   # the health sweep uses for its aggregates). Moved here from the health sweep during the
@@ -228,3 +275,9 @@ canbus:
                                 ESP_LOGW("arb", "FALLBACK (ha not ready): node=%u btn=%u %s",
                                          (unsigned) can_id_node(can_id), (unsigned) payload_button_index(x),
                                          event_type_str(payload_event_type(x)).c_str());
+                                // ADR-0013 §2: the fallback acts on the single click only —
+                                // double/triple-click and hold are HA-only, so they do
+                                // nothing offline. Only the actuation is click-gated; the
+                                // counter/log above stay unconditional for every fallback firing.
+                                if (is_fallback_gesture(payload_event_type(x)))
+                                  fire_binding_fallback(can_id_node(can_id), payload_button_index(x));
