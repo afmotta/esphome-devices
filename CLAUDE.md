@@ -505,7 +505,7 @@ external_components:
 
 | File | Purpose |
 |------|---------|
-| `docs/architecture-diagram.md` | Mermaid diagrams of system architecture |
+| `_bmad-output/planning-artifacts/architecture-diagram.md` | Mermaid diagrams of system architecture |
 | `_bmad-output/planning-artifacts/prd.md` | Product Requirements Document |
 | `_bmad-output/planning-artifacts/epics.md` | Master epic index (Epics 1-20) |
 | `_bmad-output/analysis/brainstorming-session-2026-02-24.md` | Entity ID naming convention |
@@ -597,9 +597,9 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 ### Documentation Resources
 
-1. **Architecture**: `docs/architecture-diagram.md` - System topology and data flows
-2. **PRD**: `docs/prd.md` - Original project requirements
-3. **Epics**: `docs/epic-*.md` - Feature development history
+1. **Architecture**: `_bmad-output/planning-artifacts/architecture-diagram.md` - System topology and data flows
+2. **PRD**: `_bmad-output/planning-artifacts/prd.md` - Original project requirements
+3. **Epics**: `_bmad-output/implementation-artifacts/epic-*.md` - Feature development history
 4. **BMAD Guide**: `.bmad-core/user-guide.md` - Development framework
 5. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 

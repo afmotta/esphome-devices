@@ -7,10 +7,6 @@
   evidence: Surfaced by Blind Hunter review of Phase 6b; pre-existing citation-rot risk, not caused by this phase's path substitutions, but worth a follow-up check next time that memory file or architecture.md is touched
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-phase-6b-context-doc-rewrite.md`
-  summary: root `CLAUDE.md`'s "Key Documentation Files" table (Mermaid diagrams row) and "Getting Help" section both cite `docs/architecture-diagram.md` and/or `docs/prd.md` — neither path exists; the real files are `_bmad-output/planning-artifacts/architecture-diagram.md` and `_bmad-output/planning-artifacts/prd.md`. Confirmed identical in the pre-Phase-6b baseline (`fffa7e0`), so this predates and is unrelated to this phase's tree rewrite — the phase's Code Map only scoped the Repository Structure section, not these two.
-  evidence: Surfaced by Blind Hunter review of Phase 6b's fresh review pass; verified with `ls`/`find` that both stated paths 404 while the correct paths exist under `_bmad-output/planning-artifacts/`
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-phase-6b-context-doc-rewrite.md`
   summary: resolves which `architecture.md` the prior deferred entry (above) meant and finds the deeper issue: `canbus/_bmad-output/planning-artifacts/architecture.md` is the correct file (its lines ~156-167 and ~579 discuss the `homeassistant.event:` vs single-lambda decision), and it **already documents the reversal** ("Global staging: eliminated... An earlier design mandated a single-lambda direct internal-API call... that was reversed on 2026-06-02"). This means memory file `project_gateway_ha_event_firing_approach.md`'s claim that "architecture.md still contradicts this and should be updated... until then, the firmware is the source of truth" is itself now stale — architecture.md was already reconciled. Fixing the memory file's reasoning is out of this spec's scope (its intent-contract bars touching memory-file prose/reasoning, path substitutions only).
   evidence: Direct inspection of `canbus/_bmad-output/planning-artifacts/architecture.md` lines 156-167 and 579 during this review pass's verification of the prior deferred entry
 
@@ -38,14 +34,3 @@
   summary: architectural invariants stated as prose in system CLAUDE.mds (e.g. hvac/CLAUDE.md's "hvac only reads registry/map.json, never writes it") have no mechanical enforcement (grep/lint/test) — matches this project's own documented pattern of status-hygiene drift needing a tooling gate, not another action item
   evidence: Surfaced by Blind Hunter review of Phase 4; fixing this needs a real check wired into the push gate or CI, out of scope for a docs/path-relocation phase
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-phase-4-hvac-gathering.md`
-  summary: hvac/CLAUDE.md duplicates the entity-ID naming convention verbatim from root CLAUDE.md rather than referencing it (deliberate for now, since root CLAUDE.md isn't being rewritten until Phase 6) — the two copies can drift the moment either is edited; Phase 6's root CLAUDE.md rewrite should resolve which copy is canonical
-  evidence: Surfaced by an independent Blind Hunter pass on Phase 4; the duplication was a conscious choice this phase, but needs closing out, not left indefinite
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-phase-5b1-bindings-arbitration-contract.md`
-  summary: add an explicit frozen-tuple pin on bindings.py's VALID_OPS to test_bindings.py (subset check — ("on","off","toggle") must remain present; additions allowed per frozen-additive) so removal of an op fails a test instead of only the validator's behavior changing silently
-  evidence: Surfaced by the Phase 5b-1 inline review; not done in that slice because its frozen Never barred touching existing tests — one-line addition for any later canbus slice
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-phase-4-hvac-gathering.md`
-  summary: .github/copilot-instructions.md and docs/ha-dashboard-config.yaml still reference the old components/ path (not caught by the original "wider living docs" exclusion list by name, but same category — left untouched per scope discipline). copilot-instructions.md in particular is an active AI-instructions file parallel to CLAUDE.md and arguably more load-bearing than PRD/epics docs; worth a follow-up sweep
-  evidence: Surfaced by an independent Blind Hunter pass on Phase 4; flagged for visibility since copilot-instructions.md's staleness could actively mislead Copilot-assisted edits, unlike pure planning-history prose

@@ -126,6 +126,12 @@ bindings:
     assert any("missing" in e for e in bindings.validate(_parse(missing), NODE_IDS))
 
 
+def test_valid_ops_frozen_subset():
+    # ("on", "off", "toggle") must remain accepted (frozen-additive per ADR-0013 open item 2);
+    # removing one should fail here, not just change validate()'s behavior silently.
+    assert set(("on", "off", "toggle")) <= set(bindings.VALID_OPS)
+
+
 def test_validation_button_out_of_range():
     # button is the gesture index into the standard 8-button set (0-7). Outside that range
     # is a silently dead binding (no such button exists), so reject it at validation.

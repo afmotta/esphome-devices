@@ -1,14 +1,18 @@
 ## Copilot / Agent instructions for this repository
 
+> **Note:** This file predates the Vesta extraction (Epics 19-20) and the 2026-07 layered
+> restructure. The Epic 2/5/7/10 update sections below are kept as historical record but their
+> file paths are stale — see root `CLAUDE.md` (and each system's own `CLAUDE.md`, e.g.
+> `hvac/CLAUDE.md`, `canbus/CLAUDE.md`) for the current, authoritative architecture map.
+
 This repo contains reusable ESPHome YAML packages that compose device configurations.
 Keep changes minimal, respect secrets, and follow the existing composition patterns.
 
 Key concepts (read these files first):
 
 - `boards/` — platform-level node configs and common hardware pin mapping (e.g. `boards/a6.yaml`, `boards/base.yaml`, `boards/wifi.yaml`).
-- `components/` — reusable component packages which are included with `packages:` and expect `vars` (examples: `components/pid_sensors.yaml`, `components/modbus_master.yaml`, `components/fancoil.yaml`).
-- `components/deprecated/` — obsolete components moved during Epic 2 (Oct 2025) for reference only; do NOT use in new configurations.
-- `devices/` — top-level device definitions that assemble `packages:` (example: `devices/gruppo-miscelazione.yaml`).
+- `vesta/packages/components/` — reusable component packages which are included with `packages:` and expect `vars` (examples: `vesta/packages/components/pid_sensors.yaml`, `vesta/packages/components/fancoil.yaml`). The old `components/modbus_master.yaml` and `components/deprecated/` no longer exist; Modbus I/O drivers now live under `vesta/packages/devices/modbus-io/`.
+- `devices/` — top-level device definitions that assemble `packages:` (current main entry point: `devices/climate-control.yaml`; the old `devices/gruppo-miscelazione.yaml` example below no longer exists).
 - `devices/locals/secrets.yaml` — substitution keys and sensitive values (do NOT print secrets in output or add them to commits).
 
 Patterns and conventions to preserve:
@@ -22,51 +26,43 @@ Patterns and conventions to preserve:
 What to avoid:
 
 - Never commit secrets or expand `devices/locals/secrets.yaml` values into code or PR text.
-- Avoid inlining package internals into device files; maintain reusable `components/` and `boards/` separation.
-- Do NOT use components from `components/deprecated/` — they are retained for historical reference only.
+- Avoid inlining package internals into device files; maintain reusable `vesta/packages/components/` and `boards/` separation.
 
 Typical edit checklist for changes to behavior:
 
 1. Locate the high-level device file in `devices/` and see which `packages:` it uses.
-2. Inspect the referenced `components/*.yaml` to understand expected `vars` and `id` naming.
-3. Make minimal edits to the component or add a new component file under `components/`.
-4. Update the device `packages:` call with appropriate `vars` (follow examples in `devices/gruppo-miscelazione.yaml`).
+2. Inspect the referenced `vesta/packages/components/*.yaml` (or `hvac/`, `canbus/packages/`, `lighting/packages/` as appropriate) to understand expected `vars` and `id` naming.
+3. Make minimal edits to the component or add a new component file in the owning system.
+4. Update the device `packages:` call with appropriate `vars` (follow examples in `devices/climate-control.yaml`).
 5. Validate locally with the ESPHome CLI (e.g., `esphome config <device.yaml>` and `esphome compile <device.yaml>`) before pushing — do not commit compiled artifacts.
 
 Integration notes:
 
-- The repo relies on ESPHome composition: devices assemble `packages` defined in `components/` and `boards/` using substitutions from `devices/locals/secrets.yaml`.
+- The repo relies on ESPHome composition: devices assemble `packages` defined across `vesta/packages/`, `hvac/`, `canbus/`, `lighting/`, and `boards/` using substitutions from `devices/locals/secrets.yaml`.
 - There is a `packages.config` entry (see `devices/locals/secrets.yaml`) that can point to the repo itself for config updates — treat remote package fetching with care.
 
 Examples from the repo:
 
-- `devices/gruppo-miscelazione.yaml` includes two `mixing_valve` packages using `vars` like `circuit_name`, `circuit_slug`, `sensor`, `switch`, `output`.
-- `components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
+- `devices/climate-control.yaml` is the main HVAC entry point composing board, room, and coordinator packages.
+- `vesta/packages/components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
 
-**Epic 2 Update (October 2025):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. See `docs/epic-2-migration-guide.md` for migration details and `components/deprecated/README.md` for deprecated component explanations.
+**Epic 2 Update (October 2025, historical):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. See `_bmad-output/implementation-artifacts/epic-2-migration-guide.md` for migration details; the `components/deprecated/` directory referenced at the time no longer exists.
 
-**Epic 5 Update (October 2025):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. Room components now use `components/room_sensors.yaml` (v5) which sources temperature data exclusively from Home Assistant with a 3-minute emergency timeout. Key patterns:
+**Epic 5 Update (October 2025, historical — superseded by Epic 8's unified state machine and the Vesta extraction):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. The current equivalent of the room-sensor + emergency-shutdown pattern described below is `vesta/packages/components/failover_sensor.yaml` (3-tier failover) composed via `hvac/room_sensors.yaml` — consult those files and `hvac/CLAUDE.md` rather than the file names below, which no longer exist:
 
-- **HA-Only Sensors:** Use `room_sensors.yaml` with required vars: `room_slug`, `room_name`, `ha_temperature_sensor_id`
-- **Emergency Shutdown:** Include `room_emergency_shutdown.yaml` with vars: `room_slug`, `pid_id` (automatically forces PID OFF when sensor unavailable)
-- **State Machine:** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
-- **Obsolete Variables:** Do NOT use `modbus_controller_address`, `ha_humidity_sensor_id`, or `slow_pwm_id` (removed in v5)
+- **State Machine (historical shape):** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
 - **Control Hierarchy:** Emergency shutdown only controls PID; cascade to slow_pwm→relay is automatic
-- **Diagnostic Sensors:** `text_sensor.{zone}_sensor_state` shows "Normal"/"Emergency"/"Recovering" state
 
-For details, see `docs/epic-5-migration-guide.md`, `docs/epic-5-ha-only-sensors.md`, and `docs/epic-5-completion-report.md`. The deprecated v4 room_sensors component is archived in `components/deprecated/` for reference.
+For details, see `_bmad-output/implementation-artifacts/epic-5-migration-guide.md`, `_bmad-output/implementation-artifacts/epic-5-ha-only-sensors.md`, and `_bmad-output/implementation-artifacts/epic-5-completion-report.md`.
 
-**Epic 7 Update (October 2025):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. Room components can optionally include `components/room_window_detection.yaml` for automated window-aware shutdown. Key patterns:
+**Epic 7 Update (October 2025, historical):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. The `components/room_window_detection.yaml` file named below no longer exists as a standalone component — check `hvac/rooms/**` and `hvac/CLAUDE.md` for the current implementation. Key patterns as originally documented:
 
-- **Window Detection:** Use `room_window_detection.yaml` for fancoil rooms with PID controllers
+- **Window Detection (historical shape):** used a `room_window_detection.yaml` component for fancoil rooms with PID controllers
 - **Required Vars:** `room_slug`, `room_name`, `ha_window_sensor_id`, `pid_id`, `window_shutdown_modes`
 - **Equipment Decision:** Only add to rooms with fancoils+PID (NOT radiant-only or fancoil-only without PID)
 - **State Machine:** Normal → Window Open (180s timeout) → Recovering (60s) → Normal
-- **Shutdown Modes:** CSV string of climate modes to shutdown (e.g., `"cooling, heating"`)
-- **PID Integration:** Uses `climate.control` API to force PID OFF when window open
-- **Diagnostic Sensors:** `text_sensor.{zone}_window_detection_state` shows "Normal"/"Window Open"/"Recovering"
 
-For details, see `docs/epic-7-window-detection-guide.md`, `docs/window-sensors-map.md`, and `docs/epic-7-completion-report.md`.
+For details, see `_bmad-output/implementation-artifacts/epic-7-window-detection-guide.md`, `docs/window-sensors-map.md`, and `_bmad-output/implementation-artifacts/epic-7-completion-report.md`.
 
 **Epic 10 Update (November 2025):** UDP-based zone activity tracking enables demand-based relay control for energy optimization. Distribution boards broadcast zone demand (any PID active per floor/zone type), and the mixing group receives broadcasts to control circulation pump relays only when needed. Key patterns:
 
@@ -129,7 +125,7 @@ binary_sensor:
               - switch.turn_off: relay_1
 ```
 
-For details, see `docs/epic-10-completion-report.md`, `docs/epic-10-udp-sensor-guide.md`, and `docs/epic-10-migration-guide.md`.
+For details, see `_bmad-output/implementation-artifacts/epic-10-completion-report.md` and `_bmad-output/implementation-artifacts/epic-10-brief.md` (the `epic-10-udp-sensor-guide.md`/`epic-10-migration-guide.md` files named in the original note were never found under any path and appear to have been planned but not created).
 
 If unsure, prefer conservative edits and ask for clarification. After changing component contracts (vars or ids), update all device callers accordingly.
 

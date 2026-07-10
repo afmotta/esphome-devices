@@ -761,5 +761,5 @@ views:
 #
 # Related Documentation:
 # - devices/climate-control.yaml: Main device configuration
-# - components/seasonal_mode.yaml: Seasonal mode automation
-# - components/rooms/: Room-specific configurations
+# - vesta/packages/coordinators/seasonal_mode.yaml: Seasonal mode automation
+# - hvac/rooms/: Room-specific configurations
