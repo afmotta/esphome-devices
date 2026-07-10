@@ -1,0 +1,102 @@
+substitutions:
+  wifi_package: !include t-connect-pro-wifi.yaml
+  ethernet_package: !include t-connect-pro-ethernet.yaml
+  enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
+
+packages:
+  network_package: ${ethernet_package if enable_ethernet else wifi_package}
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  # 2026.5.0, not the repo-wide 2026.3.0 floor: the only version actually
+  # verified end-to-end, including the sntp/ds2484 platforms this board's
+  # first consumer (devices/climate-control.yaml) adds.
+  min_version: 2026.5.0
+  comment: "LilyGO T-Connect Pro"
+
+# LilyGO T-Connect Pro uses ESP32-S3-R8 (WROOM module)
+# -> 16 MB flash
+# -> 8 MB octal PSRAM
+#
+# Also present but unclaimed by this board file (AD-4: entry-point
+# composition, not board concerns): onboard TWAI CAN transceiver on
+# TX=IO6/RX=IO7 (would be canbus's health.yaml if this board were ever
+# composed into a CAN-consuming entry point; unconsumed by hvac today).
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${encryption_key}
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+# I2C bus — SDA=IO39/SCL=IO40, shared by every T-Connect Pro (onboard touch
+# controller plus any entry-point-added devices, e.g. hvac's DS2484 1-Wire
+# bridge). Bus only; no devices declared here — device-specific I2C
+# peripherals are entry-point composition (AD-4), not board-file concerns.
+i2c:
+  - id: i2cbus
+    sda: GPIO39
+    scl: GPIO40
+    scan: false
+    frequency: 100kHz
+
+# RS485 / Modbus — same physical pins as the previous waveshare-s3 board
+uart:
+  - id: modbus_uart
+    tx_pin: GPIO17
+    rx_pin: GPIO18
+    baud_rate: 38400
+    stop_bits: 1 #default to 8E1
+    data_bits: 8 #default to 8E1
+    parity: EVEN #default to 8E1
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+  - platform: gpio
+    name: "Boot Button"
+    pin:
+      number: 0
+      ignore_strapping_warning: true
+      mode:
+        input: true
+      inverted: true
+    disabled_by_default: true
+    on_press:
+      then:
+        - button.press: restart_button
+
+# Virtual buttons
+button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config

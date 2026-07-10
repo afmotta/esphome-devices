@@ -2,8 +2,9 @@
 
 This is the HVAC application system (layered-restructure spine,
 `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`).
-It is **pre-live**: controller hardware is not yet finalized (a master-controller
-swap is under consideration). Everything below is scoped to `hvac/`; entry
+It is **pre-live**: the controller hardware decision is finalized (ADR-0014 — LilyGO
+T-Connect Pro + Modbus RTU I/O boards, implemented) but not yet physically deployed.
+Everything below is scoped to `hvac/`; entry
 points that compose HVAC packages (`devices/climate-control.yaml`, its
 `devices/locals/` and `devices/remotes/` deployment variants) stay in
 `devices/` (entry points and their variants live together).
@@ -116,24 +117,23 @@ climate:
       kd: 0.08
 ```
 
-**Mode Synchronization**: All zones switch between heat/cool modes simultaneously based on a master mode register (Modbus register 200).
+**Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `vesta/packages/coordinators/seasonal_mode.yaml`).
 
 ## Modbus Communication Architecture
 
-**Master/Slave Pattern**:
-- **Master** (KC868-A6): Polls room sensors, writes to registers, coordinates mode
-- **Slaves** (KC868-A16): Read from master registers, control local zones
+**Single-master pattern** (ADR-0014): one T-Connect Pro controller is the sole Modbus RTU master on `rs485_bus` (RS485, target 38400 8E1, pending the bring-up parity check noted in ADR-0014 §4). There are no slave boards — every Modbus device is a commodity I/O board the master polls/writes directly:
 
-**Register Map** (simplified):
-- `200`: Climate mode (0=off, 1=heat, 2=cool)
-- `300`: Master heartbeat counter
-- `400-407`: Ground floor room sensor data (temp/humidity)
-- `408-415`: First floor room sensor data
+| Device | Address | Role |
+|---|---|---|
+| Analog Outputs Board (Waveshare Modbus RTU Analog Output 8CH (B)) | `0x1` | 0-10V fancoil/valve modulation, channels → `analog_output_1..8` |
+| Relay Board (Waveshare Modbus RTU Relay 32CH) | `0x2` | Radiant/fancoil/pump switching, channels → `relay_1..32` |
+| MEV (Cappellotto Air Fresh I) | `0x10` | Ventilation control, see `hvac/mev_modbus.yaml` for its register set |
+
+Room sensor data (temperature/humidity/CO2/IAQ) does **not** travel over this bus — it arrives via UDP `packet_transport` from the room-sensor ESP32s (see `room_sensors.yaml`), independent of Modbus.
 
 **Polling Intervals**:
-- Master polls sensors: 30 seconds
-- Slaves read from master: 10 seconds
-- Heartbeat increment: 10 seconds
+- Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
+- MEV polling: 30 seconds (`hvac/mev_modbus.yaml` default)
 
 ## Common Tasks
 
@@ -202,7 +202,7 @@ logger:
 ```
 
 Common issues:
-- Wrong baud rate (must be 9600)
+- Wrong baud rate/parity (target 38400 8E1 — see Appendix C)
 - Incorrect address
 - Missing termination resistors
 - Swapped A/B wires
@@ -212,38 +212,52 @@ Common issues:
 
 ### A. Modbus Register Quick Reference
 
-| Range | Purpose | Data Type |
-|-------|---------|-----------|
-| 200 | Climate mode (0=off, 1=heat, 2=cool) | uint16 |
-| 300 | Master heartbeat counter | uint16 |
-| 400-407 | Ground floor room sensors (temp/humidity pairs) | int16 (scaled ×100) |
-| 408-415 | First floor room sensors | int16 (scaled ×100) |
+**Relay Board (address `0x2`, 32 channels)** — coils `0x0000`-`0x001F` (channel N = coil N-1); FC `0x01` read, `0x05` write single, `0x0F` write multiple; write values `0xFF00`=on, `0x0000`=off, `0x5500`=toggle. No connectivity status register — communication failures surface per-switch (ESPHome marks a switch unavailable on read timeout). See `vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml`.
+
+**Analog Outputs Board (address `0x1`, 8 channels)** — holding registers `0x0000`-`0x0007` (channel N = register N-1); value in mV, `0`-`10000` = `0`-`10.00V`; FC `0x03`/`0x06`/`0x10`. See `vesta/packages/devices/modbus-io/modbus_analog_outputs_board.yaml`.
+
+**MEV (address `0x10`)** — device-specific register set (mode/on-off/dehumidify writes, 5 temperature sensors, component-state and 39-alarm-type reads, filter-hours tracking); see `hvac/mev_modbus.yaml` for the full mapping, not duplicated here.
 
 ### B. Relay Assignment Reference
 
-**Ground Floor Distribution Board (A16, Address 0x02)**:
-- Relays 1-4: Zone radiant floor circuits
-- Relays 5-8: Fancoil units
-- Relays 9-12: (Reserved/future use)
-- Relays 13-16: Pumps and auxiliary
+Live channel mapping (single 32-channel Relay Board, address `0x2`, `id_offset: 0` → `relay_1..relay_32`). Source of truth is `devices/climate-control.yaml` and the room/floor files under `hvac/rooms/**` — update this table whenever a relay assignment changes there.
 
-**First Floor Distribution Board (A16, Address 0x03)**:
-- Relays 1-8: Zone radiant floor circuits
-- Relays 9-12: Fancoil units
-- Relays 13-16: MEV and auxiliary
+| Relay | Zone / Circuit | Component |
+|-------|-----------------|-----------|
+| `relay_1` | Ground floor radiant | Mixing pump (`ground-floor.yaml`) |
+| `relay_2` | Ground floor fancoil | Direct pump (`ground-floor.yaml`) |
+| `relay_3` | First floor radiant | Mixing pump (`first-floor.yaml`) |
+| `relay_4` | Second floor fancoil | Direct pump (`second-floor.yaml`) |
+| `relay_5` | — | Unallocated |
+| `relay_6` | Anticamera | Radiant |
+| `relay_7` | Bagno (ground floor) | Radiant |
+| `relay_8` | Cucina | Radiant |
+| `relay_9` | Soggiorno | Radiant |
+| `relay_10` | Bagno Grande | Radiant |
+| `relay_11` | Bagno Ospiti | Radiant |
+| `relay_12` | Bagno Padronale | Radiant |
+| `relay_13` | Camera Nord | Radiant |
+| `relay_14` | Camera Ospiti | Radiant |
+| `relay_15` | Camera Padronale | Radiant |
+| `relay_16` | Camera Sud | Radiant |
+| `relay_17` | Lavanderia | Radiant |
+| `relay_18`-`relay_21` | — | Reserved (freed by the Epic 18 MEV Modbus migration; still exposed as manual toggles on some dashboards, no ESPHome zone binding) |
+| `relay_22`-`relay_32` | — | Unallocated spare capacity |
 
-### C. Sensor Address Assignments
+Fancoil units have no dedicated relay of their own — each floor's fancoil circulation runs off that floor's shared direct/mixing pump relay (`relay_2`, `relay_4`); the fan itself is 0-10V modulated via the Analog Outputs Board (Appendix C).
 
-| Device | Modbus Address | Location |
-|--------|---------------|----------|
-| Master A6 | 0x01 | Technical room |
-| Slave A16 #1 | 0x02 | Ground floor |
-| Slave A16 #2 | 0x03 | First floor |
-| Room sensor Soggiorno | 0x0A (10) | Living room |
-| Room sensor Cucina | 0x0B (11) | Kitchen |
-| Room sensor Bagno | 0x0C (12) | Bathroom |
-| Room sensor Anticamera | 0x0D (13) | Entry hall |
-| 0-10V Adapter | 0x1E (30) | Second floor fancoil |
+### C. Modbus Bus Members
+
+| Device | Modbus Address | Bus | Notes |
+|--------|---------------|-----|-------|
+| T-Connect Pro (master) | — | `rs485_bus` (38400 8E1 target) | The sole Modbus master; see `boards/t-connect-pro.yaml` |
+| Analog Outputs Board 8CH (B) | `0x1` | `rs485_bus` | Channels → `analog_output_1..8`; room assignments below |
+| Relay Board 32CH | `0x2` | `rs485_bus` | Channels → `relay_1..32`; see Appendix B |
+| MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor only; `hvac/mev_modbus.yaml` |
+
+Room sensors are **not** on this bus — they report over UDP `packet_transport` (see `room_sensors.yaml`). ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and MEV (`0x10`) are hvac-only addresses with no gateway-side counterpart to mirror against.
+
+**Analog output channel assignments** (from `hvac/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — unallocated.
 
 ### D. PID Tuning Guidelines
 
@@ -266,7 +280,7 @@ Common issues:
 **Modbus Issues**:
 - Enable DEBUG logging for `modbus_controller`
 - Check register addresses and data types
-- Verify baud rate (9600, 8N1)
+- Verify baud rate/parity (target 38400 8E1 — see Appendix C)
 - Inspect RS485 wiring and termination
 
 **PID Tuning**:

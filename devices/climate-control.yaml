@@ -5,7 +5,7 @@ defaults:
 
 packages:
   base: !include
-    file: ../boards/waveshare-s3.yaml
+    file: ../boards/t-connect-pro.yaml
     vars:
       enable_ethernet: true
   analog_outputs_1: !include
@@ -17,24 +17,15 @@ packages:
       update_interval: 2s
       id_offset: 0
       controller_name: "Analog Outputs Board 1"
-  relays_1: !include
-    file: ../vesta/packages/devices/modbus-io/modbus_relay_board.yaml
+  relays: !include
+    file: ../vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml
     vars:
       controller_id: relay_board_1
       modbus_address: 0x2
       modbus_bus_id: rs485_bus
       update_interval: 2s
-      id_offset: 8
+      id_offset: 0
       controller_name: "Relay Board 1"
-  relays_2: !include
-    file: ../vesta/packages/devices/modbus-io/modbus_relay_board.yaml
-    vars:
-      controller_id: relay_board_2
-      modbus_address: 0x3
-      modbus_bus_id: rs485_bus
-      update_interval: 2s
-      id_offset: 16
-      controller_name: "Relay Board 2"
   ground_floor: !include ../hvac/rooms/ground_floor/ground-floor.yaml
   first_floor: !include ../hvac/rooms/first_floor/first-floor.yaml
   second_floor: !include ../hvac/rooms/second_floor/second-floor.yaml
@@ -43,7 +34,7 @@ packages:
     vars:
       seasonal_mode_id: hp_mode
       seasonal_mode_name: "Heat Pump Mode"
-      time_id: pcf85063_time
+      time_id: sntp_time
 
 udp:
   id: udp_packet_transport
@@ -72,9 +63,14 @@ modbus:
   uart_id: modbus_uart
 
 one_wire:
-  - platform: gpio
-    pin: GPIO21
+  - platform: ds2484
     id: one_wire_01
+    i2c_id: i2cbus
+    address: 0x18
+
+time:
+  - platform: sntp
+    id: sntp_time
 
 binary_sensor:
   - id: !extend any_pid_requesting_heat

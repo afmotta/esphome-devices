@@ -44,20 +44,16 @@ sections:
   # ===========================================================================
   # Modbus Communication Status
   # ===========================================================================
+  # ADR-0014 P3: the two 8-ch relay boards (0x02/0x03, each with its own
+  # connectivity status sensor) were consolidated into one 32-ch relay board
+  # at 0x02. That driver has no status sensor by design (see
+  # vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml's own
+  # comment) — communication failures surface per-switch instead, so there's
+  # no single "is the relay bank reachable" tile to show here anymore.
   - type: grid
     title: Modbus Communication
     columns: 3
     cards:
-      - type: tile
-        entity: binary_sensor.climate_control_relay_board_1_status
-        name: Relay Board 1 (0x02)
-        icon: mdi:ethernet
-
-      - type: tile
-        entity: binary_sensor.climate_control_relay_board_2_status
-        name: Relay Board 2 (0x03)
-        icon: mdi:ethernet
-
       - type: tile
         entity: binary_sensor.climate_control_analog_outputs_board_1_status
         name: Analog Outputs (0x01)

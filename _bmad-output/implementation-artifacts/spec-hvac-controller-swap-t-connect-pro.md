@@ -2,11 +2,12 @@
 title: 'HVAC controller swap — boards/t-connect-pro.yaml + devices/climate-control.yaml onto it'
 type: 'feature'
 created: '2026-07-10'
-status: 'ready-for-dev'
+status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
 final_revision: ''
+baseline_commit: '9dafe8225d7a14197f7993e6d87049836afc4478'
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md', '{project-root}/_bmad-output/implementation-artifacts/spec-hvac-baseline-config-green.md', '{project-root}/_bmad-output/implementation-artifacts/spec-vesta-modbus-relay-32ch.md']
 warnings: []
 ---
@@ -211,16 +212,16 @@ zero-consumer sweep above; there's no open design choice for Alberto.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Read `boards/waveshare-s3.yaml`/`-ethernet.yaml`/`-wifi.yaml` fully
-- [ ] Create `boards/t-connect-pro.yaml`, `boards/t-connect-pro-ethernet.yaml`,
+- [x] Read `boards/waveshare-s3.yaml`/`-ethernet.yaml`/`-wifi.yaml` fully
+- [x] Create `boards/t-connect-pro.yaml`, `boards/t-connect-pro-ethernet.yaml`,
   `boards/t-connect-pro-wifi.yaml` per the Code Map
-- [ ] Swap `devices/climate-control.yaml`'s board include, collapse the two relay-board
+- [x] Swap `devices/climate-control.yaml`'s board include, collapse the two relay-board
   includes into one 32-ch include, switch `one_wire_01` to the DS2484 bridge, add a
   `time: platform: sntp` block, and update `seasonal_mode`'s `time_id` to `sntp_time`
-- [ ] Run `esphome config` then `esphome compile` on `devices/locals/climate-control.yaml`;
+- [x] Run `esphome config` then `esphome compile` on `devices/locals/climate-control.yaml`;
   if compile fails on a genuine esp-idf incompatibility, switch the board file's framework to
   `arduino` and record the failing component in Design Notes
-- [ ] Rewrite `hvac/CLAUDE.md` Appendices A-C (and the "Master/Slave Pattern" section) to the
+- [x] Rewrite `hvac/CLAUDE.md` Appendices A-C (and the "Master/Slave Pattern" section) to the
   live one-master/one-relay-bank/one-analog-board/MEV topology
 
 **Acceptance Criteria:**
@@ -240,8 +241,24 @@ zero-consumer sweep above; there's no open design choice for Alberto.
 
 ## Design Notes
 
-_Fill in during execution: which framework (esp-idf or arduino) was actually used, and if
-esp-idf failed, exactly which component/error forced the fallback to arduino._
+**Framework: esp-idf, no fallback needed.** `esphome compile devices/locals/climate-control.yaml`
+succeeded on the first attempt under `framework: {type: esp-idf}` (74.55s, RAM 27.4%, Flash
+9.0%) — the full HVAC stack (`pid` climate, `slow_pwm`, `modbus_controller`, `dallas`/
+`ds2484`/`one_wire`, `packet_transport`/`udp`, `combination` sensor) compiles cleanly under
+esp-idf on ESPHome 2026.5.0. The `arduino` fallback path in the board file was never
+exercised.
+
+`esphome config` also passed clean: no missing-ID or unresolved-include errors. Entity-id
+sweep post-compile confirmed `relay_1..relay_32` (32) and `analog_output_1..analog_output_8`
+(8) — identical names/count to the pre-swap topology, different backing hardware, as required.
+
+`hvac/CLAUDE.md`'s "Modbus Communication Architecture" section and Appendices A-C were
+rewritten to the live single-master/32-ch-relay/8-ch-analog/MEV topology (mode sync now
+correctly attributed to the `seasonal_mode` coordinator, not a fictional register). Two
+"Common Tasks"/debugging bullets outside the Code Map's named sections (`9600, 8N1` baud
+claims in "Debugging Modbus Issues" and "Debugging Modbus and PID issues") directly
+contradicted the new Appendix C (`38400 8E1`) once it was written, so they were corrected too
+for internal coherence — a narrow, load-bearing fix, not a broader doc pass.
 
 The T-Connect Pro's CAN transceiver (IO6/IO7) is wired but genuinely unused by this entry
 point — hvac-on-CAN sensor consumption is a separate, still-unimplemented frozen contract
@@ -263,9 +280,11 @@ breakout on the same `i2cbus`), not something to preempt here.
 **Commands:**
 - `esphome config devices/locals/climate-control.yaml` -- expected: exits 0
 - `esphome compile devices/locals/climate-control.yaml` -- expected: exits 0
-- `git diff --stat` -- expected: `boards/t-connect-pro.yaml` (new),
+- `git status --short` -- expected: `boards/t-connect-pro.yaml` (new),
   `boards/t-connect-pro-ethernet.yaml` (new), `boards/t-connect-pro-wifi.yaml` (new),
-  `devices/climate-control.yaml` (modified), `hvac/CLAUDE.md` (modified) — nothing else
+  `devices/climate-control.yaml` (modified), `hvac/CLAUDE.md` (modified) — nothing else.
+  (`git diff --stat` alone won't show the three new files — they're untracked, not
+  modified — use `git status --short` or stage first.)
 - `grep -c "relay_" devices/climate-control.yaml` -- sanity check the relay include block
   collapsed to one entry (compare against the pre-spec two-entry baseline)
 - `grep -n "GPIO21" devices/climate-control.yaml boards/t-connect-pro*.yaml` -- expected: no
@@ -301,6 +320,115 @@ throughout this spec before any execution began.
 
 ## Review Triage Log
 
+### 2026-07-10 — Blind Hunter + Edge Case Hunter (parallel, review-loop 1)
+
+No `intent_gap` or `bad_spec` findings — no loopback triggered. `esphome config`/`compile`
+independently re-verified passing by Blind Hunter.
+
+**Patched (6, applied directly to this diff):**
+1. `hvac/CLAUDE.md` intro paragraph said "controller hardware is not yet finalized" —
+   stale now that ADR-0014 decided and this spec implemented the swap (still pre-live:
+   decided ≠ physically deployed). Corrected.
+2. `hvac/CLAUDE.md` Appendix C overstated ADR-0014 §4's address mirroring — only the
+   relay bank (`0x2`) mirrors across the gateway/hvac buses; `0x1`/`0x10` are hvac-only
+   with nothing to mirror against. Corrected.
+3. `boards/t-connect-pro.yaml` inherited `min_version: 2026.3.0` from the waveshare-s3
+   template, but `sntp`/`ds2484` were only verified against 2026.5.0. Bumped, with a
+   comment explaining why.
+4. Added a comment noting the T-Connect Pro's unused CAN TWAI pins (IO6/IO7), for the
+   same AD-4 "entry-point composition, not board concern" reasoning already given to I²C.
+5. `hvac/home-assistant/dashboards/system-monitoring.yaml`'s "Modbus Communication" grid
+   had tiles for `relay_board_1_status`/`relay_board_2_status` — both entities stop
+   existing once the two 8-ch boards collapse into one 32-ch board with no status sensor
+   (by the 32-ch driver's own design, see its doc comment). Removed the two dead tiles,
+   left a comment explaining why no replacement tile exists.
+6. This spec's own Verification section said `git diff --stat` would show the 3 new
+   board files — untracked files don't appear in plain `git diff --stat`. Corrected to
+   `git status --short`.
+
+**Deferred (4, appended to `deferred-work.md`):**
+- DS2484 `active_pullup`/`strong_pullup` left at component defaults (both `false`);
+  correctness depends on whether the two supply-water DS18B20 probes are wired
+  parasitic or externally-powered, which nothing in the repo documents and which only a
+  hardware bring-up can confirm. Ties into ADR-0014 Open item 1.
+- Pre-existing HA dashboard relay-id mismatches for 7 rooms, confirmed via `git log` to
+  predate this spec entirely (not caused by the swap) — needs its own dashboard-fix pass.
+- `boards/waveshare-s3.yaml`(+ network variants) now fully orphaned by this swap; flagged
+  for P6 (`spec-hardware-docs-sweep`) to sweep alongside the already-planned a6/a16
+  deletion, since its current scope text doesn't mention waveshare-s3.
+- 32-ch relay board's `update_interval: 2s` (spec-directed, carried forward unchanged
+  from the 8-ch default) still has the P2-documented "not re-validated for 32 coils'
+  traffic" caveat — this spec is the first to actually exercise it against real bus
+  timing, but validating requires hardware bring-up, not code. Ties into ADR-0014 Open
+  item 1.
+
+**Rejected (3, no action — noise or already correctly out of scope):**
+- Analog board's status sensor aliasing channel 1's own register (pre-existing, minor,
+  functionally fine for connectivity purposes).
+- `i2c:` list-form vs. the old board's flat-mapping form — functionally equivalent, and
+  actually more consistent with this same file's `uart:` list style.
+- Root `CLAUDE.md` still describing KC868 hardware — explicitly P6's job per ADR-0014's
+  phase table, correctly untouched by a P3 spec.
+
 ## Auto Run Result
 
-Status: ready-for-dev — not yet executed.
+Status: in-review — implementation complete, `esphome config`/`compile` both pass on
+esp-idf (no arduino fallback), all acceptance criteria met, review findings triaged with
+6 patches applied directly and 4 items deferred to `deferred-work.md`. Awaiting Alberto's
+disposition on the deferred DS2484 pullup-mode question in particular before hardware
+bring-up.
+
+## Suggested Review Order
+
+**Board hardware definition (new files, entry point)**
+
+- Start here: esp32/framework block, modeled on `waveshare-s3.yaml` but esp-idf-verified.
+  [`t-connect-pro.yaml:26`](../../boards/t-connect-pro.yaml#L26)
+
+- RS485 bus on the same physical pins as the old board — only the board changed.
+  [`t-connect-pro.yaml:61`](../../boards/t-connect-pro.yaml#L61)
+
+- New shared I²C bus (bus only, no devices) — feeds the DS2484 bridge added at the entry point.
+  [`t-connect-pro.yaml:53`](../../boards/t-connect-pro.yaml#L53)
+
+- Version floor bumped to the only version actually verified end-to-end.
+  [`t-connect-pro.yaml:15`](../../boards/t-connect-pro.yaml#L15)
+
+- W5500 Ethernet pins are T-Connect Pro-specific, not copied from the old board.
+  [`t-connect-pro-ethernet.yaml:4`](../../boards/t-connect-pro-ethernet.yaml#L4)
+
+**Entry-point swap (`devices/climate-control.yaml`)**
+
+- Board include swap — the one line that actually changes the physical controller.
+  [`climate-control.yaml:8`](../../devices/climate-control.yaml#L8)
+
+- Two 8-ch relay includes collapse into one 32-ch include at `id_offset: 0`.
+  [`climate-control.yaml:20`](../../devices/climate-control.yaml#L20)
+
+- 1-Wire moves from bare GPIO to the DS2484 I²C bridge — same `id`, no downstream edits needed.
+  [`climate-control.yaml:66`](../../devices/climate-control.yaml#L66)
+
+- SNTP replaces the PCF85063 RTC as the time source — no hardware, network-only.
+  [`climate-control.yaml:72`](../../devices/climate-control.yaml#L72)
+
+- `seasonal_mode`'s `time_id` repointed to the new SNTP source.
+  [`climate-control.yaml:37`](../../devices/climate-control.yaml#L37)
+
+**Documentation: live topology rewrite (`hvac/CLAUDE.md`)**
+
+- Master/slave framing replaced with the real single-master pattern.
+  [`CLAUDE.md:122`](../../hvac/CLAUDE.md#L122)
+
+- Appendix A: real register semantics (coils/holding registers) replace a fictional register map.
+  [`CLAUDE.md:213`](../../hvac/CLAUDE.md#L213)
+
+- Appendix B: live relay-to-zone mapping sourced from the actual room files.
+  [`CLAUDE.md:221`](../../hvac/CLAUDE.md#L221)
+
+- Appendix C: real bus members and addresses, with the mirroring claim scoped correctly.
+  [`CLAUDE.md:249`](../../hvac/CLAUDE.md#L249)
+
+**Review-driven fix: dead dashboard tile**
+
+- Removed two tiles pointing at connectivity sensors the 32-ch board doesn't expose.
+  [`system-monitoring.yaml:47`](../../hvac/home-assistant/dashboards/system-monitoring.yaml#L47)
