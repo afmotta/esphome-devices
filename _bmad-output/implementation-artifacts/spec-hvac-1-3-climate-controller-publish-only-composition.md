@@ -6,7 +6,7 @@ status: 'done'
 baseline_revision: '59e1a48'
 review_loop_iteration: 0
 followup_review_recommended: false
-final_revision: 'f634664'
+final_revision: 'b5c8eab'
 context:
   - '{project-root}/hvac/CLAUDE.md'
   - '{project-root}/canbus/CLAUDE.md'
