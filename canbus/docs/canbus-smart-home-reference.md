@@ -11,14 +11,14 @@ A CAN bus-based wall button system for Alberto's fienile (barn conversion) in Pi
 The button boards are walled in and hard to reach after installation. The RP2040 boards have no WiFi, so no OTA updates. Therefore:
 
 - **Nodes are frozen firmware.** They detect button clicks locally and send self-describing CAN frames. They do not know what any button "does."
-- **The gateway is updatable.** It bridges CAN bus to Home Assistant via the ESPHome API over PoE Ethernet. It decodes CAN frames and fires HA events.
+- **The gateway is updatable.** It bridges CAN bus to Home Assistant via the ESPHome API over Ethernet. It decodes CAN frames and fires HA events.
 - **Home Assistant owns all logic.** What happens when a button is pressed is defined entirely in HA automations, which can be changed at any time.
 
 ### Hardware
 
 **Button nodes:** Seeed Studio / Longan Labs CANBed RP2040 (SKU 102991596). An off-the-shelf CAN bus development board with RP2040 MCU, on-board MCP2515 CAN controller (SPI0, CS on GPIO9) and MCP2551 CAN transceiver. CAN interface via 4-pin screw terminal or DB9 connector, with switchable 120Ω termination resistor. Accepts 9–28V power input on the CAN connector (provides regulated 3.3V/1A). Exposes 8 digital I/O, 3 analog inputs, I2C (Grove), UART (Grove), and SPI. The standard node firmware wires up 8 buttons. No WiFi, no OTA — flashed via USB (Micro-USB) before installation. ~$16 per board ($14 at 10+). Product link: https://www.seeedstudio.com/CANBed-RP2040-CAN-Bus-development-board-p-5262.html
 
-**Gateway:** Waveshare ESP32-S3-POE-ETH-8DI-8DO. Connects to Home Assistant via PoE Ethernet. Uses the ESP32-S3's native TWAI CAN controller (GPIO2 TX, GPIO3 RX) with the board's built-in isolated CAN transceiver. Also exposes 8 optocoupler-isolated digital inputs (GPIO4–11) and 8 digital outputs (via PCA9554 I2C expander at 0x20) for local use. The board has a W5500 Ethernet chip (SPI: CLK=GPIO15, MOSI=GPIO13, MISO=GPIO14, CS=GPIO16, INT=GPIO12, RST=GPIO39), a buzzer (GPIO46), and a WS2812 RGB LED (GPIO38).
+**Gateway:** LilyGO T-Connect Pro (ESP32-S3-R8, 16MB flash / 8MB PSRAM), per ADR-0014 — the same standardized controller the HVAC master uses (`boards/t-connect-pro.yaml`). Connects to Home Assistant via W5500 Ethernet (no PoE; DC supply — ADR-0014 §5). Uses the ESP32-S3's native TWAI CAN controller (IO6 TX, IO7 RX) with the board's onboard CAN transceiver. RS485 (IO17 TX, IO18 RX, auto-direction transceiver) drives the gateway's Waveshare Modbus RTU Relay 32CH bank (address `0x2`, lighting fallback relays). W5500 Ethernet SPI: SCLK=IO12, MOSI=IO11, MISO=IO13, CS=IO10, INT=IO9, RST=IO48. The board's display/touch/LoRa peripherals are unused and left unconfigured. This description matches the deployed `devices/gateway.yaml` (post ADR-0014 P4) — it retires the earlier three-way discrepancy where docs said POE-ETH-8DI-8DO with CAN on GPIO2/3 while the deployed config was a WiFi RS485-CAN board with CAN on GPIO15/16.
 
 ## CAN Protocol v1
 

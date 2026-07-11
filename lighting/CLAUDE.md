@@ -2,12 +2,14 @@
 
 This is the lighting application system (layered-restructure spine,
 `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`).
-It is **pre-live**: no relay actuation exists yet (ADR-0013 open item 2 —
-fallback is log-only). The gateway-side button/gate package lives here since
-migration Phase 5b-2; relay outputs land with ADR-0013's hardware decision,
-which also triggers the intended physical split onto a dedicated lighting
-gateway device (until then, `devices/gateway.yaml` composes this system's
-package alongside canbus's).
+Relay actuation is real (ADR-0014 P4/P5): the gateway drives a Waveshare
+Modbus RTU Relay 32CH bank (`relay_0..relay_31`, HA-switchable), and the
+ADR-0013 fallback branches actuate bindings when HA is down. ADR-0014 also
+resolved the once-intended physical split as **no further split** —
+`devices/gateway.yaml` keeps composing this system's packages alongside
+canbus's on one device (AD-4). The system stays **pre-live** in one specific
+sense: `registry/bindings.yaml` is still empty — no real bindings are
+authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
 
 ## What lighting owns
 
@@ -66,9 +68,9 @@ package alongside canbus's).
 ## Conventions
 
 - Epic prefix: **LIGHT-**. New BMAD artifacts go to the root `_bmad-output/`.
-- Entity-ID/automation-naming conventions are lighting's own to set once real
-  fallback code lands — not yet decided (see Deferred in the architecture
-  spine).
+- Entity-ID/automation-naming conventions are lighting's own to set — still
+  undecided now that the fallback code exists (ADR-0014 P5); expected to firm
+  up with binding authoring (see Deferred in the architecture spine).
 
 ## Test & verify (from repo root)
 

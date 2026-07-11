@@ -157,10 +157,10 @@ Deployment envelope (unchanged by this spine): node firmware flashed via USB pre
 | Decision | Why it can wait |
 | --- | --- |
 | Wiring contract tests into the push gate itself | Spec + test battery (AD-6) suffices pre-live; revisit at live-freeze or after the first drift that escapes the battery |
-| Master-controller swap (Lilygo T-Connect PRO) | Hardware call, externally gated; AD-4's composition shape is designed so the swap is a new entry point, not a restructure |
+| Master-controller swap (Lilygo T-Connect PRO) | **Resolved** — ADR-0014 (2026-07-10), implemented P3 (hvac controller) and P4 (lighting gateway). AD-4's bet held: the swap was a board-file + entry-point change, not a restructure |
 | hvac-on-CAN consumer code placement | No consumer code exists; decided when HVAC-Epic work lands it (contract already frozen) |
-| Physical gateway split (dedicated lighting-gateway device vs today's single board composing canbus + lighting packages) | Split is intended (2026-07-06 scoping session) but triggers with ADR-0013's relay-hardware choice — the lighting gateway needs relay outputs the current board may lack; the package seam is identical either way, only entry-point composition changes |
-| boards/ package unification (gateway vs climate master, both Waveshare family) | Merge proposal's advice stands: let it fall out, don't force it |
+| Physical gateway split (dedicated lighting-gateway device vs today's single board composing canbus + lighting packages) | **Resolved** — ADR-0014 (2026-07-10): **no further split.** The gateway keeps composing canbus + lighting packages on one device (AD-4); hvac was already a separate physical device; relay outputs arrived as a Modbus bank (P4), removing the "current board may lack outputs" trigger. An explicit decision now, not an open question |
+| boards/ package unification (gateway vs climate master, both Waveshare family) | **Resolved as a byproduct** — exactly as this row prescribed ("let it fall out, don't force it"): ADR-0014's hardware standardization made both entry points compose the same `boards/t-connect-pro.yaml`; unification fell out of the hardware decision rather than being pursued |
 | Vesta extraction to its own repo | Orthogonal to this restructure; AD-2 already isolates it |
 | `scripts/`, root `secrets.yaml` layout | No divergence risk; whoever touches them next follows AD-1's "one home" rule |
 | Standing battery automation (CI) | No CI exists; the battery runs per-slice and on human initiative — revisit together with the status-hygiene mechanical gate, or at live-freeze |

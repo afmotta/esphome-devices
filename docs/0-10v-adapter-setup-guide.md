@@ -1,5 +1,11 @@
 # Modbus RS485 0-10V Adapter Setup Guide
 
+> **Historical document (retired hardware).** The generic AliExpress 0-10V adapter this
+> guide commissions was replaced by the Waveshare Modbus RTU Analog Output 8CH (B)
+> (ADR-0014); its companion re-addressing utilities were retired in the same sweep (see
+> `docs/change_waveshare_relay_address.yaml` for the current commissioning tool). Kept
+> as historical record.
+
 ## Device Information
 
 **Product**: 2/4 Channel RS485 Modbus RTU to 0-10V/0-20mA Analog Output Module  

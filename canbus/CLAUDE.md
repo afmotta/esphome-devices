@@ -12,8 +12,8 @@ control system (see root `CLAUDE.md`).
   self-describing CAN frames. They do not know what any button "does".
 - **canbus owns transport health only** (amended AD-7, 2026-07-06): frame
   transport, heartbeats, `node_lost` detection, discovery, and the bus
-  definition on the gateway (Waveshare ESP32-S3-POE, TWAI CAN over PoE
-  Ethernet). It does not decode button frames or fire HA events — that's
+  definition on the gateway (LilyGO T-Connect Pro, TWAI CAN over Ethernet).
+  It does not decode button frames or fire HA events — that's
   `lighting/`'s gate instance (see `lighting/CLAUDE.md`). `hvac/` consumes
   sensor CAN frames directly, with no gate in between.
 - **Home Assistant owns all logic** — bindings are HA automations, changeable

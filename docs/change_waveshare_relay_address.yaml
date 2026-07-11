@@ -1,0 +1,143 @@
+# =============================================================================
+# Commissioning utility: set a Waveshare Modbus RTU Relay 32CH's device address
+# =============================================================================
+# Assigns a factory-fresh relay bank its bus address (this house standardizes
+# on 0x02 for both the hvac and gateway relay banks — ADR-0014 §4 mirrored
+# addressing, so a pre-addressed spare swaps into either system).
+#
+# Confirmed procedure (ADR-0014 §1, relay board): the device address lives in
+# holding register 0x4000, written with FC 0x06 (write single register), and
+# the write works when the board is addressed at Modbus broadcast address
+# 0x00 — so you don't need to know the board's current address to set it.
+#
+# NOTE — Analog Output 8CH (B): that board's own address-configuration
+# register was NOT independently verified during ADR-0014's planning (only
+# the relay board's 0x4000 was). Confirm against the analog board's physical
+# manual before reusing this utility for it.
+#
+# WARNING: connect ONLY the board being commissioned to the RS485 bus —
+# broadcast writes (address 0x00) are accepted by every listening device.
+#
+# Instructions:
+# 1. Wire the target board alone to the T-Connect Pro's RS485 terminal (A-A, B-B)
+# 2. Edit the WiFi placeholders and (optionally) new_address below
+# 3. Flash this config to a (spare) T-Connect Pro: esphome run docs/change_waveshare_relay_address.yaml
+# 4. Watch the "Address Register" sensor / "Status" text sensor to confirm the
+#    board responds at current_address (factory default 0x01)
+# 5. Press the "Write Address ..." button in Home Assistant (or the web UI)
+# 6. Power-cycle the relay board
+# 7. Set current_address to the new value and reflash to verify the move
+#
+# Serial params: the utility talks at the Waveshare factory default, 9600 8N1.
+# The live buses target 38400 8E1 (ADR-0014 §4, pending the bring-up parity
+# check); moving a board's baud/parity off the factory default is a separate
+# protocol-V2 register write, deliberately not automated here until bring-up
+# confirms the procedure.
+#
+# This file is self-contained by design (no !secret — docs/ has no
+# secrets.yaml, and a bench tool should flash without the repo's secret
+# infrastructure). Do not commit real credentials into the placeholders.
+# =============================================================================
+
+substitutions:
+  device_name: "modbus-addr-tool"
+  friendly_name: "Waveshare Relay Address Tool"
+  current_address: "0x01" # Waveshare factory default
+  new_address: "0x02" # This house's standard relay-bank address (ADR-0014 §4)
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+# LilyGO T-Connect Pro (same controller family as both live systems)
+esp32:
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+wifi:
+  ssid: "YourSSID" # ← edit (bench tool: placeholders, not !secret — see header)
+  password: "YourPassword" # ← edit
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+# T-Connect Pro RS485 (auto-direction transceiver) — same physical pins the
+# live board file uses (boards/t-connect-pro.yaml), but at the Waveshare
+# factory-default serial params instead of the live bus target.
+uart:
+  id: rs485
+  tx_pin: GPIO17
+  rx_pin: GPIO18
+  baud_rate: 9600
+  data_bits: 8
+  parity: NONE
+  stop_bits: 1
+
+modbus:
+  id: modbus_bus
+  uart_id: rs485
+  send_wait_time: 200ms
+
+modbus_controller:
+  # The board at its current address — used only to verify it's alive and to
+  # read back the address register.
+  - id: bank
+    address: ${current_address}
+    modbus_id: modbus_bus
+    update_interval: 5s
+    command_throttle: 100ms
+  # Broadcast target for the address write (every listening device accepts
+  # address-0x00 writes — hence the one-board-on-the-bus warning above).
+  - id: bank_broadcast
+    address: 0x00
+    modbus_id: modbus_bus
+    update_interval: never
+
+sensor:
+  # Reading 0x4000 back at the board's own address should return that address.
+  - platform: modbus_controller
+    modbus_controller_id: bank
+    name: "Address Register (0x4000)"
+    id: address_register
+    address: 0x4000
+    register_type: holding
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+button:
+  - platform: template
+    name: "Write Address ${current_address} -> ${new_address}"
+    icon: "mdi:cog"
+    on_press:
+      - logger.log:
+          format: "Broadcasting address change to ${new_address} (holding 0x4000, FC 0x06)"
+          level: INFO
+      - lambda: |-
+          auto cmd = esphome::modbus_controller::ModbusCommandItem::create_write_single_command(
+              id(bank_broadcast), 0x4000, ${new_address});
+          id(bank_broadcast)->queue_command(cmd);
+      - delay: 2s
+      - logger.log:
+          format: "Write sent. Power-cycle the relay board, then set current_address to ${new_address} and reflash to verify."
+          level: WARN
+
+  - platform: restart
+    name: "Restart Address Tool"
+
+text_sensor:
+  - platform: template
+    name: "Status"
+    id: status_text
+    lambda: |-
+      if (id(address_register).has_state()) {
+        return {"Board responding at ${current_address} (0x4000 reads " + to_string((int) id(address_register).state) + ")"};
+      }
+      return {"No response at ${current_address} — check wiring/termination and that exactly one board is connected"};
+    update_interval: 10s

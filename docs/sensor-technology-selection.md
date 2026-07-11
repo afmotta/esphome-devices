@@ -1,5 +1,11 @@
 # Room Sensor Technology Selection
 
+> **Historical document (superseded decision).** The Modbus room-sensor choice recorded
+> here was later reversed: room sensing moved to custom ESP32 sensor boards reporting
+> over Home Assistant with a UDP fallback (`hvac/room_sensors.yaml`), and the Modbus bus
+> now carries only I/O boards (ADR-0014). Kept as the historical record of the original
+> Story 1.6 evaluation.
+
 **Project:** ESPHome Multi-Floor Climate Control  
 **Story:** 1.6 - Room Temperature and Humidity Sensor Integration  
 **Date:** October 22, 2025  

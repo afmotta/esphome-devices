@@ -10,7 +10,7 @@ Keep changes minimal, respect secrets, and follow the existing composition patte
 
 Key concepts (read these files first):
 
-- `boards/` — platform-level node configs and common hardware pin mapping (e.g. `boards/a6.yaml`, `boards/base.yaml`, `boards/wifi.yaml`).
+- `boards/` — platform-level node configs and common hardware pin mapping (e.g. `boards/t-connect-pro.yaml`, `boards/s1-pro-multi-sense.yaml`).
 - `vesta/packages/components/` — reusable component packages which are included with `packages:` and expect `vars` (examples: `vesta/packages/components/pid_sensors.yaml`, `vesta/packages/components/fancoil.yaml`). The old `components/modbus_master.yaml` and `components/deprecated/` no longer exist; Modbus I/O drivers now live under `vesta/packages/devices/modbus-io/`.
 - `devices/` — top-level device definitions that assemble `packages:` (current main entry point: `devices/climate-control.yaml`; the old `devices/gruppo-miscelazione.yaml` example below no longer exists).
 - `devices/locals/secrets.yaml` — substitution keys and sensitive values (do NOT print secrets in output or add them to commits).

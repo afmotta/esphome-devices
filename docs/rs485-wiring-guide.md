@@ -1,8 +1,8 @@
 # RS485 Wiring Guide for ESPHome Climate Control
 
 **Project:** ESPHome Multi-Floor Climate Control - Modbus RTU Enhancement  
-**Version:** 1.0  
-**Date:** October 22, 2025
+**Version:** 1.1  
+**Date:** July 11, 2026
 
 This guide provides comprehensive instructions for proper RS485 wiring, termination, troubleshooting, and signal quality testing.
 
@@ -173,8 +173,8 @@ Master (End 1)         Slaves (Middle)            Last Device (End 2)
 ```
 
 **For this project:**
-- **Termination 1:** Master (gruppo-miscelazione) - Always at one end
-- **Termination 2:** Last device on bus (0-10V adapter or furthest room sensor)
+- **Termination 1:** The T-Connect Pro master (controller or gateway) - Always at one end
+- **Termination 2:** Last I/O board on the bus (physical chain order is fixed at installation)
 
 ### Installing Termination Resistors
 
@@ -271,37 +271,34 @@ Multiple cable branches from central point
 
 ### This Project's Topology
 
+Per ADR-0014 there are **two independent RS485 buses**, one per system, each with a single
+LilyGO T-Connect Pro master (RS485 on IO17 TX / IO18 RX, auto-direction transceiver) and
+commodity Waveshare Modbus RTU I/O boards. The relay bank address (`0x2`) is mirrored
+across both buses so a pre-addressed spare swaps into either system without re-addressing
+(ADR-0014 §4).
+
+**HVAC bus** (`devices/climate-control.yaml`) — daisy-chain, physical order set at
+installation:
+
 ```
-Master Controller                Ground Floor            First Floor
-gruppo-miscelazione             distribuzione-          distribuzione-
-(KC868-A6)                      piano-terra             primo-piano
-Address: 0x01                   (KC868-A16)             (KC868-A16)
-[120Ω Term]                     Address: 0x02           Address: 0x03
-     │                               │                       │
-     ├───────────────────────────────┤                       │
-     │                               RS485 Bus               │
-     └───────────────────────────────────────────────────────┤
-                                                             │
-     ┌───────────────────────────────────────────────────────┘
-     │
-     ├─── Room Sensor 1 (Soggiorno, Address: 0x0A)
-     │
-     ├─── Room Sensor 2 (Cucina, Address: 0x0B)
-     │
-     ├─── Room Sensor 3 (Bagno, Address: 0x0C)
-     │
-     ├─── Room Sensor 4 (Anticamera, Address: 0x0D)
-     │
-     └─── 0-10V Adapter (Address: 0x1E)
-          [120Ω Term]
+T-Connect Pro ──── Analog Output 8CH (B) ──── Relay 32CH ──── MEV Cappellotto
+(master)           Address: 0x1               Address: 0x2    Address: 0x10
+[120Ω Term]                                          [120Ω Term at physical bus end]
 ```
 
-**Cable Lengths (Approximate):**
-- Master to Ground Floor Slave: 15m
-- Ground Floor to First Floor Slave: 20m
-- First Floor to Room Sensors: 10-25m per sensor
-- Last Sensor to 0-10V Adapter: 15m
-- **Total Bus Length:** ~100-120m (well within 1200m limit)
+**Lighting/gateway bus** (`devices/gateway.yaml`):
+
+```
+T-Connect Pro ──── Relay 32CH
+(gateway)          Address: 0x2 (mirrors the hvac bank)
+[120Ω Term]        [120Ω Term]
+```
+
+Room sensors are **not** on either bus — they report over UDP `packet_transport`
+(see `hvac/room_sensors.yaml`).
+
+**Cable Lengths:** pending re-measurement — the physical installation for this topology
+has not happened yet; see [This Project's Cable Lengths](#this-projects-cable-lengths).
 
 ---
 
@@ -331,34 +328,37 @@ Address: 0x01                   (KC868-A16)             (KC868-A16)
 
 ### Step 2: Wiring Each Device
 
-**KC868-A6 (Master) Terminal Block:**
-```
-Terminal:  TX+   TX-   RX+   RX-   GND
-Wire:       A     B     A     B   Shield
-```
-
-**Note:** Some RS485 transceivers tie TX and RX together internally. Check your board schematic.
-
-**KC868-A16 (Slaves) Terminal Block:**
+**T-Connect Pro (Master) RS485 Terminal:**
 ```
 Terminal:  A    B    GND
-Wire:      A    B   (none)
+Wire:      A    B   Shield (master end only)
 ```
 
-**Room Sensors (XY-MD02) Terminal Block:**
+**Note:** The T-Connect Pro's RS485 transceiver is auto-direction (internally on IO17
+TX / IO18 RX) — there is no flow-control pin to wire.
+
+**Waveshare Relay 32CH / Analog Output 8CH (B) Terminal Blocks:**
 ```
-Terminal:  A    B    +12V  GND
-Wire:      A    B   Power Ground
+Terminal:  A+   B-   (plus separate board power terminals)
+Wire:      A    B
 ```
+
+**Pending verification:** the `A+`/`B-` labels above are the usual Waveshare RTU
+convention, not confirmed against these physical boards (the Waveshare wiki blocks
+automated fetching) — verify terminal labels and power requirements from the boards'
+manuals at bring-up (ADR-0014 open item 1).
+
+**MEV (Cappellotto Air Fresh I):** wiring unchanged from its existing installation
+(address `0x10`); see `hvac/mev_modbus.yaml`.
 
 ### Step 3: Install Termination Resistors
 
-**At Master (gruppo-miscelazione):**
+**At the master (T-Connect Pro):**
 1. Locate RS485 terminal block
 2. Install 120Ω resistor between A and B terminals
 3. Verify with multimeter: should read ~120Ω
 
-**At Last Device (0-10V adapter or last room sensor):**
+**At the last device on the bus:**
 1. Locate RS485 terminal block
 2. Install 120Ω resistor between A and B terminals
 3. Verify with multimeter: should read ~120Ω
@@ -433,16 +433,16 @@ Expected: ~60Ω (with both terminators installed)
 
 **Check Logs:**
 ```bash
-esphome logs locals/gruppo-miscelazione.yaml
+esphome logs devices/locals/climate-control.yaml
 ```
 
 **Expected Output:**
 ```
 [I][modbus_master:123]: Modbus RTU enabled
-[D][modbus_master:201]: Polling slave address 0x02
+[D][modbus_master:201]: Polling device address 0x01
+[D][modbus_master:234]: Response received from 0x01
+[D][modbus_master:201]: Polling device address 0x02
 [D][modbus_master:234]: Response received from 0x02
-[D][modbus_master:201]: Polling slave address 0x03
-[D][modbus_master:234]: Response received from 0x03
 ```
 
 ---
@@ -484,7 +484,7 @@ B ───────────────────
 **Monitor Modbus Errors:**
 ```bash
 # Enable debug logging
-esphome logs locals/gruppo-miscelazione.yaml | grep -i error
+esphome logs devices/locals/climate-control.yaml | grep -i error
 ```
 
 **Calculate Error Rate:**
@@ -559,10 +559,12 @@ A Signal   │  ╱  │  ╱  │
    - [ ] Shield not shorting to A or B
 
 3. **Check Configuration:**
-   - [ ] Baud rate matches on all devices (9600)
-   - [ ] Data bits = 8, Parity = None, Stop bits = 1
-   - [ ] UART pins correct in YAML (GPIO27/14 for A6, GPIO13/16 for A16)
-   - [ ] `use_modbus: "true"` on all devices
+   - [ ] Baud rate/parity matches on all bus members — the live bus targets **38400 8E1**
+     (ADR-0014 §4), pending the bring-up parity check that same section documents (the
+     MEV unit is the least flexible bus member)
+   - [ ] UART pins correct in YAML (IO17 TX / IO18 RX on the T-Connect Pro)
+   - [ ] Each Waveshare board configured off its 9600 8N1 factory default to the bus
+     params (their protocol V2 covers baud/parity; procedure pending bring-up)
 
 4. **Check Termination:**
    - [ ] Measure A-to-B resistance: should be ~60Ω
@@ -676,9 +678,9 @@ If Room Sensor 1 now works, Slave 2 is the problem
 
 3. **Reduce Baud Rate (Temporary Workaround):**
    ```yaml
-   # In all device YAMLs
+   # In all device YAMLs (every bus member must change together)
    uart:
-     baud_rate: 4800  # Reduce from 9600
+     baud_rate: 9600  # Reduce from the 38400 target
    ```
    - Lower baud rate = more noise margin
    - Confirms signal quality issue
@@ -695,36 +697,28 @@ If Room Sensor 1 now works, Slave 2 is the problem
 
 ### RS485 Standard Limits
 
-**At 9600 baud (this project):**
-- **Maximum cable length:** 1200m (4000 feet)
+**At 38400 baud (this project's target rate, ADR-0014 §4):**
+- **Maximum cable length:** 500m
 - **Maximum stub length:** 1m (from main bus to device)
 - **Maximum nodes:** 32 (without repeaters)
 
 ### Cable Length vs Baud Rate
 
-| Baud Rate | Maximum Length | Notes                      |
-| --------- | -------------- | -------------------------- |
-| 9600      | 1200m          | This project (good margin) |
-| 19200     | 1000m          | -                          |
-| 38400     | 500m           | -                          |
-| 115200    | 100m           | Not recommended for RS485  |
+| Baud Rate | Maximum Length | Notes                            |
+| --------- | -------------- | -------------------------------- |
+| 9600      | 1200m          | Waveshare boards' factory default |
+| 19200     | 1000m          | -                                |
+| 38400     | 500m           | This project's target (good margin at house scale) |
+| 115200    | 100m           | Not recommended for RS485        |
 
 ### This Project's Cable Lengths
 
-| Segment                       | Approximate Length | Cumulative |
-| ----------------------------- | ------------------ | ---------- |
-| Master → Ground Floor Slave   | 15m                | 15m        |
-| Ground Floor → First Floor    | 20m                | 35m        |
-| First Floor → Room Sensor 1   | 10m                | 45m        |
-| Room Sensor 1 → 2             | 15m                | 60m        |
-| Room Sensor 2 → 3             | 10m                | 70m        |
-| Room Sensor 3 → 4             | 15m                | 85m        |
-| Room Sensor 4 → 0-10V Adapter | 15m                | 100m       |
-
-**Total Bus Length:** ~100-120m
-**Margin:** 1200m limit - 120m used = **1080m safety margin**
-
-✓ Well within RS485 specifications
+**Pending re-measurement.** The physical installation for the ADR-0014 topology (two
+buses, T-Connect Pro masters, Waveshare I/O boards) has not happened yet — segment
+lengths will be measured and recorded here at bring-up. Do not rely on figures from
+earlier revisions of this guide; they described the retired Gen-1 topology. House-scale
+runs are expected to total well under 100m per bus, comfortably inside the 500m limit
+at 38400 baud.
 
 ### When to Use Repeaters
 
@@ -797,9 +791,9 @@ Use this checklist for every RS485 installation:
 - **Modbus Protocol:** Modbus RTU Specification
 - **ESPHome Modbus Documentation:** https://esphome.io/components/modbus.html
 - **Related Documents:**
-  - `docs/modbus-register-map.md` - Register definitions
-  - `docs/deployment-guide.md` - Deployment procedures
-  - `docs/architecture-diagram.md` - System topology diagrams
+  - `hvac/CLAUDE.md` - Live bus members, addresses, and register appendices
+  - `docs/modbus-register-map.md` - Register definitions (historical, Gen-1 hardware)
+  - `docs/deployment-guide.md` - Deployment procedures (historical, Gen-1 hardware)
 
 ---
 
@@ -807,6 +801,7 @@ Use this checklist for every RS485 installation:
 
 | Date       | Version | Changes                    | Author            |
 | ---------- | ------- | -------------------------- | ----------------- |
+| 2026-07-11 | 1.1     | ADR-0014 P6 sweep: topology/terminal/baud sections updated to the T-Connect Pro + Waveshare RTU family (two buses, 38400 8E1 target); cable-length table marked pending re-measurement; generic RS485 reference material unchanged | AI Assistant |
 | 2025-10-22 | 1.0     | Initial RS485 wiring guide | James (Dev Agent) |
 
 ---

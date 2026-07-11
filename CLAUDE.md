@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.4 |
-| **Last Updated** | July 7, 2026 |
+| **Version** | 1.5 |
+| **Last Updated** | July 11, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -41,10 +41,10 @@ This repo hosts the ESPHome systems for Alberto's three-floor residence, organiz
 2. **`lighting/`** (application) — button decode → Home Assistant events and hold
    automations, built on the canbus transport. See `lighting/CLAUDE.md`.
 3. **`hvac/`** (application) — a **pre-live ESPHome-based residential climate control
-   system** for heating, cooling, and ventilation. Controller hardware is not yet
-   finalized (a master-controller swap is under consideration). Consumes
-   `registry/map.json` and sensor CAN frames directly (contract lives in-repo). See
-   `hvac/CLAUDE.md`.
+   system** for heating, cooling, and ventilation. Controller hardware is decided and
+   implemented (ADR-0014: LilyGO T-Connect Pro + Modbus RTU I/O boards) but not yet
+   physically deployed. Consumes `registry/map.json` and sensor CAN frames directly
+   (contract lives in-repo). See `hvac/CLAUDE.md`.
 4. **`vesta/`** (library) — the extractable, open-source climate-control component
    framework that `hvac/` composes from.
 
@@ -58,9 +58,9 @@ BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 - **Dual-mode operation**: Radiant floor heating/cooling + fancoil units
 - **Advanced PID control**: Precise temperature management with auto-tuning
 - **Mechanical Extract Ventilation (MEV)**: Air quality monitoring and control
-- **Autonomous operation**: RS485 Modbus RTU communication between boards for operation without Home Assistant
+- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant; room-sensor *data* specifically depends on the HA→UDP failover chain (`hvac/room_sensors.yaml`)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
-- **Multi-tier failover**: Graceful degradation (Modbus → HA → Emergency shutdown)
+- **Multi-tier failover**: Graceful degradation (HA → UDP → Emergency shutdown)
 
 ### Building Layout
 
@@ -70,12 +70,13 @@ BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 
 ### Hardware
 
-- **Kincony KC868-A6**: Master controller with 6 relays, 2 DACs, RS485, mixing valve control
-- **Kincony KC868-A16**: Slave controllers with 16 relays for zone distribution (2 boards)
-- **WaveShare ESP32-S3-POE**: Modern ESP32-S3 with Ethernet POE
+Standardized per ADR-0014 — the same three devices serve both the HVAC and lighting systems, so one shelf of spares covers the whole house:
+
+- **LilyGO T-Connect Pro**: ESP32-S3 controller with W5500 Ethernet and native RS485 + CAN transceivers — used as both the HVAC master (`devices/climate-control.yaml`) and the CAN-bus/lighting gateway (`devices/gateway.yaml`)
+- **Waveshare Modbus RTU Relay 32CH**: 32-channel relay bank on RS485 — zone/pump switching (hvac) and lighting circuits (gateway), both at mirrored address `0x2`
+- **Waveshare Modbus RTU Analog Output 8CH (B)**: 0-10V outputs (voltage variant) — fancoil/mixing-valve modulation (hvac only, address `0x1`)
 - **S1 Pro Multi-Sense**: Custom sensor boards with LD2450 radar, air quality sensors
-- **XY-MD02 Modbus Sensors**: Room temperature/humidity sensors
-- **RS485 Modbus RTU**: Board-to-board communication at 9600 baud
+- **RS485 Modbus RTU**: single-master bus per system, target 38400 8E1 (pending the bring-up parity check, ADR-0014 §4)
 
 ---
 
@@ -85,7 +86,7 @@ BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **ESPHome** | 2026.3.0+ | ESP32 firmware framework (YAML-based) |
+| **ESPHome** | 2026.5.0+ | ESP32 firmware framework (YAML-based); 2026.5.0 floor set by `boards/t-connect-pro.yaml` (`sntp`/`ds2484` verified there) |
 | **Python** | 3.x | Custom component development (LD2450 sensor driver) |
 | **C++** | (ESP-IDF) | Low-level sensor integrations and performance-critical code |
 | **YAML** | 1.2 | Configuration language for ESPHome |
@@ -99,7 +100,7 @@ BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 - `uart` - RS485 serial communication
 - `ethernet` / `wifi` - Network connectivity
 - `api` - Home Assistant Native API
-- `homeassistant` platform - Sensor fallback from HA
+- `homeassistant` platform - Room-sensor data from HA (primary failover tier)
 - `udp` / `packet_transport` - Board-to-board communication
 
 ### External APIs
@@ -173,12 +174,10 @@ esphome-devices/
 │   └── CONTRIBUTING.md        # Contribution guidelines
 │
 ├── boards/                    # Board hardware definitions (shared, no owning system)
-│   ├── base.yaml               # Common ESPHome settings
-│   ├── a6.yaml / a6_ethernet.yaml           # KC868-A6 master board (mixing valves)
-│   ├── a16.yaml / a16_ethernet.yaml         # KC868-A16 slave boards (relays)
-│   ├── waveshare-s3.yaml / waveshare-s3-ethernet.yaml / waveshare-s3-wifi.yaml # ESP32-S3-POE board
+│   ├── t-connect-pro.yaml / t-connect-pro-ethernet.yaml / t-connect-pro-wifi.yaml # LilyGO T-Connect Pro (both controllers, ADR-0014)
 │   ├── s1-pro-multi-sense.yaml # Sensor board
-│   └── wifi.yaml                # WiFi network config
+│   ├── base.yaml               # Legacy common settings (Gen-1 a6/a16 era; no current consumer)
+│   └── wifi.yaml                # Legacy WiFi network config (Gen-1 a6/a16 era; no current consumer)
 │
 ├── devices/                   # Main device configurations (entry points and their deployment variants, gathered together)
 │   ├── climate-control.yaml   # Main HVAC system
@@ -211,8 +210,8 @@ esphome-devices/
 
 #### Board Configs (`boards/`)
 - Pattern: `[board_model]-[optional_variant].yaml`
-- Examples: `a6.yaml`, `a16.yaml`, `waveshare-s3.yaml`, `s1-pro-multi-sense.yaml`
-- Network configs: `[board]_ethernet.yaml`, `wifi.yaml`
+- Examples: `t-connect-pro.yaml`, `s1-pro-multi-sense.yaml`
+- Network configs: `[board]-ethernet.yaml`, `[board]-wifi.yaml`
 
 #### Component Configs (`hvac/`)
 - Pattern: `[component_type]_[variant].yaml` or `[feature].yaml`
@@ -274,9 +273,8 @@ The codebase uses ESPHome's `packages` feature extensively for modularity and re
 
 ```
 Device Config (devices/climate-control.yaml)
-├── Board Package (boards/waveshare-s3.yaml)
-│   ├── Base Package (boards/base.yaml)
-│   └── Network Package (boards/*_ethernet.yaml or wifi.yaml)
+├── Board Package (boards/t-connect-pro.yaml)
+│   └── Network Package (boards/t-connect-pro-ethernet.yaml or -wifi.yaml)
 ├── Hardware Packages (vesta/packages/devices/modbus-io/modbus_relay_board.yaml)
 └── Floor Packages (hvac/rooms/*/floor.yaml)
     └── Room Packages (hvac/rooms/*/*.yaml)
@@ -312,25 +310,24 @@ packages:
 
 ### Modbus Communication Architecture
 
-**Master/Slave Pattern** (HVAC-specific; see `hvac/CLAUDE.md` for the PID architecture and full
-register map):
-- **Master** (KC868-A6): Polls room sensors, writes to registers, coordinates mode
-- **Slaves** (KC868-A16): Read from master registers, control local zones
-
-**Polling Intervals**:
-- Master polls sensors: 30 seconds
-- Slaves read from master: 10 seconds
-- Heartbeat increment: 10 seconds
+**Single-master pattern** (ADR-0014; see `hvac/CLAUDE.md` for bus members, register
+details, and polling intervals):
+- One T-Connect Pro controller is the sole Modbus RTU master per system (hvac's
+  `rs485_bus`; the gateway has its own, mirroring the relay bank address `0x2`)
+- Commodity I/O boards (Relay 32CH, Analog Output 8CH (B), MEV) are polled/written
+  directly — there are no slave controller boards and no board-to-board Modbus
+- Room-sensor data does **not** travel over Modbus — it arrives via HA/UDP failover
+  (see below)
 
 ### Failover Architecture
 
-**3-Tier Sensor Failover** (implemented in `failover_sensor.yaml`):
+**3-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `hvac/room_sensors.yaml`):
 
-1. **Primary**: Local Modbus room sensor (fastest, most accurate)
-2. **Fallback**: Home Assistant sensor (proven, reliable)
+1. **Primary**: Home Assistant sensor (`homeassistant` platform)
+2. **Fallback**: UDP `packet_transport` broadcast from the room-sensor boards
 3. **Emergency**: Return NAN → triggers safe shutdown after 5 minutes
 
-**Automatic Recovery**: System automatically switches back to Modbus when sensor recovers.
+**Automatic Recovery**: System automatically switches back to HA when its sensor recovers.
 
 ---
 
@@ -494,8 +491,8 @@ external_components:
 | File | Purpose |
 |------|---------|
 | `devices/climate-control.yaml` | **Main entry point** - orchestrates entire system |
-| `boards/base.yaml` | **Common settings** - logger, API, OTA for all devices |
-| `boards/waveshare-s3.yaml` | Master board hardware definition |
+| `devices/gateway.yaml` | CAN bus / lighting gateway entry point |
+| `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
 | `vesta/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `vesta/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
 | `vesta/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
@@ -552,15 +549,15 @@ external_components:
 
 ### Performance Optimization
 
-- **Polling Intervals**: Don't poll Modbus sensors more frequently than necessary (30s is good)
+- **Polling Intervals**: Don't poll Modbus I/O boards more frequently than necessary (relay/analog 2s, MEV 30s — see `hvac/CLAUDE.md`)
 - **Update Intervals**: Balance responsiveness vs. network traffic
 - **Logger Level**: Use INFO in production, DEBUG only for troubleshooting
 - **Conditional Compilation**: Disable unused features
 
 ### Home Assistant Integration
 
-- **Dual Operation**: Design for autonomous operation, HA as enhancement
-- **Fallback Sensors**: Use HA sensors as fallback, not primary
+- **Dual Operation**: Design actuation to run autonomously; HA enhances monitoring/overrides
+- **Sensor Failover**: Room sensors are HA-primary with a UDP fallback tier (`hvac/room_sensors.yaml`) — always keep a non-HA tier for critical sensors
 - **Entity Exposure**: Expose diagnostic sensors for monitoring
 - **Friendly Names**: Use clear, descriptive names for HA entities
 
@@ -585,8 +582,8 @@ The system was developed for an Italian residence, so many entity names use Ital
 | piano terra | ground floor | Building level 0 |
 | primo piano | first floor | Building level 1 |
 | secondo piano | second floor | Building level 2 |
-| gruppo miscelazione | mixing valve group | Master controller name |
-| distribuzione | distribution | Slave controller naming pattern |
+| gruppo miscelazione | mixing valve group | Historical Gen-1 master controller name (retired) |
+| distribuzione | distribution | Historical Gen-1 slave-board naming pattern (retired) |
 | radiante | radiant | Radiant floor heating/cooling |
 
 **Note**: Comments and documentation are in English, but entity IDs often use Italian room names.
@@ -609,12 +606,12 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check YAML syntax (indentation, colons, dashes)
 - Verify all `!include` paths are correct
 - Ensure all substitution variables are defined
-- Check ESPHome version (min 2026.3.0)
+- Check ESPHome version (min 2026.5.0 for the T-Connect Pro entry points)
 
 **Sensor Failover**:
 - Check failover logs in Home Assistant
-- Verify Modbus sensor data age < 30s
-- Ensure HA sensors are available and updating
+- Ensure HA sensors (Tier 1) are available and updating
+- Verify the UDP room-sensor broadcast (Tier 2) is arriving when HA drops out
 - Monitor emergency shutdown triggers
 
 HVAC-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
@@ -632,6 +629,7 @@ sensor-address appendices and PID tuning guidelines are documented in `hvac/CLAU
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-11 | 1.5 | ADR-0014 P6 hardware docs sweep: Hardware table rewritten to the standardized family (LilyGO T-Connect Pro + Waveshare Relay 32CH + Analog Output 8CH (B)); retired all Gen-1 controller/slave-board and Modbus-room-sensor claims; corrected autonomy story (single Modbus master; room sensors HA→UDP→Emergency); deleted the orphaned Gen-1 and ESP32-S3-POE board files and updated all references; ESPHome floor 2026.5.0 | AI Assistant |
 | 2026-07-07 | 1.4 | Migration Phase 6b: rewrote Repository Structure to the actual four-system tree (canbus/lighting/hvac/vesta + top-level registry/devices); removed the "predates restructure" note; moved HVAC-only rules (entity-ID convention, PID architecture, Modbus/relay appendices, HVAC Common Tasks) to `hvac/CLAUDE.md` per AD-10 (root is the map, not the rules) | AI Assistant |
 | 2026-07-05 | 1.3 | Corrected climate-control status from "production/active, live" to pre-live; controller hardware swap under consideration | AI Assistant |
 | 2026-07-05 | 1.2 | Merged afmotta/canbus as canbus/ subtree; documented two-subsystem layout and epic namespacing | AI Assistant |

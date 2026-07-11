@@ -2,10 +2,11 @@
 title: 'Hardware docs sweep — retire Kincony/KC868 references, fix gateway hardware description, commissioning tooling'
 type: 'chore'
 created: '2026-07-10'
-status: 'ready-for-dev'
+status: 'in-review'
 review_loop_iteration: 0
 followup_review_recommended: false
 baseline_revision: 'bb7f173f4bc9499ce3722d4f164e2013d5441003'
+baseline_commit: 'cce72099c0c32a6bb43aa0740250e3c84a0f1df5'
 final_revision: ''
 context: ['{project-root}/_bmad-output/planning-artifacts/adrs/0014-standardized-controller-modbus-io-hardware.md', '{project-root}/_bmad-output/implementation-artifacts/spec-hvac-controller-swap-t-connect-pro.md', '{project-root}/_bmad-output/implementation-artifacts/spec-light-gateway-swap-t-connect-pro.md', '{project-root}/_bmad-output/implementation-artifacts/spec-light-fallback-actuation.md']
 warnings: []
@@ -163,20 +164,20 @@ sections corrected.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Confirm P3, P4, P5 have landed (their specs' `Auto Run Result` status is not
+- [x] Confirm P3, P4, P5 have landed (their specs' `Auto Run Result` status is not
   `ready-for-dev`) before starting — this phase documents their actual outcomes
-- [ ] Root `CLAUDE.md` Hardware table + System Capabilities autonomy bullet + Changelog row
-- [ ] `canbus/CLAUDE.md` gateway parenthetical
-- [ ] `canbus/docs/canbus-smart-home-reference.md` gateway hardware description
-- [ ] `lighting/CLAUDE.md` pre-live/relay/physical-split paragraph
-- [ ] Retire `docs/change_modbus_address.yaml` + `docs/change_modbus_address_simple.yaml`;
+- [x] Root `CLAUDE.md` Hardware table + System Capabilities autonomy bullet + Changelog row
+- [x] `canbus/CLAUDE.md` gateway parenthetical
+- [x] `canbus/docs/canbus-smart-home-reference.md` gateway hardware description
+- [x] `lighting/CLAUDE.md` pre-live/relay/physical-split paragraph
+- [x] Retire `docs/change_modbus_address.yaml` + `docs/change_modbus_address_simple.yaml`;
   add `docs/change_waveshare_relay_address.yaml`
-- [ ] `docs/rs485-wiring-guide.md` surgical fixes (topology, terminal blocks, cable-length
+- [x] `docs/rs485-wiring-guide.md` surgical fixes (topology, terminal blocks, cable-length
   table marked pending, baud-rate note)
-- [ ] `devices/secrets.yaml.example` — add `encryption_key`, `github_username`, `github_pat`
-- [ ] `git rm boards/a6.yaml boards/a6_ethernet.yaml boards/a16.yaml boards/a16_ethernet.yaml`
-- [ ] `ARCHITECTURE-SPINE.md` Deferred table — three rows annotated resolved
-- [ ] Repo-wide grep sweep for the deleted files' names and for remaining "KC868"/"Kincony"/
+- [x] `devices/secrets.yaml.example` — add `encryption_key`, `github_username`, `github_pat`
+- [x] `git rm boards/a6.yaml boards/a6_ethernet.yaml boards/a16.yaml boards/a16_ethernet.yaml`
+- [x] `ARCHITECTURE-SPINE.md` Deferred table — three rows annotated resolved
+- [x] Repo-wide grep sweep for the deleted files' names and for remaining "KC868"/"Kincony"/
   "XY-MD02" references outside frozen/historical trees
 
 **Acceptance Criteria:**
@@ -205,6 +206,34 @@ This is the only phase that touches `ARCHITECTURE-SPINE.md` — every prior phas
 epic left it alone since none of them needed to *re-decide* anything the spine already
 recorded; this phase just closes out rows the spine explicitly marked as waiting on ADR-0014.
 
+**The new commissioning utility is compile-verified, not just config-verified.** The
+retired `change_modbus_address_simple.yaml` used a `modbus_controller.write_register`
+action that does not exist in ESPHome, and the main retired file called
+`controller->create_register_write_multiple_command(...)` as a member method — neither
+could ever have compiled. The replacement uses the real API
+(`ModbusCommandItem::create_write_single_command` + `queue_command`, FC 0x06) and was
+built end-to-end with `esphome compile` on the esp32s3/esp-idf target before landing. It
+is deliberately self-contained (placeholder WiFi, no `!secret`): `docs/` has no
+`secrets.yaml`, so the retired files' `!secret` references could never resolve from where
+they lived — a bench tool should flash without the repo's secret infrastructure.
+
+**`vesta/README.md` is inside the `vesta` git submodule.** The one-line reword there
+needs its own commit in `afmotta/vesta` plus a gitlink bump in this repo's sweep commit —
+the same two-step P2 already followed for the 32-ch driver. Flagged so the final commit
+doesn't silently leave the submodule dirty.
+
+**One spec-internal inconsistency resolved in the AC's favor:** the first acceptance
+criterion exempts `.ai/` as historical, but the Verification section's second grep
+command omits that exclusion. The `.ai/story-1.*-summary.md` files (frozen 2025 story
+records, "no modifications" notes) mention `boards/a6.yaml`/`a16.yaml`; editing frozen
+story summaries to satisfy a grep would falsify history, so `.ai/` is treated as exempt
+in both greps, matching the AC prose.
+
+**Gen-1 wiring-guide figures were not carried anywhere:** the cable-length table was
+replaced by an explicit "pending re-measurement" note (per Boundaries), and the RS485
+length-limit framing moved from "9600 → 1200m" to the live "38400 target → 500m", which
+remains a comfortable house-scale margin.
+
 ## Verification
 
 **Commands:**
@@ -221,6 +250,44 @@ recorded; this phase just closes out rows the spine explicitly marked as waiting
   verified pin table: confirm every pin matches.
 
 ## Spec Change Log
+
+### 2026-07-11 — Scope amendments during execution (documented, not silent)
+
+1. **`boards/waveshare-s3.yaml` + `-ethernet`/`-wifi` deleted alongside a6/a16.** P3's
+   review triage explicitly flagged these to this phase via `deferred-work.md` ("flagging
+   here so P6's scope gets amended to include it") — they were orphaned by P3's board swap
+   through the exact mechanism that orphaned a6/a16. Zero consumers re-confirmed by
+   repo-wide grep before deletion.
+2. **`.github/copilot-instructions.md` example path updated** (`boards/a6.yaml` →
+   `boards/t-connect-pro.yaml`): the file's live "Key concepts" section cited a deleted
+   file; the acceptance grep for deleted-file references would otherwise fail.
+3. **`vesta/README.md` driver-table row reworded** ("e.g., Kincony KC868" → generic
+   Modbus RTU wording): the first acceptance criterion exempts
+   `vesta/docs/modbus-relay-board.md`'s generic compatibility note by name but not this
+   equivalent README row; reworded rather than exempted, also picking up the P2-added
+   32-channel aggregator.
+4. **Historical banners added to `docs/deployment-guide.md`,
+   `docs/sensor-technology-selection.md`, and `docs/0-10v-adapter-setup-guide.md`**: the
+   first two carry XY-MD02/Gen-1 content that the task-list grep tolerates only "outside
+   frozen/historical trees" — the banners make that classification explicit instead of
+   implied. The third documents commissioning the retired 0-10V adapter whose companion
+   utilities this spec deletes; leaving it unmarked while deleting its utilities would be
+   incoherent.
+5. **Root `CLAUDE.md` fixes beyond the Code Map's three named spots**, all forced by the
+   same staleness class or by the deletions: repo-tree/naming-example/hierarchy/important-
+   files references to deleted board files; the root file's own "Master/Slave Pattern"
+   section (KC868 master/slave — the AC grep would fail on it; distinct from
+   `hvac/CLAUDE.md`'s, which P3 already rewrote and which stays untouched); the 3-tier
+   failover description (Modbus-primary → the live HA→UDP→Emergency chain, per this spec's
+   own Intent framing); the "controller hardware is not yet finalized" claim (aligned to
+   `hvac/CLAUDE.md`'s P3-corrected phrasing); ESPHome floor 2026.3.0 → 2026.5.0 (set by
+   `boards/t-connect-pro.yaml` since P3); Language-table context notes for the retired
+   `gruppo miscelazione`/`distribuzione` device names.
+6. **`boards/base.yaml` and `boards/wifi.yaml` newly orphaned — flagged, not deleted.**
+   Their only consumers were the deleted `a6.yaml`/`a16.yaml`. Following P3's own
+   precedent (flag orphans to a later pass rather than deleting opportunistically
+   mid-spec), they are marked "no current consumer" in root `CLAUDE.md`'s tree and left
+   in place; deletion deferred (see Review Triage Log).
 
 ## Review Triage Log
 
