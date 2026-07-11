@@ -136,6 +136,29 @@ Room temperature/humidity control data does **not** travel over this bus — it 
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
 - MEV polling: 30 seconds (`hvac/mev_modbus.yaml` default)
 
+## Test & verify (from repo root)
+
+```bash
+# Native C++ receiver logic (no ESPHome deps). Both -I flags are required:
+# hvac/protocol/*.h include canbus' frozen headers by flat filename, the form
+# ESPHome's flattened build needs (same pattern as lighting/tests).
+g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ihvac/protocol hvac/tests/test_can_sensor_receiver.cpp -o /tmp/hvac_can_sensor_receiver && /tmp/hvac_can_sensor_receiver
+
+# Isolated receiver composition fixture (generated routes + receiver package,
+# without the full climate controller)
+esphome config hvac/tests/compile_can_sensor_receiver.yaml
+
+# The real climate controller entry point: config gate, then the full compile
+esphome config devices/locals/climate-control.yaml
+esphome compile devices/locals/climate-control.yaml
+```
+
+The whole cross-system battery (canbus generator/python/native tests, lighting,
+these hvac checks, generator idempotence across `canbus`/`hvac`/`registry`, and
+the vesta failover e2e) is codified in `scripts/verification-battery.sh`:
+`bash scripts/verification-battery.sh` (or `--native-only` when ESPHome isn't
+installed). Verification runs pin `esphome==2026.5.3` (`vesta/tests/pyproject.toml`).
+
 ## Common Tasks
 
 ### Adding a New Room

@@ -1,5 +1,6 @@
 // Standalone native test for node_health.h (no ESPHome required).
-// Build & run:  g++ -std=c++17 -Wall -Wextra firmware/tests/test_node_health.cpp -o /tmp/health && /tmp/health
+// Build & run (from repo root):
+//   g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health && /tmp/health
 //
 // Covers the ADR-0011 aliveness logic: heartbeat edge detection (recovered/error),
 // the 90 s lost transition (once-only, wraparound-safe), online/missing counts, the

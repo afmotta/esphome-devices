@@ -1,5 +1,6 @@
 // Standalone native test for ha_arbitration.h (no ESPHome required).
-// Build & run:  g++ -std=c++17 -Wall -Wextra firmware/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb
+// Build & run (from repo root):
+//   g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb
 //
 // Covers the ADR-0003 ha_ready gating truth table (incl. the inclusive TTL boundary
 // and millis() wraparound) and the pending-ACK add/ack/expire machinery.

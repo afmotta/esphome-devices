@@ -73,7 +73,12 @@ esphome compile canbus/tests/compile_sensor_node.yaml
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte
-(`generate_nodes.py` then `git diff --exit-code canbus registry`).
+(`python3 canbus/tools/generate_nodes.py` then
+`git diff --exit-code canbus hvac registry` — the generator has written the
+`hvac/` routing artifacts too since HVAC-1.1/1.4, so the check spans all
+three paths and needs them clean before running). This whole battery, plus
+the lighting/hvac/vesta checks and the ESPHome gates, is codified in
+`scripts/verification-battery.sh` (`--native-only` skips the ESPHome steps).
 
 ## Integration with the climate system
 
