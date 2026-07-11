@@ -5,6 +5,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-hvac-1-2-sensor-only-can-receiver-freshness-core.md`
   summary: The local dirty `registry/nodes.csv` enables node 101 as `sensors=1,soggiorno` while generated route artifacts remain the placeholder empty output.
   evidence: This registry placement edit was present before the HVAC-1.2 implementation, is outside this story's code scope, and should be resolved by a focused regeneration/placement decision rather than folded into the receiver core.
+  resolution: Resolved by HVAC-1.4 (2026-07-11) as a byproduct of fixing an unrelated HALT — `hvac/packages/generated/can_sensor_routes.yaml`/`hvac/protocol/generated_can_sensor_routes.h` were regenerated from the real committed registry. See that spec's Spec Change Log and Auto Run Result for the full rationale (including a generator change so temp/humidity route targets are now declared statically in `devices/climate-control.yaml` instead of by the generator, to avoid duplicate-id collisions on future re-registration).
 
 - source_spec: none
   summary: Phase 6b — context rewrite (root CLAUDE.md rewritten as the four-system map, canbus/CLAUDE.md trimmed to infra-only, Claude memory files updated to final paths)

@@ -182,6 +182,15 @@ CAN_SENSOR_MEASUREMENTS = (
     },
 )
 
+# HVAC-1.4: temp/humidity route targets are declared once per room, unconditionally, in
+# hvac/room_sensors.yaml itself (via ${room_slug} substitution) — that's what its own
+# CAN-primary failover wires to before any node is registered/regenerated. This generator
+# still owns their publish-dispatch (so a registered node's frames reach that static id) but
+# must NOT also declare the entity itself, or a registered room would get a duplicate-id
+# compile error against the static declaration. Every other measurement (SEN66 kit,
+# particulates, VOC/NOx, CO2 — HVAC-1.5 scope) keeps the original declare + dispatch.
+STATIC_CAN_SENSOR_TARGET_SUFFIXES = frozenset({"temp", "humidity"})
+
 # CAN ID layout — must match canbus_protocol.h: [category:4][node_id:13][reserved:12].
 CAT_SHIFT = 25
 NODE_SHIFT = 12
@@ -483,7 +492,12 @@ def render_can_sensor_routes(export_nodes) -> str:
     """Render the HVAC-owned compile-time route artifact for CAN sensor receivers.
 
     The current story only emits the deterministic route package. Receiver composition,
-    freshness, and failover remain separate HVAC-1 stories.
+    freshness, and failover remain separate HVAC-1 stories. Does not declare its own
+    `esphome: includes:` for canbus_protocol.h (needed for the SENSOR_* constants used in
+    the dispatch scripts below) — every composing entry point (devices/climate-control.yaml,
+    hvac/tests/compile_can_sensor_receiver.yaml) already includes it at the correct
+    CLI-invoked-file-relative depth, and this package's own directory depth doesn't match
+    that depth, so redeclaring it here would just be a second, wrong-depth copy.
     """
     sensor_nodes = _sensor_route_nodes(export_nodes)
     header = (
@@ -493,6 +507,11 @@ def render_can_sensor_routes(export_nodes) -> str:
         "# =============================================================================\n"
         "# HVAC CAN sensor routing artifact. Includes only sensors=1 registry rows whose\n"
         "# room_slug was validated against hvac/rooms/** before this file was written.\n"
+        "#\n"
+        "# Temp/humidity targets (<room_slug>_temp_can / <room_slug>_humidity_can) are declared\n"
+        "# statically in hvac/room_sensors.yaml for every known HVAC room (HVAC-1.4) — this\n"
+        "# file only dispatches published values into them. All other measurements keep their\n"
+        "# entity declared here, scoped to sensors=1 rows only.\n"
         "# =============================================================================\n\n"
     )
     if not sensor_nodes:
@@ -526,16 +545,16 @@ def render_can_sensor_routes(export_nodes) -> str:
     lines = [
         header.rstrip(),
         "",
-        "esphome:",
-        "  includes:",
-        "    - ../../../canbus/protocol/canbus_protocol.h",
-        "",
         "sensor:",
     ]
     for node in sensor_nodes:
         room_slug = node["room_slug"]
         room_name = _room_title(room_slug)
         for measurement in CAN_SENSOR_MEASUREMENTS:
+            if measurement["target_suffix"] in STATIC_CAN_SENSOR_TARGET_SUFFIXES:
+                # Entity already declared statically in hvac/room_sensors.yaml
+                # (HVAC-1.4) — only the dispatch script (below) needs to know its id.
+                continue
             lines.extend([
                 "  - platform: template",
                 f"    id: {_route_target_id(room_slug, measurement)}",

@@ -330,7 +330,7 @@ def test_can_sensor_routes_empty_registry_has_noop_scripts():
 
 def test_can_sensor_routes_mixed_rows_and_targets():
     p = g.render_can_sensor_routes(NODES)
-    assert "../../../canbus/protocol/canbus_protocol.h" in p
+    assert "esphome:" not in p
     assert "id: anticamera_temp_can" in p
     assert "id: anticamera_humidity_can" in p
     assert "id: anticamera_pm1_0_can" in p

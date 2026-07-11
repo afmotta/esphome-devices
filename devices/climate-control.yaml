@@ -24,8 +24,11 @@ packages:
       enable_ethernet: true
   # Publish-only HVAC-1.3 composition (routes before receiver: the receiver's
   # on_frame action calls can_sensor_route_publish/_nan scripts, which must
-  # already be defined). Registry is empty (sensors=0) today, so these are
-  # currently no-op wiring; no control logic is flipped by this composition.
+  # already be defined). Every registered sensors=1 node's temp/humidity
+  # frames land on the static `sensor:` entities declared per-room in
+  # hvac/room_sensors.yaml (HVAC-1.4); everything else (SEN66 kit,
+  # particulates, VOC/NOx, CO2 — HVAC-1.5 scope) is still declared by
+  # can_routes itself, scoped to registered nodes only.
   can_routes: !include ../hvac/packages/generated/can_sensor_routes.yaml
   can_receiver: !include ../hvac/packages/can_sensor_receiver.yaml
   analog_outputs_1: !include

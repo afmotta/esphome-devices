@@ -1,5 +1,5 @@
 # Component: room_sensors.yaml
-# Purpose: 3-tier sensor failover (HA → UDP → Emergency) for PID control
+# Purpose: 2-tier sensor failover (CAN → HA → Emergency) for PID control
 #
 # Required vars:
 #   - room_slug: Room identifier (e.g., "soggiorno", "bagno_grande")
@@ -8,33 +8,46 @@
 #   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
 #
 # Exposes:
-#   - sensor.{zone}_temp_abstracted: Temperature for PID controllers (internal)
-#   - text_sensor.{zone}_sensor_tier: Active tier ("UDP", "HA", or "Emergency")
+#   - sensor.{zone}_temp_abstracted: Temperature for PID controllers
+#   - text_sensor.{zone}_temp_abstracted_sensor_tier: Active tier ("CAN", "HA", or "Emergency")
 #   - sensor.{zone}_dew_point: Dew point temperature (°C)
 #
 # Tier Priority Rules:
-#   | HA Sensor  | UDP Sensor  | Active Tier         | Abstracted Value |
-#   |------------|-------------|---------------------|------------------|
-#   | Valid      | Valid       | Tier 1 (HA)         | HA value         |
-#   | Valid      | NaN         | Tier 1 (HA)         | HA value         |
-#   | NaN        | Valid       | Tier 2 (UDP)        | UDP value        |
-#   | NaN        | NaN         | Tier 3 (Emergency)  | NaN              |
+#   | CAN Sensor | HA Sensor  | Active Tier         | Abstracted Value |
+#   |------------|------------|----------------------|------------------|
+#   | Valid      | Valid      | Tier 1 (CAN)         | CAN value        |
+#   | Valid      | NaN        | Tier 1 (CAN)         | CAN value        |
+#   | NaN        | Valid      | Tier 2 (HA)          | HA value         |
+#   | NaN        | NaN        | Tier 3 (Emergency)   | NaN              |
+#
+# Note: the `${room_slug}_temp_can`/`${room_slug}_humidity_can` sensors are
+# declared statically below, once per room, so this failover always has a
+# valid id to reference. They are published by
+# `hvac/packages/can_sensor_receiver.yaml`'s dispatch scripts once that room's
+# CAN node is enabled in `registry/nodes.csv` and the routes artifact is
+# regenerated. Until then they simply never receive a publish and read NaN
+# forever, so this failover behaves exactly as the prior HA-primary tier did.
+# Do not also declare these in the generated can_sensor_routes.yaml -- see
+# canbus/tools/generate_nodes.py's STATIC_CAN_SENSOR_TARGET_SUFFIXES for why
+# that would be a duplicate-id compile error.
 # ============================================================================
 
 sensor:
-  - platform: packet_transport
-    id: ${room_slug}_temp_udp
-    provider: room-sensor-${room_slug | replace('_', '-')}
+  - platform: template
+    id: ${room_slug}_temp_can
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 2
     internal: true
-    filters:
-      - filter_out: nan
 
-  - platform: packet_transport
-    id: ${room_slug}_humidity_udp
-    provider: room-sensor-${room_slug | replace('_', '-')}
+  - platform: template
+    id: ${room_slug}_humidity_can
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    accuracy_decimals: 2
     internal: true
-    filters:
-      - filter_out: nan
 
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
@@ -51,7 +64,7 @@ sensor:
       - filter_out: nan
 
   # ============================================================================
-  # ABSTRACTED SENSOR (3-Tier Failover Logic)
+  # ABSTRACTED SENSOR (2-Tier Failover Logic: CAN → HA → Emergency)
   # ============================================================================
 packages:
   temperature_failover: !include
@@ -61,8 +74,11 @@ packages:
       sensor_name: "${room_name} Temperature (Abstracted)"
       unit_of_measurement: "°C"
       device_class: temperature
-      primary_sensor: ${room_slug}_temp_ha
-      secondary_sensor: ${room_slug}_temp_udp
+      primary_sensor: ${room_slug}_temp_can
+      secondary_sensor: ${room_slug}_temp_ha
+      internal: "false"
+      primary_tier_label: "CAN"
+      secondary_tier_label: "HA"
   humidity_failover: !include
     file: ../vesta/packages/components/failover_sensor.yaml
     vars:
@@ -70,8 +86,11 @@ packages:
       sensor_name: "${room_name} Humidity (Abstracted)"
       unit_of_measurement: "%"
       device_class: humidity
-      primary_sensor: ${room_slug}_humidity_ha
-      secondary_sensor: ${room_slug}_humidity_udp
+      primary_sensor: ${room_slug}_humidity_can
+      secondary_sensor: ${room_slug}_humidity_ha
+      internal: "false"
+      primary_tier_label: "CAN"
+      secondary_tier_label: "HA"
 
   # ============================================================================
   # DEW POINT (native ESPHome 2026.3+ sensor)

@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.5 |
+| **Version** | 1.6 |
 | **Last Updated** | July 11, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
@@ -58,9 +58,9 @@ BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 - **Dual-mode operation**: Radiant floor heating/cooling + fancoil units
 - **Advanced PID control**: Precise temperature management with auto-tuning
 - **Mechanical Extract Ventilation (MEV)**: Air quality monitoring and control
-- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant; room-sensor *data* specifically depends on the HA→UDP failover chain (`hvac/room_sensors.yaml`)
+- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant; room-sensor *data* specifically depends on the CAN→HA failover chain (`hvac/room_sensors.yaml`)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
-- **Multi-tier failover**: Graceful degradation (HA → UDP → Emergency shutdown)
+- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency shutdown)
 
 ### Building Layout
 
@@ -316,15 +316,15 @@ details, and polling intervals):
   `rs485_bus`; the gateway has its own, mirroring the relay bank address `0x2`)
 - Commodity I/O boards (Relay 32CH, Analog Output 8CH (B), MEV) are polled/written
   directly — there are no slave controller boards and no board-to-board Modbus
-- Room-sensor data does **not** travel over Modbus — it arrives via HA/UDP failover
+- Room-sensor data does **not** travel over Modbus — it arrives via CAN/HA failover
   (see below)
 
 ### Failover Architecture
 
-**3-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `hvac/room_sensors.yaml`):
+**2-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `hvac/room_sensors.yaml`):
 
-1. **Primary**: Home Assistant sensor (`homeassistant` platform)
-2. **Fallback**: UDP `packet_transport` broadcast from the room-sensor boards
+1. **Primary**: CAN sensor-kit measurement (received directly on the controller's own CAN interface)
+2. **Fallback**: Home Assistant sensor (`homeassistant` platform)
 3. **Emergency**: Return NAN → triggers safe shutdown after 5 minutes
 
 **Automatic Recovery**: System automatically switches back to HA when its sensor recovers.
@@ -495,7 +495,7 @@ external_components:
 | `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
 | `vesta/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `vesta/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
-| `vesta/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
+| `vesta/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
 | `hvac/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 
 ### Key Documentation Files
@@ -557,7 +557,7 @@ external_components:
 ### Home Assistant Integration
 
 - **Dual Operation**: Design actuation to run autonomously; HA enhances monitoring/overrides
-- **Sensor Failover**: Room sensors are HA-primary with a UDP fallback tier (`hvac/room_sensors.yaml`) — always keep a non-HA tier for critical sensors
+- **Sensor Failover**: Room sensors are CAN-primary with a Home Assistant fallback tier (`hvac/room_sensors.yaml`) — always keep a non-HA tier for critical sensors
 - **Entity Exposure**: Expose diagnostic sensors for monitoring
 - **Friendly Names**: Use clear, descriptive names for HA entities
 
@@ -610,8 +610,8 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 **Sensor Failover**:
 - Check failover logs in Home Assistant
-- Ensure HA sensors (Tier 1) are available and updating
-- Verify the UDP room-sensor broadcast (Tier 2) is arriving when HA drops out
+- Ensure the CAN sensor-kit path (Tier 1) is available and updating
+- Verify Home Assistant sensors (Tier 2) are arriving when CAN drops out
 - Monitor emergency shutdown triggers
 
 HVAC-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
@@ -629,6 +629,7 @@ sensor-address appendices and PID tuning guidelines are documented in `hvac/CLAU
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-11 | 1.6 | HVAC-1.4: `hvac/room_sensors.yaml` flipped to CAN-primary/HA-secondary/Emergency failover (was HA-primary/UDP-secondary); updated failover-order bullets, the Failover Architecture section, and Best Practices/Troubleshooting sensor-failover language accordingly | AI Assistant |
 | 2026-07-11 | 1.5 | ADR-0014 P6 hardware docs sweep: Hardware table rewritten to the standardized family (LilyGO T-Connect Pro + Waveshare Relay 32CH + Analog Output 8CH (B)); retired all Gen-1 controller/slave-board and Modbus-room-sensor claims; corrected autonomy story (single Modbus master; room sensors HA→UDP→Emergency); deleted the orphaned Gen-1 and ESP32-S3-POE board files and updated all references; ESPHome floor 2026.5.0 | AI Assistant |
 | 2026-07-07 | 1.4 | Migration Phase 6b: rewrote Repository Structure to the actual four-system tree (canbus/lighting/hvac/vesta + top-level registry/devices); removed the "predates restructure" note; moved HVAC-only rules (entity-ID convention, PID architecture, Modbus/relay appendices, HVAC Common Tasks) to `hvac/CLAUDE.md` per AD-10 (root is the map, not the rules) | AI Assistant |
 | 2026-07-05 | 1.3 | Corrected climate-control status from "production/active, live" to pre-live; controller hardware swap under consideration | AI Assistant |

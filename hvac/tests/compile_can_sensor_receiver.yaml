@@ -24,6 +24,26 @@ esp32:
 logger:
   level: DEBUG
 
+# soggiorno_temp_can/soggiorno_humidity_can are declared statically per-room in
+# hvac/room_sensors.yaml for the real controller (HVAC-1.4) — this isolated
+# fixture doesn't compose that file, so it declares the same two stub entities
+# itself to match what the generated routes package's dispatch scripts publish into.
+sensor:
+  - platform: template
+    id: soggiorno_temp_can
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+  - platform: template
+    id: soggiorno_humidity_can
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+
 packages:
   routes: !include ../packages/generated/can_sensor_routes.yaml
   receiver: !include ../packages/can_sensor_receiver.yaml

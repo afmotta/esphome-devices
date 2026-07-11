@@ -4,11 +4,77 @@
 # =============================================================================
 # HVAC CAN sensor routing artifact. Includes only sensors=1 registry rows whose
 # room_slug was validated against hvac/rooms/** before this file was written.
+#
+# Temp/humidity targets (<room_slug>_temp_can / <room_slug>_humidity_can) are declared
+# statically in hvac/room_sensors.yaml for every known HVAC room (HVAC-1.4) — this
+# file only dispatches published values into them. All other measurements keep their
+# entity declared here, scoped to sensors=1 rows only.
 # =============================================================================
 
-substitutions: {}
+sensor:
+  - platform: template
+    id: soggiorno_sen66_temp_can
+    name: "Soggiorno SEN66 Temperature CAN"
+    state_class: measurement
+    accuracy_decimals: 2
+    unit_of_measurement: "°C"
+    device_class: temperature
 
-# No sensors=1 registry rows; no CAN sensor route targets generated.
+  - platform: template
+    id: soggiorno_sen66_humidity_can
+    name: "Soggiorno SEN66 Humidity CAN"
+    state_class: measurement
+    accuracy_decimals: 2
+    unit_of_measurement: "%"
+    device_class: humidity
+
+  - platform: template
+    id: soggiorno_pm1_0_can
+    name: "Soggiorno PM1.0 CAN"
+    state_class: measurement
+    accuracy_decimals: 1
+    unit_of_measurement: "ug/m3"
+
+  - platform: template
+    id: soggiorno_pm2_5_can
+    name: "Soggiorno PM2.5 CAN"
+    state_class: measurement
+    accuracy_decimals: 1
+    unit_of_measurement: "ug/m3"
+
+  - platform: template
+    id: soggiorno_pm4_0_can
+    name: "Soggiorno PM4.0 CAN"
+    state_class: measurement
+    accuracy_decimals: 1
+    unit_of_measurement: "ug/m3"
+
+  - platform: template
+    id: soggiorno_pm10_can
+    name: "Soggiorno PM10 CAN"
+    state_class: measurement
+    accuracy_decimals: 1
+    unit_of_measurement: "ug/m3"
+
+  - platform: template
+    id: soggiorno_voc_index_can
+    name: "Soggiorno VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: soggiorno_nox_index_can
+    name: "Soggiorno NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: soggiorno_co2_can
+    name: "Soggiorno CO2 CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
 
 script:
   - id: can_sensor_route_publish
@@ -18,16 +84,186 @@ script:
       measurement_type: uint16_t
       value: float
     then:
-      - lambda: |-
-          (void) node_id;
-          (void) measurement_type;
-          (void) value;
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SHT45_TEMP;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_temp_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SHT45_RH;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_humidity_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_TEMP;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_sen66_temp_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_RH;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_sen66_humidity_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM1_0;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm1_0_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM2_5;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm2_5_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM4_0;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm4_0_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM10;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm10_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_VOC_INDEX;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_voc_index_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_NOX_INDEX;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_nox_index_can
+                state: !lambda "return value;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_CO2;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_co2_can
+                state: !lambda "return value;"
+
   - id: can_sensor_route_publish_nan
     mode: queued
     parameters:
       node_id: uint16_t
       measurement_type: uint16_t
     then:
-      - lambda: |-
-          (void) node_id;
-          (void) measurement_type;
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SHT45_TEMP;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_temp_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SHT45_RH;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_humidity_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_TEMP;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_sen66_temp_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_RH;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_sen66_humidity_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM1_0;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm1_0_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM2_5;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm2_5_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM4_0;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm4_0_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_PM10;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_pm10_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_VOC_INDEX;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_voc_index_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_NOX_INDEX;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_nox_index_can
+                state: !lambda "return NAN;"
+      - if:
+          condition:
+            lambda: |-
+              return node_id == 101 && measurement_type == SENSOR_SEN66_CO2;
+          then:
+            - sensor.template.publish:
+                id: soggiorno_co2_can
+                state: !lambda "return NAN;"
