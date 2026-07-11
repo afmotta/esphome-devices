@@ -17,7 +17,6 @@ import json
 import contextlib
 import io
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -194,17 +193,15 @@ def test_node_map_emits_version_constant():
 def test_generator_node_map_version_matches_map_json():
     # ADR-0009 §6 drift correlation: the gateway-compiled NODE_MAP_VERSION must equal the
     # map_version published in registry/map.json, or a dashboard comparison is meaningless.
-    # The generator is byte-stable (unchanged input regenerates no diff), so running it in
-    # place leaves the working tree clean.
-    canbus_root = Path(__file__).resolve().parent.parent
-    repo_root = canbus_root.parent
-    subprocess.run(
-        [sys.executable, "tools/generate_nodes.py"],
-        cwd=canbus_root, check=True, capture_output=True, text=True,
-    )
-    map_version = json.loads((repo_root / "registry" / "map.json").read_text())["map_version"]
-    header = (canbus_root / "protocol" / "node_map.h").read_text()
-    assert f'NODE_MAP_VERSION[] = "{map_version}";' in header
+    nodes_csv = "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        map_version = json.loads((repo_root / "registry" / "map.json").read_text())["map_version"]
+        header = (root / "protocol" / "node_map.h").read_text()
+        assert f'NODE_MAP_VERSION[] = "{map_version}";' in header
 
 
 def test_generator_aborts_before_writing_node_files():
@@ -315,7 +312,19 @@ def test_can_sensor_routes_empty_registry():
     assert "DO NOT EDIT" in p
     assert "No sensors=1 registry rows" in p
     assert "substitutions: {}" in p
-    assert "script:" not in p
+    assert "id: can_sensor_route_publish" in p
+    assert "id: can_sensor_route_publish_nan" in p
+    assert "(void) node_id;" in p
+    assert "sensor:" not in p
+
+
+def test_can_sensor_routes_empty_registry_has_noop_scripts():
+    p = g.render_can_sensor_routes([dict(n, sensors=0, room_slug="") for n in NODES])
+    assert "script:" in p
+    assert "id: can_sensor_route_publish" in p
+    assert "id: can_sensor_route_publish_nan" in p
+    assert "(void) measurement_type;" in p
+    assert "(void) value;" in p
     assert "sensor:" not in p
 
 
@@ -348,6 +357,26 @@ def test_can_sensor_routes_deterministic_output():
     b = g.render_can_sensor_routes(list(reversed(NODES)))
     c = g.render_can_sensor_routes([dict(n) for n in NODES])
     assert a == b == c
+
+
+def test_can_sensor_routes_header_empty_registry():
+    h = g.render_can_sensor_routes_header([dict(n, sensors=0, room_slug="") for n in NODES])
+    assert "generated_can_sensor_routes.h" in h
+    assert "DO NOT EDIT" in h
+    assert "HvacCanSensorRoute" in h
+    assert "HVAC_CAN_SENSOR_ROUTES = nullptr" in h
+    assert "HVAC_CAN_SENSOR_ROUTES_SIZE = 0" in h
+
+
+def test_can_sensor_routes_header_mixed_rows_and_constants():
+    h = g.render_can_sensor_routes_header(NODES)
+    assert "#include \"canbus_protocol.h\"" in h
+    assert "inline constexpr HvacCanSensorRoute HVAC_CAN_SENSOR_ROUTES[]" in h
+    assert "{100, SENSOR_SHT45_TEMP}" in h
+    assert "{100, SENSOR_SEN66_CO2}" in h
+    assert "{101," not in h
+    for measurement in g.CAN_SENSOR_MEASUREMENTS:
+        assert f"{{100, {measurement['constant']}}}" in h
 
 
 def test_can_sensor_measurements_match_protocol_constants():

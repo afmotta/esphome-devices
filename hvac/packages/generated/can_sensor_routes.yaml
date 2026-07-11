@@ -9,3 +9,25 @@
 substitutions: {}
 
 # No sensors=1 registry rows; no CAN sensor route targets generated.
+
+script:
+  - id: can_sensor_route_publish
+    mode: queued
+    parameters:
+      node_id: uint16_t
+      measurement_type: uint16_t
+      value: float
+    then:
+      - lambda: |-
+          (void) node_id;
+          (void) measurement_type;
+          (void) value;
+  - id: can_sensor_route_publish_nan
+    mode: queued
+    parameters:
+      node_id: uint16_t
+      measurement_type: uint16_t
+    then:
+      - lambda: |-
+          (void) node_id;
+          (void) measurement_type;

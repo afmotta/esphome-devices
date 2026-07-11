@@ -1,0 +1,29 @@
+# =============================================================================
+# compile_can_sensor_receiver.yaml — isolated HVAC CAN receiver compile fixture
+# =============================================================================
+# Validates that the generated route package and receive-only controller package
+# compose without pulling in the full climate controller. Do not flash.
+#
+#   esphome config hvac/tests/compile_can_sensor_receiver.yaml
+# =============================================================================
+
+esphome:
+  name: t-can-sensor-receiver
+  friendly_name: "Test CAN Sensor Receiver"
+  min_version: 2026.5.0
+  includes:
+    - ../../canbus/protocol/canbus_protocol.h
+    - ../protocol/generated_can_sensor_routes.h
+    - ../protocol/can_sensor_receiver.h
+
+esp32:
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+packages:
+  routes: !include ../packages/generated/can_sensor_routes.yaml
+  receiver: !include ../packages/can_sensor_receiver.yaml

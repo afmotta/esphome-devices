@@ -94,6 +94,7 @@ EXAMPLE_ROWS = [
 ]
 
 CAN_SENSOR_ROUTES_PATH = Path("hvac") / "packages" / "generated" / "can_sensor_routes.yaml"
+CAN_SENSOR_ROUTES_HEADER_PATH = Path("hvac") / "protocol" / "generated_can_sensor_routes.h"
 
 # Route every ADR-0006 producer measurement to a room-scoped CAN source sensor. The
 # `constant` names intentionally match canbus_protocol.h so the generated receiver-facing
@@ -498,7 +499,28 @@ def render_can_sensor_routes(export_nodes) -> str:
         return (
             header
             + "substitutions: {}\n\n"
-            + "# No sensors=1 registry rows; no CAN sensor route targets generated.\n"
+            + "# No sensors=1 registry rows; no CAN sensor route targets generated.\n\n"
+            + "script:\n"
+            + "  - id: can_sensor_route_publish\n"
+            + "    mode: queued\n"
+            + "    parameters:\n"
+            + "      node_id: uint16_t\n"
+            + "      measurement_type: uint16_t\n"
+            + "      value: float\n"
+            + "    then:\n"
+            + "      - lambda: |-\n"
+            + "          (void) node_id;\n"
+            + "          (void) measurement_type;\n"
+            + "          (void) value;\n"
+            + "  - id: can_sensor_route_publish_nan\n"
+            + "    mode: queued\n"
+            + "    parameters:\n"
+            + "      node_id: uint16_t\n"
+            + "      measurement_type: uint16_t\n"
+            + "    then:\n"
+            + "      - lambda: |-\n"
+            + "          (void) node_id;\n"
+            + "          (void) measurement_type;\n"
         )
 
     lines = [
@@ -577,12 +599,57 @@ def render_can_sensor_routes(export_nodes) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_can_sensor_routes_header(export_nodes) -> str:
+    """Render the generated route metadata consumed by the HVAC CAN receiver.
+
+    The YAML package owns ESPHome target entities and publish scripts; this C++ header owns
+    the compact route table that lets the receiver refresh and expire only real routed
+    (node_id, measurement_type) pairs without parsing registry data at runtime.
+    """
+    sensor_nodes = _sensor_route_nodes(export_nodes)
+    header = (
+        "#pragma once\n"
+        "#include <cstddef>\n"
+        "#include <cstdint>\n"
+        "#include \"canbus_protocol.h\"\n\n"
+        "// =============================================================================\n"
+        "// generated_can_sensor_routes.h — GENERATED from registry/nodes.csv by\n"
+        "// canbus/tools/generate_nodes.py. DO NOT EDIT.\n"
+        "// HVAC CAN sensor route metadata for receiver freshness tracking.\n"
+        "// =============================================================================\n\n"
+        "struct HvacCanSensorRoute { uint16_t node_id; uint16_t measurement_type; };\n\n"
+    )
+    if not sensor_nodes:
+        return (
+            header
+            + "inline constexpr const HvacCanSensorRoute *HVAC_CAN_SENSOR_ROUTES = nullptr;\n"
+            + "inline constexpr std::size_t HVAC_CAN_SENSOR_ROUTES_SIZE = 0;\n"
+        )
+
+    rows = []
+    for node in sorted(sensor_nodes, key=lambda n: int(n["node_id"])):
+        for measurement in CAN_SENSOR_MEASUREMENTS:
+            rows.append(f"    {{{node['node_id']}, {measurement['constant']}}},")
+    return (
+        header
+        + "inline constexpr HvacCanSensorRoute HVAC_CAN_SENSOR_ROUTES[] = {\n"
+        + "\n".join(rows)
+        + "\n};\n"
+        + "inline constexpr std::size_t HVAC_CAN_SENSOR_ROUTES_SIZE = "
+        + "sizeof(HVAC_CAN_SENSOR_ROUTES) / sizeof(HVAC_CAN_SENSOR_ROUTES[0]);\n"
+    )
+
+
 def write_can_sensor_routes(export_nodes, repo_root: Path) -> None:
     route_path = repo_root / CAN_SENSOR_ROUTES_PATH
     route_path.parent.mkdir(parents=True, exist_ok=True)
     route_path.write_text(render_can_sensor_routes(export_nodes))
+    header_path = repo_root / CAN_SENSOR_ROUTES_HEADER_PATH
+    header_path.parent.mkdir(parents=True, exist_ok=True)
+    header_path.write_text(render_can_sensor_routes_header(export_nodes))
     route_count = len(_sensor_route_nodes(export_nodes))
     print(f"  ✓ {route_path.name}  (HVAC CAN sensor routes, {route_count} sensor node(s))")
+    print(f"  ✓ {header_path.name}  (HVAC CAN sensor route metadata)")
 
 
 def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):

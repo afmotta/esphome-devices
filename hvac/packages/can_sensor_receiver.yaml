@@ -1,0 +1,82 @@
+# =============================================================================
+# can_sensor_receiver.yaml — HVAC direct CAN sensor receiver
+# =============================================================================
+# Receive-only CAT_SENSOR path for the climate controller's onboard TWAI CAN
+# interface. Generated route scripts own the target sensors; can_sensor_receiver.h
+# owns decode, scaling, and per-route freshness state.
+# =============================================================================
+
+substitutions:
+  can_tx_pin: GPIO6
+  can_rx_pin: GPIO7
+  can_bit_rate: 125KBPS
+  can_sensor_stale_check_interval: 5s
+
+canbus:
+  - platform: esp32_can
+    id: hvac_can0
+    use_extended_id: true
+    can_id: 0x08000000
+    tx_pin: ${can_tx_pin}
+    rx_pin: ${can_rx_pin}
+    bit_rate: ${can_bit_rate}
+    on_frame:
+      - can_id: 0x08000000
+        can_id_mask: 0x1E000000
+        use_extended_id: true
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  CanSensorFrame frame{};
+                  return can_sensor_decode_frame(can_id, x, &frame)
+                      && can_sensor_measurement_supported(frame.measurement_type)
+                      && can_sensor_route_known(frame.node_id, frame.measurement_type);
+              then:
+                - lambda: |-
+                    id(can_sensor_last_node_id) = can_id_node(can_id);
+                    id(can_sensor_last_measurement_type) = payload_measurement_type(x);
+                    id(can_sensor_last_status) = payload_sensor_status(x);
+                    if (id(can_sensor_last_status) == SENSOR_STATUS_OK) {
+                      id(can_sensor_last_value) = can_sensor_scale_value(
+                          id(can_sensor_last_measurement_type), payload_sensor_value32(x));
+                      can_sensor_refresh_route(id(can_sensor_last_node_id),
+                                               id(can_sensor_last_measurement_type), millis());
+                    }
+                - if:
+                    condition:
+                      lambda: 'return id(can_sensor_last_status) == SENSOR_STATUS_OK;'
+                    then:
+                      - script.execute:
+                          id: can_sensor_route_publish
+                          node_id: !lambda 'return id(can_sensor_last_node_id);'
+                          measurement_type: !lambda 'return id(can_sensor_last_measurement_type);'
+                          value: !lambda 'return id(can_sensor_last_value);'
+                    else:
+                      - script.execute:
+                          id: can_sensor_route_publish_nan
+                          node_id: !lambda 'return id(can_sensor_last_node_id);'
+                          measurement_type: !lambda 'return id(can_sensor_last_measurement_type);'
+
+globals:
+  - id: can_sensor_last_node_id
+    type: uint16_t
+    initial_value: "0"
+  - id: can_sensor_last_measurement_type
+    type: uint16_t
+    initial_value: "0"
+  - id: can_sensor_last_status
+    type: uint8_t
+    initial_value: "0"
+  - id: can_sensor_last_value
+    type: float
+    initial_value: "NAN"
+
+interval:
+  - interval: ${can_sensor_stale_check_interval}
+    then:
+      - lambda: |-
+          const auto stale_routes = can_sensor_take_stale_routes(millis());
+          for (const auto &route : stale_routes) {
+            id(can_sensor_route_publish_nan).execute(route.node_id, route.measurement_type);
+          }
