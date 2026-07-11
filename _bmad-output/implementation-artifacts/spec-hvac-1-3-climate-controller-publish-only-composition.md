@@ -2,10 +2,11 @@
 title: 'HVAC-1.3 Climate Controller Publish-Only Composition'
 type: 'feature'
 created: '2026-07-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: '59e1a48'
 review_loop_iteration: 0
 followup_review_recommended: false
+final_revision: 'f634664'
 context:
   - '{project-root}/hvac/CLAUDE.md'
   - '{project-root}/canbus/CLAUDE.md'
@@ -85,3 +86,24 @@ Rejected findings (with evidence): a reviewer flagged that `devices/remotes/clim
 **Commands:**
 - `esphome config devices/locals/climate-control.yaml` -- expected: exits 0, full config (including the CAN bus, Modbus, room packages, and coordinators) validates without errors.
 - `git diff --check` -- expected: no whitespace errors.
+
+## Auto Run Result
+
+Status: done
+
+Summary: Composed the already-implemented (HVAC-1.2) CAN sensor receiver package and its generated route dependency into the real climate controller entry point, `devices/climate-control.yaml`, in publish-only mode. Added the three required headers to `esphome: includes:` and the two packages (`can_routes` before `can_receiver`) to `packages:`. No control logic, room sensor failover, or MEV logic was touched.
+
+Files changed:
+- `devices/climate-control.yaml` -- Added `esphome: includes:` for `canbus_protocol.h`, `generated_can_sensor_routes.h`, and `can_sensor_receiver.h` (at `../../` depth, since this file is only ever compiled through the one-level-deeper `devices/locals/*.yaml`/`devices/remotes/*.yaml` wrappers), and added `can_routes`/`can_receiver` package entries ordered before the pre-existing `analog_outputs_1` entry. Added explanatory comments for both, added during the review pass.
+- `_bmad-output/implementation-artifacts/spec-hvac-1-3-climate-controller-publish-only-composition.md` -- New spec file for this story.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` -- Marked `hvac-1-3-climate-controller-publish-only-composition` done.
+- `_bmad-output/implementation-artifacts/deferred-work.md` -- Recorded the missing regression-fixture gap for `devices/climate-control.yaml`'s CAN composition as deferred work.
+
+Review findings breakdown: patched 2 low-severity findings (missing explanatory comments for the `../../` path depth / direct-compile restriction, and for the package block's position/no-op status), deferred 1 low-severity finding (no committed regression fixture guarding this composition, beyond the existing isolated HVAC-1.2 test fixture), and rejected 9 findings — including one (`devices/remotes/climate-control.yaml`'s path depth being unverified) that was investigated and disproved by reading the installed ESPHome 2026.5.0 source (`CORE.relative_config_path`/`config_dir` and `add_includes`), confirming both `devices/locals/` and `devices/remotes/` wrappers resolve `includes:` identically since both are the CLI-invoked file at the same directory depth. Follow-up review recommendation: false — patches were two localized, cosmetic comment additions with no behavior change; the rejected/deferred findings required only inspection, not code changes.
+
+Verification performed:
+- `esphome config devices/locals/climate-control.yaml` -- passed both before and after the review-pass comment additions; exit 0, "Configuration is valid!", full resolved config confirmed the `canbus:`/`esp32_can` platform, Modbus, Ethernet, API, OTA, logger, and all room/coordinator packages present, and confirmed the three header paths resolve to the correct absolute files (`.../canbus/protocol/canbus_protocol.h`, etc.) and that the new `esphome.includes` key merges cleanly alongside package-contributed `esphome:` keys (name, friendly_name, min_version, comment, on_boot).
+- `git diff --check` -- passed, no whitespace errors.
+- `git status --short` -- confirmed no forbidden files touched (`devices/gateway.yaml`, `hvac/room_sensors.yaml`, room PID/humidity/MEV logic, `hvac/packages/can_sensor_receiver.yaml`, `hvac/packages/generated/can_sensor_routes.yaml`, and everything under `canbus/protocol/`, `hvac/protocol/`, `registry/` are all unchanged).
+
+Residual risks: The committed registry remains empty (`sensors=0`), so this composition is currently no-op wiring on the real controller; no CAN source entities will be visible in Home Assistant until a registry change (out of this story's scope) enables a real node. `devices/remotes/climate-control.yaml` was verified analytically (via ESPHome source inspection) rather than by an actual network fetch/compile against GitHub, since that requires live credentials and network access unavailable in this environment. Deferred: no committed regression fixture guards this exact composition (package order, include depth) in `devices/climate-control.yaml` itself beyond the existing isolated `hvac/tests/compile_can_sensor_receiver.yaml` fixture and this story's manual verification.
