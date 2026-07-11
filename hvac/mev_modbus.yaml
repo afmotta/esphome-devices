@@ -44,7 +44,10 @@ packages:
       mev_slug: ${mev_slug}
       mev_name: ${mev_name}
       co2_sensor: first_floor_max_co2
-      iaq_sensor: first_floor_max_iaq
+      voc_sensor: first_floor_max_voc_index
+      nox_sensor: first_floor_max_nox_index
+      pm2_5_sensor: first_floor_max_pm2_5
+      pm10_sensor: first_floor_max_pm10
       humidity_sensor: ${humidity_sensor}
 
   # Vesta MEV controller: HA imports, final fan speed, humidity cascade state machine

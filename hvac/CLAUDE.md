@@ -72,6 +72,7 @@ ground_floor_fancoil_boost_threshold # Boost activation threshold
 # Floor-scoped MEV
 first_floor_mev_fan_speed            # MEV fan speed control
 first_floor_mev_co2_demand           # CO2-based demand signal
+first_floor_mev_air_quality_demand   # MAX of VOC/NOx/PM2.5/PM10 demand signals
 first_floor_mev_alarm_active         # Master alarm indicator
 ```
 
@@ -129,7 +130,7 @@ climate:
 | Relay Board (Waveshare Modbus RTU Relay 32CH) | `0x2` | Radiant/fancoil/pump switching, channels → `relay_1..32` |
 | MEV (Cappellotto Air Fresh I) | `0x10` | Ventilation control, see `hvac/mev_modbus.yaml` for its register set |
 
-Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality data (CO2/IAQ) still arrives via UDP `packet_transport` from the room-sensor ESP32s, independent of Modbus.
+Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per first-floor room in `hvac/rooms/first_floor/first-floor.yaml` and dispatched by `hvac/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5).
 
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
@@ -255,7 +256,7 @@ Fancoil units have no dedicated relay of their own — each floor's fancoil circ
 | Relay Board 32CH | `0x2` | `rs485_bus` | Channels → `relay_1..32`; see Appendix B |
 | MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor only; `hvac/mev_modbus.yaml` |
 
-Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/IAQ still reports over UDP `packet_transport`. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and MEV (`0x10`) are hvac-only addresses with no gateway-side counterpart to mirror against.
+Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `hvac/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and MEV (`0x10`) are hvac-only addresses with no gateway-side counterpart to mirror against.
 
 **Analog output channel assignments** (from `hvac/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — unallocated.
 

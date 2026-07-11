@@ -50,93 +50,419 @@ binary_sensor:
 
 sensor:
   # ============================================================================
-  # CO₂ Receivers (from room sensor ESP32s via UDP)
+  # Pollutant CAN Receivers (HVAC-1.5)
+  #
+  # Statically declared per room, mirroring the HVAC-1.4 pattern used for
+  # temp/humidity in hvac/room_sensors.yaml: these are always-present publish
+  # targets for hvac/packages/can_sensor_receiver.yaml's dispatch scripts, so
+  # a room's CAN node can be enabled (registry sensors=1 + regeneration)
+  # without a duplicate-id compile error. Do not also declare these in
+  # hvac/packages/generated/can_sensor_routes.yaml. Exposed to Home Assistant
+  # (not internal) per the epic's Entity Contract. PM1.0/PM4.0 are diagnostic
+  # only and are not aggregated into any MEV demand channel.
   # ============================================================================
-  - platform: packet_transport
-    id: bagno_grande_co2
-    provider: room-sensor-bagno-grande
-    internal: true
+  - platform: template
+    id: bagno_grande_co2_can
+    name: "Bagno Grande CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: bagno_ospiti_co2
-    provider: room-sensor-bagno-ospiti
-    internal: true
+  - platform: template
+    id: bagno_ospiti_co2_can
+    name: "Bagno Ospiti CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: bagno_padronale_co2
-    provider: room-sensor-bagno-padronale
-    internal: true
+  - platform: template
+    id: bagno_padronale_co2_can
+    name: "Bagno Padronale CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: camera_nord_co2
-    provider: room-sensor-camera-nord
-    internal: true
+  - platform: template
+    id: camera_nord_co2_can
+    name: "Camera Nord CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: camera_sud_co2
-    provider: room-sensor-camera-sud
-    internal: true
+  - platform: template
+    id: camera_sud_co2_can
+    name: "Camera Sud CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: camera_ospiti_co2
-    provider: room-sensor-camera-ospiti
-    internal: true
+  - platform: template
+    id: camera_ospiti_co2_can
+    name: "Camera Ospiti CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: camera_padronale_co2
-    provider: room-sensor-camera-padronale
-    internal: true
+  - platform: template
+    id: camera_padronale_co2_can
+    name: "Camera Padronale CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
 
-  - platform: packet_transport
-    id: lavanderia_co2
-    provider: room-sensor-lavanderia
-    internal: true
+  - platform: template
+    id: lavanderia_co2_can
+    name: "Lavanderia CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_grande_voc_index_can
+    name: "Bagno Grande VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_ospiti_voc_index_can
+    name: "Bagno Ospiti VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_padronale_voc_index_can
+    name: "Bagno Padronale VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_nord_voc_index_can
+    name: "Camera Nord VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_sud_voc_index_can
+    name: "Camera Sud VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_ospiti_voc_index_can
+    name: "Camera Ospiti VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_padronale_voc_index_can
+    name: "Camera Padronale VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: lavanderia_voc_index_can
+    name: "Lavanderia VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_grande_nox_index_can
+    name: "Bagno Grande NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_ospiti_nox_index_can
+    name: "Bagno Ospiti NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_padronale_nox_index_can
+    name: "Bagno Padronale NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_nord_nox_index_can
+    name: "Camera Nord NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_sud_nox_index_can
+    name: "Camera Sud NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_ospiti_nox_index_can
+    name: "Camera Ospiti NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: camera_padronale_nox_index_can
+    name: "Camera Padronale NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: lavanderia_nox_index_can
+    name: "Lavanderia NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: bagno_grande_pm1_0_can
+    name: "Bagno Grande PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: bagno_ospiti_pm1_0_can
+    name: "Bagno Ospiti PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: bagno_padronale_pm1_0_can
+    name: "Bagno Padronale PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_nord_pm1_0_can
+    name: "Camera Nord PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_sud_pm1_0_can
+    name: "Camera Sud PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_ospiti_pm1_0_can
+    name: "Camera Ospiti PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_padronale_pm1_0_can
+    name: "Camera Padronale PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: lavanderia_pm1_0_can
+    name: "Lavanderia PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: bagno_grande_pm2_5_can
+    name: "Bagno Grande PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: bagno_ospiti_pm2_5_can
+    name: "Bagno Ospiti PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: bagno_padronale_pm2_5_can
+    name: "Bagno Padronale PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_nord_pm2_5_can
+    name: "Camera Nord PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_sud_pm2_5_can
+    name: "Camera Sud PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_ospiti_pm2_5_can
+    name: "Camera Ospiti PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_padronale_pm2_5_can
+    name: "Camera Padronale PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: lavanderia_pm2_5_can
+    name: "Lavanderia PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: bagno_grande_pm4_0_can
+    name: "Bagno Grande PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: bagno_ospiti_pm4_0_can
+    name: "Bagno Ospiti PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: bagno_padronale_pm4_0_can
+    name: "Bagno Padronale PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_nord_pm4_0_can
+    name: "Camera Nord PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_sud_pm4_0_can
+    name: "Camera Sud PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_ospiti_pm4_0_can
+    name: "Camera Ospiti PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: camera_padronale_pm4_0_can
+    name: "Camera Padronale PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: lavanderia_pm4_0_can
+    name: "Lavanderia PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: bagno_grande_pm10_can
+    name: "Bagno Grande PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: bagno_ospiti_pm10_can
+    name: "Bagno Ospiti PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: bagno_padronale_pm10_can
+    name: "Bagno Padronale PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_nord_pm10_can
+    name: "Camera Nord PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_sud_pm10_can
+    name: "Camera Sud PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_ospiti_pm10_can
+    name: "Camera Ospiti PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: camera_padronale_pm10_can
+    name: "Camera Padronale PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: lavanderia_pm10_can
+    name: "Lavanderia PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
 
   # ============================================================================
-  # IAQ Receivers (from room sensor ESP32s via UDP)
-  # ============================================================================
-  - platform: packet_transport
-    id: bagno_grande_iaq
-    provider: room-sensor-bagno-grande
-    internal: true
-
-  - platform: packet_transport
-    id: bagno_ospiti_iaq
-    provider: room-sensor-bagno-ospiti
-    internal: true
-
-  - platform: packet_transport
-    id: bagno_padronale_iaq
-    provider: room-sensor-bagno-padronale
-    internal: true
-
-  - platform: packet_transport
-    id: camera_nord_iaq
-    provider: room-sensor-camera-nord
-    internal: true
-
-  - platform: packet_transport
-    id: camera_sud_iaq
-    provider: room-sensor-camera-sud
-    internal: true
-
-  - platform: packet_transport
-    id: camera_ospiti_iaq
-    provider: room-sensor-camera-ospiti
-    internal: true
-
-  - platform: packet_transport
-    id: camera_padronale_iaq
-    provider: room-sensor-camera-padronale
-    internal: true
-
-  - platform: packet_transport
-    id: lavanderia_iaq
-    provider: room-sensor-lavanderia
-    internal: true
-
-  # ============================================================================
-  # Air Quality Aggregation (Max of all rooms)
+  # Air Quality Aggregation (Max of all rooms, per pollutant)
   # ============================================================================
   - platform: combination
     id: first_floor_max_co2
@@ -147,30 +473,80 @@ sensor:
     state_class: "measurement"
     accuracy_decimals: 0
     sources:
-      - source: bagno_grande_co2
-      - source: bagno_ospiti_co2
-      - source: bagno_padronale_co2
-      - source: camera_nord_co2
-      - source: camera_sud_co2
-      - source: camera_ospiti_co2
-      - source: camera_padronale_co2
-      - source: lavanderia_co2
+      - source: bagno_grande_co2_can
+      - source: bagno_ospiti_co2_can
+      - source: bagno_padronale_co2_can
+      - source: camera_nord_co2_can
+      - source: camera_sud_co2_can
+      - source: camera_ospiti_co2_can
+      - source: camera_padronale_co2_can
+      - source: lavanderia_co2_can
 
   - platform: combination
-    id: first_floor_max_iaq
-    name: "Max IAQ Primo Piano"
+    id: first_floor_max_voc_index
+    name: "Max VOC Index Primo Piano"
     type: max
     state_class: "measurement"
     accuracy_decimals: 0
     sources:
-      - source: bagno_grande_iaq
-      - source: bagno_ospiti_iaq
-      - source: bagno_padronale_iaq
-      - source: camera_nord_iaq
-      - source: camera_sud_iaq
-      - source: camera_ospiti_iaq
-      - source: camera_padronale_iaq
-      - source: lavanderia_iaq
+      - source: bagno_grande_voc_index_can
+      - source: bagno_ospiti_voc_index_can
+      - source: bagno_padronale_voc_index_can
+      - source: camera_nord_voc_index_can
+      - source: camera_sud_voc_index_can
+      - source: camera_ospiti_voc_index_can
+      - source: camera_padronale_voc_index_can
+      - source: lavanderia_voc_index_can
+
+  - platform: combination
+    id: first_floor_max_nox_index
+    name: "Max NOx Index Primo Piano"
+    type: max
+    state_class: "measurement"
+    accuracy_decimals: 0
+    sources:
+      - source: bagno_grande_nox_index_can
+      - source: bagno_ospiti_nox_index_can
+      - source: bagno_padronale_nox_index_can
+      - source: camera_nord_nox_index_can
+      - source: camera_sud_nox_index_can
+      - source: camera_ospiti_nox_index_can
+      - source: camera_padronale_nox_index_can
+      - source: lavanderia_nox_index_can
+
+  - platform: combination
+    id: first_floor_max_pm2_5
+    name: "Max PM2.5 Primo Piano"
+    type: max
+    unit_of_measurement: "ug/m3"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    sources:
+      - source: bagno_grande_pm2_5_can
+      - source: bagno_ospiti_pm2_5_can
+      - source: bagno_padronale_pm2_5_can
+      - source: camera_nord_pm2_5_can
+      - source: camera_sud_pm2_5_can
+      - source: camera_ospiti_pm2_5_can
+      - source: camera_padronale_pm2_5_can
+      - source: lavanderia_pm2_5_can
+
+  - platform: combination
+    id: first_floor_max_pm10
+    name: "Max PM10 Primo Piano"
+    type: max
+    unit_of_measurement: "ug/m3"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    sources:
+      - source: bagno_grande_pm10_can
+      - source: bagno_ospiti_pm10_can
+      - source: bagno_padronale_pm10_can
+      - source: camera_nord_pm10_can
+      - source: camera_sud_pm10_can
+      - source: camera_ospiti_pm10_can
+      - source: camera_padronale_pm10_can
+      - source: lavanderia_pm10_can
 
   # Max Humidity for MEV Cascade Control
   - platform: combination
