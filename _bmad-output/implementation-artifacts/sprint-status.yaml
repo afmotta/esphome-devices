@@ -134,8 +134,8 @@ development_status:
 
   # === HVAC-Epic 1: HVAC CAN Sensor Receiver ===
 
-  hvac-epic-1: backlog
-  hvac-1-1-generated-can-sensor-routing-artifact: backlog
+  hvac-epic-1: in-progress
+  hvac-1-1-generated-can-sensor-routing-artifact: done
   hvac-1-2-sensor-only-can-receiver-freshness-core: backlog
   hvac-1-3-climate-controller-publish-only-composition: backlog
   hvac-1-4-can-primary-room-sensor-failover: backlog

@@ -1,0 +1,11 @@
+# =============================================================================
+# can_sensor_routes.yaml — GENERATED from registry/nodes.csv by
+# canbus/tools/generate_nodes.py. DO NOT EDIT.
+# =============================================================================
+# HVAC CAN sensor routing artifact. Includes only sensors=1 registry rows whose
+# room_slug was validated against hvac/rooms/** before this file was written.
+# =============================================================================
+
+substitutions: {}
+
+# No sensors=1 registry rows; no CAN sensor route targets generated.

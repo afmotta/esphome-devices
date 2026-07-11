@@ -93,6 +93,94 @@ EXAMPLE_ROWS = [
     [101, 0, 8, 0, "Ground floor living room", 0, ""],
 ]
 
+CAN_SENSOR_ROUTES_PATH = Path("hvac") / "packages" / "generated" / "can_sensor_routes.yaml"
+
+# Route every ADR-0006 producer measurement to a room-scoped CAN source sensor. The
+# `constant` names intentionally match canbus_protocol.h so the generated receiver-facing
+# branches do not bake protocol numbers into YAML lambdas.
+CAN_SENSOR_MEASUREMENTS = (
+    {
+        "constant": "SENSOR_SHT45_TEMP",
+        "target_suffix": "temp",
+        "label": "Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+        "accuracy_decimals": 2,
+    },
+    {
+        "constant": "SENSOR_SHT45_RH",
+        "target_suffix": "humidity",
+        "label": "Humidity",
+        "unit": "%",
+        "device_class": "humidity",
+        "accuracy_decimals": 2,
+    },
+    {
+        "constant": "SENSOR_SEN66_TEMP",
+        "target_suffix": "sen66_temp",
+        "label": "SEN66 Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+        "accuracy_decimals": 2,
+    },
+    {
+        "constant": "SENSOR_SEN66_RH",
+        "target_suffix": "sen66_humidity",
+        "label": "SEN66 Humidity",
+        "unit": "%",
+        "device_class": "humidity",
+        "accuracy_decimals": 2,
+    },
+    {
+        "constant": "SENSOR_SEN66_PM1_0",
+        "target_suffix": "pm1_0",
+        "label": "PM1.0",
+        "unit": "ug/m3",
+        "accuracy_decimals": 1,
+    },
+    {
+        "constant": "SENSOR_SEN66_PM2_5",
+        "target_suffix": "pm2_5",
+        "label": "PM2.5",
+        "unit": "ug/m3",
+        "accuracy_decimals": 1,
+    },
+    {
+        "constant": "SENSOR_SEN66_PM4_0",
+        "target_suffix": "pm4_0",
+        "label": "PM4.0",
+        "unit": "ug/m3",
+        "accuracy_decimals": 1,
+    },
+    {
+        "constant": "SENSOR_SEN66_PM10",
+        "target_suffix": "pm10",
+        "label": "PM10",
+        "unit": "ug/m3",
+        "accuracy_decimals": 1,
+    },
+    {
+        "constant": "SENSOR_SEN66_VOC_INDEX",
+        "target_suffix": "voc_index",
+        "label": "VOC Index",
+        "accuracy_decimals": 0,
+    },
+    {
+        "constant": "SENSOR_SEN66_NOX_INDEX",
+        "target_suffix": "nox_index",
+        "label": "NOx Index",
+        "accuracy_decimals": 0,
+    },
+    {
+        "constant": "SENSOR_SEN66_CO2",
+        "target_suffix": "co2",
+        "label": "CO2",
+        "unit": "ppm",
+        "device_class": "carbon_dioxide",
+        "accuracy_decimals": 0,
+    },
+)
+
 # CAN ID layout — must match canbus_protocol.h: [category:4][node_id:13][reserved:12].
 CAT_SHIFT = 25
 NODE_SHIFT = 12
@@ -349,6 +437,154 @@ def render_ha_package(manifest_hash: str) -> str:
     )
 
 
+def _room_title(room_slug: str) -> str:
+    return " ".join(part.capitalize() for part in room_slug.split("_"))
+
+
+def _route_target_id(room_slug: str, measurement: dict) -> str:
+    return f"{room_slug}_{measurement['target_suffix']}_can"
+
+
+def _is_esphome_id_prefix(value: str) -> bool:
+    if not value or not (value[0].isalpha() or value[0] == "_"):
+        return False
+    return all(ch.isalnum() or ch == "_" for ch in value)
+
+
+def _sensor_route_nodes(export_nodes):
+    sensor_nodes = sorted(
+        (n for n in export_nodes if int(n.get("sensors", 0)) == 1),
+        key=lambda n: (str(n.get("room_slug", "")), int(n["node_id"])),
+    )
+    seen_rooms = {}
+    for node in sensor_nodes:
+        room_slug = node.get("room_slug", "")
+        if not room_slug:
+            raise ValueError(
+                f"sensors=1 requires a room_slug for node_id {node['node_id']} "
+                "before CAN sensor routes can be generated"
+            )
+        if not _is_esphome_id_prefix(room_slug):
+            raise ValueError(
+                f"room_slug '{room_slug}' for sensors=1 node_id {node['node_id']} "
+                "cannot be used as an ESPHome id prefix"
+            )
+        if room_slug in seen_rooms:
+            raise ValueError(
+                f"duplicate sensors=1 room_slug '{room_slug}' for node_id {seen_rooms[room_slug]} "
+                f"and node_id {node['node_id']}"
+            )
+        seen_rooms[room_slug] = node["node_id"]
+    return sensor_nodes
+
+
+def render_can_sensor_routes(export_nodes) -> str:
+    """Render the HVAC-owned compile-time route artifact for CAN sensor receivers.
+
+    The current story only emits the deterministic route package. Receiver composition,
+    freshness, and failover remain separate HVAC-1 stories.
+    """
+    sensor_nodes = _sensor_route_nodes(export_nodes)
+    header = (
+        "# =============================================================================\n"
+        "# can_sensor_routes.yaml — GENERATED from registry/nodes.csv by\n"
+        "# canbus/tools/generate_nodes.py. DO NOT EDIT.\n"
+        "# =============================================================================\n"
+        "# HVAC CAN sensor routing artifact. Includes only sensors=1 registry rows whose\n"
+        "# room_slug was validated against hvac/rooms/** before this file was written.\n"
+        "# =============================================================================\n\n"
+    )
+    if not sensor_nodes:
+        return (
+            header
+            + "substitutions: {}\n\n"
+            + "# No sensors=1 registry rows; no CAN sensor route targets generated.\n"
+        )
+
+    lines = [
+        header.rstrip(),
+        "",
+        "esphome:",
+        "  includes:",
+        "    - ../../../canbus/protocol/canbus_protocol.h",
+        "",
+        "sensor:",
+    ]
+    for node in sensor_nodes:
+        room_slug = node["room_slug"]
+        room_name = _room_title(room_slug)
+        for measurement in CAN_SENSOR_MEASUREMENTS:
+            lines.extend([
+                "  - platform: template",
+                f"    id: {_route_target_id(room_slug, measurement)}",
+                f"    name: \"{room_name} {measurement['label']} CAN\"",
+                "    state_class: measurement",
+                f"    accuracy_decimals: {measurement['accuracy_decimals']}",
+            ])
+            if "unit" in measurement:
+                lines.append(f"    unit_of_measurement: \"{measurement['unit']}\"")
+            if "device_class" in measurement:
+                lines.append(f"    device_class: {measurement['device_class']}")
+            lines.append("")
+
+    lines.extend([
+        "script:",
+        "  - id: can_sensor_route_publish",
+        "    mode: queued",
+        "    parameters:",
+        "      node_id: uint16_t",
+        "      measurement_type: uint16_t",
+        "      value: float",
+        "    then:",
+    ])
+    for node in sorted(sensor_nodes, key=lambda n: int(n["node_id"])):
+        room_slug = node["room_slug"]
+        for measurement in CAN_SENSOR_MEASUREMENTS:
+            lines.extend([
+                "      - if:",
+                "          condition:",
+                "            lambda: |-",
+                f"              return node_id == {node['node_id']} && measurement_type == {measurement['constant']};",
+                "          then:",
+                "            - sensor.template.publish:",
+                f"                id: {_route_target_id(room_slug, measurement)}",
+                "                state: !lambda \"return value;\"",
+            ])
+
+    lines.extend([
+        "",
+        "  - id: can_sensor_route_publish_nan",
+        "    mode: queued",
+        "    parameters:",
+        "      node_id: uint16_t",
+        "      measurement_type: uint16_t",
+        "    then:",
+    ])
+    for node in sorted(sensor_nodes, key=lambda n: int(n["node_id"])):
+        room_slug = node["room_slug"]
+        for measurement in CAN_SENSOR_MEASUREMENTS:
+            lines.extend([
+                "      - if:",
+                "          condition:",
+                "            lambda: |-",
+                f"              return node_id == {node['node_id']} && measurement_type == {measurement['constant']};",
+                "          then:",
+                "            - sensor.template.publish:",
+                f"                id: {_route_target_id(room_slug, measurement)}",
+                "                state: !lambda \"return NAN;\"",
+            ])
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_can_sensor_routes(export_nodes, repo_root: Path) -> None:
+    route_path = repo_root / CAN_SENSOR_ROUTES_PATH
+    route_path.parent.mkdir(parents=True, exist_ok=True)
+    route_path.write_text(render_can_sensor_routes(export_nodes))
+    route_count = len(_sensor_route_nodes(export_nodes))
+    print(f"  ✓ {route_path.name}  (HVAC CAN sensor routes, {route_count} sensor node(s))")
+
+
 def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):
     """Validate registry/bindings.yaml against the registry, then emit every binding-derived
     artifact from one source in one run (ADR-0009 §4/§7): bindings.h (hash + table), map.json
@@ -408,6 +644,7 @@ def main():
 
     seen_node_ids = {}
     seen_room_board = {}  # (room, board) -> location, for the commissioned-uniqueness invariant
+    seen_sensor_room_slugs = {}  # room_slug -> (node_id, row), one sensor producer per room target
     count = 0
     floor_groups = {}
     map_entries = []  # (node_id, room, board, location) -> compiled into the gateway's node_map.h
@@ -473,6 +710,16 @@ def main():
                     print(f"ERROR: {slug_err} (node_id {node_id}, CSV row {reader.line_num})",
                           file=sys.stderr)
                     sys.exit(1)
+            if has_sensors:
+                previous = seen_sensor_room_slugs.get(room_slug)
+                if previous:
+                    prev_node_id, prev_row = previous
+                    print(f"ERROR: duplicate sensors=1 room_slug '{room_slug}' "
+                          f"(node_id {prev_node_id}, CSV row {prev_row}; "
+                          f"node_id {node_id}, CSV row {reader.line_num})",
+                          file=sys.stderr)
+                    sys.exit(1)
+                seen_sensor_room_slugs[room_slug] = (node_id, reader.line_num)
 
             # (room, board) is the gateway's location address; it must be unique among commissioned
             # nodes. (0, 0) is the unassigned placeholder (allocate_node.py seeds it) — exempt it so
@@ -517,7 +764,15 @@ def main():
     # invalid manifest, so validating here means a bad bindings.yaml never leaves nodes/ or
     # node_map.h half-regenerated (validate-before-persist). It also yields map_version, which
     # is compiled into node_map.h for §6 drift visibility.
+    try:
+        _sensor_route_nodes(export_nodes)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
     manifest_hash, map_version = write_exports(seen_node_ids, export_nodes, ROOT, REPO_ROOT)
+
+    write_can_sensor_routes(export_nodes, REPO_ROOT)
 
     # Manifest validated — now persist the node artifacts.
     for path, content, log in node_files:

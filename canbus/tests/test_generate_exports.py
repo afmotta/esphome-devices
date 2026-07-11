@@ -14,6 +14,9 @@ Covers the pure renderers added for the export slice:
 """
 
 import json
+import contextlib
+import io
+import re
 import subprocess
 import sys
 import tempfile
@@ -29,6 +32,67 @@ NODES = [
      "sensors": 1, "room_slug": "anticamera"},
 ]
 HASH = "d66767448ba37b2f"
+PROTOCOL_PATH = Path(__file__).resolve().parents[1] / "protocol" / "canbus_protocol.h"
+
+
+def _write_temp_climate_zones(repo_root, extra_rooms=None):
+    rooms = {
+        "ground_floor": ["anticamera", "soggiorno"],
+        "first_floor": ["camera_nord"],
+        "second_floor": ["sottotetto"],
+    }
+    if extra_rooms:
+        for floor_slug, room_slugs in extra_rooms.items():
+            rooms.setdefault(floor_slug, []).extend(room_slugs)
+    for floor_slug, room_slugs in rooms.items():
+        floor_dir = repo_root / "hvac" / "rooms" / floor_slug
+        floor_dir.mkdir(parents=True, exist_ok=True)
+        for room_slug in room_slugs:
+            (floor_dir / f"{room_slug}.yaml").write_text(
+                "defaults:\n"
+                f"  room_slug: {room_slug}\n"
+            )
+
+
+def _prepare_temp_generator_repo(repo_root, nodes_csv, extra_rooms=None):
+    root = repo_root / "canbus"
+    for sub in ("protocol", "home-assistant"):
+        (root / sub).mkdir(parents=True, exist_ok=True)
+    (repo_root / "registry").mkdir()
+    (repo_root / "registry" / "nodes.csv").write_text(nodes_csv)
+    (repo_root / "registry" / "bindings.yaml").write_text("schema_version: 1\nbindings: []\n")
+    _write_temp_climate_zones(repo_root, extra_rooms)
+    return root
+
+
+def _run_temp_generator(repo_root, root):
+    saved_root, saved_repo_root = g.ROOT, g.REPO_ROOT
+    stdout, stderr = io.StringIO(), io.StringIO()
+    g.ROOT, g.REPO_ROOT = root, repo_root
+    try:
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                g.main()
+                code = 0
+            except SystemExit as e:
+                code = e.code
+    finally:
+        g.ROOT, g.REPO_ROOT = saved_root, saved_repo_root
+    return code, stdout.getvalue(), stderr.getvalue()
+
+
+def _assert_temp_generator_rejects(nodes_csv, expected_error, extra_rooms=None):
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv, extra_rooms)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        route_path = repo_root / g.CAN_SENSOR_ROUTES_PATH
+        assert code == 1
+        assert expected_error in stderr
+        assert not route_path.exists(), "CAN sensor route artifact written before abort"
+        assert not (repo_root / "registry" / "map.json").exists(), "map.json written before abort"
+        assert not (root / "protocol" / "bindings.h").exists(), "bindings.h written before abort"
+        assert list((root / "nodes").glob("*.yaml")) == [], "node configs written before abort"
 
 
 def test_repo_root_depth_invariant():
@@ -243,6 +307,128 @@ def test_ha_package_bakes_hash():
     assert f'manifest_hash: "{HASH}"' in p
     assert "esphome.canbus_gateway_ha_readiness_heartbeat" in p
     assert "GENERATED" in p
+
+
+def test_can_sensor_routes_empty_registry():
+    p = g.render_can_sensor_routes([dict(n, sensors=0, room_slug="") for n in NODES])
+    assert "can_sensor_routes.yaml" in p
+    assert "DO NOT EDIT" in p
+    assert "No sensors=1 registry rows" in p
+    assert "substitutions: {}" in p
+    assert "script:" not in p
+    assert "sensor:" not in p
+
+
+def test_can_sensor_routes_mixed_rows_and_targets():
+    p = g.render_can_sensor_routes(NODES)
+    assert "../../../canbus/protocol/canbus_protocol.h" in p
+    assert "id: anticamera_temp_can" in p
+    assert "id: anticamera_humidity_can" in p
+    assert "id: anticamera_pm1_0_can" in p
+    assert "id: anticamera_pm2_5_can" in p
+    assert "id: anticamera_pm4_0_can" in p
+    assert "id: anticamera_pm10_can" in p
+    assert "id: anticamera_voc_index_can" in p
+    assert "id: anticamera_nox_index_can" in p
+    assert "id: anticamera_co2_can" in p
+    assert "id: anticamera_sen66_temp_can" in p
+    assert "id: anticamera_sen66_humidity_can" in p
+    assert "living_room" not in p
+    for measurement in g.CAN_SENSOR_MEASUREMENTS:
+        assert measurement["constant"] in p
+        assert f"measurement_type == {measurement['constant']}" in p
+    assert "id: can_sensor_route_publish" in p
+    assert "id: can_sensor_route_publish_nan" in p
+    assert 'state: !lambda "return value;"' in p
+    assert 'state: !lambda "return NAN;"' in p
+
+
+def test_can_sensor_routes_deterministic_output():
+    a = g.render_can_sensor_routes(NODES)
+    b = g.render_can_sensor_routes(list(reversed(NODES)))
+    c = g.render_can_sensor_routes([dict(n) for n in NODES])
+    assert a == b == c
+
+
+def test_can_sensor_measurements_match_protocol_constants():
+    header = PROTOCOL_PATH.read_text()
+    protocol_constants = set(re.findall(r"inline constexpr uint16_t (SENSOR_(?:SHT45|SEN66)_[A-Z0-9_]+) =", header))
+    route_constants = {measurement["constant"] for measurement in g.CAN_SENSOR_MEASUREMENTS}
+    assert route_constants == protocol_constants
+
+
+def test_can_sensor_routes_room_move_retargets_cleanly():
+    original = g.render_can_sensor_routes(NODES)
+    moved = [dict(n) for n in NODES]
+    moved[1]["room_slug"] = "soggiorno"
+    moved_output = g.render_can_sensor_routes(moved)
+    assert "id: anticamera_temp_can" in original
+    assert "id: soggiorno_temp_can" not in original
+    assert "id: soggiorno_temp_can" in moved_output
+    assert "id: anticamera_temp_can" not in moved_output
+
+
+def test_generator_rejects_blank_sensor_room_before_route_write():
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,sensors,room_slug\n"
+        "100,0,7,0,Hall,1,\n",
+        "sensors=1 requires a room_slug",
+    )
+
+
+def test_generator_rejects_unknown_sensor_room_before_route_write():
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,sensors,room_slug\n"
+        "100,0,7,0,Hall,1,unknown_room\n",
+        "unknown room_slug 'unknown_room'",
+    )
+
+
+def test_generator_rejects_floor_mismatched_sensor_room_before_route_write():
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,sensors,room_slug\n"
+        "100,1,7,0,Hall,1,anticamera\n",
+        "does not match room_slug 'anticamera'",
+    )
+
+
+def test_generator_rejects_duplicate_sensor_room_before_route_write():
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,sensors,room_slug\n"
+        "100,0,7,0,Hall,1,anticamera\n"
+        "101,0,8,0,Living room,1,anticamera\n",
+        "duplicate sensors=1 room_slug 'anticamera'",
+    )
+
+
+def test_generator_rejects_sensor_room_slug_that_cannot_form_esphome_ids():
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,sensors,room_slug\n"
+        "100,0,7,0,Hall,1,123room\n",
+        "cannot be used as an ESPHome id prefix",
+        extra_rooms={"ground_floor": ["123room"]},
+    )
+
+
+def test_generator_writes_can_sensor_routes_idempotently():
+    nodes_csv = (
+        "node_id,floor,room,board,location,sensors,room_slug\n"
+        "100,0,7,0,Hall,1,anticamera\n"
+        "101,0,8,0,Living room,0,\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        route_path = repo_root / g.CAN_SENSOR_ROUTES_PATH
+
+        first_code, _first_stdout, first_stderr = _run_temp_generator(repo_root, root)
+        assert first_code == 0, first_stderr
+        first = route_path.read_text()
+
+        second_code, _second_stdout, second_stderr = _run_temp_generator(repo_root, root)
+        assert second_code == 0, second_stderr
+        assert route_path.read_text() == first
+        assert "id: anticamera_temp_can" in first
 
 
 def main():
