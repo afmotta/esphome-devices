@@ -1,0 +1,243 @@
+# =============================================================================
+# relay_bank.yaml — lighting's 32-channel relay bank (Waveshare Relay 32CH)
+# =============================================================================
+# Lighting-owned composition of the gateway's relay bank (ADR-0014 §2/§3):
+# one modbus_controller plus 32 self-registering channels
+# (relay_channel.yaml), 0-based relay_0..relay_31 per ADR-0013's progressive-
+# id convention — numbering is native here, so no id_offset arithmetic is
+# needed (that var existed for vesta's generic, 1-based-natural aggregator).
+# The per-channel wrapper both creates the switch (via vesta's shared
+# modbus_relay_switch.yaml hardware driver) and registers it into
+# relay_store() for the fallback path, so the channel list below is the ONLY
+# place the bank's composition lives.
+#
+# Channel count must stay in sync with MAX_RELAYS
+# (lighting/protocol/binding_actuation.h) and MAX_RELAY_ID
+# (canbus/tools/bindings.py) — a second bank (ADR-0014 open item 2) bumps
+# all three in one commit.
+#
+# No connectivity status sensor — same reasoning as vesta's
+# modbus_relay_board_32ch.yaml: this board has no documented register outside
+# its 32 relay coils, so any "connectivity" poll would alias a relay's own
+# state. Communication failures surface per-switch (unavailable on timeout).
+#
+# Required vars:
+#   controller_id      - unique ID for this modbus_controller
+#   modbus_address     - Modbus slave address (0x2 per ADR-0014 §4, mirrored
+#                        with hvac's bank so a spare swaps into either system)
+#   modbus_bus_id      - ID of the modbus bus (e.g. "rs485_bus")
+#
+# Optional vars:
+#   update_interval    - polling interval (default: 5s)
+#
+# Requires from the composing entry point:
+#   esphome.includes: relay_store.h (and its dependencies) — see
+#   relay_channel.yaml
+#
+# Exposes:
+#   switch.relay_0 .. switch.relay_31 (non-internal, HA-controllable), each
+#   registered into relay_store() at boot
+# =============================================================================
+
+defaults:
+  update_interval: 5s
+
+modbus_controller:
+  - id: ${controller_id}
+    address: ${modbus_address}
+    modbus_id: ${modbus_bus_id}
+    update_interval: ${update_interval}
+
+packages:
+  relay_0: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 0
+      register_address: 0x0000
+  relay_1: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 1
+      register_address: 0x0001
+  relay_2: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 2
+      register_address: 0x0002
+  relay_3: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 3
+      register_address: 0x0003
+  relay_4: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 4
+      register_address: 0x0004
+  relay_5: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 5
+      register_address: 0x0005
+  relay_6: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 6
+      register_address: 0x0006
+  relay_7: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 7
+      register_address: 0x0007
+  relay_8: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 8
+      register_address: 0x0008
+  relay_9: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 9
+      register_address: 0x0009
+  relay_10: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 10
+      register_address: 0x000A
+  relay_11: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 11
+      register_address: 0x000B
+  relay_12: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 12
+      register_address: 0x000C
+  relay_13: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 13
+      register_address: 0x000D
+  relay_14: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 14
+      register_address: 0x000E
+  relay_15: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 15
+      register_address: 0x000F
+  relay_16: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 16
+      register_address: 0x0010
+  relay_17: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 17
+      register_address: 0x0011
+  relay_18: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 18
+      register_address: 0x0012
+  relay_19: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 19
+      register_address: 0x0013
+  relay_20: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 20
+      register_address: 0x0014
+  relay_21: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 21
+      register_address: 0x0015
+  relay_22: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 22
+      register_address: 0x0016
+  relay_23: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 23
+      register_address: 0x0017
+  relay_24: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 24
+      register_address: 0x0018
+  relay_25: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 25
+      register_address: 0x0019
+  relay_26: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 26
+      register_address: 0x001A
+  relay_27: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 27
+      register_address: 0x001B
+  relay_28: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 28
+      register_address: 0x001C
+  relay_29: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 29
+      register_address: 0x001D
+  relay_30: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 30
+      register_address: 0x001E
+  relay_31: !include
+    file: relay_channel.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: 31
+      register_address: 0x001F

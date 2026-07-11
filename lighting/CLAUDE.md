@@ -41,9 +41,23 @@ package alongside canbus's).
 ## Files here today
 
 - `packages/buttons.yaml` — the gateway-side lighting package: CAT_INPUT
-  decode → HA events + the ha_ready gate instance. Composed by
-  `devices/gateway.yaml` AFTER `canbus/packages/health.yaml` (it `!extend`s
-  the bus that package defines).
+  decode → HA events + the ha_ready gate instance, including the ADR-0013
+  fallback actuation calls. Composed by `devices/gateway.yaml` AFTER
+  `canbus/packages/health.yaml` (it `!extend`s the bus that package defines).
+- `packages/relay_bank.yaml` — lighting's 32-channel relay bank (ADR-0014):
+  one modbus_controller + 32 self-registering channels, 0-based
+  `relay_0..relay_31` natively (no id_offset arithmetic).
+- `packages/relay_channel.yaml` — one bank channel: wraps vesta's shared
+  `modbus_relay_switch.yaml` hardware driver and registers the created
+  switch into `relay_store()` — the registration lives next to the switch it
+  registers, so adding a channel registers it automatically.
+- `protocol/binding_actuation.h` — fallback pure logic (click-only gesture
+  gate, relay-bounds check); natively tested, no ESPHome includes.
+- `protocol/relay_store.h` — ESPHome glue: relay-id → `Switch*` store and
+  `fire_binding_fallback()`, the single actuation entry point both fallback
+  branches call.
+- `tests/test_binding_actuation.cpp` — native test for the pure logic (see
+  Test & verify below for the required `-I` flags).
 - `home-assistant/ha_hold_automations.yaml` — hand-maintained HA reference
   automations for hold/hold_release gestures (ADR-0012). Copy or `!include`
   into Home Assistant; replace the EXAMPLE node_id/button/entity_id values

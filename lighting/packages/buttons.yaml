@@ -18,7 +18,9 @@
 #   esphome.includes: canbus_protocol.h, node_map.h, ha_arbitration.h,
 #     bindings.h, binding_actuation.h, relay_store.h
 #   api encryption (this file only adds services/automations to the api block)
-#   32 relay switches registered as relay_0..relay_31 (the ADR-0014 relay bank)
+#   lighting/packages/relay_bank.yaml composed alongside this file — it
+#     creates relay_0..relay_31 and each channel self-registers into
+#     relay_store(), which the fallback path below reads
 # =============================================================================
 
 substitutions:
@@ -34,45 +36,6 @@ esphome:
         - text_sensor.template.publish:
             id: binding_manifest_hash
             state: !lambda 'return std::string(BINDINGS_MANIFEST_HASH);'
-        # Register every physical relay switch into relay_store() (ADR-0013 §1-2)
-        # so the fallback path below can resolve a binding's relay id to a real
-        # Switch*. ESPHome YAML/lambdas have no loop construct that can
-        # synthesize id(relay_N) for a compile-time-variable N, so these are 32
-        # explicit lines, not a loop. ids match devices/gateway.yaml's P4
-        # relay bank (`id_offset: -1` -> relay_0..relay_31).
-        - lambda: |-
-            relay_store(0) = id(relay_0);
-            relay_store(1) = id(relay_1);
-            relay_store(2) = id(relay_2);
-            relay_store(3) = id(relay_3);
-            relay_store(4) = id(relay_4);
-            relay_store(5) = id(relay_5);
-            relay_store(6) = id(relay_6);
-            relay_store(7) = id(relay_7);
-            relay_store(8) = id(relay_8);
-            relay_store(9) = id(relay_9);
-            relay_store(10) = id(relay_10);
-            relay_store(11) = id(relay_11);
-            relay_store(12) = id(relay_12);
-            relay_store(13) = id(relay_13);
-            relay_store(14) = id(relay_14);
-            relay_store(15) = id(relay_15);
-            relay_store(16) = id(relay_16);
-            relay_store(17) = id(relay_17);
-            relay_store(18) = id(relay_18);
-            relay_store(19) = id(relay_19);
-            relay_store(20) = id(relay_20);
-            relay_store(21) = id(relay_21);
-            relay_store(22) = id(relay_22);
-            relay_store(23) = id(relay_23);
-            relay_store(24) = id(relay_24);
-            relay_store(25) = id(relay_25);
-            relay_store(26) = id(relay_26);
-            relay_store(27) = id(relay_27);
-            relay_store(28) = id(relay_28);
-            relay_store(29) = id(relay_29);
-            relay_store(30) = id(relay_30);
-            relay_store(31) = id(relay_31);
 
 api:
   # Commissioning / OUTPUT-command services land in the commissioning slice; the

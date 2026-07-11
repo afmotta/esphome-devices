@@ -1,0 +1,36 @@
+# =============================================================================
+# relay_channel.yaml — one self-registering lighting relay channel
+# =============================================================================
+# Wraps vesta's generic modbus_relay_switch.yaml (the shared hardware driver —
+# ADR-0014's interchangeable-spares story keeps the modbus coil semantics in
+# one place for both lighting and hvac) and adds the one thing vesta must not
+# know about: registering the created switch into lighting's relay_store()
+# (relay_store.h) so the ADR-0013 fallback path can resolve relay id ->
+# Switch* at runtime. Because the registration lambda lives HERE, next to the
+# switch it registers, adding a channel to the bank automatically registers
+# it — no parallel list to keep in sync (this replaced the 32-line on_boot
+# lambda that used to live in buttons.yaml).
+#
+# Intended to be included by lighting/packages/relay_bank.yaml, not standalone.
+#
+# Required vars:
+#   controller_id      - modbus_controller this channel belongs to
+#   switch_number      - 0-based relay id (ADR-0013 progressive ids, 0-31)
+#   register_address   - coil register address (0x0000-0x001F)
+#
+# Requires from the composing entry point:
+#   esphome.includes: relay_store.h (and its dependencies)
+# =============================================================================
+
+packages:
+  hw: !include
+    file: ../../vesta/packages/devices/modbus-io/modbus_relay_switch.yaml
+    vars:
+      controller_id: ${controller_id}
+      switch_number: ${switch_number}
+      register_address: ${register_address}
+
+esphome:
+  on_boot:
+    - then:
+        - lambda: 'relay_store(${switch_number}) = id(relay_${switch_number});'

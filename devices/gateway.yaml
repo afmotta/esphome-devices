@@ -55,15 +55,16 @@ packages:
   # canbus next: defines can0 (see PACKAGE ORDER above) before lighting !extends it.
   health: !include ../canbus/packages/health.yaml
   buttons: !include ../lighting/packages/buttons.yaml
+  # Lighting-owned bank (0-based relay_0..relay_31 natively, each channel
+  # self-registers into relay_store() for the ADR-0013 fallback); wraps
+  # vesta's shared per-switch hardware driver.
   relays: !include
-    file: ../vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml
+    file: ../lighting/packages/relay_bank.yaml
     vars:
       controller_id: relay_board_1
-      controller_name: "Relay Board 1"
       modbus_address: 0x2
       modbus_bus_id: rs485_bus
       update_interval: 2s
-      id_offset: -1
 
 esphome:
   includes:

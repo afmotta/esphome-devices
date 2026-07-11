@@ -44,9 +44,11 @@ REQUIRED_KEYS = ("node_id", "button", "relay", "op")
 # Buttons are the gesture index into the standard 8-button set (0-7, packages/base_node.yaml).
 BUTTON_MAX = 7
 # One Waveshare Modbus RTU Relay 32CH bank on the gateway (ADR-0014), ids 0-31
-# (devices/gateway.yaml's `id_offset: -1` -> relay_0..relay_31). Keep in sync
-# with lighting/protocol/binding_actuation.h's MAX_RELAYS — a second bank
-# (ADR-0014 open item 2) is a find-both-and-bump change, not silent drift.
+# (lighting/packages/relay_bank.yaml numbers its channels 0-based natively,
+# per ADR-0013's progressive-id convention: relay id N <-> coil N). Keep in
+# sync with that bank's channel list and lighting/protocol/binding_actuation.h's
+# MAX_RELAYS — a second bank (ADR-0014 open item 2) bumps all three in one
+# commit, not silently.
 MAX_RELAY_ID = 31
 # Minimal action vocabulary (ADR-0009 open item 1): a relay id (or comma-list for fan-out)
 # plus one op. relay ids are progressive (relay_0, relay_1, ...) gateway outputs — no Modbus
