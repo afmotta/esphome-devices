@@ -3,11 +3,31 @@ defaults:
   friendly_name: "Climate Control"
   seasonal_mode_id: hp_mode
 
+esphome:
+  # This file is never compiled directly — it only resolves through the
+  # one-level-deeper devices/locals/*.yaml or devices/remotes/*.yaml wrapper
+  # (its `defaults:` substitutions are a no-op otherwise, same as noted in
+  # devices/gateway.yaml). ESPHome resolves `includes:` relative to the
+  # top-level CLI-invoked file's directory (esphome/core CORE.config_dir),
+  # not this file's own directory, so these need one extra `../` versus
+  # devices/gateway.yaml's `../canbus/protocol/...` (which IS compiled
+  # directly from devices/).
+  includes:
+    - ../../canbus/protocol/canbus_protocol.h
+    - ../../hvac/protocol/generated_can_sensor_routes.h
+    - ../../hvac/protocol/can_sensor_receiver.h
+
 packages:
   base: !include
     file: ../boards/t-connect-pro.yaml
     vars:
       enable_ethernet: true
+  # Publish-only HVAC-1.3 composition (routes before receiver: the receiver's
+  # on_frame action calls can_sensor_route_publish/_nan scripts, which must
+  # already be defined). Registry is empty (sensors=0) today, so these are
+  # currently no-op wiring; no control logic is flipped by this composition.
+  can_routes: !include ../hvac/packages/generated/can_sensor_routes.yaml
+  can_receiver: !include ../hvac/packages/can_sensor_receiver.yaml
   analog_outputs_1: !include
     file: ../vesta/packages/devices/modbus-io/modbus_analog_outputs_board.yaml
     vars:

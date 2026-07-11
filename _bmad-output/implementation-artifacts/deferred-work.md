@@ -1,3 +1,7 @@
+- source_spec: `_bmad-output/implementation-artifacts/spec-hvac-1-3-climate-controller-publish-only-composition.md`
+  summary: `devices/climate-control.yaml` and `hvac/tests/compile_can_sensor_receiver.yaml` have no shared regression fixture guarding the CAN receiver composition's package order and header include depth in the real controller entry point — only the isolated test fixture and this story's manual `esphome config` verification cover it.
+  evidence: Surfaced by adversarial review of the HVAC-1.3 diff; a future path or ordering regression in `devices/climate-control.yaml` would only be caught by re-running the manual verification command, not by any committed test or CI check.
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-hvac-1-2-sensor-only-can-receiver-freshness-core.md`
   summary: The local dirty `registry/nodes.csv` enables node 101 as `sensors=1,soggiorno` while generated route artifacts remain the placeholder empty output.
   evidence: This registry placement edit was present before the HVAC-1.2 implementation, is outside this story's code scope, and should be resolved by a focused regeneration/placement decision rather than folded into the receiver core.
