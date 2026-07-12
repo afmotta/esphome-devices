@@ -20,7 +20,10 @@
 #   humidity_sensor: Sensor ID for humidity input
 #
 # Depends on (must exist in merged config):
-#   ${mev_slug}_min_fan_speed - Minimum fan speed sensor (imported by mev.yaml)
+#   ${mev_slug}_min_fan_speed - Minimum fan speed HA import. When this file is
+#     composed through hvac/mev_modbus.yaml, it is declared by
+#     vesta/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
+#     Standalone consumers must declare an equivalent sensor before using this package.
 #
 # Exposes:
 #   sensor.${mev_slug}_max_demand         - MAX of CO2/Air Quality/Humidity demands (0-100%)

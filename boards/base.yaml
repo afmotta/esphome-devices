@@ -1,3 +1,6 @@
+substitutions:
+  logger_level: INFO
+
 esphome:
   name: ${device_name}
   min_version: 2026.3.0
@@ -9,6 +12,7 @@ esp32:
     type: esp-idf
 
 logger:
+  level: ${logger_level}
 
 api:
   encryption:

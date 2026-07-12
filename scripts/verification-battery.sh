@@ -115,11 +115,30 @@ idempotence_check() {
   git diff --exit-code canbus hvac registry
 }
 
+# Top-level logger configuration in deployable packages should be variable-driven with an
+# INFO default. Tests, examples, and bench docs may intentionally use DEBUG, but production
+# device/board/node packages should not hardcode it.
+logger_level_check() {
+  local offenders
+  offenders="$(
+    git grep -n -E '^  level: DEBUG$' -- boards canbus/packages devices 2>/dev/null || true
+  )"
+  if [ -n "$offenders" ]; then
+    echo "Hardcoded top-level logger DEBUG found in deployable configs/packages:"
+    echo "$offenders"
+    echo "Use a logger_level substitution with INFO default, then override only in local/test wrappers."
+    return 1
+  fi
+}
+
 echo "verification battery — repo: $REPO_ROOT"
 [ "$NATIVE_ONLY" -eq 1 ] && echo "mode: --native-only (esphome-dependent steps are SKIPPED)"
 echo
 
 # ── Python tests (stdlib-only) ──────────────────────────────────────────────
+run_step "hygiene: no tracked secrets or build artifacts" python3 scripts/check_repo_hygiene.py
+run_step "hygiene: deployable logger levels are configurable" logger_level_check
+run_step "hvac: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py
 run_step "python: canbus/tests/test_generate_exports.py"  python3 canbus/tests/test_generate_exports.py
 run_step "python: canbus/tests/test_push_gate.py"         python3 canbus/tests/test_push_gate.py

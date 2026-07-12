@@ -51,6 +51,7 @@ substitutions:
   # Note: generate_nodes.py will also emit an unused nodes/nodeNNN.yaml for a
   # bridge row — ignore it; this file is the bridge's config.
   node_id: "200"
+  logger_level: INFO
 
 esphome:
   name: canbus-bridge-${node_id}
@@ -89,7 +90,7 @@ esp32:
 
 # --------------- Logging (USB serial only — no network on a bridge) ---------------
 logger:
-  level: INFO
+  level: ${logger_level}
 
 # NO wifi:, api:, ota:, bluetooth: — ADR-0005 "radios off" is load-bearing.
 

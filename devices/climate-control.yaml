@@ -96,6 +96,8 @@ time:
     id: sntp_time
 
 binary_sensor:
+  # Keep these manual demand aggregates in sync with every PID diagnostic produced by
+  # hvac/rooms/**. scripts/verify_seasonal_mode_aggregation.py enforces completeness.
   - id: !extend any_pid_requesting_heat
     lambda: |-
       return id(soggiorno_radiant_pid_is_heating).state ||

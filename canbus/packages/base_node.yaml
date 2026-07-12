@@ -11,6 +11,9 @@
 # later slice.
 # =============================================================================
 
+substitutions:
+  logger_level: INFO
+
 esphome:
   includes:
     - ../protocol/canbus_protocol.h
@@ -28,7 +31,7 @@ rp2040:
   board: rpipico
 
 logger:
-  level: DEBUG
+  level: ${logger_level}
 
 packages:
   btn0: !include { file: button.yaml, vars: { button_index: "0", button_gpio: "24" } }

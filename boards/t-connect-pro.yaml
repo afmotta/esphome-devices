@@ -2,6 +2,7 @@ substitutions:
   wifi_package: !include t-connect-pro-wifi.yaml
   ethernet_package: !include t-connect-pro-ethernet.yaml
   enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
+  logger_level: INFO
 
 packages:
   network_package: ${ethernet_package if enable_ethernet else wifi_package}
@@ -35,6 +36,7 @@ psram:
 
 # Enable logging
 logger:
+  level: ${logger_level}
 
 # Enable Home Assistant API
 api:

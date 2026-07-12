@@ -20,3 +20,25 @@ The compiled artifacts derived from this data (`canbus/protocol/node_map.h`,
 `canbus/protocol/bindings.h`) are canbus-owned and covered by the
 same push gate — an uncommitted compiled header is as unsafe to flash as an
 uncommitted registry file.
+
+## Edit Workflow
+
+After changing `nodes.csv` or `bindings.yaml`, regenerate and test the derived
+artifacts before committing:
+
+```bash
+python3 canbus/tools/generate_nodes.py
+python3 canbus/tests/test_generate_exports.py
+git diff -- canbus hvac registry
+```
+
+Commit the registry source and generated artifacts together. Do not flash a
+controller from a local-only registry commit; push first, then run the gate:
+
+```bash
+python3 canbus/tools/check_registry_pushed.py
+```
+
+The gate checks that guarded registry/generated paths are clean and that `HEAD`
+is reachable from a remote. That makes the remote repository the backup for
+unrebuildable house data before firmware is reflashed.

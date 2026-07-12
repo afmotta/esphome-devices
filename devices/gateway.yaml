@@ -27,6 +27,7 @@ substitutions:
   ack_timeout_ms: "500"
   # Aliveness: a mapped node is LOST after 3 missed 30 s heartbeats (ADR-0011 §1).
   node_lost_timeout_ms: "90000"
+  logger_level: INFO
   # CAN transceiver pins on this board (T-Connect Pro onboard TWAI, per ADR-0014).
   can_tx_pin: GPIO6
   can_rx_pin: GPIO7
@@ -78,7 +79,7 @@ esphome:
 
 # --------------- Logging ---------------
 logger:
-  level: DEBUG
+  level: ${logger_level}
 
 modbus:
   id: rs485_bus

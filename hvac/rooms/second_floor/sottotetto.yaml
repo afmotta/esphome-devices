@@ -4,6 +4,9 @@
 # ============================================================================
 # Heating: Fancoil
 # Cooling: Fancoil
+# Condensation protection: this zone has no radiant/supply-water cooling loop;
+# room_sensors.yaml still declares sottotetto_dew_point for dashboard visibility,
+# but there is no second-floor supply-temperature minimum to enforce here.
 # ============================================================================
 defaults:
   room_slug: "sottotetto"
