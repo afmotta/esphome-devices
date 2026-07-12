@@ -22,6 +22,13 @@ packages:
       mev_name: "MEV Primo Piano"
       modbus_bus_id: rs485_bus
       fan_speed_output: analog_output_7
+      co2_sensor: first_floor_max_co2
+      voc_sensor: first_floor_max_voc_index
+      nox_sensor: first_floor_max_nox_index
+      pm1_0_sensor: first_floor_max_pm1_0
+      pm2_5_sensor: first_floor_max_pm2_5
+      pm4_0_sensor: first_floor_max_pm4_0
+      pm10_sensor: first_floor_max_pm10
       humidity_sensor: first_floor_max_humidity
   bagno_grande: !include bagno_grande.yaml
   bagno_ospiti: !include bagno_ospiti.yaml

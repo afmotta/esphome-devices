@@ -31,7 +31,7 @@ Implement the HVAC-owned CAN sensor receiver so production room-sensor data flow
 
 **Home Assistant Remains Optional**: The climate controller must operate autonomously when HA is unavailable — the CAN path (node -> bus -> controller's own interface) does not involve HA. Room control does not regress to non-CAN logic during publish-only rollout; climate control remains functional using either CAN or HA as the source.
 
-**MEV Air-Quality Model**: Air Quality/Pollutants demand derives from the max of normalized VOC, NOx, PM2.5, and PM10 demands. CO2 and Humidity remain separate demand channels. PM1.0 and PM4.0 are diagnostic only in v1.
+**MEV Air-Quality Model**: Air Quality/Pollutants demand derives from the max of normalized VOC, NOx, PM1.0, PM2.5, PM4.0, and PM10 demands. CO2 and Humidity remain separate demand channels.
 
 ## Technical Decisions
 

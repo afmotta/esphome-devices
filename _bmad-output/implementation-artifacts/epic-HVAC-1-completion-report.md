@@ -74,7 +74,7 @@ Sourced from each story spec's Auto Run Result (`spec-hvac-1-1-*.md` ..
 
 ### HVAC-1.5 — CAN Air-Quality MEV Demand Integration
 - `hvac/rooms/first_floor/first-floor.yaml` — 16 UDP CO2/IAQ sensors replaced with 56 static CAN pollutant sensors + 5 per-pollutant max aggregates
-- `hvac/mev_demand.yaml` — three top-level channels (CO2, Air Quality, Humidity); Air Quality = MAX of proportional VOC/NOx/PM2.5/PM10 demands; PM1.0/PM4.0 diagnostic-only
+- `hvac/mev_demand.yaml` — three top-level channels (CO2, Air Quality, Humidity); Air Quality = MAX of proportional VOC/NOx/PM1.0/PM2.5/PM4.0/PM10 demands
 - `hvac/mev_modbus.yaml` — `demand:` package vars updated to the new contract
 - `hvac/CLAUDE.md` — MEV entity list and CAN-sourcing description
 

@@ -72,7 +72,7 @@ ground_floor_fancoil_boost_threshold # Boost activation threshold
 # Floor-scoped MEV
 first_floor_mev_fan_speed            # MEV fan speed control
 first_floor_mev_co2_demand           # CO2-based demand signal
-first_floor_mev_air_quality_demand   # MAX of VOC/NOx/PM2.5/PM10 demand signals
+first_floor_mev_air_quality_demand   # MAX of VOC/NOx/PM1.0/PM2.5/PM4.0/PM10 demand signals
 first_floor_mev_alarm_active         # Master alarm indicator
 ```
 

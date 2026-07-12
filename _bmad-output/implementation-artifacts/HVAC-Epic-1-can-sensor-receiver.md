@@ -106,8 +106,7 @@ and verification/bench validation.
    CAN-primary and HA-secondary inputs; room PID, humidity, dew point, and MEV
    humidity logic continue to consume abstracted sensors only.
 5. MEV demand keeps separate control channels for CO2, Air Quality/Pollutants, and
-   Humidity. Pollutant demand derives from VOC, NOx, PM2.5, and PM10 while PM1.0 and
-   PM4.0 remain diagnostics in v1.
+   Humidity. Pollutant demand derives from VOC, NOx, PM1.0, PM2.5, PM4.0, and PM10.
 
 ### Data Flow
 
@@ -150,7 +149,7 @@ and verification/bench validation.
 | Sensor sources | Existing registry nodes flipped to `sensors=1` | No new CAN nodes are created by this epic; enabling a room is a registry edit plus regeneration. |
 | Control temperature/humidity source | SHT45 | SEN66 temperature/humidity may be diagnostic only. |
 | Stale threshold | 90 seconds per room measurement | Sensor kit emits every 30 seconds; three missed OK frames marks the source unavailable. |
-| MEV pollutant model | MAX of VOC, NOx, PM2.5, PM10 normalized demands | Keeps CO2 distinct while allowing pollutant families to drive ventilation. |
+| MEV pollutant model | MAX of VOC, NOx, PM1.0, PM2.5, PM4.0, PM10 normalized demands | Keeps CO2 distinct while allowing pollutant families to drive ventilation. |
 
 ### Entity Contract
 
@@ -350,8 +349,8 @@ so that ventilation responds to occupancy, pollutants, and humidity with clear d
 1. Raw CAN CO2, VOC index, NOx index, PM1.0, PM2.5, PM4.0, and PM10 are published to Home Assistant per routed room.
 2. CO2 demand remains a separate top-level MEV demand channel.
 3. Humidity demand remains a separate top-level MEV demand channel and continues to use abstracted humidity.
-4. Air Quality/Pollutants demand is derived from the max of normalized VOC, NOx, PM2.5, and PM10 demands.
-5. PM1.0 and PM4.0 are diagnostic in v1 and do not drive pollutant demand unless a later tuning pass changes the contract.
+4. Air Quality/Pollutants demand is derived from the max of normalized VOC, NOx, PM1.0, PM2.5, PM4.0, and PM10 demands.
+5. PM1.0 and PM4.0 participate in pollutant demand alongside the other SEN66 particulate channels.
 6. Final fan-speed demand remains the max of CO2, Air Quality/Pollutants, Humidity, and baseline ventilation demand.
 7. `text_sensor.${mev_slug}_dominant_demand` stays at the control-channel level: `CO2`, `Air Quality`, `Humidity`, or `Ventilation`.
 8. Optional pollutant-level diagnostics may identify which pollutant is dominant inside the Air Quality channel.

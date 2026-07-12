@@ -2,11 +2,10 @@
 #
 # Creates demand sensors for 3 top-level channels (CO2, Air Quality, Humidity)
 # and aggregates them using MAX into a single demand signal with dominant
-# demand tracking. Air Quality is itself the MAX of 4 normalized pollutant
-# demand channels (VOC index, NOx index, PM2.5, PM10) so pollutant families
+# demand tracking. Air Quality is itself the MAX of 6 normalized pollutant
+# demand channels (VOC index, NOx index, PM1.0, PM2.5, PM4.0, PM10) so pollutant families
 # can drive ventilation without adding a top-level MEV demand channel per
-# raw sensor (HVAC-1.5). PM1.0/PM4.0 are diagnostic-only and never feed
-# Air Quality demand.
+# raw sensor (HVAC-1.5 follow-up).
 #
 # Required vars:
 #   mev_slug: Device slug for entity IDs (e.g., "first_floor_mev")
@@ -14,7 +13,9 @@
 #   co2_sensor: Sensor ID for CO2 input (e.g., first_floor_max_co2)
 #   voc_sensor: Sensor ID for VOC index input (e.g., first_floor_max_voc_index)
 #   nox_sensor: Sensor ID for NOx index input (e.g., first_floor_max_nox_index)
+#   pm1_0_sensor: Sensor ID for PM1.0 input (e.g., first_floor_max_pm1_0)
 #   pm2_5_sensor: Sensor ID for PM2.5 input (e.g., first_floor_max_pm2_5)
+#   pm4_0_sensor: Sensor ID for PM4.0 input (e.g., first_floor_max_pm4_0)
 #   pm10_sensor: Sensor ID for PM10 input (e.g., first_floor_max_pm10)
 #   humidity_sensor: Sensor ID for humidity input
 #
@@ -26,9 +27,11 @@
 #   sensor.${mev_slug}_co2_demand         - CO2 demand %
 #   sensor.${mev_slug}_voc_demand         - VOC index demand %
 #   sensor.${mev_slug}_nox_demand         - NOx index demand %
+#   sensor.${mev_slug}_pm1_0_demand       - PM1.0 demand %
 #   sensor.${mev_slug}_pm2_5_demand       - PM2.5 demand %
+#   sensor.${mev_slug}_pm4_0_demand       - PM4.0 demand %
 #   sensor.${mev_slug}_pm10_demand        - PM10 demand %
-#   sensor.${mev_slug}_air_quality_demand - MAX of VOC/NOx/PM2.5/PM10 demands %
+#   sensor.${mev_slug}_air_quality_demand - MAX of VOC/NOx/PM1.0/PM2.5/PM4.0/PM10 demands %
 #   sensor.${mev_slug}_humidity_demand    - Humidity demand %
 #   sensor.${mev_slug}_humidity_rate      - Humidity rate of change (via trend)
 #   text_sensor.${mev_slug}_dominant_demand - Which control channel drives fan speed (CO2/Air Quality/Humidity/Ventilation)
@@ -77,6 +80,21 @@ packages:
       rate_multiplier: "2.0"
       icon: mdi:air-filter
 
+  pm1_0_demand: !include
+    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    vars:
+      component_id: ${mev_slug}
+      component_name: ${mev_name}
+      demand_slug: pm1_0
+      demand_name: PM1.0
+      unit_of_measurement: ug/m3
+      source_sensor_id: ${pm1_0_sensor}
+      min_output_id: ${mev_slug}_min_fan_speed
+      lower_bound_entity: "input_number.mev_pm1_0_lower_bound"
+      upper_bound_entity: "input_number.mev_pm1_0_upper_bound"
+      rate_multiplier: "2.0"
+      icon: mdi:air-filter
+
   pm2_5_demand: !include
     file: ../vesta/packages/components/proportional_demand_sensor.yaml
     vars:
@@ -89,6 +107,21 @@ packages:
       min_output_id: ${mev_slug}_min_fan_speed
       lower_bound_entity: "input_number.mev_pm2_5_lower_bound"
       upper_bound_entity: "input_number.mev_pm2_5_upper_bound"
+      rate_multiplier: "2.0"
+      icon: mdi:air-filter
+
+  pm4_0_demand: !include
+    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    vars:
+      component_id: ${mev_slug}
+      component_name: ${mev_name}
+      demand_slug: pm4_0
+      demand_name: PM4.0
+      unit_of_measurement: ug/m3
+      source_sensor_id: ${pm4_0_sensor}
+      min_output_id: ${mev_slug}_min_fan_speed
+      lower_bound_entity: "input_number.mev_pm4_0_lower_bound"
+      upper_bound_entity: "input_number.mev_pm4_0_upper_bound"
       rate_multiplier: "2.0"
       icon: mdi:air-filter
 
@@ -122,7 +155,7 @@ packages:
       icon: mdi:water-percent
 
 sensor:
-  # Air Quality demand: MAX of the 4 pollutant demand channels
+  # Air Quality demand: MAX of the pollutant demand channels
   - platform: template
     name: "${mev_name} Air Quality Demand"
     id: ${mev_slug}_air_quality_demand
@@ -133,17 +166,21 @@ sensor:
     lambda: |-
       float voc = id(${mev_slug}_voc_demand).state;
       float nox = id(${mev_slug}_nox_demand).state;
+      float pm1_0 = id(${mev_slug}_pm1_0_demand).state;
       float pm2_5 = id(${mev_slug}_pm2_5_demand).state;
+      float pm4_0 = id(${mev_slug}_pm4_0_demand).state;
       float pm10 = id(${mev_slug}_pm10_demand).state;
       float min_fan = id(${mev_slug}_min_fan_speed).state;
 
       if (isnan(min_fan)) min_fan = 20.0f;
       float f_voc = isnan(voc) ? min_fan : voc;
       float f_nox = isnan(nox) ? min_fan : nox;
+      float f_pm1_0 = isnan(pm1_0) ? min_fan : pm1_0;
       float f_pm2_5 = isnan(pm2_5) ? min_fan : pm2_5;
+      float f_pm4_0 = isnan(pm4_0) ? min_fan : pm4_0;
       float f_pm10 = isnan(pm10) ? min_fan : pm10;
 
-      return std::min(100.0f, std::max({f_voc, f_nox, f_pm2_5, f_pm10}));
+      return std::min(100.0f, std::max({f_voc, f_nox, f_pm1_0, f_pm2_5, f_pm4_0, f_pm10}));
 
   # MAX demand aggregation
   - platform: template
