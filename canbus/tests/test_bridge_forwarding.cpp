@@ -1,5 +1,6 @@
 // Standalone native test for bridge_forwarding.h (no ESPHome required).
-// Build & run:  g++ -std=c++17 -Wall -Wextra firmware/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
+// Build & run (from repo root):
+//   g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
 //
 // Covers the ADR-0005 store-and-forward queue: FIFO order and payload fidelity,
 // the oversize/overflow drop rules (drop-newest, counted), the paced drain cap,

@@ -9,7 +9,8 @@
 // the battery regenerates bindings.h before compiling, so either side drifting
 // breaks the run.
 //
-// Run:  g++ -std=c++17 -Wall -Wextra test_bindings_contract.cpp -o t && ./t
+// Run (from repo root):
+//   g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract
 // =============================================================================
 
 #include "../protocol/bindings.h"

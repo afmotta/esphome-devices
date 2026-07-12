@@ -134,11 +134,11 @@ development_status:
 
   # === HVAC-Epic 1: HVAC CAN Sensor Receiver ===
 
-  hvac-epic-1: in-progress
+  hvac-epic-1: in-progress # manual done-flip only after the HVAC-1.6 compile gates run on an unrestricted network AND the bench session (epic-HVAC-1-testing-checklist.md) completes
   hvac-1-1-generated-can-sensor-routing-artifact: done
   hvac-1-2-sensor-only-can-receiver-freshness-core: done
   hvac-1-3-climate-controller-publish-only-composition: done
   hvac-1-4-can-primary-room-sensor-failover: done
   hvac-1-5-can-air-quality-mev-demand-integration: done
-  hvac-1-6-verification-battery-bench-rollout: backlog
+  hvac-1-6-verification-battery-bench-rollout: in-progress # software delivered + permitted battery subset green; esphome compile gates blocked by this session's egress policy (spec-hvac-1-6-*: blocked; see epic-HVAC-1-completion-report.md "Environment limits")
   hvac-epic-1-retrospective: optional
