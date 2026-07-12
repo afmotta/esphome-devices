@@ -157,7 +157,7 @@ The whole cross-system battery (canbus generator/python/native tests, lighting,
 these hvac checks, generator idempotence across `canbus`/`hvac`/`registry`, and
 the vesta failover e2e) is codified in `scripts/verification-battery.sh`:
 `bash scripts/verification-battery.sh` (or `--native-only` when ESPHome isn't
-installed). Verification runs pin `esphome==2026.5.3` (`vesta/tests/pyproject.toml`).
+installed). Verification runs pin `esphome==2026.6.5` (`vesta/tests/pyproject.toml`).
 
 ## Common Tasks
 

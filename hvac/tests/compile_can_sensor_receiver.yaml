@@ -10,7 +10,7 @@
 esphome:
   name: t-can-sensor-receiver
   friendly_name: "Test CAN Sensor Receiver"
-  min_version: 2026.5.0
+  min_version: 2026.6.5
   includes:
     - ../../canbus/protocol/canbus_protocol.h
     - ../protocol/generated_can_sensor_routes.h
@@ -42,6 +42,47 @@ sensor:
     device_class: humidity
     state_class: measurement
     accuracy_decimals: 2
+    internal: true
+  - platform: template
+    id: soggiorno_pm1_0_can
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    internal: true
+  - platform: template
+    id: soggiorno_pm2_5_can
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    internal: true
+  - platform: template
+    id: soggiorno_pm4_0_can
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    internal: true
+  - platform: template
+    id: soggiorno_pm10_can
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    internal: true
+  - platform: template
+    id: soggiorno_voc_index_can
+    state_class: measurement
+    accuracy_decimals: 0
+    internal: true
+  - platform: template
+    id: soggiorno_nox_index_can
+    state_class: measurement
+    accuracy_decimals: 0
+    internal: true
+  - platform: template
+    id: soggiorno_co2_can
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
     internal: true
 
 packages:

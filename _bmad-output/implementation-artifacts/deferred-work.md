@@ -1,3 +1,23 @@
+- source_spec: `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md`
+  summary: ARCHITECTURE-SPINE.md still says "vesta test harness pins 2026.5.3" after the 2026.6.5 uplift.
+  evidence: Pre-existing doc management; that file already carries a partially-stale version record and a "reality check" caveat; scoped out as a non-operational planning artifact.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md`
+  summary: HVAC-1 completion report records esphome==2026.5.3 as the verification toolchain; now stale after the 2026.6.5 uplift.
+  evidence: Historical completion report, correct at time of writing; should be noted in the completion report header only if the full HVAC-1 battery is re-run at 2026.6.5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md`
+  summary: boards/base.yaml, boards/waveshare-s3.yaml, devices/wall-sensor.yaml still enforce min_version 2026.3.0 while the repo's CLAUDE.md now advertises 2026.6.5 as the T-Connect Pro HVAC floor.
+  evidence: Pre-existing inconsistency across device families; those boards are separate hardware lineages not part of the T-Connect Pro entry-point scope; a focused board-family sweep should align them.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md`
+  summary: vesta/tests/pyproject.toml ESPHome pin now equals the floor (2026.6.5 == 2026.6.5); the previous pattern had pin > floor to preserve a compatibility-test signal at patch releases.
+  evidence: The old pattern (esphome==2026.5.3, floor=2026.5.0) provided 3 patch versions of headroom; restoring that pattern means bumping the pin to a later 2026.6.x patch release after it ships or raising the floor to a previous minor.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md`
+  summary: canbus story artifacts (Epics 2–5) reference 2026.5.0 as the validated ESPHome baseline; canbus/README.md now shows 2026.6.5; historical records are accurate but diverge from the current README.
+  evidence: Historical story records are correct; README now has a note pointing to the spec for 2026.6.5 compile evidence; no functional gap but a brief "historical baselines" line in the README would eliminate reader ambiguity.
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-hvac-1-5-can-air-quality-mev-demand-integration.md`
   summary: The four new pollutant demand channels (VOC, NOx, PM2.5, PM10) reference `input_number.mev_{voc,nox,pm2_5,pm10}_{lower,upper}_bound` Home Assistant helper entities that are not created by any committed Home Assistant config/dashboard package — the same gap already existed for the pre-existing `mev_co2_lower_bound`/`upper_bound` and `mev_humidity_lower_bound`/`upper_bound` entities this story mirrors, so it is a pre-existing convention gap, not a new regression.
   evidence: Surfaced by Blind Hunter review of the HVAC-1.5 diff; `proportional_demand_sensor.yaml`'s `homeassistant` platform sensors read these entity IDs unconditionally, so until an operator (or a committed `hvac/home-assistant/` package) creates all 8 `input_number` helpers, the new demand sensors fall back to `fallback_value` (20.0) exactly like the pre-existing CO2/humidity channels do today.

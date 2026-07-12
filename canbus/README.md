@@ -67,9 +67,9 @@ All values confirmed from V1.1 Eagle schematic. Use these in Story 2.1
 
 ## ESPHome Version
 
-**Known-good version:** ESPHome 2026.5.0 — confirmed by successful `esphome compile gateway.yaml` (Story 3.2) and the Epic 2 node compiles.
+**Known-good version:** ESPHome 2026.6.5 — confirmed by successful `esphome compile devices/gateway.yaml` (2026-07-12; see `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md` for full compile evidence).
 
-> **Not enforced:** no YAML carries an `esphome: min_version:` constraint, so this version is recorded, not pinned — a different installed ESPHome will still build. Treat 2026.5.0 as the last validated baseline; add `esphome: min_version:` if a hard floor becomes necessary.
+> **Not enforced:** no YAML carries an `esphome: min_version:` constraint, so this version is recorded, not pinned — a different installed ESPHome will still build. Treat 2026.6.5 as the last validated baseline; add `esphome: min_version:` if a hard floor becomes necessary.
 
 > **Note:** As of ESPHome 2026.1.0 the `api: password:` option was removed. The gateway uses
 > API encryption instead (`api: encryption: key: !secret api_encryption_key`). Generate a key with

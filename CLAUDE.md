@@ -86,7 +86,7 @@ Standardized per ADR-0014 — the same three devices serve both the HVAC and lig
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **ESPHome** | 2026.5.0+ | ESP32 firmware framework (YAML-based); 2026.5.0 floor set by `boards/t-connect-pro.yaml` (`sntp`/`ds2484` verified there) |
+| **ESPHome** | 2026.6.5+ | ESP32 firmware framework (YAML-based); 2026.6.5 floor set by `boards/t-connect-pro.yaml` after validating the `modbus_controller`/`modbus_server` split (`sntp`/`ds2484` verified there) |
 | **Python** | 3.x | Custom component development (LD2450 sensor driver) |
 | **C++** | (ESP-IDF) | Low-level sensor integrations and performance-critical code |
 | **YAML** | 1.2 | Configuration language for ESPHome |
@@ -606,7 +606,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check YAML syntax (indentation, colons, dashes)
 - Verify all `!include` paths are correct
 - Ensure all substitution variables are defined
-- Check ESPHome version (min 2026.5.0 for the T-Connect Pro entry points)
+- Check ESPHome version (min 2026.6.5 for the T-Connect Pro entry points)
 
 **Sensor Failover**:
 - Check failover logs in Home Assistant
@@ -629,6 +629,7 @@ sensor-address appendices and PID tuning guidelines are documented in `hvac/CLAU
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-12 | 1.7 | Raised the T-Connect Pro HVAC support floor to ESPHome 2026.6.5 after verifying the repo uses external Modbus slave devices but no ESPHome `modbus_server` blocks; updated version references accordingly | AI Assistant |
 | 2026-07-11 | 1.6 | HVAC-1.4: `hvac/room_sensors.yaml` flipped to CAN-primary/HA-secondary/Emergency failover (was HA-primary/UDP-secondary); updated failover-order bullets, the Failover Architecture section, and Best Practices/Troubleshooting sensor-failover language accordingly | AI Assistant |
 | 2026-07-11 | 1.5 | ADR-0014 P6 hardware docs sweep: Hardware table rewritten to the standardized family (LilyGO T-Connect Pro + Waveshare Relay 32CH + Analog Output 8CH (B)); retired all Gen-1 controller/slave-board and Modbus-room-sensor claims; corrected autonomy story (single Modbus master; room sensors HA→UDP→Emergency); deleted the orphaned Gen-1 and ESP32-S3-POE board files and updated all references; ESPHome floor 2026.5.0 | AI Assistant |
 | 2026-07-07 | 1.4 | Migration Phase 6b: rewrote Repository Structure to the actual four-system tree (canbus/lighting/hvac/vesta + top-level registry/devices); removed the "predates restructure" note; moved HVAC-only rules (entity-ID convention, PID architecture, Modbus/relay appendices, HVAC Common Tasks) to `hvac/CLAUDE.md` per AD-10 (root is the map, not the rules) | AI Assistant |
