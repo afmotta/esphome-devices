@@ -159,6 +159,7 @@ esphome-devices/
 │
 ├── boards/                    # Board hardware definitions (shared, no owning system)
 │   ├── t-connect-pro.yaml / t-connect-pro-ethernet.yaml / t-connect-pro-wifi.yaml # LilyGO T-Connect Pro (both controllers, ADR-0014)
+│   ├── canbed-rp2040.yaml   # Longan Labs CANBed RP2040 node board (CAN bus button/sensor nodes)
 │   ├── s1-pro-multi-sense.yaml # Sensor board
 │   ├── base.yaml               # Legacy common settings (Gen-1 a6/a16 era; no current consumer)
 │   └── wifi.yaml                # Legacy WiFi network config (Gen-1 a6/a16 era; no current consumer)

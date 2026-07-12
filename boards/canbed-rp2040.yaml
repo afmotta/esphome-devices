@@ -1,0 +1,38 @@
+# =============================================================================
+# canbed-rp2040.yaml — Longan Labs CANBed RP2040 board hardware
+# =============================================================================
+# Generic board package for CAN button/sensor nodes. Specific node firmware
+# lives in canbus/nodes/*.yaml (generated) and composes this board with the
+# canbus node behavior packages.
+# =============================================================================
+
+substitutions:
+  logger_level: INFO
+
+rp2040:
+  board: rpipico
+
+logger:
+  level: ${logger_level}
+
+# MCP2515 SPI bus, fixed by the CANBed RP2040 V1.1 schematic.
+spi:
+  clk_pin: GPIO2
+  mosi_pin: GPIO3
+  miso_pin: GPIO4
+
+# MCP2515 CAN controller. GPIO11 is the hardware INT line, but ESPHome's
+# mcp2515 platform does not expose an interrupt-pin option, so it polls SPI.
+# NOTE: canbus/packages/health.yaml also declares `id: can0` for its ESP32 TWAI bus.
+# The two are never composed into the same entry point today (this board: generated
+# node YAMLs + compile_sensor_node.yaml only; health.yaml: devices/gateway.yaml only).
+canbus:
+  - platform: mcp2515
+    id: can0
+    use_extended_id: true
+    # Component default TX id (CAT_STATUS base). Every send specifies an explicit can_id +
+    # use_extended_id, so this is only the component default and is never relied on.
+    can_id: 0x06000000
+    cs_pin: GPIO9
+    clock: 16MHZ
+    bit_rate: 125KBPS

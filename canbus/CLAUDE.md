@@ -40,6 +40,11 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   includes) — own struct state via a header accessor (see `pending_acks_store`
   in `lighting/packages/buttons.yaml`, `node_health_store` in
   `canbus/packages/health.yaml`).
+- **CAN node composition is generic board through base node.** Generated node configs
+  in `canbus/nodes/` compose `base_node.yaml` plus optional `sensor_kit.yaml` only;
+  `base_node.yaml` pulls in `boards/canbed-rp2040.yaml` (RP2040, logger, SPI,
+  MCP2515 `can0`) and owns protocol include, boot logging, standard buttons,
+  globals, and heartbeat.
 - **`canbus/packages/`** holds both node-side (`base_node.yaml`, `button.yaml`,
   `sensor_kit.yaml`) and gateway-side (`health.yaml` — transport health + the
   bus definition) packages since Phase 6a merged them. `devices/gateway.yaml`

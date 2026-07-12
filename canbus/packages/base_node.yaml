@@ -1,8 +1,11 @@
 # =============================================================================
-# base_node.yaml — shared package included by every node
+# base_node.yaml — shared CAN node behavior package
 # =============================================================================
 # Required substitutions:
-#   ${node_id}  (the node's only identity — name/friendly_name are derived from it)
+#   ${node_id}  (the node's only identity)
+#   ${debounce_ms}
+# Pulls in boards/canbed-rp2040.yaml directly, which provides the RP2040 platform,
+# logger, SPI bus, and MCP2515 `id: can0`.
 #
 # Flat node_id model (ADR-0007): the node's only identity is its node_id, carried in the
 # 29-bit Extended CAN ID. room/board/behaviour live in a central node_id->{...} map on the
@@ -11,14 +14,9 @@
 # later slice.
 # =============================================================================
 
-substitutions:
-  logger_level: INFO
-
 esphome:
   includes:
     - ../protocol/canbus_protocol.h
-  name: node_${node_id}
-  friendly_name: "Node ${node_id}"
   on_boot:
     priority: 200
     then:
@@ -27,13 +25,8 @@ esphome:
           ESP_LOGI("canbus", "  Input  CAN ID: 0x%08X", can_id(CAT_INPUT,  ${node_id}));
           ESP_LOGI("canbus", "  Status CAN ID: 0x%08X", can_id(CAT_STATUS, ${node_id}));
 
-rp2040:
-  board: rpipico
-
-logger:
-  level: ${logger_level}
-
 packages:
+  board: !include ../../boards/canbed-rp2040.yaml
   btn0: !include { file: button.yaml, vars: { button_index: "0", button_gpio: "24" } }
   btn1: !include { file: button.yaml, vars: { button_index: "1", button_gpio: "23" } }
   btn2: !include { file: button.yaml, vars: { button_index: "2", button_gpio: "22" } }
@@ -55,26 +48,6 @@ globals:
   - id: last_millis
     type: uint32_t
     initial_value: "0"
-
-# --------------- SPI bus for MCP2515 ---------------
-spi:
-  clk_pin: GPIO2
-  mosi_pin: GPIO3
-  miso_pin: GPIO4
-
-# --------------- CAN bus ---------------
-# NOTE: health.yaml (canbus/packages/) also declares `id: can0` for its esp32_can bus. See
-# that file's note — never composed together today, but the id would collide if that changes.
-canbus:
-  - platform: mcp2515
-    id: can0
-    use_extended_id: true
-    # Component default TX id (CAT_STATUS base). Every send specifies an explicit can_id +
-    # use_extended_id, so this is only the component default and is never relied on.
-    can_id: 0x06000000
-    cs_pin: GPIO9
-    clock: 16MHZ
-    bit_rate: 125KBPS
 
 # --------------- Heartbeat every 30 seconds ---------------
 interval:

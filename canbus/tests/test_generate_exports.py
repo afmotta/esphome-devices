@@ -204,6 +204,21 @@ def test_generator_node_map_version_matches_map_json():
         assert f'NODE_MAP_VERSION[] = "{map_version}";' in header
 
 
+def test_generator_node_config_uses_base_node_for_board_and_behavior():
+    nodes_csv = "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        node_yaml = (root / "nodes" / "node100.yaml").read_text()
+        assert "Hardware: CANBed RP2040 board pulled in by packages/base_node.yaml" in node_yaml
+        assert "name: node_100" in node_yaml
+        assert "friendly_name: \"Node 100\"" in node_yaml
+        assert "board: !include ../../boards/canbed-rp2040.yaml" not in node_yaml
+        assert "base: !include ../packages/base_node.yaml" in node_yaml
+
+
 def test_generator_aborts_before_writing_node_files():
     # validate-before-persist: an invalid bindings.yaml must abort the generator before any
     # node artifact (nodes/*.yaml, node_map.h) is written, so a bad manifest can't leave the

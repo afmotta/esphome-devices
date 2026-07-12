@@ -51,8 +51,9 @@ connected to MCP2515 OSC1/OSC2) has `value="16MHz"`.
 
 ## Complete MCP2515 SPI Pin Reference (CANBed RP2040 V1.1)
 
-All values confirmed from V1.1 Eagle schematic. Use these in Story 2.1
-(`canbus/packages/base_node.yaml`) and Story 1.4 (`canbus/tools/generate_nodes.py` template).
+All values confirmed from V1.1 Eagle schematic. The fixed board mapping lives in
+`boards/canbed-rp2040.yaml`, which is included by `canbus/packages/base_node.yaml`.
+Generated node configs include `base_node.yaml`, not the board package directly.
 
 | Signal      | RP2040 GPIO | Net name | Template assumption | Correct?  |
 | ----------- | ----------- | -------- | ------------------- | --------- |
@@ -158,8 +159,8 @@ control: hold-to-dim, hold-to-move a cover.
   `hold_release` can never run away. Derived long presses satisfy it by construction — a
   lost release means the action just doesn't fire.
 - Compile check without touching generated nodes:
-  `esphome compile canbus/tests/compile_sensor_node.yaml` (base node + all 8 buttons +
-  sensor kit).
+  `esphome compile canbus/tests/compile_sensor_node.yaml` (base node including the
+  CANBed board + all 8 buttons + sensor kit).
 
 ---
 

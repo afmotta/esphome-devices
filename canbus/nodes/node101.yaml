@@ -5,6 +5,7 @@
 # Identity-only: the node knows just its node_id. Floor/room/board/location are NOT known at
 # flash time (the node is flashed at allocation, positioned/commissioned later) — they live in
 # the registry and the gateway's node_map.h, never here (ADR-0007).
+# Hardware: CANBed RP2040 board pulled in by packages/base_node.yaml
 # Buttons:  standard 8-button set (btn0–btn7) from packages/base_node.yaml
 # Sensors:  SHT45 + SEN66 kit from packages/sensor_kit.yaml (CAT_SENSOR, host room = sensor room)
 # CAN IDs (29-bit Extended, computed at runtime from node_id):
@@ -15,6 +16,10 @@
 substitutions:
   node_id: "101"
   debounce_ms: "50"
+
+esphome:
+  name: node_101
+  friendly_name: "Node 101"
 
 packages:
   base: !include ../packages/base_node.yaml

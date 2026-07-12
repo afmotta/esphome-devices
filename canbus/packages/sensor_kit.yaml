@@ -3,7 +3,8 @@
 # =============================================================================
 # Opt-in package (ADR-0006): include from a node via the `sensors` column in
 # registry/nodes.csv — never by hand-editing nodes/. Always included ALONGSIDE
-# base_node.yaml, which provides can0, the protocol header, and ${node_id};
+# base_node.yaml, which pulls in the board package (can0) and provides the protocol
+# header/node behavior; ${node_id} comes from the generated node config.
 # "dedicated sensor node" vs "combined with buttons" is a deployment profile
 # (ADR-0006 §5), not a different include. The frames carry the host node's
 # node_id, so the host's central-map room MUST be the sensor's room.

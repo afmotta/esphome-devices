@@ -97,7 +97,7 @@ canbus/                       # flattened out of firmware/ (Phase 6a); gateway.y
 │   └── node_map.h           # GENERATED central node_id -> {room, board, name} map (gateway include)
 ├── packages/                # node-side (base_node, button, sensor_kit) + gateway-side (health.yaml,
 │   │                        #   canbus's half of the Phase 5b-2 gateway split)
-│   ├── base_node.yaml       # Shared node package: SPI, MCP2515, heartbeat, AND the standard 8-button set
+│   ├── base_node.yaml       # Shared CAN node behavior: protocol include, heartbeat, standard 8-button set
 │   ├── button.yaml          # Per-button package: GPIO + on_multi_click with 5 event types
 │   ├── sensor_kit.yaml      # Opt-in ADR-0006 sensor kit (SHT45 + SEN66)
 │   └── health.yaml          # Gateway-side: bus definition + transport health (see devices/gateway.yaml)
@@ -113,11 +113,12 @@ canbus/                       # flattened out of firmware/ (Phase 6a); gateway.y
     └── ...
 ```
 
-Each generated node file is minimal: it declares only the `node_id` and `debounce_ms`
-substitutions and `packages: base: !include ../packages/base_node.yaml`. Everything else —
-the `esphome:`/`rp2040:`/`logger:` blocks, SPI/CAN pins, and the 8-button set — lives in
-`base_node.yaml`, which derives the device name and friendly name from `node_id`. So all
-nodes are identical apart from their `node_id` (the node's only identity).
+Each generated node file is minimal: it declares the concrete device identity, the `node_id`
+and `debounce_ms` substitutions, then composes `packages/base_node.yaml`. `base_node.yaml`
+pulls in `boards/canbed-rp2040.yaml`, so board hardware (`rp2040`, logger, SPI, MCP2515
+`can0`) stays behind the base-node abstraction while CAN node behavior (protocol include,
+boot logging, standard buttons, heartbeat) lives beside it. So all nodes are identical apart
+from their `node_id` (the node's only identity) and optional sensor-kit package.
 
 ### Why the C++ header exists
 
@@ -127,7 +128,7 @@ ESPHome `!lambda` blocks are inline C++. Without the header, every lambda would 
 
 Every node carries the same standard set of **8 buttons** (`btn0`–`btn7`). These are
 declared once in `packages/base_node.yaml`, so individual node files do not configure
-buttons at all — they just `!include` the base package:
+buttons at all — they include the base node package:
 
 ```yaml
 # packages/base_node.yaml
@@ -148,7 +149,7 @@ Multi-click patterns are ordered longest-first (triple → double → single →
 
 ### CANBed RP2040 SPI pin mapping
 
-The MCP2515 CAN controller on the CANBed RP2040 is connected via SPI0. These pins are fixed by the board design and are hardcoded directly in `packages/base_node.yaml` (no longer passed as per-node substitutions):
+The MCP2515 CAN controller on the CANBed RP2040 is connected via SPI0. These pins are fixed by the board design and are declared once in `boards/canbed-rp2040.yaml` (not passed as per-node substitutions):
 
 | Function | GPIO | Source |
 |----------|------|--------|
@@ -166,27 +167,29 @@ Note: the board ships as a kit with unsoldered through-hole components (terminal
 ### Node config generation
 
 `tools/generate_nodes.py` reads `registry/nodes.csv` and produces one minimal YAML file per
-board. Because all hardware config (SPI/CAN pins and the standard 8-button set) and the
-`esphome:`/`rp2040:`/`logger:` blocks now live in `packages/base_node.yaml`, each generated
-node file only needs its identity and a single `!include`:
+node. Because `packages/base_node.yaml` pulls in `boards/canbed-rp2040.yaml` and shared node
+behavior lives in the same base package, each generated node file only needs its identity,
+substitutions, and package composition:
 
 ```yaml
 substitutions:
   node_id: "100"
   debounce_ms: "50"
 
+esphome:
+  name: node_100
+  friendly_name: "Node 100"
+
 packages:
   base: !include ../packages/base_node.yaml
 ```
-
-`base_node.yaml` derives the device name (`node_${node_id}`) and friendly name from
-`node_id`, so there is no separate `node_name` substitution.
 
 To add a node, add a row to `registry/nodes.csv` and re-run `tools/generate_nodes.py`. `node_id` is the
 node's only flashed identity (a flat value carried in the 29-bit Extended CAN ID per
 ADR-0007); room/board/location live in a central `node_id → {...}` map on the controller/HA,
 not on the node. Node files in `nodes/` are generated output — do not hand-edit them; put
-shared config in `base_node.yaml` instead.
+board hardware in `boards/canbed-rp2040.yaml` via `base_node.yaml`, and shared node behavior
+in `base_node.yaml` itself.
 
 ## Gateway → Home Assistant integration
 

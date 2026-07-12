@@ -30,9 +30,10 @@ Extended CAN ID. It is the ONLY thing flashed into the node. floor/room/board/lo
 map-seed metadata for the central node_id -> {...} map on the controller/HA — they are NOT
 flashed into the node config (kept here as the registry / map seed).
 
-Every node carries the standard 8-button set (btn0–btn7), SPI/CAN pins, and heartbeat from
-packages/base_node.yaml, so each generated file is minimal: just its node_id + debounce_ms
-and a single include.
+Every node composes the canbus base node behavior package, which itself pulls in the generic
+CANBed RP2040 board package. Generated files stay thin: concrete device identity,
+node_id/debounce_ms, the base include, and any opt-in device packages such as the ADR-0006
+sensor kit.
 """
 
 import csv
@@ -55,6 +56,7 @@ TEMPLATE = """\
 # Identity-only: the node knows just its node_id. Floor/room/board/location are NOT known at
 # flash time (the node is flashed at allocation, positioned/commissioned later) — they live in
 # the registry and the gateway's node_map.h, never here (ADR-0007).
+# Hardware: CANBed RP2040 board pulled in by packages/base_node.yaml
 # Buttons:  standard 8-button set (btn0–btn7) from packages/base_node.yaml
 {sensor_comment}# CAN IDs (29-bit Extended, computed at runtime from node_id):
 #   Input  = 0x{input_id:08X}  (CAT_INPUT,  node -> controller, button events)
@@ -64,6 +66,10 @@ TEMPLATE = """\
 substitutions:
   node_id: "{node_id}"
   debounce_ms: "50"
+
+esphome:
+{i}name: node_{node_id}
+{i}friendly_name: "Node {node_id}"
 
 packages:
   base: !include ../packages/base_node.yaml
@@ -835,6 +841,7 @@ def main():
                 status_id=status_id,
                 sensor_comment=SENSOR_COMMENT if has_sensors else "",
                 sensor_pkg=SENSOR_PKG if has_sensors else "",
+                i="  ",
             )
 
             sensor_note = "  +sensors" if has_sensors else ""

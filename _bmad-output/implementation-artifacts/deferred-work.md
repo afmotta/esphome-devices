@@ -44,7 +44,7 @@
   evidence: Direct inspection of `canbus/_bmad-output/planning-artifacts/architecture.md` lines 156-167 and 579 during this review pass's verification of the prior deferred entry
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-phase-6a-flatten-canbus.md`
-  summary: canbus/packages/base_node.yaml and canbus/packages/health.yaml both declare `id: can0` for their respective CAN bus components (mcp2515 vs esp32_can) — a latent id collision if any future entry point ever composes both packages together. Confirmed no current entry point does (base_node.yaml: generated node YAMLs + compile_sensor_node.yaml only; health.yaml: devices/gateway.yaml only). Documented with a cross-reference comment in both files; renaming was out of scope for a mechanical flatten phase (base_node.yaml affects every generated node across the fleet)
+  summary: boards/canbed-rp2040.yaml and canbus/packages/health.yaml both declare `id: can0` for their respective CAN bus components (mcp2515 vs esp32_can) — a latent id collision if any future entry point ever composes both packages together. Confirmed no current entry point does (CANBed board via base_node.yaml: generated node YAMLs + compile_sensor_node.yaml only; health.yaml: devices/gateway.yaml only). Documented with a cross-reference comment in both files; renaming remains deferred because it would affect every generated node build and the gateway extension contract
   evidence: Surfaced by both Blind Hunter and Edge Case Hunter review of Phase 6a — pre-existing naming coincidence, made adjacency-visible (not caused) by merging the two packages into one directory this phase
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-phase-1-registry-elevation.md`
