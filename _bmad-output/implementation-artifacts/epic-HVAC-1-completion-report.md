@@ -1,7 +1,7 @@
 # Epic HVAC-1 Completion Report: HVAC CAN Sensor Receiver
 
 **Date:** July 11, 2026
-**Status:** Software complete — bench validation pending hardware execution
+**Status:** Software delivered — compile gates pending a network-unrestricted battery run; bench validation pending hardware execution
 **Epic:** HVAC-Epic 1 (`HVAC-Epic-1-can-sensor-receiver.md`), 6 stories, 18 points
 **Verification toolchain:** `esphome==2026.5.3` (vesta/tests/pyproject.toml's deliberate pin, >= repo floor 2026.5.0), Python 3.11, g++ 13
 
@@ -16,9 +16,14 @@ compile-time artifacts, and fed through the existing Vesta failover abstraction 
 CAN-primary / HA-secondary / Emergency. MEV air-quality demand now derives from raw CAN
 pollutant measurements. Story HVAC-1.6 (this report) reconciled the last three stale
 generated artifacts, codified the whole verification battery as one repeatable runner
-(`scripts/verification-battery.sh`), ran it green end-to-end in this environment, and
-shipped the bench-session script (`epic-HVAC-1-testing-checklist.md`) for the epic's
-remaining hardware proofs (ACs 7-10).
+(`scripts/verification-battery.sh`), ran everything this story environment's network
+policy permits — all python/native tests, the idempotence gate, and every `esphome
+config` gate, green — and shipped the bench-session script
+(`epic-HVAC-1-testing-checklist.md`) for the epic's remaining hardware proofs
+(ACs 7-10). The three `esphome compile` gates and the vesta failover e2e could **not**
+execute here: the session's egress policy denies PlatformIO package downloads (GitHub
+release assets and the PlatformIO registry both refuse with 403) — see "Environment
+limits of this run" below for the one-command local follow-up.
 
 **The epic is NOT done:** its Definition of Done requires bench-proven CAN → HA →
 Emergency transitions on real hardware. `hvac-epic-1` stays `in-progress` in
@@ -35,7 +40,7 @@ Emergency transitions on real hardware. `hvac-epic-1` stays `in-progress` in
 | HVAC-1.3 | Climate Controller Publish-Only Composition | 2 | done |
 | HVAC-1.4 | CAN-Primary Room Sensor Failover | 3 | done |
 | HVAC-1.5 | CAN Air-Quality MEV Demand Integration | 3 | done |
-| HVAC-1.6 | Verification Battery and Bench Rollout | 2 | done (bench session itself = the epic's remaining work) |
+| HVAC-1.6 | Verification Battery and Bench Rollout | 2 | delivered — compile gates (unrestricted-network run) + bench session are the epic's remaining work |
 
 ## Delivered Files per Story
 
@@ -93,25 +98,25 @@ run's actual outcome.
 
 | # | Command | Epic AC | Result |
 |---|---------|---------|--------|
-| 1 | `python3 canbus/tests/test_bindings.py` | — | _pending this run_ |
-| 2 | `python3 canbus/tests/test_generate_exports.py` | AC1 | _pending this run_ |
-| 3 | `python3 canbus/tests/test_push_gate.py` | — | _pending this run_ |
-| 4 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_protocol.cpp -o /tmp/proto && /tmp/proto` | — | _pending this run_ |
-| 5 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb` | — | _pending this run_ |
-| 6 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health && /tmp/health` | — | _pending this run_ |
-| 7 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge` | — | _pending this run_ |
-| 8 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract` | — | _pending this run_ |
-| 9 | `g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act` | — | _pending this run_ |
-| 10 | `g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ihvac/protocol hvac/tests/test_can_sensor_receiver.cpp -o /tmp/hvac_can_sensor_receiver && /tmp/hvac_can_sensor_receiver` | AC2 | _pending this run_ |
-| 11 | `python3 canbus/tools/generate_nodes.py && git diff --exit-code canbus hvac registry` | AC6 | _pending this run_ |
-| 12 | `esphome config hvac/tests/compile_can_sensor_receiver.yaml` | AC2 (fixture) | _pending this run_ |
-| 13 | `esphome compile canbus/tests/compile_sensor_node.yaml` | AC3 | _pending this run_ |
-| 14 | `esphome config devices/locals/climate-control.yaml` | AC4 | _pending this run_ |
-| 15 | `esphome compile devices/locals/climate-control.yaml` | AC5 | _pending this run_ |
-| 16 | `python3 -m pytest vesta/tests/e2e/test_failover_sensor.py` | HVAC-1.4 residual | _pending this run_ |
-| 17 | `bash scripts/verification-battery.sh` (the runner itself, full mode) | AC1-6 | _pending this run_ |
-| 18 | `esphome compile canbus/nodes/node101.yaml` (bench node flash-ready) | AC7 prep | _pending this run_ |
-| 19 | `git diff --check` | — | _pending this run_ |
+| 1 | `python3 canbus/tests/test_bindings.py` | — | PASS |
+| 2 | `python3 canbus/tests/test_generate_exports.py` | AC1 | PASS — "All 29 export-pipeline tests passed" |
+| 3 | `python3 canbus/tests/test_push_gate.py` | — | PASS |
+| 4 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_protocol.cpp -o /tmp/proto && /tmp/proto` | — | PASS |
+| 5 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb` | — | PASS |
+| 6 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health && /tmp/health` | — | PASS |
+| 7 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge` | — | PASS |
+| 8 | `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract` | — | PASS |
+| 9 | `g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act` | — | PASS |
+| 10 | `g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ihvac/protocol hvac/tests/test_can_sensor_receiver.cpp -o /tmp/hvac_can_sensor_receiver && /tmp/hvac_can_sensor_receiver` | AC2 | PASS — all 9 receiver/freshness cases |
+| 11 | `python3 canbus/tools/generate_nodes.py && git diff --exit-code canbus hvac registry` | AC6 | PASS — byte-identical regeneration after reconciliation |
+| 12 | `esphome config hvac/tests/compile_can_sensor_receiver.yaml` | AC2 (fixture) | PASS |
+| 13 | `esphome compile canbus/tests/compile_sensor_node.yaml` | AC3 | **BLOCKED (environment)** — egress 403 on the RP2040 toolchain release asset (`github.com/earlephilhower/pico-quick-toolchain/releases/download/…`) |
+| 14 | `esphome config devices/locals/climate-control.yaml` | AC4 | PASS — "Configuration is valid!" (full 13-room config) |
+| 15 | `esphome compile devices/locals/climate-control.yaml` | AC5 | **BLOCKED (environment)** — egress 403 on `github.com/pioarduino/platform-espressif32/releases/download/55.03.38-1/platform-espressif32.zip` |
+| 16 | `python3 -m pytest vesta/tests/e2e/test_failover_sensor.py` | HVAC-1.4 residual | **BLOCKED (environment)** — harness host build needs `platformio/native` from the PlatformIO registry; `api.registry.platformio.org` CONNECT is egress-denied (403). pytest/pytest-asyncio/aioesphomeapi themselves installed fine — the 1.4 "pytest unavailable" residual is half-closed; the run still needs an unrestricted network |
+| 17 | `bash scripts/verification-battery.sh` | AC1-6 | `--native-only`: **PASS** (all 11 steps). Full mode: runs green through step 12, then fails at step 13 on the environment block above |
+| 18 | `esphome compile canbus/nodes/node101.yaml` (bench node flash-ready) | AC7 prep | **BLOCKED (environment)** — same RP2040 toolchain asset; `esphome config canbus/nodes/node101.yaml` PASS ("Configuration is valid!") as the environment-feasible check |
+| 19 | `git diff --check` | — | PASS |
 
 ### Coverage cross-check (epic AC1/AC2, asserted not rewritten)
 
@@ -122,6 +127,33 @@ run's actual outcome.
   malformed payloads, wrong protocol version, non-sensor categories, non-OK statuses,
   unknown routes, and 90 s stale expiry (plus never-seen expiry, simultaneous stale
   routes, and millis wraparound).
+
+### Environment limits of this run
+
+This story ran in a Claude Code remote session whose network egress policy allows
+PyPI and git-protocol GitHub operations but **denies GitHub release-asset downloads
+and the PlatformIO registry** (both refuse at the proxy with 403; the proxy's own
+documentation classifies 403 as organization policy — "do not retry or route around
+it"). Every `esphome compile` needs PlatformIO platform packages served from exactly
+those hosts (esp32-s3, RP2040, and even the host/`native` platform the vesta e2e
+harness uses), so rows 13, 15, 16, and 18 could not execute here. `esphome config`
+performs full YAML/substitution/id validation without PlatformIO and ran green.
+
+**Local follow-up (any network-unrestricted machine, from repo root):**
+
+```bash
+pip install "esphome==2026.5.3" pytest pytest-asyncio aioesphomeapi
+bash scripts/verification-battery.sh        # expected: RESULT: PASS, all 16 steps
+esphome compile canbus/nodes/node101.yaml   # bench-node flash readiness (AC7 prep)
+```
+
+When that run is green: flip `hvac-1-6-verification-battery-bench-rollout` to `done`
+in `sprint-status.yaml`, update rows 13/15/16/17/18 above, and proceed to the bench
+session (`epic-HVAC-1-testing-checklist.md`).
+
+**Environment note:** `devices/locals/secrets.yaml` (gitignored) was created in-session
+with clearly-labeled dummy values so the `devices/locals/` config gate could resolve
+its `!secret` references — never flash a device with those values.
 
 ---
 
@@ -173,8 +205,9 @@ Carried forward for the bench session and beyond (fuller context in `deferred-wo
 
 ## Sign-off
 
-- [x] All six stories implemented; HVAC-1.1..1.6 `done` in sprint-status
-- [ ] _Battery results recorded below after this story's run_
+- [x] HVAC-1.1..1.5 `done` in sprint-status; HVAC-1.6 software delivered (`in-progress` until the compile gates run)
+- [x] Battery results recorded (permitted subset green; compile gates environment-blocked — see table)
+- [ ] Compile gates green on a network-unrestricted run (`bash scripts/verification-battery.sh`) — **pending**
 - [x] Bench checklist created (`epic-HVAC-1-testing-checklist.md`)
 - [ ] Bench session executed and findings recorded (AC7-AC10) — **pending hardware**
 - [ ] `hvac-epic-1` flipped to `done` — **only after the bench session**
