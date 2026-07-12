@@ -3,7 +3,7 @@ defaults:
 
 packages:
   mixing_pump_primo_piano: !include
-    file: ../../../vesta/packages/components/mixing_pump.yaml
+    file: ../../packages/components/mixing_pump.yaml
     vars:
       area_slug: "first_floor_radiant"
       area_name: "Primo Piano"

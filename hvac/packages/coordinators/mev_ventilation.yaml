@@ -1,0 +1,303 @@
+# =============================================================================
+# Component: mev_ventilation.yaml
+# Purpose:   MEV (Mechanical Extract Ventilation) controller with humidity
+#            cascade state machine (event-driven with script delays).
+#            Pure controller - no hardware abstraction, no demand calculation.
+#
+# Required vars:
+#   component_id                   - Prefix for entity IDs (e.g., "mev")
+#   component_name                 - Friendly name prefix (e.g., "MEV")
+#   demand_sensor                  - Aggregated demand sensor ID (0-100%)
+#   humidity_sensor                - Humidity sensor ID (for de-escalation)
+#   humidity_rate_sensor           - Humidity rate-of-change sensor ID (for escalation)
+#   humidity_lower_sensor          - Humidity lower bound sensor ID (for de-escalation)
+#   cooling_mode_sensor            - Binary sensor ID: true = cooling season
+#   dehumidifier_switch            - Switch ID for dehumidifier control
+#   integration_switch              - Switch ID for integration (cooling) control
+#   alarm_sensor                   - Binary sensor ID for alarm monitoring
+#   fan_speed_number               - Number entity ID for fan speed output
+#   min_fan_speed_entity           - HA entity for minimum fan speed (%)
+#   escalation_threshold_entity    - HA entity for escalation fan threshold (%)
+#   deescalation_threshold_entity  - HA entity for de-escalation fan threshold (%)
+#   escalation_delay_entity        - HA entity for escalation delay (minutes)
+#   deescalation_delay_entity      - HA entity for de-escalation delay (minutes)
+#
+# Humidity Cascade State Machine (event-driven with script delays):
+#   Fan Only ──escalate──▶ Dehumidifying ──escalate──▶ Integration
+#   Fan Only ◀──de-escalate── Dehumidifying ◀──de-escalate── Integration
+#   (Integration state only available in summer/cooling season)
+#   Transitions use template binary sensors (condition evaluation) +
+#   scripts with mode:restart (delay timers). on_press starts timer,
+#   on_release cancels it.
+#
+# Exposes:
+#   sensor.{component_id}_final_fan_speed       - Calculated fan speed (0-100%)
+#   text_sensor.{component_id}_automation_state - Current state machine status
+#   select.{component_id}_humidity_state        - Humidity cascade state selector
+#
+# Example:
+#   packages:
+#     mev_ctrl: !include
+#       file: packages/coordinators/mev_ventilation.yaml
+#       vars:
+#         component_id: "mev"
+#         component_name: "MEV"
+#         demand_sensor: mev_max_demand
+#         humidity_sensor: bathroom_humidity
+#         humidity_rate_sensor: mev_humidity_rate
+#         cooling_mode_sensor: summer_mode
+#         dehumidifier_switch: mev_dehumidifier
+#         integration_switch: mev_integration
+#         alarm_sensor: mev_alarm
+#         fan_speed_number: mev_fan_speed
+#         min_fan_speed_entity: "input_number.mev_min_fan_speed"
+#         escalation_threshold_entity: "input_number.mev_escalation_threshold"
+#         deescalation_threshold_entity: "input_number.mev_deescalation_threshold"
+#         escalation_delay_entity: "input_number.mev_escalation_delay"
+#         deescalation_delay_entity: "input_number.mev_deescalation_delay"
+#         humidity_lower_sensor: mev_humidity_lower
+# =============================================================================
+
+sensor:
+  # Import configuration from HA
+  - platform: homeassistant
+    entity_id: ${escalation_threshold_entity}
+    id: ${component_id}_escalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: ${deescalation_threshold_entity}
+    id: ${component_id}_deescalation_threshold
+    internal: true
+
+  - platform: homeassistant
+    entity_id: ${min_fan_speed_entity}
+    id: ${component_id}_min_fan_speed
+    internal: true
+
+  - platform: homeassistant
+    entity_id: ${escalation_delay_entity}
+    id: ${component_id}_escalation_delay
+    internal: true
+
+  - platform: homeassistant
+    entity_id: ${deescalation_delay_entity}
+    id: ${component_id}_deescalation_delay
+    internal: true
+
+  # Final Fan Speed (%) - applies min floor and alarm safety
+  - platform: template
+    name: "${component_name} Final Fan Speed"
+    id: ${component_id}_final_fan_speed
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-3
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      if (id(${alarm_sensor}).state) {
+        return 0.0f;
+      }
+
+      float demand = id(${demand_sensor}).state;
+      float min_fan = id(${component_id}_min_fan_speed).state;
+
+      if (isnan(min_fan)) min_fan = 20.0f;
+      if (isnan(demand)) demand = min_fan;
+
+      return std::min(100.0f, std::max(demand, min_fan));
+    on_value:
+      then:
+        - number.set:
+            id: ${fan_speed_number}
+            value: !lambda "return x;"
+
+# Diagnostic Sensors
+text_sensor:
+  - platform: template
+    name: "${component_name} Automation State"
+    id: ${component_id}_automation_state
+    icon: mdi:state-machine
+    entity_category: diagnostic
+
+# Humidity Cascade State Machine
+select:
+  - platform: template
+    name: "${component_name} Humidity State"
+    id: ${component_id}_humidity_state
+    options:
+      - "Fan Only"
+      - "Dehumidifying"
+      - "Integration"
+    initial_option: "Fan Only"
+    optimistic: true
+    restore_value: true
+    set_action:
+      - if:
+          condition:
+            lambda: 'return x == "Fan Only";'
+          then:
+            - switch.turn_off: ${dehumidifier_switch}
+            - switch.turn_off: ${integration_switch}
+      - if:
+          condition:
+            lambda: 'return x == "Dehumidifying";'
+          then:
+            - switch.turn_on: ${dehumidifier_switch}
+            - switch.turn_off: ${integration_switch}
+      - if:
+          condition:
+            lambda: 'return x == "Integration";'
+          then:
+            - switch.turn_on: ${dehumidifier_switch}
+            - switch.turn_on: ${integration_switch}
+
+# State Machine Scripts (with built-in delays)
+# Scripts use mode: restart - restarting resets the delay timer.
+# on_press starts the script, on_release stops it (cancels pending transition).
+script:
+  - id: ${component_id}_escalate_to_dehumidifying
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${component_id}_automation_state
+          state: "Escalating (Dehum)"
+      - delay: !lambda "return id(${component_id}_escalation_delay).state * 60000;"
+      - select.set:
+          id: ${component_id}_humidity_state
+          option: "Dehumidifying"
+      - logger.log:
+          format: "MEV: Escalated to Dehumidifying"
+          level: INFO
+          tag: mev
+
+  - id: ${component_id}_escalate_to_integration
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${component_id}_automation_state
+          state: "Escalating (Integration)"
+      - delay: !lambda "return id(${component_id}_escalation_delay).state * 60000;"
+      - select.set:
+          id: ${component_id}_humidity_state
+          option: "Integration"
+      - logger.log:
+          format: "MEV: Escalated to Integration"
+          level: INFO
+          tag: mev
+
+  - id: ${component_id}_deescalate_to_dehumidifying
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${component_id}_automation_state
+          state: "De-escalating (Dehum)"
+      - delay: !lambda "return id(${component_id}_deescalation_delay).state * 60000;"
+      - select.set:
+          id: ${component_id}_humidity_state
+          option: "Dehumidifying"
+      - logger.log:
+          format: "MEV: De-escalated to Dehumidifying"
+          level: INFO
+          tag: mev
+
+  - id: ${component_id}_deescalate_to_fan_only
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${component_id}_automation_state
+          state: "De-escalating (Fan)"
+      - delay: !lambda "return id(${component_id}_deescalation_delay).state * 60000;"
+      - select.set:
+          id: ${component_id}_humidity_state
+          option: "Fan Only"
+      - logger.log:
+          format: "MEV: De-escalated to Fan Only"
+          level: INFO
+          tag: mev
+
+  - id: ${component_id}_update_idle_state
+    mode: restart
+    then:
+      - lambda: |-
+          auto state = id(${component_id}_humidity_state).current_option();
+          if (state == "Fan Only") {
+            id(${component_id}_automation_state).publish_state("Idle");
+          } else if (state == "Dehumidifying") {
+            id(${component_id}_automation_state).publish_state("Dehumidifying");
+          } else if (state == "Integration") {
+            id(${component_id}_automation_state).publish_state("Integration");
+          }
+
+# State Machine Transition Conditions (event-driven)
+binary_sensor:
+  - platform: template
+    name: "${component_name} Should Escalate to Dehumidifying"
+    id: ${component_id}_should_escalate_dehum
+    internal: true
+    lambda: |-
+      auto state = id(${component_id}_humidity_state).current_option();
+      float fan = id(${component_id}_final_fan_speed).state;
+      float rate = id(${humidity_rate_sensor}).state;
+      float thresh = id(${component_id}_escalation_threshold).state;
+      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      return state == "Fan Only" && fan >= thresh && rate > 0.0f;
+    on_press:
+      - script.execute: ${component_id}_escalate_to_dehumidifying
+    on_release:
+      - script.stop: ${component_id}_escalate_to_dehumidifying
+      - script.execute: ${component_id}_update_idle_state
+
+  - platform: template
+    name: "${component_name} Should Escalate to Integration"
+    id: ${component_id}_should_escalate_integration
+    internal: true
+    lambda: |-
+      auto state = id(${component_id}_humidity_state).current_option();
+      float fan = id(${component_id}_final_fan_speed).state;
+      float rate = id(${humidity_rate_sensor}).state;
+      float thresh = id(${component_id}_escalation_threshold).state;
+      bool summer = id(${cooling_mode_sensor}).state;
+      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      return state == "Dehumidifying" && summer && fan >= thresh && rate > 0.0f;
+    on_press:
+      - script.execute: ${component_id}_escalate_to_integration
+    on_release:
+      - script.stop: ${component_id}_escalate_to_integration
+      - script.execute: ${component_id}_update_idle_state
+
+  - platform: template
+    name: "${component_name} Should De-escalate to Dehumidifying"
+    id: ${component_id}_should_deescalate_dehum
+    internal: true
+    lambda: |-
+      auto state = id(${component_id}_humidity_state).current_option();
+      float fan = id(${component_id}_final_fan_speed).state;
+      float humidity = id(${humidity_sensor}).state;
+      float lower = id(${humidity_lower_sensor}).state;
+      float thresh = id(${component_id}_deescalation_threshold).state;
+      bool summer = id(${cooling_mode_sensor}).state;
+      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      return state == "Integration" && (!summer || (humidity < lower && fan < thresh));
+    on_press:
+      - script.execute: ${component_id}_deescalate_to_dehumidifying
+    on_release:
+      - script.stop: ${component_id}_deescalate_to_dehumidifying
+      - script.execute: ${component_id}_update_idle_state
+
+  - platform: template
+    name: "${component_name} Should De-escalate to Fan Only"
+    id: ${component_id}_should_deescalate_fan
+    internal: true
+    lambda: |-
+      auto state = id(${component_id}_humidity_state).current_option();
+      float fan = id(${component_id}_final_fan_speed).state;
+      float humidity = id(${humidity_sensor}).state;
+      float lower = id(${humidity_lower_sensor}).state;
+      float thresh = id(${component_id}_deescalation_threshold).state;
+      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      return state == "Dehumidifying" && humidity < lower && fan < thresh;
+    on_press:
+      - script.execute: ${component_id}_deescalate_to_fan_only
+    on_release:
+      - script.stop: ${component_id}_deescalate_to_fan_only
+      - script.execute: ${component_id}_update_idle_state

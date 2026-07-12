@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.6 |
-| **Last Updated** | July 11, 2026 |
+| **Version** | 1.8 |
+| **Last Updated** | July 12, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -45,8 +45,9 @@ This repo hosts the ESPHome systems for Alberto's three-floor residence, organiz
    implemented (ADR-0014: LilyGO T-Connect Pro + Modbus RTU I/O boards) but not yet
    physically deployed. Consumes `registry/map.json` and sensor CAN frames directly
    (contract lives in-repo). See `hvac/CLAUDE.md`.
-4. **`vesta/`** (library) — the extractable, open-source climate-control component
-   framework that `hvac/` composes from.
+4. **Top-level `packages/`** — shared ESPHome packages that do not belong to a
+  single application system, currently the Modbus I/O hardware drivers used by
+  both HVAC and lighting.
 
 BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 **HVAC-Epic N** (climate). Historical canbus BMAD artifacts stay under
@@ -114,12 +115,12 @@ Standardized per ADR-0014 — the same three devices serve both the HVAC and lig
 
 This is a **layered systems monorepo** (see `ARCHITECTURE-SPINE.md`, AD-1/AD-10): one
 shared infrastructure layer (`canbus/`), two application systems on top (`lighting/`,
-`hvac/`), one extractable library (`vesta/`), and a `devices/` composition layer where
+`hvac/`), a small shared package layer (`packages/`), and a `devices/` composition layer where
 deployable entry points assemble packages across systems. **Each in-repo system directory
 (`canbus/`, `lighting/`, `hvac/`) carries its own `CLAUDE.md` with its own rules** — this
 root file is the map, not the rulebook (AD-10). Read the relevant system's `CLAUDE.md`
-before working inside it. `vesta/` is the one exception: it's an extractable open-source
-library with its own `README.md`/`CONTRIBUTING.md` instead of a `CLAUDE.md`.
+before working inside it. Climate-control reusable packages now live under `hvac/packages/`;
+shared hardware drivers live under top-level `packages/`.
 
 ```
 esphome-devices/
@@ -143,35 +144,18 @@ esphome-devices/
 │   ├── room_sensors.yaml      # Room sensor failover wiring
 │   ├── mev_modbus.yaml        # MEV Modbus device driver
 │   ├── mev_demand.yaml        # MEV demand signal aggregation
+│   ├── packages/              # HVAC-owned reusable components/coordinators and generated routes
+│   │   ├── components/        # PID, radiant/fancoil, failover, demand, pump packages
+│   │   ├── coordinators/      # Seasonal mode, fancoil boost, MEV ventilation
+│   │   └── generated/         # Generated CAN sensor routes (never hand-edited)
 │   ├── rooms/                 # Room-specific configurations
 │   │   ├── ground_floor/      # Ground floor rooms
 │   │   ├── first_floor/       # First floor rooms
 │   │   └── second_floor/      # Second floor rooms
 │   └── home-assistant/        # Dashboards (Lovelace)
 │
-├── vesta/                     # Vesta Climate Framework (open-source library, see vesta docs)
-│   ├── packages/
-│   │   ├── components/        # Reusable YAML component packages
-│   │   │   ├── pid.yaml               # PID controller
-│   │   │   ├── pid_autotune.yaml      # Auto-tuning logic
-│   │   │   ├── pid_sensors.yaml       # PID input/output sensors
-│   │   │   ├── radiant.yaml           # Radiant floor heating/cooling
-│   │   │   ├── fancoil.yaml           # Fancoil unit control (analog 0-10V)
-│   │   │   ├── heat_only_radiant.yaml # Heat-only radiant variant
-│   │   │   ├── direct_pump.yaml       # Direct pump control
-│   │   │   ├── mixing_pump.yaml       # Mixing valve + pump
-│   │   │   ├── failover_sensor.yaml   # 3-tier sensor failover
-│   │   │   ├── proportional_demand_sensor.yaml # Proportional demand
-│   │   │   └── trend_sensor.yaml      # Rate-of-change sensor
-│   │   ├── coordinators/      # Control pattern orchestrators
-│   │   │   ├── fancoil_boost.yaml     # Radiant+fancoil boost coordination
-│   │   │   ├── mev_ventilation.yaml   # MEV ventilation control
-│   │   │   └── seasonal_mode.yaml     # Seasonal heat/cool mode switching
-│   │   └── devices/           # Hardware board configurations
-│   ├── docs/                  # Vesta documentation
-│   ├── examples/              # Example configurations
-│   ├── README.md              # Vesta project overview
-│   └── CONTRIBUTING.md        # Contribution guidelines
+├── packages/                  # Cross-system ESPHome packages (shared, no owning app system)
+│   └── devices/modbus-io/     # Relay/analog Modbus I/O board drivers used by hvac + lighting
 │
 ├── boards/                    # Board hardware definitions (shared, no owning system)
 │   ├── t-connect-pro.yaml / t-connect-pro-ethernet.yaml / t-connect-pro-wifi.yaml # LilyGO T-Connect Pro (both controllers, ADR-0014)
@@ -275,13 +259,13 @@ The codebase uses ESPHome's `packages` feature extensively for modularity and re
 Device Config (devices/climate-control.yaml)
 ├── Board Package (boards/t-connect-pro.yaml)
 │   └── Network Package (boards/t-connect-pro-ethernet.yaml or -wifi.yaml)
-├── Hardware Packages (vesta/packages/devices/modbus-io/modbus_relay_board.yaml)
+├── Hardware Packages (packages/devices/modbus-io/modbus_relay_board.yaml)
 └── Floor Packages (hvac/rooms/*/floor.yaml)
     └── Room Packages (hvac/rooms/*/*.yaml)
         ├── Sensors (hvac/room_sensors.yaml)
-        ├── Radiant (vesta/packages/components/radiant.yaml)
-        ├── Fancoil (vesta/packages/components/fancoil.yaml)
-        └── Boost Coordinator (vesta/packages/coordinators/fancoil_boost.yaml)
+        ├── Radiant (hvac/packages/components/radiant.yaml)
+        ├── Fancoil (hvac/packages/components/fancoil.yaml)
+        └── Boost Coordinator (hvac/packages/coordinators/fancoil_boost.yaml)
 ```
 
 #### Conditional Package Inclusion
@@ -493,9 +477,9 @@ external_components:
 | `devices/climate-control.yaml` | **Main entry point** - orchestrates entire system |
 | `devices/gateway.yaml` | CAN bus / lighting gateway entry point |
 | `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
-| `vesta/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
-| `vesta/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
-| `vesta/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
+| `hvac/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
+| `hvac/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
+| `hvac/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
 | `hvac/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 
 ### Key Documentation Files
@@ -506,7 +490,7 @@ external_components:
 | `_bmad-output/planning-artifacts/prd.md` | Product Requirements Document |
 | `_bmad-output/planning-artifacts/epics.md` | Master epic index (Epics 1-20) |
 | `_bmad-output/analysis/brainstorming-session-2026-02-24.md` | Entity ID naming convention |
-| `_bmad-output/analysis/brainstorming-session-2026-02-05.md` | Vesta open-source strategy |
+| `_bmad-output/analysis/brainstorming-session-2026-02-05.md` | Historical Vesta open-source strategy (superseded by 2026-07 fold-back) |
 | `TODO.md` | Feature backlog (in Italian) |
 
 ### Configuration Entry Points
@@ -629,6 +613,7 @@ sensor-address appendices and PID tuning guidelines are documented in `hvac/CLAU
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-12 | 1.8 | Folded the Vesta package boundary back into the monorepo: climate packages now live under `hvac/packages/`, shared Modbus I/O drivers under top-level `packages/devices/modbus-io/`, and active architecture/docs no longer treat Vesta as an extractable library | AI Assistant |
 | 2026-07-12 | 1.7 | Raised the T-Connect Pro HVAC support floor to ESPHome 2026.6.5 after verifying the repo uses external Modbus slave devices but no ESPHome `modbus_server` blocks; updated version references accordingly | AI Assistant |
 | 2026-07-11 | 1.6 | HVAC-1.4: `hvac/room_sensors.yaml` flipped to CAN-primary/HA-secondary/Emergency failover (was HA-primary/UDP-secondary); updated failover-order bullets, the Failover Architecture section, and Best Practices/Troubleshooting sensor-failover language accordingly | AI Assistant |
 | 2026-07-11 | 1.5 | ADR-0014 P6 hardware docs sweep: Hardware table rewritten to the standardized family (LilyGO T-Connect Pro + Waveshare Relay 32CH + Analog Output 8CH (B)); retired all Gen-1 controller/slave-board and Modbus-room-sensor claims; corrected autonomy story (single Modbus master; room sensors HA→UDP→Emergency); deleted the orphaned Gen-1 and ESP32-S3-POE board files and updated all references; ESPHome floor 2026.5.0 | AI Assistant |

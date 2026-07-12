@@ -5,8 +5,8 @@
 # one modbus_controller plus 32 self-registering channels
 # (relay_channel.yaml), 0-based relay_0..relay_31 per ADR-0013's progressive-
 # id convention — numbering is native here, so no id_offset arithmetic is
-# needed (that var existed for vesta's generic, 1-based-natural aggregator).
-# The per-channel wrapper both creates the switch (via vesta's shared
+# needed (that var existed for the generic, 1-based-natural aggregator).
+# The per-channel wrapper both creates the switch (via the shared
 # modbus_relay_switch.yaml hardware driver) and registers it into
 # relay_store() for the fallback path, so the channel list below is the ONLY
 # place the bank's composition lives.
@@ -16,7 +16,7 @@
 # (canbus/tools/bindings.py) — a second bank (ADR-0014 open item 2) bumps
 # all three in one commit.
 #
-# No connectivity status sensor — same reasoning as vesta's
+# No connectivity status sensor — same reasoning as the shared
 # modbus_relay_board_32ch.yaml: this board has no documented register outside
 # its 32 relay coils, so any "connectivity" poll would alias a relay's own
 # state. Communication failures surface per-switch (unavailable on timeout).

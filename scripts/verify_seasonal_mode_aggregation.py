@@ -15,19 +15,19 @@ ROOM_SLUG_RE = re.compile(r'room_slug:\s*["\']?([A-Za-z0-9_]+)["\']?')
 ID_REF_RE = re.compile(r'id\(([A-Za-z0-9_]+_pid_is_(?:heating|cooling))\)')
 
 HEAT_ONLY_MARKERS = (
-    "vesta/packages/components/heat_only_radiant.yaml",
+    "hvac/packages/components/heat_only_radiant.yaml",
     "components/heat_only_radiant.yaml",
-    "file: ../../../vesta/packages/components/heat_only_radiant.yaml",
+    "file: ../../packages/components/heat_only_radiant.yaml",
 )
 RADIANT_MARKERS = (
-    "vesta/packages/components/radiant.yaml",
+    "hvac/packages/components/radiant.yaml",
     "components/radiant.yaml",
-    "file: ../../../vesta/packages/components/radiant.yaml",
+    "file: ../../packages/components/radiant.yaml",
 )
 FANCOIL_MARKERS = (
-    "vesta/packages/components/fancoil.yaml",
+    "hvac/packages/components/fancoil.yaml",
     "components/fancoil.yaml",
-    "file: ../../../vesta/packages/components/fancoil.yaml",
+    "file: ../../packages/components/fancoil.yaml",
 )
 
 

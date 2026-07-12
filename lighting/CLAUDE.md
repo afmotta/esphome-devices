@@ -49,8 +49,8 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
 - `packages/relay_bank.yaml` — lighting's 32-channel relay bank (ADR-0014):
   one modbus_controller + 32 self-registering channels, 0-based
   `relay_0..relay_31` natively (no id_offset arithmetic).
-- `packages/relay_channel.yaml` — one bank channel: wraps vesta's shared
-  `modbus_relay_switch.yaml` hardware driver and registers the created
+- `packages/relay_channel.yaml` — one bank channel: wraps the shared top-level
+  `packages/devices/modbus-io/modbus_relay_switch.yaml` hardware driver and registers the created
   switch into `relay_store()` — the registration lives next to the switch it
   registers, so adding a channel registers it automatically.
 - `protocol/binding_actuation.h` — fallback pure logic (click-only gesture

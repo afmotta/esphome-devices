@@ -17,7 +17,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_camera_padronale_humidity"
 
   pid_radiant: !include
-    file: ../../../vesta/packages/components/radiant.yaml
+    file: ../../packages/components/radiant.yaml
     vars:
       relay_id: relay_15
       temperature_sensor: camera_padronale_temp_abstracted
@@ -26,7 +26,7 @@ packages:
       kd: 0.05
 
   autotune: !include
-    file: ../../../vesta/packages/components/pid_autotune.yaml
+    file: ../../packages/components/pid_autotune.yaml
     vars:
       pid_id: camera_padronale_radiant_pid
       pid_name: "Camera Padronale Radiant"

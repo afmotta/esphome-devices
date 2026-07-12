@@ -58,7 +58,7 @@ packages:
   buttons: !include ../lighting/packages/buttons.yaml
   # Lighting-owned bank (0-based relay_0..relay_31 natively, each channel
   # self-registers into relay_store() for the ADR-0013 fallback); wraps
-  # vesta's shared per-switch hardware driver.
+  # the shared per-switch hardware driver.
   relays: !include
     file: ../lighting/packages/relay_bank.yaml
     vars:

@@ -1,7 +1,7 @@
 ## Copilot / Agent instructions for this repository
 
-> **Note:** This file predates the Vesta extraction (Epics 19-20) and the 2026-07 layered
-> restructure. The Epic 2/5/7/10 update sections below are kept as historical record but their
+> **Note:** This file predates the 2026-07 layered restructure and the later Vesta fold-back.
+> The Epic 2/5/7/10 update sections below are kept as historical record but their
 > file paths are stale — see root `CLAUDE.md` (and each system's own `CLAUDE.md`, e.g.
 > `hvac/CLAUDE.md`, `canbus/CLAUDE.md`) for the current, authoritative architecture map.
 
@@ -11,7 +11,7 @@ Keep changes minimal, respect secrets, and follow the existing composition patte
 Key concepts (read these files first):
 
 - `boards/` — platform-level node configs and common hardware pin mapping (e.g. `boards/t-connect-pro.yaml`, `boards/s1-pro-multi-sense.yaml`).
-- `vesta/packages/components/` — reusable component packages which are included with `packages:` and expect `vars` (examples: `vesta/packages/components/pid_sensors.yaml`, `vesta/packages/components/fancoil.yaml`). The old `components/modbus_master.yaml` and `components/deprecated/` no longer exist; Modbus I/O drivers now live under `vesta/packages/devices/modbus-io/`.
+- `hvac/packages/components/` and `hvac/packages/coordinators/` — HVAC-owned reusable packages which are included with `packages:` and expect `vars` (examples: `hvac/packages/components/pid_sensors.yaml`, `hvac/packages/components/fancoil.yaml`). Shared Modbus I/O drivers live under top-level `packages/devices/modbus-io/`.
 - `devices/` — top-level device definitions that assemble `packages:` (current main entry point: `devices/climate-control.yaml`; the old `devices/gruppo-miscelazione.yaml` example below no longer exists).
 - `devices/locals/secrets.yaml` — substitution keys and sensitive values (do NOT print secrets in output or add them to commits).
 
@@ -26,29 +26,29 @@ Patterns and conventions to preserve:
 What to avoid:
 
 - Never commit secrets or expand `devices/locals/secrets.yaml` values into code or PR text.
-- Avoid inlining package internals into device files; maintain reusable `vesta/packages/components/` and `boards/` separation.
+- Avoid inlining package internals into device files; maintain reusable `hvac/packages/components/`, top-level `packages/devices/`, and `boards/` separation.
 
 Typical edit checklist for changes to behavior:
 
 1. Locate the high-level device file in `devices/` and see which `packages:` it uses.
-2. Inspect the referenced `vesta/packages/components/*.yaml` (or `hvac/`, `canbus/packages/`, `lighting/packages/` as appropriate) to understand expected `vars` and `id` naming.
+2. Inspect the referenced `hvac/packages/components/*.yaml`, `hvac/packages/coordinators/*.yaml`, or top-level `packages/devices/**/*.yaml` (or `canbus/packages/`, `lighting/packages/` as appropriate) to understand expected `vars` and `id` naming.
 3. Make minimal edits to the component or add a new component file in the owning system.
 4. Update the device `packages:` call with appropriate `vars` (follow examples in `devices/climate-control.yaml`).
 5. Validate locally with the ESPHome CLI (e.g., `esphome config <device.yaml>` and `esphome compile <device.yaml>`) before pushing — do not commit compiled artifacts.
 
 Integration notes:
 
-- The repo relies on ESPHome composition: devices assemble `packages` defined across `vesta/packages/`, `hvac/`, `canbus/`, `lighting/`, and `boards/` using substitutions from `devices/locals/secrets.yaml`.
+- The repo relies on ESPHome composition: devices assemble `packages` defined across `hvac/packages/`, top-level `packages/`, `canbus/`, `lighting/`, and `boards/` using substitutions from `devices/locals/secrets.yaml`.
 - There is a `packages.config` entry (see `devices/locals/secrets.yaml`) that can point to the repo itself for config updates — treat remote package fetching with care.
 
 Examples from the repo:
 
 - `devices/climate-control.yaml` is the main HVAC entry point composing board, room, and coordinator packages.
-- `vesta/packages/components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
+- `hvac/packages/components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
 
 **Epic 2 Update (October 2025, historical):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. See `_bmad-output/implementation-artifacts/epic-2-migration-guide.md` for migration details; the `components/deprecated/` directory referenced at the time no longer exists.
 
-**Epic 5 Update (October 2025, historical — superseded by Epic 8's unified state machine and the Vesta extraction):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. The current equivalent of the room-sensor + emergency-shutdown pattern described below is `vesta/packages/components/failover_sensor.yaml` (3-tier failover) composed via `hvac/room_sensors.yaml` — consult those files and `hvac/CLAUDE.md` rather than the file names below, which no longer exist:
+**Epic 5 Update (October 2025, historical — superseded by Epic 8's unified state machine and later package restructuring):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. The current equivalent of the room-sensor + emergency-shutdown pattern described below is `hvac/packages/components/failover_sensor.yaml` (3-tier failover) composed via `hvac/room_sensors.yaml` — consult those files and `hvac/CLAUDE.md` rather than the file names below, which no longer exist:
 
 - **State Machine (historical shape):** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
 - **Control Hierarchy:** Emergency shutdown only controls PID; cascade to slow_pwm→relay is automatic

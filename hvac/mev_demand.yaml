@@ -22,7 +22,7 @@
 # Depends on (must exist in merged config):
 #   ${mev_slug}_min_fan_speed - Minimum fan speed HA import. When this file is
 #     composed through hvac/mev_modbus.yaml, it is declared by
-#     vesta/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
+#     hvac/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
 #     Standalone consumers must declare an equivalent sensor before using this package.
 #
 # Exposes:
@@ -41,7 +41,7 @@
 
 packages:
   co2_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -56,7 +56,7 @@ packages:
       icon: mdi:molecule-co2
 
   voc_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -70,7 +70,7 @@ packages:
       icon: mdi:air-filter
 
   nox_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -84,7 +84,7 @@ packages:
       icon: mdi:air-filter
 
   pm1_0_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -99,7 +99,7 @@ packages:
       icon: mdi:air-filter
 
   pm2_5_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -114,7 +114,7 @@ packages:
       icon: mdi:air-filter
 
   pm4_0_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -129,7 +129,7 @@ packages:
       icon: mdi:air-filter
 
   pm10_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -144,7 +144,7 @@ packages:
       icon: mdi:air-filter
 
   humidity_demand: !include
-    file: ../vesta/packages/components/proportional_demand_sensor.yaml
+    file: packages/components/proportional_demand_sensor.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}

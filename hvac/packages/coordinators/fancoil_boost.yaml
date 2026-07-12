@@ -1,0 +1,420 @@
+# =============================================================================
+# Component: fancoil_boost.yaml
+# Purpose:   "Base + Boost" coordinator - automatically activates fancoils when
+#            radiant floor cooling reaches its limits. Radiant provides efficient
+#            baseline; fancoils activate as a responsive boost layer.
+#            Event-driven state machine with native ESPHome components.
+#
+# Required vars:
+#   zone_slug                    - Zone identifier for entity IDs (e.g., "living_room")
+#   zone_name                    - Human-readable zone name (e.g., "Living Room")
+#   temperature_sensor           - ID of the zone temperature sensor
+#   humidity_sensor              - ID of the zone humidity sensor
+#   radiant_pid_id               - ID of the radiant PID climate entity
+#   radiant_pid_cool_sensor      - ID of the PID cool output sensor (0-1 range)
+#   fancoil_pid_id               - ID of the fancoil PID climate entity
+#   radiant_override_value_id    - ID of the number entity for radiant override %
+#   radiant_override_switch_id   - ID of the switch to enable/disable override
+#   radiant_pwm_id               - ID of the slow PWM output for radiant
+#   cooling_mode_sensor          - ID of the binary sensor for cooling season
+#   temp_threshold_sensor        - ID of the sensor providing temp delta threshold
+#   humidity_threshold_sensor    - ID of the sensor providing humidity threshold
+#   predictive_minutes_sensor    - ID of the sensor providing predictive boost minutes
+#
+# Optional vars:
+#   min_time_in_state_seconds    - Anti-cycling minimum (default: 600 = 10 min)
+#   humidity_hysteresis          - Dead band around humidity threshold (default: 5.0)
+#   saturated_output_threshold   - PID output level = "saturated" (default: 0.95)
+#   diagnostics_update_interval  - Poll rate of the temp delta / radiant output
+#                                  diagnostic sensors (default: 30s; tests
+#                                  compress this)
+#   boost_active_global          - Global bool id, true while boost is active
+#                                  (default: ${zone_slug}_boost_active)
+#   last_mode_change_time_global - Global uint32_t id, millis() of the last
+#                                  boost/radiant transition
+#                                  (default: ${zone_slug}_last_mode_change_time)
+#
+# Dependencies:
+#   - ../components/trend_sensor.yaml (included automatically)
+#
+# State Machine (event-driven with script delays):
+#   Radiant Only ──activate──▶ Fancoil Boost
+#   Radiant Only ◀──deactivate── Fancoil Boost
+#
+# Activation Triggers (OR logic - any one starts timer):
+#   1. Reactive:   temp delta > threshold (room too warm for radiant)
+#   2. Reactive:   humidity > threshold + hysteresis/2 (limits radiant capacity)
+#   3. Predictive: radiant output saturated AND temp not decreasing
+#      (uses predictive_minutes as delay - saturation must persist)
+#
+# Deactivation (AND logic - both must be satisfied):
+#   - Temperature: delta <= 0 (target reached)
+#   - Humidity:    <= threshold - hysteresis/2 (below dead band)
+#
+# Exposes:
+#   select.{zone_slug}_boost_state                    - Boost state selector
+#   text_sensor.{zone_slug}_boost_automation_state     - Current automation status
+#   sensor.{zone_slug}_temp_delta                      - Temperature delta from target
+#   sensor.{zone_slug}_radiant_output_pct              - Radiant PID output %
+#   sensor.{zone_slug}_temp_trend                      - Temperature trend (via trend_sensor)
+#   binary_sensor.{zone_slug}_boost_active_sensor      - HA mirror of boost_active_global
+#   global.{boost_active_global}                       - raw bool, for external id(x) use
+#   global.{last_mode_change_time_global}              - raw uint32_t, for external id(x) use
+#
+# Example:
+#   packages:
+#     boost: !include
+#       file: packages/coordinators/fancoil_boost.yaml
+#       vars:
+#         zone_slug: "living_room"
+#         zone_name: "Living Room"
+#         temperature_sensor: living_room_temp
+#         humidity_sensor: living_room_humidity
+#         radiant_pid_id: living_room_radiant_pid
+#         radiant_pid_cool_sensor: living_room_radiant_pid_cool
+#         fancoil_pid_id: living_room_fancoil_pid
+#         radiant_override_value_id: living_room_radiant_override_value
+#         radiant_override_switch_id: living_room_radiant_override
+#         radiant_pwm_id: living_room_radiant_output
+#         cooling_mode_sensor: summer_mode
+#         temp_threshold_sensor: fancoil_boost_threshold
+#         humidity_threshold_sensor: fancoil_humidity_threshold
+#         predictive_minutes_sensor: predictive_boost_minutes
+# =============================================================================
+
+packages:
+  temp_trend: !include
+    file: ../components/trend_sensor.yaml
+    vars:
+      sensor_id: ${zone_slug}_temp_trend
+      source_sensor: ${temperature_sensor}
+      sensor_name: "${zone_name} Temperature Trend"
+      unit_of_measurement: "°C/min"
+      accuracy_decimals: "3"
+      internal: "true"
+
+defaults:
+  min_time_in_state_seconds: 600
+  humidity_hysteresis: 5.0
+  saturated_output_threshold: 0.95
+  diagnostics_update_interval: 30s
+  boost_active_global: ${zone_slug}_boost_active
+  last_mode_change_time_global: ${zone_slug}_last_mode_change_time
+
+# =============================================================================
+# Boot: sync automation state text sensor with restored select value
+# =============================================================================
+esphome:
+  on_boot:
+    priority: -100  # Run after all components are initialized
+    then:
+      - script.execute: ${zone_slug}_boost_update_idle
+
+# =============================================================================
+# Raw globals: for external lambdas/scripts to read or assign directly via
+# id(x) - not entities. Kept separate from the select's own state so callers
+# outside this coordinator (e.g. an autotune routine forcing boost off) don't
+# need an entity round-trip.
+# =============================================================================
+globals:
+  - id: ${boost_active_global}
+    type: bool
+    initial_value: 'false'
+  - id: ${last_mode_change_time_global}
+    type: uint32_t
+    initial_value: '0'
+
+# =============================================================================
+# State: select controls boost mode, set_action drives hardware outputs
+# =============================================================================
+select:
+  - platform: template
+    name: "${zone_name} Boost State"
+    id: ${zone_slug}_boost_state
+    options:
+      - "Radiant Only"
+      - "Fancoil Boost"
+    initial_option: "Radiant Only"
+    optimistic: true
+    restore_value: true
+    icon: mdi:thermostat
+    set_action:
+      - if:
+          condition:
+            lambda: 'return x == "Fancoil Boost";'
+          then:
+            # Lock radiant at 100%
+            - number.set:
+                id: ${radiant_override_value_id}
+                value: 100.0
+            - switch.turn_on: ${radiant_override_switch_id}
+            - output.set_level:
+                id: ${radiant_pwm_id}
+                level: 1.0
+            # Enable fancoil cooling
+            - climate.control:
+                id: ${fancoil_pid_id}
+                mode: COOL
+            - globals.set:
+                id: ${boost_active_global}
+                value: 'true'
+            - globals.set:
+                id: ${last_mode_change_time_global}
+                value: millis()
+            - binary_sensor.template.publish:
+                id: ${zone_slug}_boost_active_sensor
+                state: true
+            - logger.log:
+                format: "${zone_slug}: BOOST ACTIVATED - Radiant locked 100%%, Fancoil COOL"
+                level: INFO
+                tag: boost
+      - if:
+          condition:
+            lambda: 'return x == "Radiant Only";'
+          then:
+            # Release radiant override - PID resumes control
+            - switch.turn_off: ${radiant_override_switch_id}
+            # Disable fancoil
+            - climate.control:
+                id: ${fancoil_pid_id}
+                mode: "OFF"
+            - globals.set:
+                id: ${boost_active_global}
+                value: 'false'
+            - globals.set:
+                id: ${last_mode_change_time_global}
+                value: millis()
+            - binary_sensor.template.publish:
+                id: ${zone_slug}_boost_active_sensor
+                state: false
+            - logger.log:
+                format: "${zone_slug}: NORMAL MODE - Radiant unlocked (PID resumed), Fancoil OFF"
+                level: INFO
+                tag: boost
+
+# =============================================================================
+# Diagnostic sensors
+# =============================================================================
+text_sensor:
+  - platform: template
+    name: "${zone_name} Boost Automation State"
+    id: ${zone_slug}_boost_automation_state
+    icon: mdi:state-machine
+    entity_category: diagnostic
+
+sensor:
+  - platform: template
+    id: ${zone_slug}_temp_delta
+    name: "${zone_name} Temperature Delta"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: "temperature"
+    icon: "mdi:thermometer-lines"
+    lambda: |-
+      float current = id(${temperature_sensor}).state;
+      float target = id(${radiant_pid_id}).target_temperature;
+      if (std::isnan(current) || std::isnan(target)) return NAN;
+      return current - target;
+    update_interval: ${diagnostics_update_interval}
+
+  - platform: template
+    id: ${zone_slug}_radiant_output_pct
+    name: "${zone_name} Radiant Output"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    icon: mdi:percent
+    lambda: |-
+      float output = id(${radiant_pid_cool_sensor}).state;
+      if (std::isnan(output)) return 0.0;
+      return output * 100.0;
+    update_interval: ${diagnostics_update_interval}
+
+# =============================================================================
+# Transition scripts (mode: restart = delay timer, cancellable)
+# =============================================================================
+script:
+  # Reactive activation: anti-cycling delay then boost
+  - id: ${zone_slug}_activate_boost
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${zone_slug}_boost_automation_state
+          state: "Activating (reactive)"
+      - delay: !lambda "return ${min_time_in_state_seconds} * 1000;"
+      - select.set:
+          id: ${zone_slug}_boost_state
+          option: "Fancoil Boost"
+      - logger.log:
+          format: "${zone_slug}: Reactive boost transition complete"
+          level: INFO
+          tag: boost
+
+  # Predictive activation: saturation duration delay then boost
+  - id: ${zone_slug}_activate_boost_predictive
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${zone_slug}_boost_automation_state
+          state: "Activating (predictive)"
+      - delay: !lambda "return id(${predictive_minutes_sensor}).state * 60000;"
+      - select.set:
+          id: ${zone_slug}_boost_state
+          option: "Fancoil Boost"
+      - logger.log:
+          format: "${zone_slug}: Predictive boost transition complete"
+          level: INFO
+          tag: boost
+
+  # Deactivation: anti-cycling delay then radiant only
+  - id: ${zone_slug}_deactivate_boost
+    mode: restart
+    then:
+      - text_sensor.template.publish:
+          id: ${zone_slug}_boost_automation_state
+          state: "Deactivating"
+      - delay: !lambda "return ${min_time_in_state_seconds} * 1000;"
+      - select.set:
+          id: ${zone_slug}_boost_state
+          option: "Radiant Only"
+      - logger.log:
+          format: "${zone_slug}: Deactivation transition complete"
+          level: INFO
+          tag: boost
+
+  # Update idle display state when conditions clear. Also runs on_boot
+  # (priority -100, see esphome.on_boot above) to resync boost_active_global
+  # and the HA-visible binary_sensor with whatever option the select restored
+  # from flash - set_action only fires on an actual select.set call, which
+  # restore_value's boot-time publish_state does not trigger. This resyncs
+  # reported state only: last_mode_change_time_global intentionally stays at
+  # its initial 0 across a reboot (no RTC - see ADR-0014 §5 - so "time since
+  # boot" is the best available approximation), and the physical outputs
+  # (radiant override, PWM, fancoil mode) are NOT replayed here - restoring
+  # those on boot is a pre-existing gap in this coordinator, not something
+  # introduced by wiring the two globals.
+  - id: ${zone_slug}_boost_update_idle
+    mode: restart
+    then:
+      - lambda: |-
+          bool boosting = id(${zone_slug}_boost_state).current_option() != "Radiant Only";
+          id(${zone_slug}_boost_automation_state).publish_state(boosting ? "Boost Active" : "Idle");
+          id(${boost_active_global}) = boosting;
+          id(${zone_slug}_boost_active_sensor).publish_state(boosting);
+
+# =============================================================================
+# Condition binary sensors (event-driven transitions)
+# on_press  → start timer script
+# on_release → cancel timer, update idle state
+# =============================================================================
+binary_sensor:
+  # HA-visible mirror of boost_active_global - push-published from set_action
+  # and the on_boot resync, never polled (mirrors fallback_events_sensor's
+  # push-publish pattern)
+  - platform: template
+    name: "${zone_name} Boost Active"
+    id: ${zone_slug}_boost_active_sensor
+    icon: mdi:fan-auto
+    device_class: running
+    entity_category: diagnostic
+
+  # Reactive: temperature too high for radiant alone
+  - platform: template
+    name: "${zone_name} Should Boost (Temp)"
+    id: ${zone_slug}_should_boost_temp
+    internal: true
+    lambda: |-
+      if (!id(${cooling_mode_sensor}).state) return false;
+      auto state = id(${zone_slug}_boost_state).current_option();
+      if (state != "Radiant Only") return false;
+      float delta = id(${zone_slug}_temp_delta).state;
+      float thresh = id(${temp_threshold_sensor}).state;
+      if (isnan(delta) || isnan(thresh)) return false;
+      return delta > thresh;
+    on_press:
+      - script.execute: ${zone_slug}_activate_boost
+    on_release:
+      - script.stop: ${zone_slug}_activate_boost
+      - script.execute: ${zone_slug}_boost_update_idle
+
+  # Reactive: humidity too high, limiting radiant capacity
+  - platform: template
+    name: "${zone_name} Should Boost (Humidity)"
+    id: ${zone_slug}_should_boost_humidity
+    internal: true
+    lambda: |-
+      if (!id(${cooling_mode_sensor}).state) return false;
+      auto state = id(${zone_slug}_boost_state).current_option();
+      if (state != "Radiant Only") return false;
+      float humidity = id(${humidity_sensor}).state;
+      float thresh = id(${humidity_threshold_sensor}).state;
+      if (isnan(humidity) || isnan(thresh)) return false;
+      float activate = thresh + (${humidity_hysteresis} / 2.0f);
+      return humidity > activate;
+    on_press:
+      - script.execute: ${zone_slug}_activate_boost
+    on_release:
+      - script.stop: ${zone_slug}_activate_boost
+      - script.execute: ${zone_slug}_boost_update_idle
+
+  # Predictive: radiant saturated AND temp not decreasing AND above target
+  # Script delay = predictive_minutes (saturation must persist for full duration)
+  - platform: template
+    name: "${zone_name} Should Boost (Predictive)"
+    id: ${zone_slug}_should_boost_predictive
+    internal: true
+    lambda: |-
+      if (!id(${cooling_mode_sensor}).state) return false;
+      auto state = id(${zone_slug}_boost_state).current_option();
+      if (state != "Radiant Only") return false;
+      float output = id(${radiant_pid_cool_sensor}).state;
+      float delta = id(${zone_slug}_temp_delta).state;
+      float trend = id(${zone_slug}_temp_trend).state;
+      if (isnan(output) || isnan(delta)) return false;
+      bool saturated = output >= ${saturated_output_threshold};
+      bool above_target = delta > 0;
+      bool not_decreasing = isnan(trend) || trend >= -0.005f;
+      return saturated && above_target && not_decreasing;
+    on_press:
+      - script.execute: ${zone_slug}_activate_boost_predictive
+    on_release:
+      - script.stop: ${zone_slug}_activate_boost_predictive
+      - script.execute: ${zone_slug}_boost_update_idle
+
+  # Deactivation: temp at target AND humidity below lower band
+  - platform: template
+    name: "${zone_name} Should End Boost"
+    id: ${zone_slug}_should_end_boost
+    internal: true
+    lambda: |-
+      auto state = id(${zone_slug}_boost_state).current_option();
+      if (state != "Fancoil Boost") return false;
+      float delta = id(${zone_slug}_temp_delta).state;
+      float humidity = id(${humidity_sensor}).state;
+      float thresh = id(${humidity_threshold_sensor}).state;
+      if (isnan(delta)) return false;
+      bool temp_ok = delta <= 0;
+      float deactivate = isnan(thresh) ? 100.0f : thresh - (${humidity_hysteresis} / 2.0f);
+      bool humidity_ok = isnan(humidity) || humidity <= deactivate;
+      return temp_ok && humidity_ok;
+    on_press:
+      - script.execute: ${zone_slug}_deactivate_boost
+    on_release:
+      - script.stop: ${zone_slug}_deactivate_boost
+      - script.execute: ${zone_slug}_boost_update_idle
+
+  # Safety: cooling season ended while boost active → immediate deactivation
+  - platform: template
+    name: "${zone_name} Boost Season Override"
+    id: ${zone_slug}_boost_season_override
+    internal: true
+    lambda: |-
+      auto state = id(${zone_slug}_boost_state).current_option();
+      return state == "Fancoil Boost" && !id(${cooling_mode_sensor}).state;
+    on_press:
+      - select.set:
+          id: ${zone_slug}_boost_state
+          option: "Radiant Only"
+      - logger.log:
+          format: "${zone_slug}: Boost disabled - heating season"
+          level: INFO
+          tag: boost

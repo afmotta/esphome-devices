@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is a layered ESPHome monorepo. Start from the root `CLAUDE.md`, then read the owning subsystem guide before editing inside `canbus/`, `lighting/`, or `hvac/`. Vesta uses `vesta/README.md` and `vesta/CONTRIBUTING.md`.
+This repository is a layered ESPHome monorepo. Start from the root `CLAUDE.md`, then read the owning subsystem guide before editing inside `canbus/`, `lighting/`, or `hvac/`. Shared packages under top-level `packages/` are cross-system infrastructure and should stay generic.
 
 ## Secrets
 
@@ -51,7 +51,7 @@ For a fast local gate that does not need ESPHome:
 bash scripts/verification-battery.sh --native-only
 ```
 
-For deploy-affecting changes on a machine with ESPHome 2026.6.5 and the Vesta test dependencies:
+For deploy-affecting changes on a machine with ESPHome 2026.6.5 and the HVAC package test dependencies:
 
 ```bash
 bash scripts/verification-battery.sh

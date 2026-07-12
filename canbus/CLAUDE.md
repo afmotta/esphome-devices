@@ -77,7 +77,7 @@ Generator idempotence: an unchanged registry regenerates byte-for-byte
 `git diff --exit-code canbus hvac registry` — the generator has written the
 `hvac/` routing artifacts too since HVAC-1.1/1.4, so the check spans all
 three paths and needs them clean before running). This whole battery, plus
-the lighting/hvac/vesta checks and the ESPHome gates, is codified in
+the lighting/HVAC/shared-package checks and the ESPHome gates, is codified in
 `scripts/verification-battery.sh` (`--native-only` skips the ESPHome steps).
 
 ## Integration with the climate system

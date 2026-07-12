@@ -1,7 +1,7 @@
 packages:
   sottotetto: !include sottotetto.yaml
   direct_pump_fancoil_secondo_piano: !include
-    file: ../../../vesta/packages/components/direct_pump.yaml
+    file: ../../packages/components/direct_pump.yaml
     vars:
       area_slug: "second_floor_fancoil"
       area_name: "Secondo Piano Fancoil"

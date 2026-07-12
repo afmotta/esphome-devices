@@ -5,7 +5,7 @@
 # Replaces relay-based control (4 relays freed) while retaining
 # 0-10V DAC for fan speed modulation.
 #
-# Combines demand aggregation (mev_demand.yaml) with the Vesta MEV controller
+# Combines demand aggregation (mev_demand.yaml) with the HVAC MEV controller
 # and Modbus hardware abstraction.
 #
 # Features:
@@ -59,9 +59,9 @@ packages:
       pm10_sensor: ${pm10_sensor}
       humidity_sensor: ${humidity_sensor}
 
-  # Vesta MEV controller: HA imports, final fan speed, humidity cascade state machine
+  # HVAC MEV controller: HA imports, final fan speed, humidity cascade state machine
   controller: !include
-    file: ../vesta/packages/coordinators/mev_ventilation.yaml
+    file: packages/coordinators/mev_ventilation.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}

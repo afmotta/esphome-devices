@@ -18,7 +18,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_bagno_terra_humidity"
 
   pid_radiant: !include
-    file: ../../../vesta/packages/components/heat_only_radiant.yaml
+    file: ../../packages/components/heat_only_radiant.yaml
     vars:
       relay_id: relay_7
       kp: 0.8
@@ -26,7 +26,7 @@ packages:
       kd: 0.05
 
   autotune: !include
-    file: ../../../vesta/packages/components/pid_autotune.yaml
+    file: ../../packages/components/pid_autotune.yaml
     vars:
       pid_id: bagno_terra_radiant_pid
       pid_name: "Bagno Terra Radiant"

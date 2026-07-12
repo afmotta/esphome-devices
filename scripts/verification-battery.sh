@@ -2,7 +2,7 @@
 # =============================================================================
 # verification-battery.sh — the repeatable cross-system verification battery
 # (HVAC-Epic-1 story 1.6 release gate; useful for any change touching canbus/,
-# lighting/, hvac/, vesta/, or the generated registry artifacts).
+# lighting/, hvac/, shared packages, or the generated registry artifacts).
 #
 # Usage (from anywhere — the script locates the repo root):
 #   bash scripts/verification-battery.sh                 # full battery
@@ -10,10 +10,10 @@
 #
 # --native-only runs only the python + native C++ tests and the generator
 # idempotence check, loudly skipping every step that needs the `esphome` CLI:
-# the ESPHome config/compile gates and the vesta failover e2e (whose fixture
+# the ESPHome config/compile gates and the HVAC package failover e2e (whose fixture
 # compiles a host-platform harness). Use it when ESPHome is not installed.
-# ESPHome pin for full runs: esphome==2026.6.5 (vesta/tests/pyproject.toml's
-# deliberate pin, >= the repo entry points' 2026.6.5 floor). The vesta e2e
+# ESPHome pin for full runs: esphome==2026.6.5 (hvac/tests/pyproject.toml's
+# deliberate pin, >= the repo entry points' 2026.6.5 floor). The HVAC package e2e
 # step additionally needs pytest, pytest-asyncio, and aioesphomeapi.
 #
 # NOTE — the "generator idempotence" step regenerates every generated artifact
@@ -157,13 +157,13 @@ run_step "native: hvac test_can_sensor_receiver.cpp" \
 # ── Generator idempotence (needs clean canbus/hvac/registry paths) ──────────
 run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
 
-# ── ESPHome gates + vesta e2e (skipped under --native-only) ─────────────────
+# ── ESPHome gates + HVAC package e2e (skipped under --native-only) ──────────
 if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "esphome config hvac/tests/compile_can_sensor_receiver.yaml" "--native-only"
   skip_step "esphome compile canbus/tests/compile_sensor_node.yaml"      "--native-only"
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
-  skip_step "pytest vesta/tests/e2e/test_failover_sensor.py"             "--native-only"
+  skip_step "pytest hvac/tests/e2e/test_failover_sensor.py"              "--native-only"
 else
   run_step "esphome config hvac/tests/compile_can_sensor_receiver.yaml" \
     esphome config hvac/tests/compile_can_sensor_receiver.yaml
@@ -173,8 +173,8 @@ else
     esphome config devices/locals/climate-control.yaml
   run_step "esphome compile devices/locals/climate-control.yaml" \
     esphome compile devices/locals/climate-control.yaml
-  run_step "pytest vesta/tests/e2e/test_failover_sensor.py" \
-    python3 -m pytest vesta/tests/e2e/test_failover_sensor.py
+  run_step "pytest hvac/tests/e2e/test_failover_sensor.py" \
+    python3 -m pytest hvac/tests/e2e/test_failover_sensor.py
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

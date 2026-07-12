@@ -1,10 +1,10 @@
 # =============================================================================
 # relay_channel.yaml — one self-registering lighting relay channel
 # =============================================================================
-# Wraps vesta's generic modbus_relay_switch.yaml (the shared hardware driver —
+# Wraps the shared modbus_relay_switch.yaml hardware driver —
 # ADR-0014's interchangeable-spares story keeps the modbus coil semantics in
-# one place for both lighting and hvac) and adds the one thing vesta must not
-# know about: registering the created switch into lighting's relay_store()
+# one place for both lighting and hvac) and adds the lighting-specific step:
+# registering the created switch into lighting's relay_store()
 # (relay_store.h) so the ADR-0013 fallback path can resolve relay id ->
 # Switch* at runtime. Because the registration lambda lives HERE, next to the
 # switch it registers, adding a channel to the bank automatically registers
@@ -24,7 +24,7 @@
 
 packages:
   hw: !include
-    file: ../../vesta/packages/devices/modbus-io/modbus_relay_switch.yaml
+    file: ../../packages/devices/modbus-io/modbus_relay_switch.yaml
     vars:
       controller_id: ${controller_id}
       switch_number: ${switch_number}

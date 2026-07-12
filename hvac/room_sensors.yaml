@@ -120,7 +120,7 @@ sensor:
   # ============================================================================
 packages:
   temperature_failover: !include
-    file: ../vesta/packages/components/failover_sensor.yaml
+    file: packages/components/failover_sensor.yaml
     vars:
       sensor_id: ${room_slug}_temp_abstracted
       sensor_name: "${room_name} Temperature (Abstracted)"
@@ -132,7 +132,7 @@ packages:
       primary_tier_label: "CAN"
       secondary_tier_label: "HA"
   humidity_failover: !include
-    file: ../vesta/packages/components/failover_sensor.yaml
+    file: packages/components/failover_sensor.yaml
     vars:
       sensor_id: ${room_slug}_humidity_abstracted
       sensor_name: "${room_name} Humidity (Abstracted)"

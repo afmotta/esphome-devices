@@ -18,7 +18,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
   pid_radiant: !include
-    file: ../../../vesta/packages/components/radiant.yaml
+    file: ../../packages/components/radiant.yaml
     vars:
       relay_id: relay_8
       kp: 0.8
@@ -26,12 +26,12 @@ packages:
       kd: 0.05
 
   fancoil: !include
-    file: ../../../vesta/packages/components/fancoil.yaml
+    file: ../../packages/components/fancoil.yaml
     vars:
       output_id: analog_output_4
 
   fancoil_boost_coordinator: !include
-    file: ../../../vesta/packages/coordinators/fancoil_boost.yaml
+    file: ../../packages/coordinators/fancoil_boost.yaml
     vars:
       zone_slug: ${room_slug}
       zone_name: ${room_name}
@@ -49,7 +49,7 @@ packages:
       predictive_minutes_sensor: ground_floor_fancoil_predictive_boost_minutes
 
   autotune_radiant: !include
-    file: ../../../vesta/packages/components/pid_autotune_with_fancoil.yaml
+    file: ../../packages/components/pid_autotune_with_fancoil.yaml
     vars:
       pid_id: cucina_radiant_pid
       pid_name: "Cucina Radiant"
@@ -57,7 +57,7 @@ packages:
       boost_active_global: cucina_boost_active
 
   autotune_fancoil: !include
-    file: ../../../vesta/packages/components/pid_autotune.yaml
+    file: ../../packages/components/pid_autotune.yaml
     vars:
       pid_id: cucina_fancoil_pid
       pid_name: "Cucina Fancoil"

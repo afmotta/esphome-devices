@@ -12,7 +12,9 @@ points that compose HVAC packages (`devices/climate-control.yaml`, its
 ## What's here
 
 - `rooms/` — room and floor-aggregator configs (13 rooms across 3 floors),
-  each including PID/radiant/fancoil packages from `vesta/packages/components/`
+  each including PID/radiant/fancoil packages from `hvac/packages/components/`
+- `packages/components/`, `packages/coordinators/` — HVAC-owned reusable ESPHome
+  packages for PID/radiant/fancoil/failover/demand logic and orchestration
 - `mev_modbus.yaml`, `mev_demand.yaml` — MEV (Mechanical Extract Ventilation)
   Modbus driver and demand aggregation
 - `room_sensors.yaml` — room sensor failover wiring
@@ -118,7 +120,7 @@ climate:
       kd: 0.08
 ```
 
-**Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `vesta/packages/coordinators/seasonal_mode.yaml`).
+**Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `hvac/packages/coordinators/seasonal_mode.yaml`).
 
 ## Modbus Communication Architecture
 
@@ -155,9 +157,9 @@ esphome compile devices/locals/climate-control.yaml
 
 The whole cross-system battery (canbus generator/python/native tests, lighting,
 these hvac checks, generator idempotence across `canbus`/`hvac`/`registry`, and
-the vesta failover e2e) is codified in `scripts/verification-battery.sh`:
+the HVAC package failover e2e) is codified in `scripts/verification-battery.sh`:
 `bash scripts/verification-battery.sh` (or `--native-only` when ESPHome isn't
-installed). Verification runs pin `esphome==2026.6.5` (`vesta/tests/pyproject.toml`).
+installed). Verification runs pin `esphome==2026.6.5` (`hvac/tests/pyproject.toml`).
 
 ## Common Tasks
 
@@ -236,9 +238,9 @@ Common issues:
 
 ### A. Modbus Register Quick Reference
 
-**Relay Board (address `0x2`, 32 channels)** — coils `0x0000`-`0x001F` (channel N = coil N-1); FC `0x01` read, `0x05` write single, `0x0F` write multiple; write values `0xFF00`=on, `0x0000`=off, `0x5500`=toggle. No connectivity status register — communication failures surface per-switch (ESPHome marks a switch unavailable on read timeout). See `vesta/packages/devices/modbus-io/modbus_relay_board_32ch.yaml`.
+**Relay Board (address `0x2`, 32 channels)** — coils `0x0000`-`0x001F` (channel N = coil N-1); FC `0x01` read, `0x05` write single, `0x0F` write multiple; write values `0xFF00`=on, `0x0000`=off, `0x5500`=toggle. No connectivity status register — communication failures surface per-switch (ESPHome marks a switch unavailable on read timeout). See `packages/devices/modbus-io/modbus_relay_board_32ch.yaml`.
 
-**Analog Outputs Board (address `0x1`, 8 channels)** — holding registers `0x0000`-`0x0007` (channel N = register N-1); value in mV, `0`-`10000` = `0`-`10.00V`; FC `0x03`/`0x06`/`0x10`. See `vesta/packages/devices/modbus-io/modbus_analog_outputs_board.yaml`.
+**Analog Outputs Board (address `0x1`, 8 channels)** — holding registers `0x0000`-`0x0007` (channel N = register N-1); value in mV, `0`-`10000` = `0`-`10.00V`; FC `0x03`/`0x06`/`0x10`. See `packages/devices/modbus-io/modbus_analog_outputs_board.yaml`.
 
 **MEV (address `0x10`)** — device-specific register set (mode/on-off/dehumidify writes, 5 temperature sensors, component-state and 39-alarm-type reads, filter-hours tracking); see `hvac/mev_modbus.yaml` for the full mapping, not duplicated here.
 

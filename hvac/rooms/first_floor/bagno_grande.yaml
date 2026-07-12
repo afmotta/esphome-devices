@@ -20,7 +20,7 @@ packages:
       ha_humidity_sensor_id: "sensor.room_bagno_grande_humidity"
 
   pid_radiant: !include
-    file: ../../../vesta/packages/components/heat_only_radiant.yaml
+    file: ../../packages/components/heat_only_radiant.yaml
     vars:
       relay_id: relay_10
       temperature_sensor: bagno_grande_temp_abstracted
@@ -29,7 +29,7 @@ packages:
       kd: 0.05
 
   autotune: !include
-    file: ../../../vesta/packages/components/pid_autotune.yaml
+    file: ../../packages/components/pid_autotune.yaml
     vars:
       pid_id: bagno_grande_radiant_pid
       pid_name: "Bagno Grande Radiant"

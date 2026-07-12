@@ -6,7 +6,7 @@ defaults:
 
 packages:
   mixing_pump_ground_floor_radiant: !include
-    file: ../../../vesta/packages/components/mixing_pump.yaml
+    file: ../../packages/components/mixing_pump.yaml
     vars:
       area_slug: "ground_floor_radiant"
       area_name: "Radiante Piano Terra"
@@ -16,7 +16,7 @@ packages:
       output_id: analog_output_1
       one_wire_bus_id: one_wire_01
   direct_pump_ground_floor_fancoil: !include
-    file: ../../../vesta/packages/components/direct_pump.yaml
+    file: ../../packages/components/direct_pump.yaml
     vars:
       area_slug: "ground_floor_fancoil"
       area_name: "Fancoil Piano Terra"
