@@ -4,7 +4,7 @@
 # Validates that the generated route package and receive-only controller package
 # compose without pulling in the full climate controller. Do not flash.
 #
-#   esphome config hvac/tests/compile_can_sensor_receiver.yaml
+#   esphome config climate/tests/compile_can_sensor_receiver.yaml
 # =============================================================================
 
 esphome:
@@ -25,7 +25,7 @@ logger:
   level: DEBUG
 
 # soggiorno_temp_can/soggiorno_humidity_can are declared statically per-room in
-# hvac/room_sensors.yaml for the real controller (HVAC-1.4) — this isolated
+# climate/room_sensors.yaml for the real controller (HVAC-1.4) — this isolated
 # fixture doesn't compose that file, so it declares the same two stub entities
 # itself to match what the generated routes package's dispatch scripts publish into.
 sensor:

@@ -1,19 +1,19 @@
-# HVAC (Climate Control) Subsystem — AI Assistant Guide
+# Climate Subsystem — AI Assistant Guide
 
-This is the HVAC application system (layered-restructure spine,
+This is the Climate application system (layered-restructure spine,
 `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`).
 It is **pre-live**: the controller hardware decision is finalized (ADR-0014 — LilyGO
 T-Connect Pro + Modbus RTU I/O boards, implemented) but not yet physically deployed.
-Everything below is scoped to `hvac/`; entry
-points that compose HVAC packages (`devices/climate-control.yaml`, its
+Everything below is scoped to `climate/`; entry
+points that compose Climate packages (`devices/climate-control.yaml`, its
 `devices/locals/` and `devices/remotes/` deployment variants) stay in
 `devices/` (entry points and their variants live together).
 
 ## What's here
 
 - `rooms/` — room and floor-aggregator configs (13 rooms across 3 floors),
-  each including PID/radiant/fancoil packages from `hvac/packages/components/`
-- `packages/components/`, `packages/coordinators/` — HVAC-owned reusable ESPHome
+  each including PID/radiant/fancoil packages from `climate/packages/components/`
+- `packages/components/`, `packages/coordinators/` — Climate-owned reusable ESPHome
   packages for PID/radiant/fancoil/failover/demand logic and orchestration
 - `mev_modbus.yaml`, `mev_demand.yaml` — MEV (Mechanical Extract Ventilation)
   Modbus driver and demand aggregation
@@ -120,7 +120,7 @@ climate:
       kd: 0.08
 ```
 
-**Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `hvac/packages/coordinators/seasonal_mode.yaml`).
+**Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
 ## Modbus Communication Architecture
 
@@ -130,25 +130,25 @@ climate:
 |---|---|---|
 | Analog Outputs Board (Waveshare Modbus RTU Analog Output 8CH (B)) | `0x1` | 0-10V fancoil/valve modulation, channels → `analog_output_1..8` |
 | Relay Board (Waveshare Modbus RTU Relay 32CH) | `0x2` | Radiant/fancoil/pump switching, channels → `relay_1..32` |
-| MEV (Cappellotto Air Fresh I) | `0x10` | Ventilation control, see `hvac/mev_modbus.yaml` for its register set |
+| MEV (Cappellotto Air Fresh I) | `0x10` | Ventilation control, see `climate/mev_modbus.yaml` for its register set |
 
-Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per first-floor room in `hvac/rooms/first_floor/first-floor.yaml` and dispatched by `hvac/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5).
+Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per first-floor room in `climate/rooms/first_floor/first-floor.yaml` and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5).
 
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
-- MEV polling: 30 seconds (`hvac/mev_modbus.yaml` default)
+- MEV polling: 30 seconds (`climate/mev_modbus.yaml` default)
 
 ## Test & verify (from repo root)
 
 ```bash
 # Native C++ receiver logic (no ESPHome deps). Both -I flags are required:
-# hvac/protocol/*.h include canbus' frozen headers by flat filename, the form
+# climate/protocol/*.h include canbus' frozen headers by flat filename, the form
 # ESPHome's flattened build needs (same pattern as lighting/tests).
-g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ihvac/protocol hvac/tests/test_can_sensor_receiver.cpp -o /tmp/hvac_can_sensor_receiver && /tmp/hvac_can_sensor_receiver
+g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Iclimate/protocol climate/tests/test_can_sensor_receiver.cpp -o /tmp/climate_can_sensor_receiver && /tmp/climate_can_sensor_receiver
 
 # Isolated receiver composition fixture (generated routes + receiver package,
 # without the full climate controller)
-esphome config hvac/tests/compile_can_sensor_receiver.yaml
+esphome config climate/tests/compile_can_sensor_receiver.yaml
 
 # The real climate controller entry point: config gate, then the full compile
 esphome config devices/locals/climate-control.yaml
@@ -156,16 +156,16 @@ esphome compile devices/locals/climate-control.yaml
 ```
 
 The whole cross-system battery (canbus generator/python/native tests, lighting,
-these hvac checks, generator idempotence across `canbus`/`hvac`/`registry`, and
-the HVAC package failover e2e) is codified in `scripts/verification-battery.sh`:
+these Climate checks, generator idempotence across `canbus`/`climate`/`registry`, and
+the Climate package failover e2e) is codified in `scripts/verification-battery.sh`:
 `bash scripts/verification-battery.sh` (or `--native-only` when ESPHome isn't
-installed). Verification runs pin `esphome==2026.6.5` (`hvac/tests/pyproject.toml`).
+installed). Verification runs pin `esphome==2026.6.5` (`climate/tests/pyproject.toml`).
 
 ## Common Tasks
 
 ### Adding a New Room
 
-1. Create room config file in `hvac/rooms/[floor]/[room_name].yaml`
+1. Create room config file in `climate/rooms/[floor]/[room_name].yaml`
 2. Include sensor, radiant, fancoil packages with room-specific vars
 3. Add room package to floor aggregator (`[floor]-floor.yaml`)
 4. Assign relay numbers (ensure no conflicts)
@@ -175,7 +175,7 @@ installed). Verification runs pin `esphome==2026.6.5` (`hvac/tests/pyproject.tom
 
 Example:
 ```yaml
-# hvac/rooms/ground_floor/new_room.yaml
+# climate/rooms/ground_floor/new_room.yaml
 defaults:
   room_slug: new_room
   room_name: "New Room"
@@ -242,11 +242,11 @@ Common issues:
 
 **Analog Outputs Board (address `0x1`, 8 channels)** — holding registers `0x0000`-`0x0007` (channel N = register N-1); value in mV, `0`-`10000` = `0`-`10.00V`; FC `0x03`/`0x06`/`0x10`. See `packages/devices/modbus-io/modbus_analog_outputs_board.yaml`.
 
-**MEV (address `0x10`)** — device-specific register set (mode/on-off/dehumidify writes, 5 temperature sensors, component-state and 39-alarm-type reads, filter-hours tracking); see `hvac/mev_modbus.yaml` for the full mapping, not duplicated here.
+**MEV (address `0x10`)** — device-specific register set (mode/on-off/dehumidify writes, 5 temperature sensors, component-state and 39-alarm-type reads, filter-hours tracking); see `climate/mev_modbus.yaml` for the full mapping, not duplicated here.
 
 ### B. Relay Assignment Reference
 
-Live channel mapping (single 32-channel Relay Board, address `0x2`, `id_offset: 0` → `relay_1..relay_32`). Source of truth is `devices/climate-control.yaml` and the room/floor files under `hvac/rooms/**` — update this table whenever a relay assignment changes there.
+Live channel mapping (single 32-channel Relay Board, address `0x2`, `id_offset: 0` → `relay_1..relay_32`). Source of truth is `devices/climate-control.yaml` and the room/floor files under `climate/rooms/**` — update this table whenever a relay assignment changes there.
 
 | Relay | Zone / Circuit | Component |
 |-------|-----------------|-----------|
@@ -279,11 +279,11 @@ Fancoil units have no dedicated relay of their own — each floor's fancoil circ
 | T-Connect Pro (master) | — | `rs485_bus` (38400 8E1 target) | The sole Modbus master; see `boards/t-connect-pro.yaml` |
 | Analog Outputs Board 8CH (B) | `0x1` | `rs485_bus` | Channels → `analog_output_1..8`; room assignments below |
 | Relay Board 32CH | `0x2` | `rs485_bus` | Channels → `relay_1..32`; see Appendix B |
-| MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor only; `hvac/mev_modbus.yaml` |
+| MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor only; `climate/mev_modbus.yaml` |
 
-Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `hvac/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and MEV (`0x10`) are hvac-only addresses with no gateway-side counterpart to mirror against.
+Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `climate/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and MEV (`0x10`) are climate-only addresses with no gateway-side counterpart to mirror against.
 
-**Analog output channel assignments** (from `hvac/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — unallocated.
+**Analog output channel assignments** (from `climate/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — unallocated.
 
 ### D. PID Tuning Guidelines
 
@@ -319,18 +319,18 @@ Room temperature/humidity control data is **not** on this bus — it is CAN-prim
 
 `registry/nodes.csv`'s `room_slug` column (spec-map-json-contract) joins a
 CAN-bus wall-button node to a climate zone. The known-zone list is read from
-this directory's room files (`hvac/rooms/**`, by file *contents* not
+this directory's room files (`climate/rooms/**`, by file *contents* not
 filenames — `ground_floor/bagno.yaml` declares `bagno_terra`) by
 `canbus/tools/generate_nodes.py`'s `load_climate_zones()`, so it
-can't drift as rooms are added, renamed, or removed. hvac only reads
+can't drift as rooms are added, renamed, or removed. Climate only reads
 `registry/map.json`; it never writes the registry (ADR-0009 §7 authority
 boundary).
 
 ## Conventions
 
-- Epic prefix: **HVAC-**. New BMAD artifacts go to the root `_bmad-output/`.
+- Epic prefix: **CLIMATE-** for future work. Existing `HVAC-*` story IDs remain historical. New BMAD artifacts go to the root `_bmad-output/`.
 - File naming follows root `CLAUDE.md`'s general conventions (kebab-case device
   configs, `[component_type]_[variant].yaml` for component configs); this file
-  is the sole owner of HVAC-specific rules — entity-ID convention, PID
+  is the sole owner of Climate-specific rules — entity-ID convention, PID
   architecture, Modbus register/relay appendices, and PID/Modbus "Common
   Tasks" all live here, not in root `CLAUDE.md` (AD-10).

@@ -14,7 +14,7 @@ control system (see root `CLAUDE.md`).
   transport, heartbeats, `node_lost` detection, discovery, and the bus
   definition on the gateway (LilyGO T-Connect Pro, TWAI CAN over Ethernet).
   It does not decode button frames or fire HA events — that's
-  `lighting/`'s gate instance (see `lighting/CLAUDE.md`). `hvac/` consumes
+  `lighting/`'s gate instance (see `lighting/CLAUDE.md`). `climate/` consumes
   sensor CAN frames directly, with no gate in between.
 - **Home Assistant owns all logic** — bindings are HA automations, changeable
   anytime.
@@ -74,21 +74,21 @@ esphome compile canbus/tests/compile_sensor_node.yaml
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte
 (`python3 canbus/tools/generate_nodes.py` then
-`git diff --exit-code canbus hvac registry` — the generator has written the
-`hvac/` routing artifacts too since HVAC-1.1/1.4, so the check spans all
+`git diff --exit-code canbus climate registry` — the generator has written the
+`climate/` routing artifacts too since HVAC-1.1/1.4, so the check spans all
 three paths and needs them clean before running). This whole battery, plus
-the lighting/HVAC/shared-package checks and the ESPHome gates, is codified in
+the lighting/Climate/shared-package checks and the ESPHome gates, is codified in
 `scripts/verification-battery.sh` (`--native-only` skips the ESPHome steps).
 
 ## Integration with the climate system
 
-`registry/map.json` is the read-only export consumed by the HVAC
-controller (this repo) and dashboards. Its HVAC-consumer contract is **frozen**
+`registry/map.json` is the read-only export consumed by the Climate
+controller (this repo) and dashboards. Its Climate-consumer contract is **frozen**
 (ADR-0009 open item 5, closed by `spec-map-json-contract`): `schema_version`,
 `map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,
 `nodes[].sensors` are frozen-additive; `manifest_hash` and `board` are
 explicitly outside the freeze. `room_slug` is the climate-zone join key
-(validated against `hvac/rooms/**`; required when `sensors=1`), and
+(validated against `climate/rooms/**`; required when `sensors=1`), and
 numeric `floor` converts to a climate floor slug via `FLOOR_SLUGS`
 (0→`ground_floor`, 1→`first_floor`, 2→`second_floor`) in
 `canbus/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the

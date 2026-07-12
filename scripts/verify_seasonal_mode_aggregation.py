@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify seasonal-mode heat/cool demand aggregates cover all HVAC PID diagnostics."""
+"""Verify seasonal-mode heat/cool demand aggregates cover all Climate PID diagnostics."""
 
 from __future__ import annotations
 
@@ -8,24 +8,24 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROOMS_DIR = ROOT / "hvac" / "rooms"
+ROOMS_DIR = ROOT / "climate" / "rooms"
 CLIMATE_CONTROL = ROOT / "devices" / "climate-control.yaml"
 
 ROOM_SLUG_RE = re.compile(r'room_slug:\s*["\']?([A-Za-z0-9_]+)["\']?')
 ID_REF_RE = re.compile(r'id\(([A-Za-z0-9_]+_pid_is_(?:heating|cooling))\)')
 
 HEAT_ONLY_MARKERS = (
-    "hvac/packages/components/heat_only_radiant.yaml",
+    "climate/packages/components/heat_only_radiant.yaml",
     "components/heat_only_radiant.yaml",
     "file: ../../packages/components/heat_only_radiant.yaml",
 )
 RADIANT_MARKERS = (
-    "hvac/packages/components/radiant.yaml",
+    "climate/packages/components/radiant.yaml",
     "components/radiant.yaml",
     "file: ../../packages/components/radiant.yaml",
 )
 FANCOIL_MARKERS = (
-    "hvac/packages/components/fancoil.yaml",
+    "climate/packages/components/fancoil.yaml",
     "components/fancoil.yaml",
     "file: ../../packages/components/fancoil.yaml",
 )

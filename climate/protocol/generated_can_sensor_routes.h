@@ -6,7 +6,7 @@
 // =============================================================================
 // generated_can_sensor_routes.h — GENERATED from registry/nodes.csv by
 // canbus/tools/generate_nodes.py. DO NOT EDIT.
-// HVAC CAN sensor route metadata for receiver freshness tracking.
+// Climate CAN sensor route metadata for receiver freshness tracking.
 // =============================================================================
 
 struct HvacCanSensorRoute { uint16_t node_id; uint16_t measurement_type; };

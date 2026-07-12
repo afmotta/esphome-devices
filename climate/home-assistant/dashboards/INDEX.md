@@ -362,7 +362,7 @@ Complete listing of all Home Assistant dashboards for the climate control system
 ## File Structure
 
 ```
-hvac/home-assistant/dashboards/
+climate/home-assistant/dashboards/
 ├── INDEX.md                       # This file
 ├── README.md                      # Full documentation
 ├── QUICK_START.md                 # Quick setup guide

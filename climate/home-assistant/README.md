@@ -1,4 +1,4 @@
-# hvac/home-assistant/
+# climate/home-assistant/
 
 Home Assistant-side artifacts for the HVAC (climate control) system.
 

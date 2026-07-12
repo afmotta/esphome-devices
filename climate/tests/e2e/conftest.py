@@ -106,7 +106,7 @@ async def run_harness():
         # Fresh working directory per run: the host platform persists
         # preferences (e.g. select restore_value) to a file in cwd, and
         # tests must not inherit state from previous runs.
-        workdir = tempfile.mkdtemp(prefix=f"hvac-e2e-{name}-")
+        workdir = tempfile.mkdtemp(prefix=f"climate-e2e-{name}-")
         proc = subprocess.Popen(
             [str(binary)], cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )

@@ -295,7 +295,7 @@ T-Connect Pro ──── Relay 32CH
 ```
 
 Room sensors are **not** on either bus — they report over UDP `packet_transport`
-(see `hvac/room_sensors.yaml`).
+(see `climate/room_sensors.yaml`).
 
 **Cable Lengths:** pending re-measurement — the physical installation for this topology
 has not happened yet; see [This Project's Cable Lengths](#this-projects-cable-lengths).
@@ -349,7 +349,7 @@ automated fetching) — verify terminal labels and power requirements from the b
 manuals at bring-up (ADR-0014 open item 1).
 
 **MEV (Cappellotto Air Fresh I):** wiring unchanged from its existing installation
-(address `0x10`); see `hvac/mev_modbus.yaml`.
+(address `0x10`); see `climate/mev_modbus.yaml`.
 
 ### Step 3: Install Termination Resistors
 
@@ -791,7 +791,7 @@ Use this checklist for every RS485 installation:
 - **Modbus Protocol:** Modbus RTU Specification
 - **ESPHome Modbus Documentation:** https://esphome.io/components/modbus.html
 - **Related Documents:**
-  - `hvac/CLAUDE.md` - Live bus members, addresses, and register appendices
+  - `climate/CLAUDE.md` - Live bus members, addresses, and register appendices
   - `docs/modbus-register-map.md` - Register definitions (historical, Gen-1 hardware)
   - `docs/deployment-guide.md` - Deployment procedures (historical, Gen-1 hardware)
 

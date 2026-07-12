@@ -14,8 +14,8 @@ esphome:
   # directly from devices/).
   includes:
     - ../../canbus/protocol/canbus_protocol.h
-    - ../../hvac/protocol/generated_can_sensor_routes.h
-    - ../../hvac/protocol/can_sensor_receiver.h
+    - ../../climate/protocol/generated_can_sensor_routes.h
+    - ../../climate/protocol/can_sensor_receiver.h
 
 packages:
   base: !include
@@ -26,11 +26,11 @@ packages:
   # on_frame action calls can_sensor_route_publish/_nan scripts, which must
   # already be defined). Every registered sensors=1 node's temp/humidity
   # frames land on the static `sensor:` entities declared per-room in
-  # hvac/room_sensors.yaml (HVAC-1.4); everything else (SEN66 kit,
+  # climate/room_sensors.yaml (HVAC-1.4); everything else (SEN66 kit,
   # particulates, VOC/NOx, CO2 — HVAC-1.5 scope) is still declared by
   # can_routes itself, scoped to registered nodes only.
-  can_routes: !include ../hvac/packages/generated/can_sensor_routes.yaml
-  can_receiver: !include ../hvac/packages/can_sensor_receiver.yaml
+  can_routes: !include ../climate/packages/generated/can_sensor_routes.yaml
+  can_receiver: !include ../climate/packages/can_sensor_receiver.yaml
   analog_outputs_1: !include
     file: ../packages/devices/modbus-io/modbus_analog_outputs_board.yaml
     vars:
@@ -49,11 +49,11 @@ packages:
       update_interval: 2s
       id_offset: 0
       controller_name: "Relay Board 1"
-  ground_floor: !include ../hvac/rooms/ground_floor/ground-floor.yaml
-  first_floor: !include ../hvac/rooms/first_floor/first-floor.yaml
-  second_floor: !include ../hvac/rooms/second_floor/second-floor.yaml
+  ground_floor: !include ../climate/rooms/ground_floor/ground-floor.yaml
+  first_floor: !include ../climate/rooms/first_floor/first-floor.yaml
+  second_floor: !include ../climate/rooms/second_floor/second-floor.yaml
   seasonal_mode: !include
-    file: ../hvac/packages/coordinators/seasonal_mode.yaml
+    file: ../climate/packages/coordinators/seasonal_mode.yaml
     vars:
       seasonal_mode_id: hp_mode
       seasonal_mode_name: "Heat Pump Mode"
@@ -97,7 +97,7 @@ time:
 
 binary_sensor:
   # Keep these manual demand aggregates in sync with every PID diagnostic produced by
-  # hvac/rooms/**. scripts/verify_seasonal_mode_aggregation.py enforces completeness.
+  # climate/rooms/**. scripts/verify_seasonal_mode_aggregation.py enforces completeness.
   - id: !extend any_pid_requesting_heat
     lambda: |-
       return id(soggiorno_radiant_pid_is_heating).state ||

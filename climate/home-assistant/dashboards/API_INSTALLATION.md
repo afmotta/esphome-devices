@@ -55,7 +55,7 @@ The script needs PyYAML to parse dashboard configuration files.
 
 **Option 1: Install from requirements.txt (Recommended)**
 ```bash
-cd /path/to/esphome-devices/hvac/home-assistant/dashboards
+cd /path/to/esphome-devices/climate/home-assistant/dashboards
 pip3 install -r requirements.txt
 ```
 
@@ -104,7 +104,7 @@ brew install jq          # macOS
 
 **Step 1: Install PyYAML**
 ```bash
-cd /path/to/esphome-devices/hvac/home-assistant/dashboards
+cd /path/to/esphome-devices/climate/home-assistant/dashboards
 pip3 install -r requirements.txt
 ```
 
@@ -148,7 +148,7 @@ Access your dashboards at: http://homeassistant.local:8123/lovelace/climate-over
 **Advantages**: No Python dependencies (except PyYAML), simple
 
 ```bash
-cd /path/to/esphome-devices/hvac/home-assistant/dashboards
+cd /path/to/esphome-devices/climate/home-assistant/dashboards
 
 chmod +x install-dashboards.sh
 
@@ -312,7 +312,7 @@ curl http://homeassistant.local:8123/api/
 
 **1. Install from requirements.txt (Recommended):**
 ```bash
-cd /path/to/esphome-devices/hvac/home-assistant/dashboards
+cd /path/to/esphome-devices/climate/home-assistant/dashboards
 pip3 install -r requirements.txt
 ```
 
@@ -439,7 +439,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'hvac/home-assistant/dashboards/**'
+      - 'climate/home-assistant/dashboards/**'
 
 jobs:
   deploy:
@@ -455,7 +455,7 @@ jobs:
           HA_URL: ${{ secrets.HA_URL }}
           HA_TOKEN: ${{ secrets.HA_TOKEN }}
         run: |
-          python3 hvac/home-assistant/dashboards/install-dashboards.py \
+          python3 climate/home-assistant/dashboards/install-dashboards.py \
             --url "$HA_URL" \
             --token "$HA_TOKEN"
 ```
@@ -470,7 +470,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY hvac/home-assistant/dashboards/ ./dashboards/
+COPY climate/home-assistant/dashboards/ ./dashboards/
 
 ENV HA_URL=""
 ENV HA_TOKEN=""

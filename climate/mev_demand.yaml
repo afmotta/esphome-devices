@@ -21,8 +21,8 @@
 #
 # Depends on (must exist in merged config):
 #   ${mev_slug}_min_fan_speed - Minimum fan speed HA import. When this file is
-#     composed through hvac/mev_modbus.yaml, it is declared by
-#     hvac/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
+#     composed through climate/mev_modbus.yaml, it is declared by
+#     climate/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
 #     Standalone consumers must declare an equivalent sensor before using this package.
 #
 # Exposes:

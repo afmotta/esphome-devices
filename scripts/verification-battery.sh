@@ -2,7 +2,7 @@
 # =============================================================================
 # verification-battery.sh — the repeatable cross-system verification battery
 # (HVAC-Epic-1 story 1.6 release gate; useful for any change touching canbus/,
-# lighting/, hvac/, shared packages, or the generated registry artifacts).
+# lighting/, climate/, shared packages, or the generated registry artifacts).
 #
 # Usage (from anywhere — the script locates the repo root):
 #   bash scripts/verification-battery.sh                 # full battery
@@ -10,15 +10,15 @@
 #
 # --native-only runs only the python + native C++ tests and the generator
 # idempotence check, loudly skipping every step that needs the `esphome` CLI:
-# the ESPHome config/compile gates and the HVAC package failover e2e (whose fixture
+# the ESPHome config/compile gates and the Climate package failover e2e (whose fixture
 # compiles a host-platform harness). Use it when ESPHome is not installed.
-# ESPHome pin for full runs: esphome==2026.6.5 (hvac/tests/pyproject.toml's
-# deliberate pin, >= the repo entry points' 2026.6.5 floor). The HVAC package e2e
+# ESPHome pin for full runs: esphome==2026.6.5 (climate/tests/pyproject.toml's
+# deliberate pin, >= the repo entry points' 2026.6.5 floor). The Climate package e2e
 # step additionally needs pytest, pytest-asyncio, and aioesphomeapi.
 #
 # NOTE — the "generator idempotence" step regenerates every generated artifact
-# and then asserts `git diff --exit-code canbus hvac registry`, so the TRACKED
-# FILES UNDER canbus/, hvac/, AND registry/ MUST BE CLEAN before running
+# and then asserts `git diff --exit-code canbus climate registry`, so the TRACKED
+# FILES UNDER canbus/, climate/, AND registry/ MUST BE CLEAN before running
 # (commit or stash first). The step pre-checks this and fails with a clear
 # message instead of burying uncommitted work under regenerated output.
 #
@@ -102,17 +102,17 @@ cxx_run() {
 }
 
 # Generator idempotence (epic HVAC-1 AC6): an unchanged registry regenerates
-# byte-for-byte across canbus/, hvac/ (routing artifacts), and registry/.
+# byte-for-byte across canbus/, climate/ (routing artifacts), and registry/.
 idempotence_check() {
-  if ! git diff --quiet -- canbus hvac registry; then
-    echo "PRECONDITION FAILED: tracked files under canbus/, hvac/, or registry/"
+  if ! git diff --quiet -- canbus climate registry; then
+    echo "PRECONDITION FAILED: tracked files under canbus/, climate/, or registry/"
     echo "have uncommitted modifications. This step regenerates all generated"
     echo "artifacts and asserts a byte-identical tree — commit or stash first."
-    git --no-pager diff --stat -- canbus hvac registry
+    git --no-pager diff --stat -- canbus climate registry
     return 1
   fi
   python3 canbus/tools/generate_nodes.py
-  git diff --exit-code canbus hvac registry
+  git diff --exit-code canbus climate registry
 }
 
 # Top-level logger configuration in deployable packages should be variable-driven with an
@@ -138,7 +138,7 @@ echo
 # ── Python tests (stdlib-only) ──────────────────────────────────────────────
 run_step "hygiene: no tracked secrets or build artifacts" python3 scripts/check_repo_hygiene.py
 run_step "hygiene: deployable logger levels are configurable" logger_level_check
-run_step "hvac: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
+run_step "climate: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py
 run_step "python: canbus/tests/test_generate_exports.py"  python3 canbus/tests/test_generate_exports.py
 run_step "python: canbus/tests/test_push_gate.py"         python3 canbus/tests/test_push_gate.py
@@ -151,30 +151,30 @@ run_step "native: canbus test_bridge_forwarding.cpp" cxx_run bridge    canbus/te
 run_step "native: canbus test_bindings_contract.cpp" cxx_run bcontract canbus/tests/test_bindings_contract.cpp
 run_step "native: lighting test_binding_actuation.cpp" \
   cxx_run act -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp
-run_step "native: hvac test_can_sensor_receiver.cpp" \
-  cxx_run hvac_can_sensor_receiver -Icanbus/protocol -Ihvac/protocol hvac/tests/test_can_sensor_receiver.cpp
+run_step "native: climate test_can_sensor_receiver.cpp" \
+  cxx_run climate_can_sensor_receiver -Icanbus/protocol -Iclimate/protocol climate/tests/test_can_sensor_receiver.cpp
 
-# ── Generator idempotence (needs clean canbus/hvac/registry paths) ──────────
+# ── Generator idempotence (needs clean canbus/climate/registry paths) ──────────
 run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
 
-# ── ESPHome gates + HVAC package e2e (skipped under --native-only) ──────────
+# ── ESPHome gates + Climate package e2e (skipped under --native-only) ───────
 if [ "$NATIVE_ONLY" -eq 1 ]; then
-  skip_step "esphome config hvac/tests/compile_can_sensor_receiver.yaml" "--native-only"
+  skip_step "esphome config climate/tests/compile_can_sensor_receiver.yaml" "--native-only"
   skip_step "esphome compile canbus/tests/compile_sensor_node.yaml"      "--native-only"
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
-  skip_step "pytest hvac/tests/e2e/test_failover_sensor.py"              "--native-only"
+  skip_step "pytest climate/tests/e2e/test_failover_sensor.py"              "--native-only"
 else
-  run_step "esphome config hvac/tests/compile_can_sensor_receiver.yaml" \
-    esphome config hvac/tests/compile_can_sensor_receiver.yaml
+  run_step "esphome config climate/tests/compile_can_sensor_receiver.yaml" \
+    esphome config climate/tests/compile_can_sensor_receiver.yaml
   run_step "esphome compile canbus/tests/compile_sensor_node.yaml" \
     esphome compile canbus/tests/compile_sensor_node.yaml
   run_step "esphome config devices/locals/climate-control.yaml" \
     esphome config devices/locals/climate-control.yaml
   run_step "esphome compile devices/locals/climate-control.yaml" \
     esphome compile devices/locals/climate-control.yaml
-  run_step "pytest hvac/tests/e2e/test_failover_sensor.py" \
-    python3 -m pytest hvac/tests/e2e/test_failover_sensor.py
+  run_step "pytest climate/tests/e2e/test_failover_sensor.py" \
+    python3 -m pytest climate/tests/e2e/test_failover_sensor.py
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ package to the generated node. Sensor frames carry the host node's node_id, so a
 sensor-equipped node's registry room must be the sensors' physical room.
 
 The `room_slug` column (spec-map-json-contract) joins a node to a climate zone. Values are
-validated against the climate room packages (hvac/rooms/**), never freehand;
+validated against the climate room packages (climate/rooms/**), never freehand;
 blank = not joined to a climate zone (corridors, stairwells, not-yet-commissioned). A
 sensors=1 node MUST carry a room_slug — its measurements are consumed per climate zone. The
 numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
@@ -93,8 +93,8 @@ EXAMPLE_ROWS = [
     [101, 0, 8, 0, "Ground floor living room", 0, ""],
 ]
 
-CAN_SENSOR_ROUTES_PATH = Path("hvac") / "packages" / "generated" / "can_sensor_routes.yaml"
-CAN_SENSOR_ROUTES_HEADER_PATH = Path("hvac") / "protocol" / "generated_can_sensor_routes.h"
+CAN_SENSOR_ROUTES_PATH = Path("climate") / "packages" / "generated" / "can_sensor_routes.yaml"
+CAN_SENSOR_ROUTES_HEADER_PATH = Path("climate") / "protocol" / "generated_can_sensor_routes.h"
 
 # Route every ADR-0006 producer measurement to a room-scoped CAN source sensor. The
 # `constant` names intentionally match canbus_protocol.h so the generated receiver-facing
@@ -183,7 +183,7 @@ CAN_SENSOR_MEASUREMENTS = (
 )
 
 # HVAC-1.4/HVAC-1.5: room-level route targets are declared once per room in
-# hvac/room_sensors.yaml itself (via ${room_slug} substitution), so this generator
+# climate/room_sensors.yaml itself (via ${room_slug} substitution), so this generator
 # must only emit publish dispatch for them. Keeping declarations static prevents
 # duplicate-id errors when registry-driven routes include the same room.
 STATIC_CAN_SENSOR_TARGET_SUFFIXES = frozenset({
@@ -222,12 +222,12 @@ _ROOM_SLUG_RE = re.compile(r'^\s{2}room_slug:\s*"?([a-z0-9_]+)"?\s*$')
 
 def load_climate_zones(rooms_dir: Path = None) -> dict:
     """Read the known climate zones from the climate room packages: room_slug -> climate
-    floor slug. Sourced from hvac/rooms/** rather than a hardcoded set so the list
+    floor slug. Sourced from climate/rooms/** rather than a hardcoded set so the list
     cannot drift as rooms are added, renamed, or removed (spec-map-json-contract open
     question, resolved toward the shared source). Slugs come from file CONTENTS, not
     filenames — ground_floor/bagno.yaml declares bagno_terra."""
     if rooms_dir is None:
-        rooms_dir = REPO_ROOT / "hvac" / "rooms"
+        rooms_dir = REPO_ROOT / "climate" / "rooms"
     zones = {}
     for floor_slug in FLOOR_SLUGS.values():
         for path in sorted((rooms_dir / floor_slug).glob("*.yaml")):
@@ -386,16 +386,16 @@ def render_bindings_header(manifest_hash: str, bindings_list) -> str:
 
 def build_map_export(export_nodes, manifest_hash: str) -> dict:
     """Build the registry/map.json payload (ADR-0009 §7): the read-only export for non-C
-    consumers (HVAC controller, dashboards, tooling). schema_version + a deterministic
+    consumers (Climate controller, dashboards, tooling). schema_version + a deterministic
     map_version marker + the binding manifest_hash + the node list. Nodes are sorted by
     node_id so the export is stable regardless of CSV row order.
 
-    FROZEN HVAC-consumer contract (ADR-0009 open item 5, closed by spec-map-json-contract):
+    FROZEN Climate-consumer contract (ADR-0009 open item 5, closed by spec-map-json-contract):
     `schema_version`, `map_version`, `nodes[].node_id`, `nodes[].room_slug`,
     `nodes[].location`, `nodes[].sensors` are frozen-additive — fields may be added, never
     renamed, removed, or reinterpreted without a new spec. `manifest_hash` (ha_ready
     arbitration, §3) and `board` (wall-box disambiguation) are explicitly OUTSIDE the freeze:
-    changing them needs no HVAC-side compatibility review. `floor`/`room` stay canbus
+    changing them needs no Climate-side compatibility review. `floor`/`room` stay canbus
     map-seed metadata; a consumer derives a climate floor slug from `floor` via FLOOR_SLUGS.
     An empty `room_slug` means the node is not joined to a climate zone.
     """
@@ -496,13 +496,13 @@ def _sensor_route_nodes(export_nodes):
 
 
 def render_can_sensor_routes(export_nodes) -> str:
-    """Render the HVAC-owned compile-time route artifact for CAN sensor receivers.
+    """Render the Climate-owned compile-time route artifact for CAN sensor receivers.
 
     The current story only emits the deterministic route package. Receiver composition,
     freshness, and failover remain separate HVAC-1 stories. Does not declare its own
     `esphome: includes:` for canbus_protocol.h (needed for the SENSOR_* constants used in
     the dispatch scripts below) — every composing entry point (devices/climate-control.yaml,
-    hvac/tests/compile_can_sensor_receiver.yaml) already includes it at the correct
+    climate/tests/compile_can_sensor_receiver.yaml) already includes it at the correct
     CLI-invoked-file-relative depth, and this package's own directory depth doesn't match
     that depth, so redeclaring it here would just be a second, wrong-depth copy.
     """
@@ -512,11 +512,11 @@ def render_can_sensor_routes(export_nodes) -> str:
         "# can_sensor_routes.yaml — GENERATED from registry/nodes.csv by\n"
         "# canbus/tools/generate_nodes.py. DO NOT EDIT.\n"
         "# =============================================================================\n"
-        "# HVAC CAN sensor routing artifact. Includes only sensors=1 registry rows whose\n"
-        "# room_slug was validated against hvac/rooms/** before this file was written.\n"
+        "# Climate CAN sensor routing artifact. Includes only sensors=1 registry rows whose\n"
+        "# room_slug was validated against climate/rooms/** before this file was written.\n"
         "#\n"
         "# Temp/humidity targets (<room_slug>_temp_can / <room_slug>_humidity_can) are declared\n"
-        "# statically in hvac/room_sensors.yaml for every known HVAC room (HVAC-1.4) — this\n"
+        "# statically in climate/room_sensors.yaml for every known Climate room (HVAC-1.4) — this\n"
         "# file only dispatches published values into them. All other measurements keep their\n"
         "# entity declared here, scoped to sensors=1 rows only.\n"
         "# =============================================================================\n\n"
@@ -559,7 +559,7 @@ def render_can_sensor_routes(export_nodes) -> str:
         room_name = _room_title(room_slug)
         for measurement in CAN_SENSOR_MEASUREMENTS:
             if measurement["target_suffix"] in STATIC_CAN_SENSOR_TARGET_SUFFIXES:
-                # Entity already declared statically in hvac/room_sensors.yaml
+                # Entity already declared statically in climate/room_sensors.yaml
                 # (HVAC-1.4) — only the dispatch script (below) needs to know its id.
                 continue
             lines.extend([
@@ -626,7 +626,7 @@ def render_can_sensor_routes(export_nodes) -> str:
 
 
 def render_can_sensor_routes_header(export_nodes) -> str:
-    """Render the generated route metadata consumed by the HVAC CAN receiver.
+    """Render the generated route metadata consumed by the Climate CAN receiver.
 
     The YAML package owns ESPHome target entities and publish scripts; this C++ header owns
     the compact route table that lets the receiver refresh and expire only real routed
@@ -641,7 +641,7 @@ def render_can_sensor_routes_header(export_nodes) -> str:
         "// =============================================================================\n"
         "// generated_can_sensor_routes.h — GENERATED from registry/nodes.csv by\n"
         "// canbus/tools/generate_nodes.py. DO NOT EDIT.\n"
-        "// HVAC CAN sensor route metadata for receiver freshness tracking.\n"
+        "// Climate CAN sensor route metadata for receiver freshness tracking.\n"
         "// =============================================================================\n\n"
         "struct HvacCanSensorRoute { uint16_t node_id; uint16_t measurement_type; };\n\n"
     )
@@ -674,8 +674,8 @@ def write_can_sensor_routes(export_nodes, repo_root: Path) -> None:
     header_path.parent.mkdir(parents=True, exist_ok=True)
     header_path.write_text(render_can_sensor_routes_header(export_nodes))
     route_count = len(_sensor_route_nodes(export_nodes))
-    print(f"  ✓ {route_path.name}  (HVAC CAN sensor routes, {route_count} sensor node(s))")
-    print(f"  ✓ {header_path.name}  (HVAC CAN sensor route metadata)")
+    print(f"  ✓ {route_path.name}  (Climate CAN sensor routes, {route_count} sensor node(s))")
+    print(f"  ✓ {header_path.name}  (Climate CAN sensor route metadata)")
 
 
 def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):

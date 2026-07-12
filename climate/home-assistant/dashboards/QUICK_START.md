@@ -11,7 +11,7 @@ Fast setup guide for getting your dashboards up and running.
 ```bash
 # If inside HA container or SSH addon
 cd /config
-mkdir -p esphome-devices/hvac/home-assistant/dashboards
+mkdir -p esphome-devices/climate/home-assistant/dashboards
 
 # Copy all dashboard files to this location
 # (Adjust source path as needed)
@@ -32,7 +32,7 @@ lovelace:
       title: Climate Control
       icon: mdi:home-thermometer
       show_in_sidebar: true
-      filename: esphome-devices/hvac/home-assistant/dashboards/climate-overview.yaml
+      filename: esphome-devices/climate/home-assistant/dashboards/climate-overview.yaml
 
     # All other dashboards - navigation only (hidden from sidebar)
     ground-floor:
@@ -40,28 +40,28 @@ lovelace:
       title: Ground Floor
       icon: mdi:home-floor-0
       show_in_sidebar: false
-      filename: esphome-devices/hvac/home-assistant/dashboards/ground-floor.yaml
+      filename: esphome-devices/climate/home-assistant/dashboards/ground-floor.yaml
 
     first-floor:
       mode: yaml
       title: First Floor
       icon: mdi:home-floor-1
       show_in_sidebar: false
-      filename: esphome-devices/hvac/home-assistant/dashboards/first-floor.yaml
+      filename: esphome-devices/climate/home-assistant/dashboards/first-floor.yaml
 
     second-floor:
       mode: yaml
       title: Second Floor
       icon: mdi:home-floor-2
       show_in_sidebar: false
-      filename: esphome-devices/hvac/home-assistant/dashboards/second-floor.yaml
+      filename: esphome-devices/climate/home-assistant/dashboards/second-floor.yaml
 
     system-monitoring:
       mode: yaml
       title: System Monitoring
       icon: mdi:monitor-dashboard
       show_in_sidebar: false
-      filename: esphome-devices/hvac/home-assistant/dashboards/system-monitoring.yaml
+      filename: esphome-devices/climate/home-assistant/dashboards/system-monitoring.yaml
 ```
 
 **Navigation Hierarchy**: Climate Control (sidebar) → Floor Dashboards → Room Dashboards

@@ -4,7 +4,7 @@
 > Gen-1 A6/A16 master/slave topology with Modbus room sensors — hardware replaced by
 > ADR-0014 (LilyGO T-Connect Pro + Waveshare Modbus RTU I/O boards, single master, room
 > sensors over HA/UDP). Kept as historical record; for the live system see root
-> `CLAUDE.md`, `hvac/CLAUDE.md`, and `docs/rs485-wiring-guide.md`.
+> `CLAUDE.md`, `climate/CLAUDE.md`, and `docs/rs485-wiring-guide.md`.
 
 **Project:** ESPHome Multi-Floor Climate Control - Modbus RTU Enhancement  
 **Version:** 1.0  

@@ -118,7 +118,7 @@ using the `canbus_protocol.h` constants/helpers merged in PR #19.
   otherwise `SENSOR_STATUS_OK` with the scaled value. Degraded frames are sent when the
   component publishes a reading at all (`sen6x` publishes NaN sentinels; `sht4x` publishes
   nothing on a hard I2C failure — there the consumer's 90 s staleness rule is the only cover).
-  The consumer (the dedicated HVAC controller, external firmware) ignores non-OK values.
+  The consumer (the dedicated Climate controller, external firmware) ignores non-OK values.
 - **Frame pacing:** the send script runs `mode: queued` with 25 ms inter-frame spacing — a
   SEN66 update bursts 9 channels at once and the MCP2515 has only 3 TX mailboxes, so unspaced
   sends would systematically drop the later measurements every cycle.
@@ -230,17 +230,17 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
   - `protocol/bindings.h` — `BINDINGS_MANIFEST_HASH` **plus** the compiled `BINDINGS[]`
     fallback table (`struct BindingEntry`, `binding_find()`), frozen-additive and currently
     empty (fallback is log-only, ADR-0003 open item 7).
-  - `registry/map.json` — the read-only export for non-C consumers (HVAC controller,
+  - `registry/map.json` — the read-only export for non-C consumers (Climate controller,
     dashboards): `schema_version`, a deterministic `map_version` content marker (not a
     wall-clock — unchanged input regenerates byte-for-byte), `manifest_hash`, and `nodes[]`.
-    **Frozen HVAC-consumer contract** (ADR-0009 open item 5, closed 2026-07-05 by
+    **Frozen Climate-consumer contract** (ADR-0009 open item 5, closed 2026-07-05 by
     `spec-map-json-contract`): the frozen-additive field list is `schema_version`,
     `map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,
     `nodes[].sensors` — fields may be added, never renamed, removed, or reinterpreted
     without a new spec. `manifest_hash` (ha_ready arbitration) and `board` (wall-box
-    disambiguation) are explicitly **outside** the freeze: changing them needs no HVAC-side
+    disambiguation) are explicitly **outside** the freeze: changing them needs no Climate-side
     compatibility review. `room_slug` joins a node to a climate zone — validated by the
-    generator against the climate room packages (`hvac/rooms/**`, never freehand),
+    generator against the climate room packages (`climate/rooms/**`, never freehand),
     required when `sensors=1`, empty = no climate zone. Numeric `floor` stays canbus
     map-seed metadata; consumers derive the climate floor slug via the fixed table
     0→`ground_floor`, 1→`first_floor`, 2→`second_floor` (`FLOOR_SLUGS` in

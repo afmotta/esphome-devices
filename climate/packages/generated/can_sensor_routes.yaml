@@ -2,11 +2,11 @@
 # can_sensor_routes.yaml — GENERATED from registry/nodes.csv by
 # canbus/tools/generate_nodes.py. DO NOT EDIT.
 # =============================================================================
-# HVAC CAN sensor routing artifact. Includes only sensors=1 registry rows whose
-# room_slug was validated against hvac/rooms/** before this file was written.
+# Climate CAN sensor routing artifact. Includes only sensors=1 registry rows whose
+# room_slug was validated against climate/rooms/** before this file was written.
 #
 # Temp/humidity targets (<room_slug>_temp_can / <room_slug>_humidity_can) are declared
-# statically in hvac/room_sensors.yaml for every known HVAC room (HVAC-1.4) — this
+# statically in climate/room_sensors.yaml for every known Climate room (HVAC-1.4) — this
 # file only dispatches published values into them. All other measurements keep their
 # entity declared here, scoped to sensors=1 rows only.
 # =============================================================================

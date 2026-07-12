@@ -23,7 +23,7 @@
 # Note: the `${room_slug}_temp_can`/`${room_slug}_humidity_can` sensors are
 # declared statically below, once per room, so this failover always has a
 # valid id to reference. They are published by
-# `hvac/packages/can_sensor_receiver.yaml`'s dispatch scripts once that room's
+# `climate/packages/can_sensor_receiver.yaml`'s dispatch scripts once that room's
 # CAN node is enabled in `registry/nodes.csv` and the routes artifact is
 # regenerated. Until then they simply never receive a publish and read NaN
 # forever, so this failover behaves exactly as the prior HA-primary tier did.

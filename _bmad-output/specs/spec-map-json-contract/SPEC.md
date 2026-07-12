@@ -36,7 +36,7 @@ ADR-0009 named `map.json` as the read-only export for non-C consumers (HVAC cont
 
 - **Authority boundary holds (ADR-0009 §7 / ADR-0006 §6):** the HVAC controller only reads `map.json`; it never writes `nodes.csv` or allocates `node_id`s. The `room_slug` column and its validation are canbus-registry-owned.
 - **Export stays frozen-additive (ADR-0009 §7):** fields may be added; `node_id` and `map_version` are ratified as-is (CAP-4) and must not be renamed or reinterpreted again without a new spec.
-- **`room_slug` values must be real climate zones**, drawn from the room packages under `hvac/rooms/**` (currently 14 zones across 3 floors) — never invented or freehand strings.
+- **`room_slug` values must be real climate zones**, drawn from the room packages under `climate/rooms/**` (currently 14 zones across 3 floors) — never invented or freehand strings.
 - **Registry stays git-system-of-record (ADR-0009):** the additive column is committed like any other registry change; no out-of-band mapping file that could drift from git history.
 
 ## Non-goals
@@ -58,4 +58,4 @@ ADR-0009 named `map.json` as the read-only export for non-C consumers (HVAC cont
 
 ## Open Questions
 
-- ~~Should the known-room_slug validation list (CAP-1) be maintained as a static set inside `generate_nodes.py`, or generated/shared from the climate room definitions so it can't drift as rooms are added, renamed, or removed?~~ **Resolved (migration Phase 4):** `load_climate_zones()` in `generate_nodes.py` reads the list live from `hvac/rooms/**` file contents — never a hardcoded set. No open question remains.
+- ~~Should the known-room_slug validation list (CAP-1) be maintained as a static set inside `generate_nodes.py`, or generated/shared from the climate room definitions so it can't drift as rooms are added, renamed, or removed?~~ **Resolved (migration Phase 4):** `load_climate_zones()` in `generate_nodes.py` reads the list live from `climate/rooms/**` file contents — never a hardcoded set. No open question remains.

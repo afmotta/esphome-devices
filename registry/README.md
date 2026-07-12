@@ -29,7 +29,7 @@ artifacts before committing:
 ```bash
 python3 canbus/tools/generate_nodes.py
 python3 canbus/tests/test_generate_exports.py
-git diff -- canbus hvac registry
+git diff -- canbus climate registry
 ```
 
 Commit the registry source and generated artifacts together. Do not flash a

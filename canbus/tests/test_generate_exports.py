@@ -10,7 +10,7 @@ Covers the pure renderers added for the export slice:
     BINDINGS[] rows; the hash and binding_find accessor are always present.
   - render_ha_package: the manifest hash is baked into the generated heartbeat.
   - room_slug climate join (spec-map-json-contract): the FLOOR_SLUGS conversion table, the
-    known-zone list read from hvac/rooms/**, and validate_room_slug's branches.
+    known-zone list read from climate/rooms/**, and validate_room_slug's branches.
 """
 
 import json
@@ -44,7 +44,7 @@ def _write_temp_climate_zones(repo_root, extra_rooms=None):
         for floor_slug, room_slugs in extra_rooms.items():
             rooms.setdefault(floor_slug, []).extend(room_slugs)
     for floor_slug, room_slugs in rooms.items():
-        floor_dir = repo_root / "hvac" / "rooms" / floor_slug
+        floor_dir = repo_root / "climate" / "rooms" / floor_slug
         floor_dir.mkdir(parents=True, exist_ok=True)
         for room_slug in room_slugs:
             (floor_dir / f"{room_slug}.yaml").write_text(

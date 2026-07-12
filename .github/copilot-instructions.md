@@ -3,7 +3,7 @@
 > **Note:** This file predates the 2026-07 layered restructure and the later Vesta fold-back.
 > The Epic 2/5/7/10 update sections below are kept as historical record but their
 > file paths are stale — see root `CLAUDE.md` (and each system's own `CLAUDE.md`, e.g.
-> `hvac/CLAUDE.md`, `canbus/CLAUDE.md`) for the current, authoritative architecture map.
+> `climate/CLAUDE.md`, `canbus/CLAUDE.md`) for the current, authoritative architecture map.
 
 This repo contains reusable ESPHome YAML packages that compose device configurations.
 Keep changes minimal, respect secrets, and follow the existing composition patterns.
@@ -11,7 +11,7 @@ Keep changes minimal, respect secrets, and follow the existing composition patte
 Key concepts (read these files first):
 
 - `boards/` — platform-level node configs and common hardware pin mapping (e.g. `boards/t-connect-pro.yaml`, `boards/s1-pro-multi-sense.yaml`).
-- `hvac/packages/components/` and `hvac/packages/coordinators/` — HVAC-owned reusable packages which are included with `packages:` and expect `vars` (examples: `hvac/packages/components/pid_sensors.yaml`, `hvac/packages/components/fancoil.yaml`). Shared Modbus I/O drivers live under top-level `packages/devices/modbus-io/`.
+- `climate/packages/components/` and `climate/packages/coordinators/` — Climate-owned reusable packages which are included with `packages:` and expect `vars` (examples: `climate/packages/components/pid_sensors.yaml`, `climate/packages/components/fancoil.yaml`). Shared Modbus I/O drivers live under top-level `packages/devices/modbus-io/`.
 - `devices/` — top-level device definitions that assemble `packages:` (current main entry point: `devices/climate-control.yaml`; the old `devices/gruppo-miscelazione.yaml` example below no longer exists).
 - `devices/locals/secrets.yaml` — substitution keys and sensitive values (do NOT print secrets in output or add them to commits).
 
@@ -26,36 +26,36 @@ Patterns and conventions to preserve:
 What to avoid:
 
 - Never commit secrets or expand `devices/locals/secrets.yaml` values into code or PR text.
-- Avoid inlining package internals into device files; maintain reusable `hvac/packages/components/`, top-level `packages/devices/`, and `boards/` separation.
+- Avoid inlining package internals into device files; maintain reusable `climate/packages/components/`, top-level `packages/devices/`, and `boards/` separation.
 
 Typical edit checklist for changes to behavior:
 
 1. Locate the high-level device file in `devices/` and see which `packages:` it uses.
-2. Inspect the referenced `hvac/packages/components/*.yaml`, `hvac/packages/coordinators/*.yaml`, or top-level `packages/devices/**/*.yaml` (or `canbus/packages/`, `lighting/packages/` as appropriate) to understand expected `vars` and `id` naming.
+2. Inspect the referenced `climate/packages/components/*.yaml`, `climate/packages/coordinators/*.yaml`, or top-level `packages/devices/**/*.yaml` (or `canbus/packages/`, `lighting/packages/` as appropriate) to understand expected `vars` and `id` naming.
 3. Make minimal edits to the component or add a new component file in the owning system.
 4. Update the device `packages:` call with appropriate `vars` (follow examples in `devices/climate-control.yaml`).
 5. Validate locally with the ESPHome CLI (e.g., `esphome config <device.yaml>` and `esphome compile <device.yaml>`) before pushing — do not commit compiled artifacts.
 
 Integration notes:
 
-- The repo relies on ESPHome composition: devices assemble `packages` defined across `hvac/packages/`, top-level `packages/`, `canbus/`, `lighting/`, and `boards/` using substitutions from `devices/locals/secrets.yaml`.
+- The repo relies on ESPHome composition: devices assemble `packages` defined across `climate/packages/`, top-level `packages/`, `canbus/`, `lighting/`, and `boards/` using substitutions from `devices/locals/secrets.yaml`.
 - There is a `packages.config` entry (see `devices/locals/secrets.yaml`) that can point to the repo itself for config updates — treat remote package fetching with care.
 
 Examples from the repo:
 
-- `devices/climate-control.yaml` is the main HVAC entry point composing board, room, and coordinator packages.
-- `hvac/packages/components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
+- `devices/climate-control.yaml` is the main Climate entry point composing board, room, and coordinator packages.
+- `climate/packages/components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
 
 **Epic 2 Update (October 2025, historical):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. See `_bmad-output/implementation-artifacts/epic-2-migration-guide.md` for migration details; the `components/deprecated/` directory referenced at the time no longer exists.
 
-**Epic 5 Update (October 2025, historical — superseded by Epic 8's unified state machine and later package restructuring):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. The current equivalent of the room-sensor + emergency-shutdown pattern described below is `hvac/packages/components/failover_sensor.yaml` (3-tier failover) composed via `hvac/room_sensors.yaml` — consult those files and `hvac/CLAUDE.md` rather than the file names below, which no longer exist:
+**Epic 5 Update (October 2025, historical — superseded by Epic 8's unified state machine and later package restructuring):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. The current equivalent of the room-sensor + emergency-shutdown pattern described below is `climate/packages/components/failover_sensor.yaml` (3-tier failover) composed via `climate/room_sensors.yaml` — consult those files and `climate/CLAUDE.md` rather than the file names below, which no longer exist:
 
 - **State Machine (historical shape):** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
 - **Control Hierarchy:** Emergency shutdown only controls PID; cascade to slow_pwm→relay is automatic
 
 For details, see `_bmad-output/implementation-artifacts/epic-5-migration-guide.md`, `_bmad-output/implementation-artifacts/epic-5-ha-only-sensors.md`, and `_bmad-output/implementation-artifacts/epic-5-completion-report.md`.
 
-**Epic 7 Update (October 2025, historical):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. The `components/room_window_detection.yaml` file named below no longer exists as a standalone component — check `hvac/rooms/**` and `hvac/CLAUDE.md` for the current implementation. Key patterns as originally documented:
+**Epic 7 Update (October 2025, historical):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. The `components/room_window_detection.yaml` file named below no longer exists as a standalone component — check `climate/rooms/**` and `climate/CLAUDE.md` for the current implementation. Key patterns as originally documented:
 
 - **Window Detection (historical shape):** used a `room_window_detection.yaml` component for fancoil rooms with PID controllers
 - **Required Vars:** `room_slug`, `room_name`, `ha_window_sensor_id`, `pid_id`, `window_shutdown_modes`

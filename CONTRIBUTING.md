@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is a layered ESPHome monorepo. Start from the root `CLAUDE.md`, then read the owning subsystem guide before editing inside `canbus/`, `lighting/`, or `hvac/`. Shared packages under top-level `packages/` are cross-system infrastructure and should stay generic.
+This repository is a layered ESPHome monorepo. Start from the root `CLAUDE.md`, then read the owning subsystem guide before editing inside `canbus/`, `lighting/`, or `climate/`. Shared packages under top-level `packages/` are cross-system infrastructure and should stay generic.
 
 ## Secrets
 
@@ -34,7 +34,7 @@ The registry is the house system of record. After editing `registry/nodes.csv` o
 ```bash
 python3 canbus/tools/generate_nodes.py
 python3 canbus/tests/test_generate_exports.py
-git diff -- canbus hvac registry
+git diff -- canbus climate registry
 ```
 
 Commit the registry edit and generated artifacts together. Before reflashing a controller, push the commit and run:
@@ -57,7 +57,7 @@ For deploy-affecting changes on a machine with ESPHome 2026.6.5 and the HVAC pac
 bash scripts/verification-battery.sh
 ```
 
-The generator idempotence step requires tracked files under `canbus/`, `hvac/`, and `registry/` to be clean before it runs. Commit or stash in-progress changes first.
+The generator idempotence step requires tracked files under `canbus/`, `climate/`, and `registry/` to be clean before it runs. Commit or stash in-progress changes first.
 
 ## Git Hygiene
 
