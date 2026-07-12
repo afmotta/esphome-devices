@@ -182,14 +182,21 @@ CAN_SENSOR_MEASUREMENTS = (
     },
 )
 
-# HVAC-1.4: temp/humidity route targets are declared once per room, unconditionally, in
-# hvac/room_sensors.yaml itself (via ${room_slug} substitution) — that's what its own
-# CAN-primary failover wires to before any node is registered/regenerated. This generator
-# still owns their publish-dispatch (so a registered node's frames reach that static id) but
-# must NOT also declare the entity itself, or a registered room would get a duplicate-id
-# compile error against the static declaration. Every other measurement (SEN66 kit,
-# particulates, VOC/NOx, CO2 — HVAC-1.5 scope) keeps the original declare + dispatch.
-STATIC_CAN_SENSOR_TARGET_SUFFIXES = frozenset({"temp", "humidity"})
+# HVAC-1.4/HVAC-1.5: room-level route targets are declared once per room in
+# hvac/room_sensors.yaml itself (via ${room_slug} substitution), so this generator
+# must only emit publish dispatch for them. Keeping declarations static prevents
+# duplicate-id errors when registry-driven routes include the same room.
+STATIC_CAN_SENSOR_TARGET_SUFFIXES = frozenset({
+    "temp",
+    "humidity",
+    "co2",
+    "voc_index",
+    "nox_index",
+    "pm1_0",
+    "pm2_5",
+    "pm4_0",
+    "pm10",
+})
 
 # CAN ID layout — must match canbus_protocol.h: [category:4][node_id:13][reserved:12].
 CAT_SHIFT = 25

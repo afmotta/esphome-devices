@@ -1,0 +1,32 @@
+# ============================================================================
+# First Floor Air Quality Max Sensor
+#
+# One floor-level max aggregate over first-floor room CAN pollutant targets.
+# Include once per pollutant with the target suffix and minimal metadata vars.
+# ============================================================================
+defaults:
+  sensor_id_suffix: co2
+  sensor_label: CO₂
+  source_suffix: co2
+  accuracy_decimals: "0"
+  unit_of_measurement:
+  device_class:
+
+sensor:
+  - platform: combination
+    id: first_floor_max_${sensor_id_suffix}
+    name: "Max ${sensor_label} Primo Piano"
+    type: max
+    unit_of_measurement: ${unit_of_measurement}
+    device_class: ${device_class}
+    state_class: measurement
+    accuracy_decimals: ${accuracy_decimals}
+    sources:
+      - source: bagno_grande_${source_suffix}_can
+      - source: bagno_ospiti_${source_suffix}_can
+      - source: bagno_padronale_${source_suffix}_can
+      - source: camera_nord_${source_suffix}_can
+      - source: camera_sud_${source_suffix}_can
+      - source: camera_ospiti_${source_suffix}_can
+      - source: camera_padronale_${source_suffix}_can
+      - source: lavanderia_${source_suffix}_can

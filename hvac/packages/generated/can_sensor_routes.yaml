@@ -28,54 +28,6 @@ sensor:
     unit_of_measurement: "%"
     device_class: humidity
 
-  - platform: template
-    id: soggiorno_pm1_0_can
-    name: "Soggiorno PM1.0 CAN"
-    state_class: measurement
-    accuracy_decimals: 1
-    unit_of_measurement: "ug/m3"
-
-  - platform: template
-    id: soggiorno_pm2_5_can
-    name: "Soggiorno PM2.5 CAN"
-    state_class: measurement
-    accuracy_decimals: 1
-    unit_of_measurement: "ug/m3"
-
-  - platform: template
-    id: soggiorno_pm4_0_can
-    name: "Soggiorno PM4.0 CAN"
-    state_class: measurement
-    accuracy_decimals: 1
-    unit_of_measurement: "ug/m3"
-
-  - platform: template
-    id: soggiorno_pm10_can
-    name: "Soggiorno PM10 CAN"
-    state_class: measurement
-    accuracy_decimals: 1
-    unit_of_measurement: "ug/m3"
-
-  - platform: template
-    id: soggiorno_voc_index_can
-    name: "Soggiorno VOC Index CAN"
-    state_class: measurement
-    accuracy_decimals: 0
-
-  - platform: template
-    id: soggiorno_nox_index_can
-    name: "Soggiorno NOx Index CAN"
-    state_class: measurement
-    accuracy_decimals: 0
-
-  - platform: template
-    id: soggiorno_co2_can
-    name: "Soggiorno CO2 CAN"
-    state_class: measurement
-    accuracy_decimals: 0
-    unit_of_measurement: "ppm"
-    device_class: carbon_dioxide
-
 script:
   - id: can_sensor_route_publish
     mode: queued

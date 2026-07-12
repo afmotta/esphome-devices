@@ -49,6 +49,58 @@ sensor:
     accuracy_decimals: 2
     internal: true
 
+  # Air-quality CAN targets are declared statically per room so floor-level
+  # aggregators can always reference stable IDs regardless of registry state.
+  - platform: template
+    id: ${room_slug}_co2_can
+    name: "${room_name} CO2 CAN"
+    unit_of_measurement: "ppm"
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: ${room_slug}_voc_index_can
+    name: "${room_name} VOC Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: ${room_slug}_nox_index_can
+    name: "${room_name} NOx Index CAN"
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    id: ${room_slug}_pm1_0_can
+    name: "${room_name} PM1.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: ${room_slug}_pm2_5_can
+    name: "${room_name} PM2.5 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ${room_slug}_pm4_0_can
+    name: "${room_name} PM4.0 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+    entity_category: diagnostic
+
+  - platform: template
+    id: ${room_slug}_pm10_can
+    name: "${room_name} PM10 CAN"
+    unit_of_measurement: "ug/m3"
+    state_class: measurement
+    accuracy_decimals: 1
+
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
     id: ${room_slug}_temp_ha
