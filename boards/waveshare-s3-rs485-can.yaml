@@ -1,0 +1,120 @@
+# =============================================================================
+# waveshare-s3-rs485-can.yaml — Waveshare ESP32-S3-RS485-CAN board
+# =============================================================================
+# https://www.waveshare.com/wiki/ESP32-S3-RS485-CAN
+#
+# A DIFFERENT board from boards/waveshare-s3.yaml — that one is the
+# ESP32-S3-POE-ETH-8DI-8RO relay/DI board (W5500 Ethernet, PCA9554 relays).
+# THIS one is the industrial RS485-CAN gateway board: an isolated RS485 and an
+# isolated CAN (TWAI) transceiver, WiFi/BLE only (NO Ethernet), onboard PCF85063
+# RTC. Purpose-built here for the canbus health monitor (ADR-0015): CAN-only,
+# WiFi telemetry to Home Assistant.
+#
+# Module: ESP32-S3R8 (WROOM, 8 MB octal PSRAM — the wiki's stated default).
+#   Flash size is NOT stated by the wiki; set conservatively to 8MB below (safe
+#   on an 8MB part, only wastes space if the module is actually N16R8). Bump to
+#   16MB only after confirming the physical module (ADR-0015 bring-up open item).
+#
+# Transceiver GPIOs are NOT in the wiki spec table (schematic only). Recorded
+# facts, to be confirmed at bring-up (ADR-0015 open items 1–2):
+#   - CAN (TWAI): TX=GPIO15 / RX=GPIO16 — the wiring this board ran as the
+#     pre-ADR-0014 gateway (ADR-0014 Context) and canbus/packages/health.yaml's
+#     own can_tx_pin/can_rx_pin defaults.
+#   - Isolated RS485 UART: schematic-only pins, UNUSED here — the health monitor
+#     speaks no Modbus (ADR-0015). Left unconfigured; no modbus_uart.
+#   - Onboard PCF85063 RTC (I²C) + free user IO GPIO1/GPIO2 on the SH1.0 header:
+#     I²C pins not in the spec table; left unconfigured — health aliveness is
+#     millis()-based and needs no wall clock (ADR-0011).
+#
+# Per AD-4 the CAN bus itself (`canbus:` / can0) is NOT declared here — that is
+# entry-point composition (ADR-0015 §2: can0 lives in devices/health-monitor.yaml
+# and consumes health.yaml's can_tx_pin/can_rx_pin). This file owns only the
+# platform, WiFi, api/ota, logger, and the generic buttons. Same split
+# boards/t-connect-pro.yaml documents for its own unclaimed CAN transceiver.
+# =============================================================================
+
+substitutions:
+  logger_level: INFO
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  # Matches the canbus gateway-class verified ESPHome (see devices/light-controller.yaml);
+  # confirm the esp32_can/TWAI path on this board at bring-up.
+  min_version: 2026.5.0
+  comment: "Waveshare ESP32-S3-RS485-CAN"
+
+esp32:
+  variant: esp32s3
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+
+# ESP32-S3R8 module → 8 MB octal PSRAM.
+psram:
+  mode: octal
+  speed: 80MHz
+
+# Enable logging
+logger:
+  level: ${logger_level}
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${encryption_key}
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+# WiFi only — this board has no Ethernet. ADR-0015: health telemetry over WiFi
+# is acceptable (observability, not actuation; the bus is still observed
+# locally when WiFi is down).
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${device_name} - IP Address"
+    ssid:
+      name: "${device_name} - Wi-Fi SSID"
+    bssid:
+      name: "${device_name} - Wi-Fi BSSID"
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+  - platform: gpio
+    name: "Boot Button"
+    pin:
+      number: 0
+      ignore_strapping_warning: true
+      mode:
+        input: true
+      inverted: true
+    disabled_by_default: true
+    on_press:
+      then:
+        - button.press: restart_button
+
+# Virtual buttons
+button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config

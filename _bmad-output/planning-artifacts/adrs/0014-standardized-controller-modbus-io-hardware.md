@@ -109,6 +109,11 @@ bank and amending the validator bound in the same commit.
   **Ethernet replaces WiFi.** The spine's deferred "physical gateway split" resolves as: no
   further split — hvac is already a separate physical device; lighting + canbus continue
   sharing the gateway per AD-4.
+  > **Amended by ADR-0015 (2026-07-13):** this "no further split" is superseded. The canbus
+  > transport-health role later split onto its own device (`devices/health-monitor.yaml`,
+  > Waveshare ESP32-S3-RS485-CAN), and `devices/gateway.yaml` was reduced to the lighting
+  > controller and renamed `devices/light-controller.yaml`. The split falls between lighting and
+  > canbus-health, not between lighting and hvac. See ADR-0015.
 - **`devices/climate-control.yaml`**: T-Connect Pro + Analog 8CH (B) @0x1 + Relay 32CH @0x2
   (replacing both the 8 onboard PCA9554 relays and the two 8-ch boards @0x2/0x3) + MEV @0x10.
   Channel ids `relay_1..relay_32` (`id_offset: 0`) keep every room/floor file untouched. The CAN

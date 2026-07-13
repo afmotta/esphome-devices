@@ -23,9 +23,11 @@ spi:
 
 # MCP2515 CAN controller. GPIO11 is the hardware INT line, but ESPHome's
 # mcp2515 platform does not expose an interrupt-pin option, so it polls SPI.
-# NOTE: canbus/packages/health.yaml also declares `id: can0` for its ESP32 TWAI bus.
-# The two are never composed into the same entry point today (this board: generated
-# node YAMLs + compile_sensor_node.yaml only; health.yaml: devices/gateway.yaml only).
+# NOTE: the gateway-side entry points also declare `id: can0` for their ESP32 TWAI
+# bus (devices/health-monitor.yaml and the lighting controller, devices/light-controller.yaml;
+# canbus/packages/health.yaml only `!extend`s it — ADR-0015 §2). The MCP2515 can0
+# here and that TWAI can0 are never composed into one entry point (this board:
+# generated node YAMLs + compile_sensor_node.yaml only).
 canbus:
   - platform: mcp2515
     id: can0

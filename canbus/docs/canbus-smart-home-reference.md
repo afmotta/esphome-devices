@@ -18,7 +18,12 @@ The button boards are walled in and hard to reach after installation. The RP2040
 
 **Button nodes:** Seeed Studio / Longan Labs CANBed RP2040 (SKU 102991596). An off-the-shelf CAN bus development board with RP2040 MCU, on-board MCP2515 CAN controller (SPI0, CS on GPIO9) and MCP2551 CAN transceiver. CAN interface via 4-pin screw terminal or DB9 connector, with switchable 120Ω termination resistor. Accepts 9–28V power input on the CAN connector (provides regulated 3.3V/1A). Exposes 8 digital I/O, 3 analog inputs, I2C (Grove), UART (Grove), and SPI. The standard node firmware wires up 8 buttons. No WiFi, no OTA — flashed via USB (Micro-USB) before installation. ~$16 per board ($14 at 10+). Product link: https://www.seeedstudio.com/CANBed-RP2040-CAN-Bus-development-board-p-5262.html
 
-**Gateway:** LilyGO T-Connect Pro (ESP32-S3-R8, 16MB flash / 8MB PSRAM), per ADR-0014 — the same standardized controller the HVAC master uses (`boards/t-connect-pro.yaml`). Connects to Home Assistant via W5500 Ethernet (no PoE; DC supply — ADR-0014 §5). Uses the ESP32-S3's native TWAI CAN controller (IO6 TX, IO7 RX) with the board's onboard CAN transceiver. RS485 (IO17 TX, IO18 RX, auto-direction transceiver) drives the gateway's Waveshare Modbus RTU Relay 32CH bank (address `0x2`, lighting fallback relays). W5500 Ethernet SPI: SCLK=IO12, MOSI=IO11, MISO=IO13, CS=IO10, INT=IO9, RST=IO48. The board's display/touch/LoRa peripherals are unused and left unconfigured. This description matches the deployed `devices/gateway.yaml` (post ADR-0014 P4) — it retires the earlier three-way discrepancy where docs said POE-ETH-8DI-8DO with CAN on GPIO2/3 while the deployed config was a WiFi RS485-CAN board with CAN on GPIO15/16.
+**Gateway-class devices (two, since the ADR-0015 split):**
+
+- **Lighting controller** (`devices/light-controller.yaml`): LilyGO T-Connect Pro (ESP32-S3-R8, 16MB flash / 8MB PSRAM), per ADR-0014 — the same standardized controller the HVAC master uses (`boards/t-connect-pro.yaml`). Connects to Home Assistant via W5500 Ethernet (no PoE; DC supply — ADR-0014 §5). Uses the ESP32-S3's native TWAI CAN controller (IO6 TX, IO7 RX) with the board's onboard CAN transceiver. RS485 (IO17 TX, IO18 RX, auto-direction transceiver) drives its Waveshare Modbus RTU Relay 32CH bank (address `0x2`, lighting fallback relays). W5500 Ethernet SPI: SCLK=IO12, MOSI=IO11, MISO=IO13, CS=IO10, INT=IO9, RST=IO48. The board's display/touch/LoRa peripherals are unused and left unconfigured.
+- **Health monitor** (`devices/health-monitor.yaml`): Waveshare ESP32-S3-RS485-CAN (`boards/waveshare-s3-rs485-can.yaml`), WiFi-only, CAN transceiver on IO15 TX / IO16 RX. Hosts transport health only (heartbeat decode, aliveness, drift diagnostics); no relays, no RS485.
+
+Both tap the same backbone segment. ADR-0015 split what ADR-0014 P4 had deployed as one combined `devices/gateway.yaml` (which itself retired the earlier three-way discrepancy where docs said POE-ETH-8DI-8DO with CAN on GPIO2/3 while the deployed config was a WiFi RS485-CAN board with CAN on GPIO15/16).
 
 ## CAN Protocol v1
 
@@ -89,8 +94,9 @@ registry/                    # house system-of-record, elevated out of firmware/
 ├── node_id_hwm               # persistent monotonic node_id high-water mark
 ├── bindings.yaml             # binding manifest (owned by lighting)
 └── map.json                  # GENERATED read-only export (contract owned by hvac)
-canbus/                       # flattened out of firmware/ (Phase 6a); gateway.yaml/bridge.yaml
-                              #   live in devices/ (Phase 5a)
+canbus/                       # flattened out of firmware/ (Phase 6a); the gateway-class configs
+                              #   (light-controller.yaml, health-monitor.yaml) + bridge.yaml
+                              #   live in devices/ (Phase 5a; split by ADR-0015)
 ├── README.md                 # Operational detail: pins, arbitration, health, manifest
 ├── protocol/
 │   ├── canbus_protocol.h    # C++ header: all constants, CAN ID helpers, payload builders/decoders
@@ -100,7 +106,7 @@ canbus/                       # flattened out of firmware/ (Phase 6a); gateway.y
 │   ├── base_node.yaml       # Shared CAN node behavior: protocol include, heartbeat, standard 8-button set
 │   ├── button.yaml          # Per-button package: GPIO + on_multi_click with 5 event types
 │   ├── sensor_kit.yaml      # Opt-in ADR-0006 sensor kit (SHT45 + SEN66)
-│   └── health.yaml          # Gateway-side: bus definition + transport health (see devices/gateway.yaml)
+│   └── health.yaml          # Health-monitor-side: transport health, !extends can0 (see devices/health-monitor.yaml)
 ├── tools/
 │   ├── allocate_node.py     # allocate the next node_id and register it
 │   ├── generate_nodes.py    # reads registry/nodes.csv -> per-node YAML + protocol/node_map.h

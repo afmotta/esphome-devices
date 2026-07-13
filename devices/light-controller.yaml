@@ -1,32 +1,27 @@
 # =============================================================================
-# gateway.yaml — CAN Bus ↔ Home Assistant bridge (composition entry point)
+# light-controller.yaml — Lighting controller (composition entry point)
 # =============================================================================
 # Hardware: LilyGO T-Connect Pro
-# Role:     Composes two systems' packages onto one physical device (AD-4;
-#           AD-7 as amended 2026-07-06):
-#             canbus/packages/health.yaml   — bus + transport health (infra)
-#             lighting/packages/buttons.yaml — button events + ha_ready gate
+# Role:     The lighting application controller (ADR-0015 split this off the
+#           former combined gateway): it composes lighting/packages/buttons.yaml
+#           (button events + ha_ready gate + single-click fallback) and the
+#           relay bank. Transport health (canbus/packages/health.yaml) moved to
+#           its own device, devices/health-monitor.yaml — this controller no
+#           longer decodes heartbeats or tracks node aliveness.
 #           This file owns identity/network-mode substitutions, api
-#           encryption/OTA passwords, the shared protocol-header includes,
-#           and the relay bank. The board file (boards/t-connect-pro.yaml)
-#           owns the physical network implementation (Ethernet vs WiFi
-#           pins), esp32/api/ota scaffolding. Per ADR-0014, the physical
-#           split deferred by ADR-0013 resolves as: no further split — hvac
-#           is already a separate physical device; lighting + canbus
-#           continue sharing this entry point.
+#           encryption/OTA passwords, the lighting protocol-header includes, the
+#           can0 bus definition (ADR-0015 §2), and the relay bank. The board
+#           file (boards/t-connect-pro.yaml) owns the physical network
+#           implementation (Ethernet vs WiFi pins), esp32/api/ota scaffolding.
 #
-# PACKAGE ORDER: keep canbus (defines the can0 bus) before lighting
-# (`!extend`s it). Empirically ESPHome 2026.5.0 resolves !extend regardless of
-# package order, so this is defensive convention expressing the real dependency
-# direction — do not rely on the order-tolerance across ESPHome upgrades.
+# can0 is defined in this entry point (see the canbus: block below);
+# lighting/packages/buttons.yaml `!extend`s it for the CAT_INPUT handler.
 # =============================================================================
 
 substitutions:
   # Tunable on hardware to resolve ADR-0003 open item 2 (values are milliseconds).
   ha_heartbeat_ttl_ms: "15000"
   ack_timeout_ms: "500"
-  # Aliveness: a mapped node is LOST after 3 missed 30 s heartbeats (ADR-0011 §1).
-  node_lost_timeout_ms: "90000"
   logger_level: INFO
   # CAN transceiver pins on this board (T-Connect Pro onboard TWAI, per ADR-0014).
   can_tx_pin: GPIO6
@@ -34,17 +29,17 @@ substitutions:
   # Encryption only — the arbitration services/automations come from
   # lighting/packages/buttons.yaml and merge onto the board file's api: block.
   encryption_key: !secret api_encryption_key
-  # ADR-0010 §5: authenticate OTA — the gateway is the most privileged device
-  # on the LAN, so an unauthenticated push is the one bus-external defect the
-  # security ADR found.
+  # ADR-0010 §5: authenticate OTA — the lighting controller drives the relay
+  # bank, so it is the most privileged device on the LAN; an unauthenticated
+  # push is the one bus-external defect the security ADR found.
   ota_password: !secret ota_password
   # `defaults:` (climate-control.yaml's pattern) only resolves for a file
-  # loaded via `!include` — it is a no-op on a file compiled directly, which
-  # is how the gateway (no locals/remotes wrapper, by design) is built. These
+  # loaded via `!include` — it is a no-op on a file compiled directly, which is
+  # how this controller (no locals/remotes wrapper, by design) is built. These
   # go in `substitutions:` instead so the board file's ${device_name}/
   # ${friendly_name} actually resolve.
-  device_name: canbus-gateway
-  friendly_name: "CAN Bus Gateway"
+  device_name: light-controller
+  friendly_name: "Lighting Controller"
 
 packages:
   # Board first: provides modbus_uart (consumed by the relays package below)
@@ -53,8 +48,8 @@ packages:
     file: ../boards/t-connect-pro.yaml
     vars:
       enable_ethernet: true
-  # canbus next: defines can0 (see PACKAGE ORDER above) before lighting !extends it.
-  health: !include ../canbus/packages/health.yaml
+  # Lighting: decodes CAT_INPUT button frames off can0 (defined in this entry
+  # point below), fires HA events, owns the ha_ready gate + single-click fallback.
   buttons: !include ../lighting/packages/buttons.yaml
   # Lighting-owned bank (0-based relay_0..relay_31 natively, each channel
   # self-registers into relay_store() for the ADR-0013 fallback); wraps
@@ -72,10 +67,25 @@ esphome:
     - ../canbus/protocol/canbus_protocol.h
     - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
     - ../canbus/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
-    - ../canbus/protocol/node_health.h   # gateway-resident aliveness pure logic (ADR-0011 §1)
     - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
     - ../lighting/protocol/binding_actuation.h   # fallback gesture/bounds pure logic (ADR-0013 §1-2)
     - ../lighting/protocol/relay_store.h   # relay-id -> Switch* glue (ADR-0013 §1-2)
+
+# --------------- CAN Bus (native ESP32 TWAI) ---------------
+# The bus DEFINITION lives here in the entry point (ADR-0015 §2), not in a
+# package: canbus/packages/health.yaml `!extend can0` to attach its CAT_STATUS
+# handler and lighting/packages/buttons.yaml `!extend can0` for CAT_INPUT. Pins
+# are this board's TWAI transceiver (T-Connect Pro, IO6/IO7 per ADR-0014).
+canbus:
+  - platform: esp32_can
+    id: can0
+    use_extended_id: true
+    # Component default TX id = CAT_OUTPUT base. Every send sets an explicit can_id +
+    # use_extended_id, so this is only the component default and is never relied on.
+    can_id: 0x04000000
+    tx_pin: ${can_tx_pin}
+    rx_pin: ${can_rx_pin}
+    bit_rate: 125KBPS
 
 # --------------- Logging ---------------
 logger:

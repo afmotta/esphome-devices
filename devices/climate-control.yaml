@@ -7,10 +7,10 @@ esphome:
   # This file is never compiled directly — it only resolves through the
   # one-level-deeper devices/locals/*.yaml or devices/remotes/*.yaml wrapper
   # (its `defaults:` substitutions are a no-op otherwise, same as noted in
-  # devices/gateway.yaml). ESPHome resolves `includes:` relative to the
+  # devices/light-controller.yaml). ESPHome resolves `includes:` relative to the
   # top-level CLI-invoked file's directory (esphome/core CORE.config_dir),
   # not this file's own directory, so these need one extra `../` versus
-  # devices/gateway.yaml's `../canbus/protocol/...` (which IS compiled
+  # devices/light-controller.yaml's `../canbus/protocol/...` (which IS compiled
   # directly from devices/).
   includes:
     - ../../canbus/protocol/canbus_protocol.h

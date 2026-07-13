@@ -34,7 +34,7 @@ This repo hosts the ESPHome systems for Alberto's three-floor residence, organiz
 **layered systems monorepo** (see `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`):
 
 1. **`canbus/`** (infrastructure) — a pre-live CAN bus transport system (RP2040 nodes +
-   ESP32-S3 gateway): frames, heartbeats, node discovery/health, the bus definition. See
+   ESP32-S3 health monitor): frames, heartbeats, node discovery/health, the bus definition. See
    `canbus/CLAUDE.md` for its rules and `canbus/docs/canbus-smart-home-reference.md` for
    the protocol. Merged from `afmotta/canbus` (archived) with full history; old PR `#N`
    references in `canbus/` commit messages resolve in the archived repo.
@@ -73,8 +73,9 @@ BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
 
 Standardized per ADR-0014 — the same three devices serve both the Climate and lighting systems, so one shelf of spares covers the whole house:
 
-- **LilyGO T-Connect Pro**: ESP32-S3 controller with W5500 Ethernet and native RS485 + CAN transceivers — used as both the Climate controller (`devices/climate-control.yaml`) and the CAN-bus/lighting gateway (`devices/gateway.yaml`)
-- **Waveshare Modbus RTU Relay 32CH**: 32-channel relay bank on RS485 — zone/pump switching (climate) and lighting circuits (gateway), both at mirrored address `0x2`
+- **LilyGO T-Connect Pro**: ESP32-S3 controller with W5500 Ethernet and native RS485 + CAN transceivers — used as both the Climate controller (`devices/climate-control.yaml`) and the lighting controller (`devices/light-controller.yaml`)
+- **Waveshare ESP32-S3-RS485-CAN**: WiFi-only ESP32-S3 board with isolated CAN + RS485 — the dedicated CAN bus health monitor (`devices/health-monitor.yaml`), split off the former combined gateway per ADR-0015
+- **Waveshare Modbus RTU Relay 32CH**: 32-channel relay bank on RS485 — zone/pump switching (climate) and lighting circuits (lighting controller), both at mirrored address `0x2`
 - **Waveshare Modbus RTU Analog Output 8CH (B)**: 0-10V outputs (voltage variant) — fancoil/mixing-valve modulation (climate only, address `0x1`)
 - **S1 Pro Multi-Sense**: Custom sensor boards with LD2450 radar, air quality sensors
 - **RS485 Modbus RTU**: single-master bus per system, target 38400 8E1 (pending the bring-up parity check, ADR-0014 §4)
@@ -168,9 +169,10 @@ esphome-devices/
 │   ├── climate-control.yaml   # Main Climate system
 │   ├── room-sensor-soggiorno.yaml # Standalone room sensor
 │   ├── wall-sensor.yaml       # Wall-mounted sensor (SEN66)
-│   ├── gateway.yaml           # CAN bus gateway firmware (composes canbus + lighting packages)
+│   ├── light-controller.yaml  # Lighting controller firmware (button events + relay bank; ADR-0015)
+│   ├── health-monitor.yaml    # CAN bus health monitor firmware (transport health; ADR-0015)
 │   ├── bridge.yaml            # CAN bus segment bridge firmware
-│   ├── secrets.yaml.example   # Template for devices/secrets.yaml (gateway's secrets)
+│   ├── secrets.yaml.example   # Template for devices/secrets.yaml (device secrets)
 │   ├── locals/                # Local development/deployment configs
 │   └── remotes/               # Remote GitHub-based deployment configs
 │
@@ -298,7 +300,7 @@ packages:
 **Single-master pattern** (ADR-0014; see `climate/CLAUDE.md` for bus members, register
 details, and polling intervals):
 - One T-Connect Pro controller is the sole Modbus RTU master per system (the Climate controller's
-  `rs485_bus`; the gateway has its own, mirroring the relay bank address `0x2`)
+  `rs485_bus`; the lighting controller has its own, mirroring the relay bank address `0x2`)
 - Commodity I/O boards (Relay 32CH, Analog Output 8CH (B), MEV) are polled/written
   directly — there are no slave controller boards and no board-to-board Modbus
 - Room-sensor data does **not** travel over Modbus — it arrives via CAN/HA failover
@@ -476,7 +478,8 @@ external_components:
 | File | Purpose |
 |------|---------|
 | `devices/climate-control.yaml` | **Main entry point** - orchestrates entire system |
-| `devices/gateway.yaml` | CAN bus / lighting gateway entry point |
+| `devices/light-controller.yaml` | Lighting controller entry point (button events + relay bank) |
+| `devices/health-monitor.yaml` | CAN bus health monitor entry point (transport health, ADR-0015) |
 | `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
 | `climate/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `climate/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |

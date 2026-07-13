@@ -68,7 +68,13 @@ Generated node configs include `base_node.yaml`, not the board package directly.
 
 ## ESPHome Version
 
-**Known-good version:** ESPHome 2026.6.5 — confirmed by successful `esphome compile devices/gateway.yaml` (2026-07-12; see `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md` for full compile evidence).
+**Known-good version:** ESPHome 2026.6.5 — confirmed by successful `esphome compile` of the gateway config (2026-07-12; see `_bmad-output/implementation-artifacts/spec-esphome-2026-6-5-modbus-controller-server-compat.md` for full compile evidence). That combined `devices/gateway.yaml` has since been split by ADR-0015 into `devices/light-controller.yaml` (arbitration + relays) and `devices/health-monitor.yaml` (transport health).
+
+> **ADR-0015 device split (2026-07-13):** "the gateway" below is a role, now two physical
+> devices — the **lighting controller** (`devices/light-controller.yaml`, T-Connect Pro) hosts
+> button decode, HA arbitration, and the relay bank; the **health monitor**
+> (`devices/health-monitor.yaml`, Waveshare ESP32-S3-RS485-CAN) hosts aliveness/health. Map each
+> "gateway" mention to the device that owns the behavior described.
 
 > **Not enforced:** no YAML carries an `esphome: min_version:` constraint, so this version is recorded, not pinned — a different installed ESPHome will still build. Treat 2026.6.5 as the last validated baseline; add `esphome: min_version:` if a hard floor becomes necessary.
 
@@ -182,13 +188,14 @@ placeholder.
   carry the tuning data: `ACK ... rtt=` (round-trip per event), `FALLBACK ... waited=`
   (actual fallback latency — `ack_timeout_ms` plus up to 250 ms sweep granularity), and
   `LATE ACK ... late=+` (an ACK landing after its fallback fired: the double-action window).
-- Tuning (resolves ADR-0003 open item 2 empirically) via `devices/gateway.yaml` substitutions:
-  `ha_heartbeat_ttl_ms` (default 15000) and `ack_timeout_ms` (default 500). The manifest hash
-  HA must echo is the generated `BINDINGS_MANIFEST_HASH`, not a substitution (see below).
+- Tuning (resolves ADR-0003 open item 2 empirically) via `devices/light-controller.yaml`
+  substitutions: `ha_heartbeat_ttl_ms` (default 15000) and `ack_timeout_ms` (default 500). The
+  manifest hash HA must echo is the generated `BINDINGS_MANIFEST_HASH`, not a substitution (below).
 - Since migration Phase 5b-2 the arbitration instance lives in
-  `lighting/packages/buttons.yaml` and transport health + the bus in
-  `canbus/packages/health.yaml`; `devices/gateway.yaml` composes both (canbus
-  package first — it defines `can0`, lighting `!extend`s it).
+  `lighting/packages/buttons.yaml` and transport health in `canbus/packages/health.yaml`. Since
+  the ADR-0015 split they compose onto separate devices — `buttons.yaml` on
+  `devices/light-controller.yaml`, `health.yaml` on `devices/health-monitor.yaml` — and each
+  entry point defines its own `can0` (ADR-0015 §2), which the package `!extend`s.
 - Pure logic lives in `protocol/ha_arbitration.h`; native test:
   `g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb`
 

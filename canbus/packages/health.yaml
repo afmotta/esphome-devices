@@ -1,32 +1,31 @@
 # =============================================================================
-# health.yaml — canbus gateway-side package: CAN bus + transport health
+# health.yaml — canbus gateway-side package: transport health (bus consumer)
 # =============================================================================
-# Owns the bus definition and everything transport-health (ADR-0011): heartbeat
-# decode (CAT_STATUS), per-node aliveness via node_health.h, the 5 s sweep,
-# fleet aggregates, drift-visibility map identity (ADR-0009 §6), and the
-# node_lost / node_recovered / node_error / node_unknown HA events. No
-# application semantics live here (AD-2, AD-7 as amended): button meaning is
-# lighting's — lighting/packages/buttons.yaml extends can0 with the CAT_INPUT
-# handler.
+# Everything transport-health (ADR-0011): heartbeat decode (CAT_STATUS),
+# per-node aliveness via node_health.h, the 5 s sweep, fleet aggregates,
+# drift-visibility map identity (ADR-0009 §6), and the node_lost /
+# node_recovered / node_error / node_unknown HA events. No application
+# semantics live here (AD-2, AD-7 as amended): button meaning is lighting's —
+# lighting/packages/buttons.yaml extends can0 with the CAT_INPUT handler.
 #
-# The bus lives HERE rather than in the entry point so other packages can
-# `!extend can0`; the entry point supplies the actual pins via substitutions.
-# Composition convention: this package before any package extending can0
-# (ESPHome 2026.5.0 resolves !extend in either order, but the convention
-# expresses the real dependency direction — don't rely on order-tolerance).
+# Bus consumer, not owner (ADR-0015 §2): the `canbus:` / can0 DEFINITION
+# (platform, pins, bit_rate) lives in the composing entry point — this package
+# only `!extend can0` to attach its CAT_STATUS on_frame handler, symmetric with
+# how lighting/packages/buttons.yaml extends the same bus for CAT_INPUT. Since
+# the ADR-0015 split this is composed onto ONE entry point — its own dedicated
+# device, devices/health-monitor.yaml (Waveshare ESP32-S3-RS485-CAN, CAN @
+# GPIO15/16); it no longer rides on the lighting controller (former gateway).
 #
 # Requires from the composing entry point:
 #   esphome.includes: canbus_protocol.h, node_map.h, node_health.h
-#   substitutions: can_tx_pin / can_rx_pin (defaults below suit the Waveshare
-#   ESP32-S3-RS485-CAN gateway board)
+#   canbus: a can0 bus definition (platform esp32_can, tx/rx pins, 125KBPS) for
+#     this file's `!extend can0` to attach to
 # =============================================================================
 
 substitutions:
   # Aliveness: a mapped node is LOST after 3 missed 30 s heartbeats (ADR-0011 §1, the same
   # 3x-cadence staleness doctrine as ADR-0006). Tunable on the bench (ADR-0011 open item 6).
   node_lost_timeout_ms: "90000"
-  can_tx_pin: GPIO15
-  can_rx_pin: GPIO16
 
 esphome:
   # Drift visibility (ADR-0009 §6): publish the compiled map identity once. These are
@@ -123,21 +122,17 @@ interval:
                   node_id: !lambda 'return to_string(NODE_MAP[id(lost_node_idx)].node_id);'
                   name: !lambda 'return std::string(NODE_MAP[id(lost_node_idx)].name);'
 
-# --------------- CAN Bus (native ESP32 TWAI) ---------------
-# NOTE: boards/canbed-rp2040.yaml also declares `id: can0` for its MCP2515 bus.
-# The two are never composed into the same entry point today (this file: devices/gateway.yaml
-# only; CANBed board via base_node.yaml: generated node YAMLs + compile_sensor_node.yaml only) — if that ever
-# changes, one of the two ids must be renamed first (found during Phase 6a's package merge).
+# --------------- CAN Bus health handler (native ESP32 TWAI) ---------------
+# The can0 bus DEFINITION lives in the composing entry point (ADR-0015 §2:
+# devices/health-monitor.yaml and devices/light-controller.yaml each declare their own
+# `canbus: - platform: esp32_can, id: can0, ...pins..., bit_rate: 125KBPS`).
+# This block only attaches the CAT_STATUS heartbeat handler onto that bus via
+# `!extend can0` — the same idiom lighting/packages/buttons.yaml uses for its
+# CAT_INPUT handler. (boards/canbed-rp2040.yaml also declares an `id: can0` for
+# its MCP2515 bus; the node-side and gateway-side buses are never composed into
+# one entry point, but if that ever changes one id must be renamed first.)
 canbus:
-  - platform: esp32_can
-    id: can0
-    use_extended_id: true
-    # Component default TX id = CAT_OUTPUT base. Every send sets an explicit can_id +
-    # use_extended_id, so this is only the component default and is never relied on.
-    can_id: 0x04000000
-    tx_pin: ${can_tx_pin}
-    rx_pin: ${can_rx_pin}
-    bit_rate: 125KBPS
+  - id: !extend can0
     on_frame:
       # ---- All heartbeats (CAT_STATUS) ----
       - can_id: 0x06000000        # CAT_STATUS << CAT_SHIFT

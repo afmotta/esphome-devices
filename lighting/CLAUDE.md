@@ -2,12 +2,13 @@
 
 This is the lighting application system (layered-restructure spine,
 `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`).
-Relay actuation is real (ADR-0014 P4/P5): the gateway drives a Waveshare
-Modbus RTU Relay 32CH bank (`relay_0..relay_31`, HA-switchable), and the
-ADR-0013 fallback branches actuate bindings when HA is down. ADR-0014 also
-resolved the once-intended physical split as **no further split** —
-`devices/gateway.yaml` keeps composing this system's packages alongside
-canbus's on one device (AD-4). The system stays **pre-live** in one specific
+Relay actuation is real (ADR-0014 P4/P5): the lighting controller drives a
+Waveshare Modbus RTU Relay 32CH bank (`relay_0..relay_31`, HA-switchable), and
+the ADR-0013 fallback branches actuate bindings when HA is down. ADR-0014 first
+resolved the physical split as "no further split", but **ADR-0015 (2026-07-13)
+split after all**: canbus transport health moved to its own device
+(`devices/health-monitor.yaml`), and this system's packages now compose alone on
+`devices/light-controller.yaml` (T-Connect Pro). The system stays **pre-live** in one specific
 sense: `registry/bindings.yaml` is still empty — no real bindings are
 authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
 
@@ -42,10 +43,10 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
 
 ## Files here today
 
-- `packages/buttons.yaml` — the gateway-side lighting package: CAT_INPUT
+- `packages/buttons.yaml` — the lighting-controller package: CAT_INPUT
   decode → HA events + the ha_ready gate instance, including the ADR-0013
-  fallback actuation calls. Composed by `devices/gateway.yaml` AFTER
-  `canbus/packages/health.yaml` (it `!extend`s the bus that package defines).
+  fallback actuation calls. Composed by `devices/light-controller.yaml`, which
+  defines `can0` itself (ADR-0015 §2); this package `!extend`s that bus.
 - `packages/relay_bank.yaml` — lighting's 32-channel relay bank (ADR-0014):
   one modbus_controller + 32 self-registering channels, 0-based
   `relay_0..relay_31` natively (no id_offset arithmetic).
@@ -87,5 +88,5 @@ g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol \
 is deliberately not natively tested — it needs real `esphome::switch_::Switch`
 objects that only exist inside a compiled ESPHome binary, the same split
 `ha_arbitration.h`'s pure logic vs. `buttons.yaml`'s lambda glue already
-follows. It's exercised by `esphome compile devices/gateway.yaml` and,
+follows. It's exercised by `esphome compile devices/light-controller.yaml` and,
 eventually, hardware bring-up.

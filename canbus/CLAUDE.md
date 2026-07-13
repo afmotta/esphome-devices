@@ -11,11 +11,13 @@ control system (see root `CLAUDE.md`).
   before wall installation). They detect button gestures locally and send
   self-describing CAN frames. They do not know what any button "does".
 - **canbus owns transport health only** (amended AD-7, 2026-07-06): frame
-  transport, heartbeats, `node_lost` detection, discovery, and the bus
-  definition on the gateway (LilyGO T-Connect Pro, TWAI CAN over Ethernet).
-  It does not decode button frames or fire HA events — that's
-  `lighting/`'s gate instance (see `lighting/CLAUDE.md`). `climate/` consumes
-  sensor CAN frames directly, with no gate in between.
+  transport, heartbeats, `node_lost` detection, discovery. Since the ADR-0015
+  split this runs on its own dedicated device — the health monitor (Waveshare
+  ESP32-S3-RS485-CAN, TWAI CAN over WiFi, `devices/health-monitor.yaml`) — not
+  on the lighting controller. It does not decode button frames or fire HA button
+  events — that's `lighting/`'s gate instance on `devices/light-controller.yaml`
+  (see `lighting/CLAUDE.md`). `climate/` consumes sensor CAN frames directly,
+  with no gate in between.
 - **Home Assistant owns all logic** — bindings are HA automations, changeable
   anytime.
 
@@ -30,7 +32,8 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   `registry/nodes.csv` / `registry/bindings.yaml`, then run
   `python3 canbus/tools/generate_nodes.py`.
 - **Git is the system of record for the registry** (ADR-0009). Bindings are
-  unrebuildable; before reflashing the gateway run
+  unrebuildable; before reflashing a gateway-class device (`light-controller`
+  or `health-monitor` — both compile registry-derived headers) run
   `python3 canbus/tools/check_registry_pushed.py` (exit 0 = safe).
 - **Momentary buttons have no state** — never add button-state/bitmask fields
   to frames or HA payloads; buttons emit events only.
@@ -46,10 +49,13 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   MCP2515 `can0`) and owns protocol include, boot logging, standard buttons,
   globals, and heartbeat.
 - **`canbus/packages/`** holds both node-side (`base_node.yaml`, `button.yaml`,
-  `sensor_kit.yaml`) and gateway-side (`health.yaml` — transport health + the
-  bus definition) packages since Phase 6a merged them. `devices/gateway.yaml`
-  composes `health.yaml` with `lighting/packages/buttons.yaml` — canbus
-  package first (it defines `can0`; lighting `!extend`s it).
+  `sensor_kit.yaml`) and gateway-side (`health.yaml` — transport health) packages
+  since Phase 6a merged them. Since the ADR-0015 split, `health.yaml` composes
+  onto its own device, `devices/health-monitor.yaml` (Waveshare ESP32-S3-RS485-CAN),
+  while `lighting/packages/buttons.yaml` composes onto `devices/light-controller.yaml`
+  (T-Connect Pro) — two physical devices, not one. `health.yaml` no longer owns the
+  bus: each entry point declares its own `can0` (ADR-0015 §2) and `health.yaml` /
+  `buttons.yaml` each `!extend can0` to attach their handlers.
 - **`on_frame` guards**: validate payloads with `if:`/`condition:` blocks so
   action lambdas stay clean — no redundant re-checks inside lambdas.
 

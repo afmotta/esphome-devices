@@ -286,11 +286,11 @@ T-Connect Pro ──── Analog Output 8CH (B) ──── Relay 32CH ──�
 [120Ω Term]                                          [120Ω Term at physical bus end]
 ```
 
-**Lighting/gateway bus** (`devices/gateway.yaml`):
+**Lighting controller bus** (`devices/light-controller.yaml`):
 
 ```
 T-Connect Pro ──── Relay 32CH
-(gateway)          Address: 0x2 (mirrors the hvac bank)
+(light-controller) Address: 0x2 (mirrors the hvac bank)
 [120Ω Term]        [120Ω Term]
 ```
 

@@ -1,0 +1,70 @@
+# =============================================================================
+# health-monitor.yaml — CAN bus health monitor (composition entry point)
+# =============================================================================
+# Hardware: Waveshare ESP32-S3-RS485-CAN (boards/waveshare-s3-rs485-can.yaml)
+# Role:     The dedicated canbus transport-health observer (ADR-0015, which
+#           split this role off the former combined gateway, now the lighting
+#           controller devices/light-controller.yaml). Composes ONE system's
+#           package — canbus/packages/health.yaml (bus + transport health,
+#           infrastructure) — onto its own physical device, so lighting churn
+#           can no longer reflash the bus-health monitor and vice versa.
+#
+#           CAN-only: no RS485/Modbus, no relays. WiFi telemetry to Home
+#           Assistant (ADR-0015 §3: observability, not actuation — if WiFi
+#           drops the bus is still observed locally; only reporting pauses).
+#
+# This file owns identity/network substitutions, api-encryption/OTA passwords,
+# the canbus health protocol-header includes, and the can0 bus DEFINITION
+# (ADR-0015 §2: the bus lives in the entry point; health.yaml `!extend`s it).
+# The board file owns the esp32/wifi/api/ota scaffolding.
+#
+# Compiled directly from devices/ (no locals/remotes wrapper, like the gateway),
+# so identity goes in `substitutions:` and includes use one `../` (paths resolve
+# relative to devices/).
+# =============================================================================
+
+substitutions:
+  device_name: canbus-health-monitor
+  friendly_name: "CAN Bus Health Monitor"
+  logger_level: INFO
+  # CAN transceiver pins on this board (Waveshare ESP32-S3-RS485-CAN, TWAI).
+  # Schematic-only values recorded by ADR-0014 for this board / ADR-0015 open
+  # items 1-2 — confirm at bring-up.
+  can_tx_pin: GPIO15
+  can_rx_pin: GPIO16
+  # Per-device HA API key (each ESPHome device has its own — see
+  # devices/secrets.yaml.example). Distinct from the gateway's api_encryption_key.
+  encryption_key: !secret health_monitor_encryption_key
+  # ADR-0010 §5: authenticate OTA.
+  ota_password: !secret ota_password
+
+packages:
+  # Board first: esp32/wifi/api/ota scaffolding the health package attaches to.
+  base: !include ../boards/waveshare-s3-rs485-can.yaml
+  # The only system on this device: transport health. It `!extend can0` (defined
+  # below) to attach its CAT_STATUS heartbeat handler.
+  health: !include ../canbus/packages/health.yaml
+
+esphome:
+  includes:
+    - ../canbus/protocol/canbus_protocol.h
+    - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
+    - ../canbus/protocol/node_health.h   # gateway-resident aliveness pure logic (ADR-0011 §1)
+
+# --------------- CAN Bus (native ESP32 TWAI) ---------------
+# Bus DEFINITION (ADR-0015 §2): canbus/packages/health.yaml `!extend can0` to
+# attach its CAT_STATUS handler. Pins are this board's TWAI transceiver.
+canbus:
+  - platform: esp32_can
+    id: can0
+    use_extended_id: true
+    # Component default TX id = CAT_OUTPUT base. This monitor never transmits
+    # application frames; the default is only the component default, never relied on.
+    can_id: 0x04000000
+    tx_pin: ${can_tx_pin}
+    rx_pin: ${can_rx_pin}
+    bit_rate: 125KBPS
+
+# --------------- Logging ---------------
+logger:
+  level: ${logger_level}

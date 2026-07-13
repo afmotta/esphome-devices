@@ -3,7 +3,7 @@
 # =============================================================================
 # This is HOME ASSISTANT configuration, not ESPHome config. Copy this automation
 # into HA (automations.yaml include, or recreate it in the UI). It pairs with the
-# gateway's ha_ack_event API service (gateway.yaml).
+# lighting controller's ha_ack_event API service (devices/light-controller.yaml).
 #
 # - The readiness HEARTBEAT automation no longer lives here: it is GENERATED, with the
 #   binding-manifest hash baked in, into gateway/ha_manifest_package.yaml by
