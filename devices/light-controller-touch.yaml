@@ -1,0 +1,27 @@
+# Build: lighting controller WITH the onboard T-Connect Pro touchscreen UI.
+#
+# Identical to devices/light-controller.yaml (wired Ethernet + button events +
+# relay bank) plus the two additive display packages: the shared display hardware
+# and the lighting commissioning/diagnostics UI. The display's SPI bus shares the
+# W5500's SCLK/MOSI/MISO pads via the ESP32-S3 GPIO matrix (display forced to
+# interface: spi3, ethernet pins marked allow_other_uses) — so Ethernet stays.
+#
+# Lives in devices/ (not devices/locals/) alongside its base entry point:
+# light-controller.yaml is compiled directly (no locals/remotes wrapper, by
+# design), and its esphome.includes: resolve relative to the CLI-invoked file's
+# dir — so the touch variant must share that dir for those `../canbus/...` paths
+# to keep resolving. Identity, secrets and the can0 bus definition all come from
+# the included light-controller.yaml.
+#
+# Flash this variant to the lighting controller that has the panel; the plain
+# light-controller.yaml build (no screen) is unchanged.
+substitutions:
+  # Let the W5500 Ethernet share its SCLK/MOSI/MISO pads with the display SPI bus
+  # (see boards/t-connect-pro-ethernet.yaml). Only valid because the display bus
+  # in t-connect-pro-display.yaml actually claims those pins.
+  shared_spi_pins: "true"
+
+packages:
+  - !include "light-controller.yaml"
+  - !include "../boards/t-connect-pro-display.yaml"
+  - !include "../lighting/packages/ui/light_touch_ui.yaml"

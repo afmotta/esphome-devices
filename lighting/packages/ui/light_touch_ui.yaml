@@ -1,0 +1,283 @@
+# =============================================================================
+# Lighting controller — on-device LVGL commissioning/diagnostics UI
+# (T-Connect Pro touchscreen)
+# =============================================================================
+# Composed alongside boards/t-connect-pro-display.yaml (which declares the shared
+# `panel_display` / `panel_touch` hardware) by the opt-in touchscreen wrapper
+# devices/light-controller-touch.yaml (which sets shared_spi_pins: "true").
+# The plain devices/light-controller.yaml build (no screen) is unaffected.
+#
+# Layout: a 3-tab tabview on the 480x222 landscape panel.
+#   Status  — HA authority (ha_ready), fallback-event counter, manifest hash,
+#             and a one-line last-button summary
+#   Relays  — 32-cell grid of relay_0..relay_31; tap a cell to toggle that coil
+#             (commissioning: pulse a relay to learn which circuit it drives),
+#             plus an ALL OFF reset
+#   Buttons — live last-button feed (node name + button + gesture + age),
+#             fed by this package's own capture-only can0 tap below
+#
+# Monitoring is the point, so values are read-only and rebuilt by a single 2 s
+# `interval:` script (matches the relay Modbus poll cadence). The only writes are
+# the relay-cell taps and ALL OFF. All bound ids come from packages already in
+# devices/light-controller.yaml:
+#   binary_sensor.ha_ready_sensor, sensor.fallback_events_sensor +
+#     global fallback_events, text_sensor.binding_manifest_hash (buttons.yaml)
+#   switch.relay_0 .. relay_31 (relay_bank.yaml)
+# Button decode + node_map_name() come from the canbus headers the entry point
+# already includes (canbus_protocol.h / node_map.h).
+# =============================================================================
+
+# Button/relay formatter (light_ui::*). Path is relative to the CLI-invoked
+# file's dir (devices/…), matching light-controller.yaml's own includes.
+esphome:
+  includes:
+    - ../lighting/packages/ui/touch_ui_format.h
+
+# Capture-only tap into can0 for the last-button feed. buttons.yaml owns the real
+# CAT_INPUT decode/forward/fallback; this second on_frame only records the most
+# recent press for display (leaves buttons.yaml untouched). Guard in the
+# `condition:` so the action lambda stays a clean record-only write.
+canbus:
+  - id: !extend can0
+    on_frame:
+      - can_id: 0x02000000        # CAT_INPUT << CAT_SHIFT
+        can_id_mask: 0x1E000000   # CAN_MASK_CATEGORY (category bits only)
+        use_extended_id: true
+        then:
+          - if:
+              condition:
+                lambda: 'if (x.size() < BUTTON_PAYLOAD_MIN) return false; return x[0] == PROTO_V1 && payload_type(x) == MSG_BUTTON_EVENT;'
+              then:
+                - lambda: |-
+                    id(g_btn_node) = can_id_node(can_id);
+                    id(g_btn_index) = payload_button_index(x);
+                    id(g_btn_event_str) = event_type_str(payload_event_type(x));
+                    id(g_btn_ms) = millis();
+                    id(g_btn_seen) = true;
+
+# Last-button feed state (display-only; distinct from buttons.yaml's arbitration globals).
+globals:
+  - id: g_btn_seen
+    type: bool
+    initial_value: 'false'
+  - id: g_btn_node
+    type: uint32_t
+    initial_value: '0'
+  - id: g_btn_index
+    type: uint32_t
+    initial_value: '0'
+  - id: g_btn_event_str
+    type: std::string
+    initial_value: '""'
+  - id: g_btn_ms
+    type: uint32_t
+    initial_value: '0'
+
+lvgl:
+  displays: [panel_display]
+  touchscreens: [panel_touch]
+  buffer_size: 25%
+  bg_color: 0x101418
+  text_color: 0xEAEAEA
+  widgets:
+    - tabview:
+        id: main_tabs
+        position: top
+        size: 26
+        tabs:
+          # -------------------------------------------------------------- Status
+          - name: "Status"
+            id: tab_status
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 4
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - label:
+                        id: ui_ha_ready
+                        text: "HA Ready: --"
+                    - label:
+                        id: ui_fallback
+                        text: "Fallback events: --"
+                    - label:
+                        id: ui_manifest
+                        text_color: 0x9AA0A6
+                        text: "Manifest: --"
+                    - label:
+                        id: ui_last_btn
+                        text_color: 0x9AA0A6
+                        text: "Last button: --"
+          # -------------------------------------------------------------- Relays
+          - name: "Relays"
+            id: tab_relays
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 2
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - obj:
+                        width: 100%
+                        flex_grow: 1
+                        pad_all: 2
+                        border_width: 0
+                        bg_opa: TRANSP
+                        layout:
+                          type: flex
+                          flex_flow: ROW_WRAP
+                        widgets:
+                          - button: {id: relay_cell_0,  width: 54, height: 32, widgets: [{label: {text: "00", align: CENTER}}], on_click: [{switch.toggle: relay_0}]}
+                          - button: {id: relay_cell_1,  width: 54, height: 32, widgets: [{label: {text: "01", align: CENTER}}], on_click: [{switch.toggle: relay_1}]}
+                          - button: {id: relay_cell_2,  width: 54, height: 32, widgets: [{label: {text: "02", align: CENTER}}], on_click: [{switch.toggle: relay_2}]}
+                          - button: {id: relay_cell_3,  width: 54, height: 32, widgets: [{label: {text: "03", align: CENTER}}], on_click: [{switch.toggle: relay_3}]}
+                          - button: {id: relay_cell_4,  width: 54, height: 32, widgets: [{label: {text: "04", align: CENTER}}], on_click: [{switch.toggle: relay_4}]}
+                          - button: {id: relay_cell_5,  width: 54, height: 32, widgets: [{label: {text: "05", align: CENTER}}], on_click: [{switch.toggle: relay_5}]}
+                          - button: {id: relay_cell_6,  width: 54, height: 32, widgets: [{label: {text: "06", align: CENTER}}], on_click: [{switch.toggle: relay_6}]}
+                          - button: {id: relay_cell_7,  width: 54, height: 32, widgets: [{label: {text: "07", align: CENTER}}], on_click: [{switch.toggle: relay_7}]}
+                          - button: {id: relay_cell_8,  width: 54, height: 32, widgets: [{label: {text: "08", align: CENTER}}], on_click: [{switch.toggle: relay_8}]}
+                          - button: {id: relay_cell_9,  width: 54, height: 32, widgets: [{label: {text: "09", align: CENTER}}], on_click: [{switch.toggle: relay_9}]}
+                          - button: {id: relay_cell_10, width: 54, height: 32, widgets: [{label: {text: "10", align: CENTER}}], on_click: [{switch.toggle: relay_10}]}
+                          - button: {id: relay_cell_11, width: 54, height: 32, widgets: [{label: {text: "11", align: CENTER}}], on_click: [{switch.toggle: relay_11}]}
+                          - button: {id: relay_cell_12, width: 54, height: 32, widgets: [{label: {text: "12", align: CENTER}}], on_click: [{switch.toggle: relay_12}]}
+                          - button: {id: relay_cell_13, width: 54, height: 32, widgets: [{label: {text: "13", align: CENTER}}], on_click: [{switch.toggle: relay_13}]}
+                          - button: {id: relay_cell_14, width: 54, height: 32, widgets: [{label: {text: "14", align: CENTER}}], on_click: [{switch.toggle: relay_14}]}
+                          - button: {id: relay_cell_15, width: 54, height: 32, widgets: [{label: {text: "15", align: CENTER}}], on_click: [{switch.toggle: relay_15}]}
+                          - button: {id: relay_cell_16, width: 54, height: 32, widgets: [{label: {text: "16", align: CENTER}}], on_click: [{switch.toggle: relay_16}]}
+                          - button: {id: relay_cell_17, width: 54, height: 32, widgets: [{label: {text: "17", align: CENTER}}], on_click: [{switch.toggle: relay_17}]}
+                          - button: {id: relay_cell_18, width: 54, height: 32, widgets: [{label: {text: "18", align: CENTER}}], on_click: [{switch.toggle: relay_18}]}
+                          - button: {id: relay_cell_19, width: 54, height: 32, widgets: [{label: {text: "19", align: CENTER}}], on_click: [{switch.toggle: relay_19}]}
+                          - button: {id: relay_cell_20, width: 54, height: 32, widgets: [{label: {text: "20", align: CENTER}}], on_click: [{switch.toggle: relay_20}]}
+                          - button: {id: relay_cell_21, width: 54, height: 32, widgets: [{label: {text: "21", align: CENTER}}], on_click: [{switch.toggle: relay_21}]}
+                          - button: {id: relay_cell_22, width: 54, height: 32, widgets: [{label: {text: "22", align: CENTER}}], on_click: [{switch.toggle: relay_22}]}
+                          - button: {id: relay_cell_23, width: 54, height: 32, widgets: [{label: {text: "23", align: CENTER}}], on_click: [{switch.toggle: relay_23}]}
+                          - button: {id: relay_cell_24, width: 54, height: 32, widgets: [{label: {text: "24", align: CENTER}}], on_click: [{switch.toggle: relay_24}]}
+                          - button: {id: relay_cell_25, width: 54, height: 32, widgets: [{label: {text: "25", align: CENTER}}], on_click: [{switch.toggle: relay_25}]}
+                          - button: {id: relay_cell_26, width: 54, height: 32, widgets: [{label: {text: "26", align: CENTER}}], on_click: [{switch.toggle: relay_26}]}
+                          - button: {id: relay_cell_27, width: 54, height: 32, widgets: [{label: {text: "27", align: CENTER}}], on_click: [{switch.toggle: relay_27}]}
+                          - button: {id: relay_cell_28, width: 54, height: 32, widgets: [{label: {text: "28", align: CENTER}}], on_click: [{switch.toggle: relay_28}]}
+                          - button: {id: relay_cell_29, width: 54, height: 32, widgets: [{label: {text: "29", align: CENTER}}], on_click: [{switch.toggle: relay_29}]}
+                          - button: {id: relay_cell_30, width: 54, height: 32, widgets: [{label: {text: "30", align: CENTER}}], on_click: [{switch.toggle: relay_30}]}
+                          - button: {id: relay_cell_31, width: 54, height: 32, widgets: [{label: {text: "31", align: CENTER}}], on_click: [{switch.toggle: relay_31}]}
+                    - button:
+                        id: btn_all_off
+                        width: 100%
+                        height: 26
+                        bg_color: 0x4A4A4A
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "ALL OFF"
+                        on_click:
+                          - lambda: |-
+                              id(relay_0).turn_off();  id(relay_1).turn_off();  id(relay_2).turn_off();  id(relay_3).turn_off();
+                              id(relay_4).turn_off();  id(relay_5).turn_off();  id(relay_6).turn_off();  id(relay_7).turn_off();
+                              id(relay_8).turn_off();  id(relay_9).turn_off();  id(relay_10).turn_off(); id(relay_11).turn_off();
+                              id(relay_12).turn_off(); id(relay_13).turn_off(); id(relay_14).turn_off(); id(relay_15).turn_off();
+                              id(relay_16).turn_off(); id(relay_17).turn_off(); id(relay_18).turn_off(); id(relay_19).turn_off();
+                              id(relay_20).turn_off(); id(relay_21).turn_off(); id(relay_22).turn_off(); id(relay_23).turn_off();
+                              id(relay_24).turn_off(); id(relay_25).turn_off(); id(relay_26).turn_off(); id(relay_27).turn_off();
+                              id(relay_28).turn_off(); id(relay_29).turn_off(); id(relay_30).turn_off(); id(relay_31).turn_off();
+          # ------------------------------------------------------------- Buttons
+          - name: "Buttons"
+            id: tab_buttons
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 4
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - label:
+                        id: ui_btn_hint
+                        text_color: 0x9AA0A6
+                        text: "Press a wall button to commission it:"
+                    - label:
+                        id: ui_btn_feed
+                        text: "No button events yet"
+
+# -----------------------------------------------------------------------------
+# Refresh: rebuild every widget from current state on a 2 s cadence.
+# -----------------------------------------------------------------------------
+script:
+  - id: refresh_light_ui
+    then:
+      # ---- Status ----
+      - lvgl.label.update:
+          id: ui_ha_ready
+          text: !lambda 'return std::string("HA Ready: ") + (id(ha_ready_sensor).state ? "YES" : "NO");'
+          text_color: !lambda 'return id(ha_ready_sensor).state ? lv_color_hex(0x2FBF71) : lv_color_hex(0xE05555);'
+      - lvgl.label.update:
+          id: ui_fallback
+          text: !lambda |-
+            char b[40];
+            snprintf(b, sizeof(b), "Fallback events: %u", (unsigned) id(fallback_events));
+            return std::string(b);
+      - lvgl.label.update:
+          id: ui_manifest
+          text: !lambda |-
+            std::string h = id(binding_manifest_hash).state;
+            if (h.size() > 8) h = h.substr(0, 8);
+            return std::string("Manifest: ") + (h.empty() ? "--" : h);
+      - lvgl.label.update:
+          id: ui_last_btn
+          text: !lambda 'return light_ui::fmt_button_short(id(g_btn_seen), node_map_name(id(g_btn_node)), id(g_btn_index), id(g_btn_event_str));'
+      # ---- Buttons feed ----
+      - lvgl.label.update:
+          id: ui_btn_feed
+          text: !lambda |-
+            uint32_t age = id(g_btn_seen) ? (millis() - id(g_btn_ms)) / 1000 : 0;
+            return light_ui::fmt_button(id(g_btn_seen), node_map_name(id(g_btn_node)),
+                                        id(g_btn_index), id(g_btn_event_str), age);
+      # ---- Relay grid (colour each cell by its coil state) ----
+      - lvgl.widget.update: {id: relay_cell_0,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_0).state));'}
+      - lvgl.widget.update: {id: relay_cell_1,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_1).state));'}
+      - lvgl.widget.update: {id: relay_cell_2,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_2).state));'}
+      - lvgl.widget.update: {id: relay_cell_3,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_3).state));'}
+      - lvgl.widget.update: {id: relay_cell_4,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_4).state));'}
+      - lvgl.widget.update: {id: relay_cell_5,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_5).state));'}
+      - lvgl.widget.update: {id: relay_cell_6,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_6).state));'}
+      - lvgl.widget.update: {id: relay_cell_7,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_7).state));'}
+      - lvgl.widget.update: {id: relay_cell_8,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_8).state));'}
+      - lvgl.widget.update: {id: relay_cell_9,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_9).state));'}
+      - lvgl.widget.update: {id: relay_cell_10, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_10).state));'}
+      - lvgl.widget.update: {id: relay_cell_11, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_11).state));'}
+      - lvgl.widget.update: {id: relay_cell_12, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_12).state));'}
+      - lvgl.widget.update: {id: relay_cell_13, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_13).state));'}
+      - lvgl.widget.update: {id: relay_cell_14, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_14).state));'}
+      - lvgl.widget.update: {id: relay_cell_15, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_15).state));'}
+      - lvgl.widget.update: {id: relay_cell_16, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_16).state));'}
+      - lvgl.widget.update: {id: relay_cell_17, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_17).state));'}
+      - lvgl.widget.update: {id: relay_cell_18, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_18).state));'}
+      - lvgl.widget.update: {id: relay_cell_19, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_19).state));'}
+      - lvgl.widget.update: {id: relay_cell_20, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_20).state));'}
+      - lvgl.widget.update: {id: relay_cell_21, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_21).state));'}
+      - lvgl.widget.update: {id: relay_cell_22, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_22).state));'}
+      - lvgl.widget.update: {id: relay_cell_23, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_23).state));'}
+      - lvgl.widget.update: {id: relay_cell_24, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_24).state));'}
+      - lvgl.widget.update: {id: relay_cell_25, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_25).state));'}
+      - lvgl.widget.update: {id: relay_cell_26, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_26).state));'}
+      - lvgl.widget.update: {id: relay_cell_27, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_27).state));'}
+      - lvgl.widget.update: {id: relay_cell_28, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_28).state));'}
+      - lvgl.widget.update: {id: relay_cell_29, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_29).state));'}
+      - lvgl.widget.update: {id: relay_cell_30, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_30).state));'}
+      - lvgl.widget.update: {id: relay_cell_31, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_31).state));'}
+
+interval:
+  - interval: 2s
+    then:
+      - script.execute: refresh_light_ui

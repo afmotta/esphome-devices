@@ -1,10 +1,12 @@
 # =============================================================================
 # LilyGO T-Connect Pro — onboard display + touch hardware bring-up
 # =============================================================================
-# Composed into a climate-control build only when `enable_display` is true
-# (see devices/climate-control.yaml). Pure hardware here — the LVGL UI itself
-# lives in climate/packages/ui/climate_touch_ui.yaml, which references the
-# `climate_display` / `climate_touch` ids declared below.
+# Shared display hardware for both T-Connect Pro controllers. Composed into a
+# build by the opt-in touchscreen wrapper (e.g. devices/locals/climate-control-touch.yaml
+# or devices/light-controller-touch.yaml), which also sets shared_spi_pins: "true".
+# Pure hardware here — the LVGL UI itself lives in each system's UI package
+# (climate/packages/ui/climate_touch_ui.yaml, lighting/packages/ui/light_touch_ui.yaml),
+# which reference the system-neutral `panel_display` / `panel_touch` ids declared below.
 #
 # Panel: 2.33" ST7796 SPI LCD, native 222(w)x480(h), driven landscape as
 # 480x222. Touch: CST226SE on the shared i2cbus. Backlight: GPIO46.
@@ -48,7 +50,7 @@ light:
 display:
   - platform: ili9xxx
     model: ST7796
-    id: climate_display
+    id: panel_display
     spi_id: display_spi
     cs_pin: GPIO21
     dc_pin: GPIO41
@@ -76,7 +78,7 @@ display:
 
 touchscreen:
   - platform: cst226
-    id: climate_touch
+    id: panel_touch
     i2c_id: i2cbus            # shared bus from boards/t-connect-pro.yaml (SDA39/SCL40)
     interrupt_pin: GPIO3
     reset_pin: GPIO47

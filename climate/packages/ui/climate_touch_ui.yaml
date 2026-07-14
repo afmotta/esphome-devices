@@ -1,8 +1,9 @@
 # =============================================================================
 # Climate controller — on-device LVGL monitoring UI (T-Connect Pro touchscreen)
 # =============================================================================
-# Composed alongside boards/t-connect-pro-display.yaml (which declares the
-# `climate_display` / `climate_touch` hardware) when `enable_display` is true.
+# Composed alongside boards/t-connect-pro-display.yaml (which declares the shared
+# `panel_display` / `panel_touch` hardware) by the opt-in touchscreen wrapper
+# devices/locals/climate-control-touch.yaml (which sets shared_spi_pins: "true").
 #
 # Layout: a 4-tab tabview on the 480x222 landscape panel.
 #   Home    — season mode + demand + MEV + health, with season/MEV controls
@@ -29,8 +30,8 @@ esphome:
     - ../../climate/packages/ui/touch_ui_format.h
 
 lvgl:
-  displays: [climate_display]
-  touchscreens: [climate_touch]
+  displays: [panel_display]
+  touchscreens: [panel_touch]
   buffer_size: 25%
   bg_color: 0x101418
   text_color: 0xEAEAEA
