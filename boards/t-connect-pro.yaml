@@ -3,6 +3,11 @@ substitutions:
   ethernet_package: !include t-connect-pro-ethernet.yaml
   enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
   logger_level: INFO
+  # "true" only when the onboard display shares the W5500's SPI pads
+  # (boards/t-connect-pro-display.yaml); the touchscreen build sets it. Marking
+  # the ethernet SPI pins allow_other_uses is invalid unless the display bus
+  # actually co-claims them, so this stays "false" for screen-less builds.
+  shared_spi_pins: "false"
 
 packages:
   network_package: ${ethernet_package if enable_ethernet else wifi_package}

@@ -1,9 +1,27 @@
 # Ethernet configuration - mutually exclusive with WiFi!
+#
+# The W5500's SCLK/MOSI/MISO are physically shared with the onboard ST7796
+# display (display CS=21, W5500 CS=10 keep them distinct on the bus). ESPHome's
+# W5500 driver owns one hardware SPI controller directly (not the `spi:` hub), so
+# to let the display's `spi:` bus (forced to `interface: spi3`) claim the same
+# pads via the ESP32-S3 GPIO matrix, these three shared pins must be marked
+# `allow_other_uses`.
+#
+# But ESPHome rejects a lone `allow_other_uses: true` when nothing else claims the
+# pin, so it is gated on `shared_spi_pins` (default false). The plain build leaves
+# it false (unchanged); the touchscreen build (boards/t-connect-pro-display.yaml)
+# sets it true via the wrapper. See ADR-0014.
 ethernet:
   type: W5500
-  clk_pin: GPIO12
-  mosi_pin: GPIO11
-  miso_pin: GPIO13
+  clk_pin:
+    number: GPIO12
+    allow_other_uses: ${shared_spi_pins}
+  mosi_pin:
+    number: GPIO11
+    allow_other_uses: ${shared_spi_pins}
+  miso_pin:
+    number: GPIO13
+    allow_other_uses: ${shared_spi_pins}
   cs_pin: GPIO10
   interrupt_pin: GPIO9
   reset_pin: GPIO48

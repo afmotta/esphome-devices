@@ -1,0 +1,273 @@
+# =============================================================================
+# Climate controller — on-device LVGL monitoring UI (T-Connect Pro touchscreen)
+# =============================================================================
+# Composed alongside boards/t-connect-pro-display.yaml (which declares the
+# `climate_display` / `climate_touch` hardware) when `enable_display` is true.
+#
+# Layout: a 4-tab tabview on the 480x222 landscape panel.
+#   Home    — season mode + demand + MEV + health, with season/MEV controls
+#   Terra   — ground-floor zones (temp + heat/cool/idle)
+#   Primo   — first-floor zones
+#   Secondo — second-floor zone
+#
+# Monitoring is the point, so values are read-only and refreshed by a single 2 s
+# `interval:` script (matches the Modbus poll cadence) rather than ~30 per-sensor
+# triggers. The only writes are the season select buttons and the MEV toggle.
+#
+# All bound ids are defined by packages already in devices/climate-control.yaml:
+#   select.hp_mode + text_sensor.hp_mode_season (seasonal_mode.yaml)
+#   binary_sensor.any_pid_requesting_heat / _cool (climate-control.yaml)
+#   {slug}_temp_abstracted + {slug}_{radiant,fancoil}_pid_is_heating/_is_cooling
+#   {slug}_temp_abstracted_sensor_tier  (failover_sensor.yaml: "CAN"/"HA"/"Emergency")
+#   first_floor_mev_power / _fan_speed / _communication_error / _alarm_active (mev_modbus.yaml)
+# =============================================================================
+
+# Zone-row formatter (climate_ui::fmt_zone). Path is relative to the CLI-invoked
+# file's dir (devices/locals/…), matching climate-control.yaml's own includes.
+esphome:
+  includes:
+    - ../../climate/packages/ui/touch_ui_format.h
+
+lvgl:
+  displays: [climate_display]
+  touchscreens: [climate_touch]
+  buffer_size: 25%
+  bg_color: 0x101418
+  text_color: 0xEAEAEA
+  widgets:
+    - tabview:
+        id: main_tabs
+        position: top
+        size: 26
+        tabs:
+          # ---------------------------------------------------------------- Home
+          - name: "Home"
+            id: tab_home
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 3
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - label:
+                        id: ui_season
+                        text: "Mode: --"
+                    - label:
+                        id: ui_season_sub
+                        text_color: 0x9AA0A6
+                        text: ""
+                    - label:
+                        id: ui_demand
+                        text: "Demand: --"
+                    - label:
+                        id: ui_mev
+                        text: "MEV: --"
+                    - label:
+                        id: ui_health
+                        text: "Health: --"
+                    - obj:
+                        width: 100%
+                        height: 40
+                        pad_all: 0
+                        border_width: 0
+                        bg_opa: TRANSP
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                        widgets:
+                          - button:
+                              id: btn_mode_heat
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x8A2A2A
+                              widgets:
+                                - label:
+                                    align: CENTER
+                                    text: "HEAT"
+                              on_click:
+                                - select.set:
+                                    id: hp_mode
+                                    option: "HEAT"
+                          - button:
+                              id: btn_mode_cool
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x24507A
+                              widgets:
+                                - label:
+                                    align: CENTER
+                                    text: "COOL"
+                              on_click:
+                                - select.set:
+                                    id: hp_mode
+                                    option: "COOL"
+                          - button:
+                              id: btn_mode_sani
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x4A4A4A
+                              widgets:
+                                - label:
+                                    align: CENTER
+                                    text: "SANI"
+                              on_click:
+                                - select.set:
+                                    id: hp_mode
+                                    option: "SANITARY_ONLY"
+                          - button:
+                              id: btn_mev_toggle
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x2F6F4F
+                              widgets:
+                                - label:
+                                    align: CENTER
+                                    text: "MEV"
+                              on_click:
+                                - switch.toggle: first_floor_mev_power
+          # -------------------------------------------------------------- Ground
+          - name: "Terra"
+            id: tab_ground
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 3
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - label: {id: ui_z_soggiorno, text: "Soggiorno"}
+                    - label: {id: ui_z_cucina, text: "Cucina"}
+                    - label: {id: ui_z_bagno_terra, text: "Bagno"}
+                    - label: {id: ui_z_anticamera, text: "Anticamera"}
+                    - label: {id: ui_z_locale_tecnico, text: "Locale Tecnico"}
+          # --------------------------------------------------------------- First
+          - name: "Primo"
+            id: tab_first
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 3
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - label: {id: ui_z_camera_nord, text: "Camera Nord"}
+                    - label: {id: ui_z_camera_sud, text: "Camera Sud"}
+                    - label: {id: ui_z_camera_ospiti, text: "Camera Ospiti"}
+                    - label: {id: ui_z_camera_padronale, text: "Camera Padronale"}
+                    - label: {id: ui_z_bagno_grande, text: "Bagno Grande"}
+                    - label: {id: ui_z_bagno_ospiti, text: "Bagno Ospiti"}
+                    - label: {id: ui_z_bagno_padronale, text: "Bagno Padronale"}
+                    - label: {id: ui_z_lavanderia, text: "Lavanderia"}
+          # -------------------------------------------------------------- Second
+          - name: "Secondo"
+            id: tab_second
+            widgets:
+              - obj:
+                  width: 100%
+                  height: 100%
+                  pad_all: 3
+                  border_width: 0
+                  bg_opa: TRANSP
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                  widgets:
+                    - label: {id: ui_z_sottotetto, text: "Sottotetto"}
+
+# -----------------------------------------------------------------------------
+# Refresh: rebuild every label from current state on a 2 s cadence.
+# -----------------------------------------------------------------------------
+script:
+  - id: refresh_touch_ui
+    then:
+      # ---- Home: season + demand + MEV + health ----
+      - lvgl.label.update:
+          id: ui_season
+          text: !lambda 'return std::string("Mode: ") + id(hp_mode).state;'
+      - lvgl.label.update:
+          id: ui_season_sub
+          text: !lambda 'return id(hp_mode_season).state;'
+      - lvgl.label.update:
+          id: ui_demand
+          text: !lambda |-
+            std::string h = id(any_pid_requesting_heat).state ? "ON" : "--";
+            std::string c = id(any_pid_requesting_cool).state ? "ON" : "--";
+            return "Heat " + h + "   Cool " + c;
+      - lvgl.label.update:
+          id: ui_mev
+          text: !lambda |-
+            char b[40];
+            float sp = id(first_floor_mev_fan_speed).state;
+            snprintf(b, sizeof(b), "MEV %s   Fan %.0f%%",
+                     id(first_floor_mev_power).state ? "ON" : "off",
+                     std::isnan(sp) ? 0.0f : sp);
+            return std::string(b);
+      - lvgl.label.update:
+          id: ui_health
+          text: !lambda |-
+            // Count zones whose active failover tier is not the CAN primary.
+            std::string tiers[] = {
+              id(soggiorno_temp_abstracted_sensor_tier).state,
+              id(cucina_temp_abstracted_sensor_tier).state,
+              id(bagno_terra_temp_abstracted_sensor_tier).state,
+              id(anticamera_temp_abstracted_sensor_tier).state,
+              id(locale_tecnico_temp_abstracted_sensor_tier).state,
+              id(camera_nord_temp_abstracted_sensor_tier).state,
+              id(camera_sud_temp_abstracted_sensor_tier).state,
+              id(camera_ospiti_temp_abstracted_sensor_tier).state,
+              id(camera_padronale_temp_abstracted_sensor_tier).state,
+              id(bagno_grande_temp_abstracted_sensor_tier).state,
+              id(bagno_ospiti_temp_abstracted_sensor_tier).state,
+              id(bagno_padronale_temp_abstracted_sensor_tier).state,
+              id(lavanderia_temp_abstracted_sensor_tier).state,
+              id(sottotetto_temp_abstracted_sensor_tier).state,
+            };
+            int fb = 0;
+            for (auto &t : tiers) { if (!t.empty() && t != "CAN") fb++; }
+            char b[56];
+            snprintf(b, sizeof(b), "MEV %s   Alarm %s   Fallback %d/14",
+                     id(first_floor_mev_communication_error).state ? "ERR" : "ok",
+                     id(first_floor_mev_alarm_active).state ? "ON" : "off",
+                     fb);
+            return std::string(b);
+      # ---- Zone rows (ground) ----
+      - lvgl.label.update: { id: ui_z_soggiorno,       text: !lambda 'return climate_ui::fmt_zone("Soggiorno", id(soggiorno_temp_abstracted).state, id(soggiorno_radiant_pid_is_heating).state, id(soggiorno_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_cucina,          text: !lambda 'return climate_ui::fmt_zone("Cucina", id(cucina_temp_abstracted).state, id(cucina_radiant_pid_is_heating).state, id(cucina_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_bagno_terra,     text: !lambda 'return climate_ui::fmt_zone("Bagno", id(bagno_terra_temp_abstracted).state, id(bagno_terra_radiant_pid_is_heating).state, id(bagno_terra_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_anticamera,      text: !lambda 'return climate_ui::fmt_zone("Anticamera", id(anticamera_temp_abstracted).state, id(anticamera_radiant_pid_is_heating).state, id(anticamera_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_locale_tecnico,  text: !lambda 'return climate_ui::fmt_zone("Locale Tecnico", id(locale_tecnico_temp_abstracted).state, id(locale_tecnico_fancoil_pid_is_heating).state, id(locale_tecnico_fancoil_pid_is_cooling).state);' }
+      # ---- Zone rows (first) ----
+      - lvgl.label.update: { id: ui_z_camera_nord,     text: !lambda 'return climate_ui::fmt_zone("Camera Nord", id(camera_nord_temp_abstracted).state, id(camera_nord_radiant_pid_is_heating).state, id(camera_nord_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_camera_sud,      text: !lambda 'return climate_ui::fmt_zone("Camera Sud", id(camera_sud_temp_abstracted).state, id(camera_sud_radiant_pid_is_heating).state, id(camera_sud_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_camera_ospiti,   text: !lambda 'return climate_ui::fmt_zone("Camera Ospiti", id(camera_ospiti_temp_abstracted).state, id(camera_ospiti_radiant_pid_is_heating).state, id(camera_ospiti_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_camera_padronale,text: !lambda 'return climate_ui::fmt_zone("Camera Padronale", id(camera_padronale_temp_abstracted).state, id(camera_padronale_radiant_pid_is_heating).state, id(camera_padronale_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_bagno_grande,    text: !lambda 'return climate_ui::fmt_zone("Bagno Grande", id(bagno_grande_temp_abstracted).state, id(bagno_grande_radiant_pid_is_heating).state, id(bagno_grande_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_bagno_ospiti,    text: !lambda 'return climate_ui::fmt_zone("Bagno Ospiti", id(bagno_ospiti_temp_abstracted).state, id(bagno_ospiti_radiant_pid_is_heating).state, id(bagno_ospiti_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_bagno_padronale, text: !lambda 'return climate_ui::fmt_zone("Bagno Padronale", id(bagno_padronale_temp_abstracted).state, id(bagno_padronale_radiant_pid_is_heating).state, id(bagno_padronale_radiant_pid_is_cooling).state);' }
+      - lvgl.label.update: { id: ui_z_lavanderia,      text: !lambda 'return climate_ui::fmt_zone("Lavanderia", id(lavanderia_temp_abstracted).state, id(lavanderia_radiant_pid_is_heating).state, id(lavanderia_radiant_pid_is_cooling).state);' }
+      # ---- Zone rows (second) ----
+      - lvgl.label.update: { id: ui_z_sottotetto,      text: !lambda 'return climate_ui::fmt_zone("Sottotetto", id(sottotetto_temp_abstracted).state, id(sottotetto_fancoil_pid_is_heating).state, id(sottotetto_fancoil_pid_is_cooling).state);' }
+
+interval:
+  - interval: 2s
+    then:
+      - script.execute: refresh_touch_ui
+
+# Shared zone-row formatter: "<name>  <temp>C  <state>" (temp blank when NaN).
+globals:
+  - id: _touch_ui_marker
+    type: bool
+    initial_value: 'false'

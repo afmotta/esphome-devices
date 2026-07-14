@@ -1,0 +1,83 @@
+# =============================================================================
+# LilyGO T-Connect Pro — onboard display + touch hardware bring-up
+# =============================================================================
+# Composed into a climate-control build only when `enable_display` is true
+# (see devices/climate-control.yaml). Pure hardware here — the LVGL UI itself
+# lives in climate/packages/ui/climate_touch_ui.yaml, which references the
+# `climate_display` / `climate_touch` ids declared below.
+#
+# Panel: 2.33" ST7796 SPI LCD, native 222(w)x480(h), driven landscape as
+# 480x222. Touch: CST226SE on the shared i2cbus. Backlight: GPIO46.
+# Pin numbers verified against LilyGO's libraries/private_library/pin_config.h.
+#
+# SPI SHARING (the crux): the ST7796 SCLK/MOSI/MISO (GPIO12/11/13) are the same
+# physical pads as the W5500 Ethernet. ESPHome's W5500 driver owns one hardware
+# SPI controller directly, so this bus is forced onto the SECOND controller
+# (`interface: spi3`) and the three shared pins are marked `allow_other_uses`
+# (mirrored in boards/t-connect-pro-ethernet.yaml). Bus access is arbitrated by
+# the distinct CS lines (display CS=21, W5500 CS=10). See ADR-0014.
+# =============================================================================
+
+spi:
+  - id: display_spi
+    interface: spi3
+    clk_pin:
+      number: GPIO12
+      allow_other_uses: true
+    mosi_pin:
+      number: GPIO11
+      allow_other_uses: true
+    miso_pin:
+      number: GPIO13
+      allow_other_uses: true
+
+# Backlight — ADR-0014 §5 notes it powers up held off; drive it on via LEDC so
+# brightness is also adjustable from HA.
+output:
+  - platform: ledc
+    pin: GPIO46
+    id: backlight_output
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: "Display Backlight"
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+
+display:
+  - platform: ili9xxx
+    model: ST7796
+    id: climate_display
+    spi_id: display_spi
+    cs_pin: GPIO21
+    dc_pin: GPIO41
+    # Panel RST is tied on the module (pin_config RST = -1) — no reset_pin.
+    #
+    # BRING-UP CALIBRATION — the 222-wide panel is a window into the ST7796's
+    # 320-wide GRAM, so it needs a column offset plus landscape rotation. These
+    # are starting values; confirm against LilyGO's Arduino_GFX new_ST7796 init
+    # (examples/Original_Test) and tune on the physical panel:
+    dimensions:
+      width: 222
+      height: 480
+      offset_width: 49    # (320-222)/2 — verify on hardware
+      offset_height: 0
+    # LVGL rejects the display's `rotation:`; get landscape via transform (applied
+    # at flush level, LVGL-compatible). swap_xy -> 480x222; mirror is orientation
+    # calibration, tune with the touch transform on the physical panel.
+    transform:
+      swap_xy: true
+      mirror_x: true
+      mirror_y: false
+    invert_colors: true   # typical for these IPS panels; verify on hardware
+    auto_clear_enabled: false
+    update_interval: never   # LVGL owns flushing
+
+touchscreen:
+  - platform: cst226
+    id: climate_touch
+    i2c_id: i2cbus            # shared bus from boards/t-connect-pro.yaml (SDA39/SCL40)
+    interrupt_pin: GPIO3
+    reset_pin: GPIO47
+    # transform (mirror/swap) is calibrated with the display rotation at bring-up

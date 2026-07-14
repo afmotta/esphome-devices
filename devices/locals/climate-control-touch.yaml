@@ -1,0 +1,23 @@
+# Local build: climate controller WITH the onboard T-Connect Pro touchscreen UI.
+#
+# Identical to devices/locals/climate-control.yaml (wired Ethernet + full climate
+# system) plus the two additive display packages. The display's SPI bus shares
+# the W5500's SCLK/MOSI/MISO pads via the ESP32-S3 GPIO matrix (display forced to
+# interface: spi3, ethernet pins marked allow_other_uses) — so Ethernet stays.
+#
+# Flash this variant to the device that has the panel; the plain
+# climate-control.yaml build (no screen) is unchanged.
+substitutions:
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  encryption_key: !secret encryption_key
+  ota_password: !secret ota_password
+  # Let the W5500 Ethernet share its SCLK/MOSI/MISO pads with the display SPI bus
+  # (see boards/t-connect-pro-ethernet.yaml). Only valid because the display bus
+  # below actually claims those pins.
+  shared_spi_pins: "true"
+
+packages:
+  - !include "../climate-control.yaml"
+  - !include "../../boards/t-connect-pro-display.yaml"
+  - !include "../../climate/packages/ui/climate_touch_ui.yaml"
