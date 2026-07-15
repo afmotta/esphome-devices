@@ -15,6 +15,15 @@ packages:
       relay_id: relay_1
       output_id: analog_output_1
       one_wire_bus_id: one_wire_01
+  # Weather-compensated HEAT-mode supply target (CLIMATE C3). COOL-mode
+  # target stays owned by the dew-point protection below.
+  weather_compensation: !include
+    file: ../../packages/coordinators/weather_compensation.yaml
+    vars:
+      area_slug: "ground_floor"
+      area_name: "Ground Floor"
+      mixing_valve_pid_id: ground_floor_radiant_mixing_valve_pid
+      outdoor_sensor: outdoor_temp_abstracted
   direct_pump_ground_floor_fancoil: !include
     file: ../../packages/components/direct_pump.yaml
     vars:
@@ -81,40 +90,6 @@ sensor:
                   format: "[Ground Floor Radiant] Dew point protection: supply temp min = %.1f°C"
                   args: ["id(ground_floor_supply_temp_minimum).state"]
 
-  # Effective fancoil boost threshold with fallback
-  # Uses HA input_number if available, otherwise fallback to default
-  - platform: template
-    id: ground_floor_fancoil_boost_threshold
-    name: "Ground Floor Fancoil Boost Threshold"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: "temperature"
-    icon: "mdi:thermometer-alert"
-    lambda: |-
-      if (id(ha_ground_floor_fancoil_boost_threshold).has_state() && !std::isnan(id(ha_ground_floor_fancoil_boost_threshold).state)) {
-        return id(ha_ground_floor_fancoil_boost_threshold).state;
-      }
-      ESP_LOGW("threshold", "HA unavailable, using fallback: %.1f°C", ${fancoil_boost_threshold_default});
-      return ${fancoil_boost_threshold_default};
-    update_interval: 30s
-
-  # Effective safe margin with HA fallback
-  # Uses HA input_number if available, otherwise fallback to default
-  - platform: template
-    id: ground_floor_radiant_safe_margin
-    name: "Ground Floor Radiant Safe Margin"
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    device_class: "temperature"
-    icon: "mdi:shield-half-full"
-    lambda: |-
-      if (id(ha_ground_floor_radiant_safe_margin).has_state() && !std::isnan(id(ha_ground_floor_radiant_safe_margin).state)) {
-        return id(ha_ground_floor_radiant_safe_margin).state;
-      }
-      ESP_LOGW("safe_margin", "HA unavailable, using fallback: %.1f°C", ${safe_margin});
-      return ${safe_margin};
-    update_interval: 30s
-
   # Supply temperature minimum based on dew point protection
   # Shows the enforced minimum supply temperature (dew point + safety margin)
   - platform: template
@@ -148,38 +123,6 @@ sensor:
       - source: cucina_humidity_abstracted
       - source: anticamera_humidity_abstracted
 
-  # Effective humidity threshold with HA fallback
-  - platform: template
-    id: ground_floor_fancoil_humidity_threshold
-    name: "Ground Floor Fancoil Humidity Threshold"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: "humidity"
-    icon: "mdi:water-percent-alert"
-    lambda: |-
-      if (id(ha_ground_floor_fancoil_humidity_threshold).has_state() && !std::isnan(id(ha_ground_floor_fancoil_humidity_threshold).state)) {
-        return id(ha_ground_floor_fancoil_humidity_threshold).state;
-      }
-      ESP_LOGW("threshold", "HA humidity threshold unavailable, using fallback: %.0f%%", ${fancoil_humidity_threshold_default});
-      return ${fancoil_humidity_threshold_default};
-    update_interval: 30s
-
-  # Effective predictive boost duration threshold with HA fallback
-  # Triggers boost when radiant output saturated for this many minutes
-  - platform: template
-    id: ground_floor_fancoil_predictive_boost_minutes
-    name: "Ground Floor Fancoil Predictive Boost Minutes"
-    unit_of_measurement: "min"
-    accuracy_decimals: 0
-    icon: "mdi:timer-alert"
-    lambda: |-
-      if (id(ha_ground_floor_fancoil_predictive_boost_minutes).has_state() && !std::isnan(id(ha_ground_floor_fancoil_predictive_boost_minutes).state)) {
-        return id(ha_ground_floor_fancoil_predictive_boost_minutes).state;
-      }
-      ESP_LOGW("threshold", "HA predictive boost unavailable, using fallback: %.0f min", ${predictive_boost_minutes_default});
-      return ${predictive_boost_minutes_default};
-    update_interval: 30s
-
   # Time since last mode change (shows most recent room transition)
   # Epic 14: Tracks per-room timing independently
   - platform: template
@@ -189,6 +132,23 @@ sensor:
     accuracy_decimals: 0
     icon: "mdi:timer"
     lambda: |-
+      // Prefer the persisted epoch stamps (CLIMATE C9): they survive reboots,
+      // unlike the millis() globals, which reset with the uptime counter.
+      auto now_wall = id(sntp_time).utcnow();
+      if (now_wall.is_valid()) {
+        uint32_t now_epoch = (uint32_t) now_wall.timestamp;
+        uint32_t min_elapsed_s = UINT32_MAX;
+        uint32_t sog = id(soggiorno_last_mode_change_epoch);
+        uint32_t cuc = id(cucina_last_mode_change_epoch);
+        if (sog != 0 && sog <= now_epoch)
+          min_elapsed_s = std::min(min_elapsed_s, now_epoch - sog);
+        if (cuc != 0 && cuc <= now_epoch)
+          min_elapsed_s = std::min(min_elapsed_s, now_epoch - cuc);
+        if (min_elapsed_s != UINT32_MAX)
+          return min_elapsed_s / 60.0;
+      }
+
+      // Fallback: millis-based (pre-C9 behavior; resets on reboot)
       uint32_t now = millis();
       uint32_t soggiorno_time = id(soggiorno_last_mode_change_time);
       uint32_t cucina_time = id(cucina_last_mode_change_time);
@@ -206,25 +166,65 @@ sensor:
       return min_elapsed / 60000.0;
     update_interval: 60s
 
-# HA sensors for fancoil boost thresholds (runtime configurable)
-# Create input_number entities in HA for runtime tuning
+# On-controller tuning numbers (CLIMATE C2, Epic 12 revival): these replace the
+# former HA input_number imports + "effective sensor with fallback" pattern.
+# The values live on the controller (restore_value: persisted in flash across
+# reboots) and are exposed to HA for tuning — but the dew-point protection and
+# boost thresholds no longer degrade to compile-time defaults when HA is down.
+# The safe margin feeds ground_floor_supply_temp_minimum (dew point + margin),
+# the condensation-safety floor for radiant cooling — the one loop that must
+# stay fully autonomous.
 number:
-  - platform: homeassistant
-    id: ha_ground_floor_radiant_safe_margin
-    entity_id: input_number.ground_floor_safe_margin
-    internal: true
+  - platform: template
+    id: ground_floor_radiant_safe_margin
+    name: "Ground Floor Radiant Safe Margin"
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    icon: "mdi:shield-half-full"
+    min_value: 0.5
+    max_value: 5.0
+    step: 0.1
+    initial_value: ${safe_margin}
+    restore_value: true
+    optimistic: true
+    entity_category: config
 
-  - platform: homeassistant
-    id: ha_ground_floor_fancoil_boost_threshold
-    entity_id: input_number.ground_floor_fancoil_boost_threshold
-    internal: true
+  - platform: template
+    id: ground_floor_fancoil_boost_threshold
+    name: "Ground Floor Fancoil Boost Threshold"
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    icon: "mdi:thermometer-alert"
+    min_value: 0.5
+    max_value: 10.0
+    step: 0.5
+    initial_value: ${fancoil_boost_threshold_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
 
-  - platform: homeassistant
-    id: ha_ground_floor_fancoil_humidity_threshold
-    entity_id: input_number.ground_floor_fancoil_humidity_threshold
-    internal: true
+  - platform: template
+    id: ground_floor_fancoil_humidity_threshold
+    name: "Ground Floor Fancoil Humidity Threshold"
+    unit_of_measurement: "%"
+    icon: "mdi:water-percent-alert"
+    min_value: 30
+    max_value: 90
+    step: 1
+    initial_value: ${fancoil_humidity_threshold_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
 
-  - platform: homeassistant
-    id: ha_ground_floor_fancoil_predictive_boost_minutes
-    entity_id: input_number.ground_floor_predictive_boost_minutes
-    internal: true
+  - platform: template
+    id: ground_floor_fancoil_predictive_boost_minutes
+    name: "Ground Floor Fancoil Predictive Boost Minutes"
+    unit_of_measurement: "min"
+    icon: "mdi:timer-alert"
+    min_value: 1
+    max_value: 120
+    step: 1
+    initial_value: ${predictive_boost_minutes_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config

@@ -1,0 +1,164 @@
+# =============================================================================
+# Component: window_guard.yaml
+# Purpose:   Shut a room's fancoil down while a window is open (CLIMATE C4 —
+#            restores the Epic 7 capability dropped in the layered restructure,
+#            distilled from the historical room_window_condition.yaml without
+#            the retired Epic 8 coordinator layer).
+#
+# HA-tier by design: the window sensors are Home Assistant binary sensors
+# (Zigbee contacts). This is a comfort/energy feature, not safety — when HA or
+# the sensor is unavailable the guard treats the window as closed and the
+# system behaves exactly as without the package. CAN-wired contacts can
+# replace the HA tier at install time (topology ADR, parked).
+#
+# Guarded target: the room's fancoil PID only. Radiant is deliberately not
+# guarded — its time constant is hours, so a 10-minute airing wastes little,
+# and shutting it invites condensation/comfort side effects.
+#
+# Required vars:
+#   room_slug             - Room identifier (e.g., "soggiorno")
+#   room_name             - Display name (e.g., "Soggiorno")
+#   ha_window_sensor_id   - HA binary sensor entity (e.g., "binary_sensor.soggiorno_window")
+#   guarded_pid_id        - Fancoil PID climate id to shut down (e.g., soggiorno_fancoil_pid)
+#
+# Optional vars:
+#   window_timeout        - Seconds a window must stay open before shutdown
+#                           (default: 180 — brief airing never triggers)
+#   recovery_timeout      - Seconds of window-closed stability before the
+#                           previous mode is restored (default: 60)
+#
+# State machine (10 s poll):
+#   Normal → Active       window open ≥ window_timeout AND guarded PID not OFF
+#                         (remembers the running mode, forces OFF)
+#   Active → Recovering   window closes
+#   Recovering → Normal   closed for recovery_timeout (restores remembered mode
+#                         only if the PID is still OFF — a manual/HA change or
+#                         the boost coordinator winning in the meantime is kept)
+#   Recovering → Active   window re-opens during recovery
+#
+# While Active the guard re-asserts OFF each poll: the fancoil-boost
+# coordinator may legitimately try to start the fancoil (its set_action sets
+# COOL); with the window open the guard wins and logs the conflict.
+#
+# Exposes:
+#   text_sensor.{room_slug}_window_guard_state  - Normal / Active / Recovering
+# =============================================================================
+
+defaults:
+  window_timeout: 180
+  recovery_timeout: 60
+
+globals:
+  # 0=Normal, 1=Active, 2=Recovering
+  - id: ${room_slug}_window_guard_state
+    type: int
+    initial_value: '0'
+  # millis() when the window opened (0 = closed)
+  - id: ${room_slug}_window_open_time
+    type: uint32_t
+    initial_value: '0'
+  # millis() when recovery stability started (0 = not recovering)
+  - id: ${room_slug}_window_recovery_time
+    type: uint32_t
+    initial_value: '0'
+  # Climate mode to restore after recovery (stored as int)
+  - id: ${room_slug}_window_saved_mode
+    type: int
+    initial_value: '0'
+
+binary_sensor:
+  - platform: homeassistant
+    entity_id: ${ha_window_sensor_id}
+    id: ${room_slug}_window_sensor
+    internal: true
+    on_state:
+      - logger.log:
+          format: "${room_name}: window %s"
+          args: ['x ? "OPENED" : "CLOSED"']
+          level: INFO
+          tag: window_guard
+
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          int state = id(${room_slug}_window_guard_state);
+          auto *pid = &id(${guarded_pid_id});
+
+          // Unavailable sensor (HA down / contact offline) => treated closed:
+          // the guard degrades to a no-op, never to a stuck shutdown.
+          const bool window_open =
+              id(${room_slug}_window_sensor).has_state() && id(${room_slug}_window_sensor).state;
+
+          if (window_open) {
+            if (id(${room_slug}_window_open_time) == 0)
+              id(${room_slug}_window_open_time) = now;
+            const uint32_t open_s = (now - id(${room_slug}_window_open_time)) / 1000;
+
+            if (state == 2) {
+              // Re-opened during recovery: straight back to Active
+              id(${room_slug}_window_guard_state) = 1;
+              id(${room_slug}_window_recovery_time) = 0;
+              ESP_LOGW("window_guard", "${room_name}: window re-opened during recovery");
+              state = 1;
+            }
+
+            if (state == 0 && open_s >= ${window_timeout} &&
+                pid->mode != climate::CLIMATE_MODE_OFF) {
+              id(${room_slug}_window_saved_mode) = (int) pid->mode;
+              id(${room_slug}_window_guard_state) = 1;
+              ESP_LOGW("window_guard",
+                       "${room_name}: window open %us - forcing fancoil OFF (was mode %d)",
+                       (unsigned) open_s, (int) pid->mode);
+              auto call = pid->make_call();
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+              call.perform();
+            } else if (state == 1 && pid->mode != climate::CLIMATE_MODE_OFF) {
+              // Something (boost coordinator, HA) restarted it: guard wins
+              ESP_LOGW("window_guard",
+                       "${room_name}: fancoil restarted while window open - re-asserting OFF");
+              auto call = pid->make_call();
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+              call.perform();
+            }
+          } else {
+            id(${room_slug}_window_open_time) = 0;
+
+            if (state == 1) {
+              id(${room_slug}_window_guard_state) = 2;
+              id(${room_slug}_window_recovery_time) = now;
+              ESP_LOGI("window_guard", "${room_name}: window closed - recovery started");
+            } else if (state == 2) {
+              const uint32_t rec_s = (now - id(${room_slug}_window_recovery_time)) / 1000;
+              if (rec_s >= ${recovery_timeout}) {
+                id(${room_slug}_window_guard_state) = 0;
+                id(${room_slug}_window_recovery_time) = 0;
+                if (pid->mode == climate::CLIMATE_MODE_OFF) {
+                  auto call = pid->make_call();
+                  call.set_mode((climate::ClimateMode) id(${room_slug}_window_saved_mode));
+                  call.perform();
+                  ESP_LOGI("window_guard",
+                           "${room_name}: recovery complete - restored mode %d",
+                           id(${room_slug}_window_saved_mode));
+                } else {
+                  ESP_LOGI("window_guard",
+                           "${room_name}: recovery complete - mode changed externally, leaving as-is");
+                }
+              }
+            }
+          }
+
+text_sensor:
+  - platform: template
+    id: ${room_slug}_window_guard_state_sensor
+    name: "${room_name} Window Guard"
+    icon: "mdi:window-open-variant"
+    entity_category: diagnostic
+    update_interval: 10s
+    lambda: |-
+      switch (id(${room_slug}_window_guard_state)) {
+        case 1: return {"Active"};
+        case 2: return {"Recovering"};
+        default: return {"Normal"};
+      }

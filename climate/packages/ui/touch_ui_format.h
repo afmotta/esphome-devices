@@ -23,4 +23,23 @@ inline std::string fmt_zone(const char *name, float temp, bool heating, bool coo
   return std::string(buf);
 }
 
+// Setpoint row for the floor tabs' adjust control: "<name>  set <target>C".
+inline std::string fmt_setpoint(const char *name, float target) {
+  char buf[48];
+  if (std::isnan(target)) {
+    std::snprintf(buf, sizeof(buf), "%s  set --", name);
+  } else {
+    std::snprintf(buf, sizeof(buf), "%s  set %.1fC", name, target);
+  }
+  return std::string(buf);
+}
+
+// One float with NaN shown as "--" (dew-point / supply-minimum diagnostics).
+inline std::string fmt_or_dashes(float v) {
+  if (std::isnan(v)) return "--";
+  char buf[16];
+  std::snprintf(buf, sizeof(buf), "%.1f", v);
+  return std::string(buf);
+}
+
 }  // namespace climate_ui

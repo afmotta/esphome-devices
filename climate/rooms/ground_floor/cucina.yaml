@@ -17,6 +17,13 @@ packages:
       ha_temperature_sensor_id: "sensor.room_cucina_temperature"
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
+  # Window open => fancoil off (CLIMATE C4; sensor map: docs/window-sensors-map.md)
+  window_guard: !include
+    file: ../../packages/components/window_guard.yaml
+    vars:
+      ha_window_sensor_id: "binary_sensor.cucina_window"
+      guarded_pid_id: cucina_fancoil_pid
+
   pid_radiant: !include
     file: ../../packages/components/radiant.yaml
     vars:
@@ -54,7 +61,6 @@ packages:
       pid_id: cucina_radiant_pid
       pid_name: "Cucina Radiant"
       fancoil_pid_id: cucina_fancoil_pid
-      boost_active_global: cucina_boost_active
 
   autotune_fancoil: !include
     file: ../../packages/components/pid_autotune.yaml

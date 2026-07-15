@@ -94,6 +94,13 @@ sensor:
     accuracy_decimals: 0
     update_interval: 60s
     lambda: |-
+      // Alarm => demand 0, DELIBERATELY hard-off (decision 2026-07-15, C1):
+      // the alarm sensor aggregates all 39 Cappellotto alarm types with no
+      // severity mapping, so a blanket minimum-purge floor could force demand
+      // onto a unit reporting a motor/frost/condensate fault. 0 is the only
+      // demand that is safe for every alarm; the alarm itself is surfaced on
+      // the dashboards and the touch UI health line. Revisit only with a
+      // per-alarm severity map from the register set (climate/mev_modbus.yaml).
       if (id(${alarm_sensor}).state) {
         return 0.0f;
       }

@@ -1,0 +1,183 @@
+# =============================================================================
+# mev_helpers.yaml — Home Assistant package: the input_number helpers the MEV
+# demand/ventilation stack reads (climate/mev_demand.yaml bounds and
+# climate/packages/coordinators/mev_ventilation.yaml cascade tuning).
+#
+# Install: copy into your HA packages directory (or add to `homeassistant:
+# packages:`). Without these entities the ESPHome `homeassistant` sensors read
+# NaN and every demand signal silently falls back to the minimum-fan default
+# (20%) — the system runs, but air quality no longer modulates the fan.
+#
+# Defaults mirror the firmware fallbacks where one exists; bounds map
+# lower_bound → minimum fan and upper_bound → 100% demand (proportional
+# between). VOC/NOx are Sensirion index values (1-500, ~100 = baseline).
+# =============================================================================
+
+input_number:
+  # --------------- Ventilation cascade tuning (mev_ventilation.yaml) --------
+  mev_minimum_fan_speed:
+    name: MEV Minimum Fan Speed
+    min: 0
+    max: 100
+    step: 5
+    initial: 20
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-1
+  mev_escalation_fan_threshold:
+    name: MEV Escalation Fan Threshold
+    min: 0
+    max: 100
+    step: 5
+    initial: 80
+    unit_of_measurement: "%"
+    icon: mdi:fan-alert
+  mev_deescalation_fan_threshold:
+    name: MEV De-escalation Fan Threshold
+    min: 0
+    max: 100
+    step: 5
+    initial: 40
+    unit_of_measurement: "%"
+    icon: mdi:fan-minus
+  mev_escalation_delay_minutes:
+    name: MEV Escalation Delay
+    min: 1
+    max: 120
+    step: 1
+    initial: 10
+    unit_of_measurement: min
+    icon: mdi:timer
+  mev_deescalation_delay_minutes:
+    name: MEV De-escalation Delay
+    min: 1
+    max: 120
+    step: 1
+    initial: 15
+    unit_of_measurement: min
+    icon: mdi:timer-outline
+
+  # --------------- Proportional demand bounds (mev_demand.yaml) -------------
+  mev_co2_lower_bound:
+    name: MEV CO2 Lower Bound
+    min: 400
+    max: 2000
+    step: 50
+    initial: 600
+    unit_of_measurement: ppm
+    icon: mdi:molecule-co2
+  mev_co2_upper_bound:
+    name: MEV CO2 Upper Bound
+    min: 400
+    max: 3000
+    step: 50
+    initial: 1500
+    unit_of_measurement: ppm
+    icon: mdi:molecule-co2
+  mev_voc_lower_bound:
+    name: MEV VOC Index Lower Bound
+    min: 1
+    max: 500
+    step: 10
+    initial: 150
+    icon: mdi:air-filter
+  mev_voc_upper_bound:
+    name: MEV VOC Index Upper Bound
+    min: 1
+    max: 500
+    step: 10
+    initial: 400
+    icon: mdi:air-filter
+  mev_nox_lower_bound:
+    name: MEV NOx Index Lower Bound
+    min: 1
+    max: 500
+    step: 10
+    initial: 100
+    icon: mdi:smog
+  mev_nox_upper_bound:
+    name: MEV NOx Index Upper Bound
+    min: 1
+    max: 500
+    step: 10
+    initial: 300
+    icon: mdi:smog
+  mev_pm1_0_lower_bound:
+    name: MEV PM1.0 Lower Bound
+    min: 0
+    max: 200
+    step: 1
+    initial: 10
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm1_0_upper_bound:
+    name: MEV PM1.0 Upper Bound
+    min: 0
+    max: 200
+    step: 1
+    initial: 50
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm2_5_lower_bound:
+    name: MEV PM2.5 Lower Bound
+    min: 0
+    max: 200
+    step: 1
+    initial: 10
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm2_5_upper_bound:
+    name: MEV PM2.5 Upper Bound
+    min: 0
+    max: 200
+    step: 1
+    initial: 50
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm4_0_lower_bound:
+    name: MEV PM4.0 Lower Bound
+    min: 0
+    max: 200
+    step: 1
+    initial: 15
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm4_0_upper_bound:
+    name: MEV PM4.0 Upper Bound
+    min: 0
+    max: 200
+    step: 1
+    initial: 60
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm10_lower_bound:
+    name: MEV PM10 Lower Bound
+    min: 0
+    max: 300
+    step: 1
+    initial: 20
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_pm10_upper_bound:
+    name: MEV PM10 Upper Bound
+    min: 0
+    max: 300
+    step: 1
+    initial: 80
+    unit_of_measurement: µg/m³
+    icon: mdi:blur
+  mev_humidity_lower_bound:
+    name: MEV Humidity Lower Bound
+    min: 30
+    max: 90
+    step: 1
+    initial: 55
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+  mev_humidity_upper_bound:
+    name: MEV Humidity Upper Bound
+    min: 30
+    max: 95
+    step: 1
+    initial: 75
+    unit_of_measurement: "%"
+    icon: mdi:water-percent-alert

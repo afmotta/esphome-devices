@@ -6,14 +6,16 @@
 # devices/locals/climate-control-touch.yaml (which sets shared_spi_pins: "true").
 #
 # Layout: a 4-tab tabview on the 480x222 landscape panel.
-#   Home    — season mode + demand + MEV + health, with season/MEV controls
-#   Terra   — ground-floor zones (temp + heat/cool/idle)
-#   Primo   — first-floor zones
-#   Secondo — second-floor zone
+#   Home    — season mode + demand + MEV + health + dew/boost diagnostics,
+#             with season/MEV controls
+#   Terra   — ground-floor zones (temp + heat/cool/idle) + setpoint control row
+#   Primo   — first-floor zones + setpoint control row
+#   Secondo — second-floor zone + setpoint control row
 #
-# Monitoring is the point, so values are read-only and refreshed by a single 2 s
-# `interval:` script (matches the Modbus poll cadence) rather than ~30 per-sensor
-# triggers. The only writes are the season select buttons and the MEV toggle.
+# Values are refreshed by a single 2 s `interval:` script (matches the Modbus
+# poll cadence) rather than ~30 per-sensor triggers. Writes: the season select
+# buttons, the MEV toggle, and (C8) the per-floor setpoint rows — [Zona >]
+# cycles the floor's zones, +/- nudge that zone's PID target by 0.5°C (15-30°C).
 #
 # All bound ids are defined by packages already in devices/climate-control.yaml:
 #   select.hp_mode + text_sensor.hp_mode_season (seasonal_mode.yaml)
@@ -71,6 +73,14 @@ lvgl:
                     - label:
                         id: ui_health
                         text: "Health: --"
+                    - label:
+                        id: ui_dew
+                        text_color: 0x9AA0A6
+                        text: "Dew: --"
+                    - label:
+                        id: ui_boost
+                        text_color: 0x9AA0A6
+                        text: "Boost: --"
                     - obj:
                         width: 100%
                         height: 40
@@ -150,6 +160,53 @@ lvgl:
                     - label: {id: ui_z_bagno_terra, text: "Bagno"}
                     - label: {id: ui_z_anticamera, text: "Anticamera"}
                     - label: {id: ui_z_locale_tecnico, text: "Locale Tecnico"}
+                    - obj:
+                        width: 100%
+                        height: 32
+                        pad_all: 0
+                        border_width: 0
+                        bg_opa: TRANSP
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                        widgets:
+                          - button:
+                              id: btn_zone_ground
+                              flex_grow: 2
+                              height: 100%
+                              bg_color: 0x3A3F45
+                              widgets:
+                                - label: {align: CENTER, text: "Zona >"}
+                              on_click:
+                                - lambda: 'id(ui_sel_ground) = (id(ui_sel_ground) + 1) % 5;'
+                                - script.execute: refresh_touch_ui
+                          - button:
+                              id: btn_set_minus_ground
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x24507A
+                              widgets:
+                                - label: {align: CENTER, text: "-"}
+                              on_click:
+                                - script.execute:
+                                    id: ui_adjust_ground
+                                    delta: -0.5
+                          - label:
+                              id: ui_set_ground
+                              flex_grow: 3
+                              text_align: CENTER
+                              text: "--"
+                          - button:
+                              id: btn_set_plus_ground
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x8A2A2A
+                              widgets:
+                                - label: {align: CENTER, text: "+"}
+                              on_click:
+                                - script.execute:
+                                    id: ui_adjust_ground
+                                    delta: 0.5
           # --------------------------------------------------------------- First
           - name: "Primo"
             id: tab_first
@@ -172,6 +229,53 @@ lvgl:
                     - label: {id: ui_z_bagno_ospiti, text: "Bagno Ospiti"}
                     - label: {id: ui_z_bagno_padronale, text: "Bagno Padronale"}
                     - label: {id: ui_z_lavanderia, text: "Lavanderia"}
+                    - obj:
+                        width: 100%
+                        height: 32
+                        pad_all: 0
+                        border_width: 0
+                        bg_opa: TRANSP
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                        widgets:
+                          - button:
+                              id: btn_zone_first
+                              flex_grow: 2
+                              height: 100%
+                              bg_color: 0x3A3F45
+                              widgets:
+                                - label: {align: CENTER, text: "Zona >"}
+                              on_click:
+                                - lambda: 'id(ui_sel_first) = (id(ui_sel_first) + 1) % 8;'
+                                - script.execute: refresh_touch_ui
+                          - button:
+                              id: btn_set_minus_first
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x24507A
+                              widgets:
+                                - label: {align: CENTER, text: "-"}
+                              on_click:
+                                - script.execute:
+                                    id: ui_adjust_first
+                                    delta: -0.5
+                          - label:
+                              id: ui_set_first
+                              flex_grow: 3
+                              text_align: CENTER
+                              text: "--"
+                          - button:
+                              id: btn_set_plus_first
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x8A2A2A
+                              widgets:
+                                - label: {align: CENTER, text: "+"}
+                              on_click:
+                                - script.execute:
+                                    id: ui_adjust_first
+                                    delta: 0.5
           # -------------------------------------------------------------- Second
           - name: "Secondo"
             id: tab_second
@@ -187,11 +291,102 @@ lvgl:
                     flex_flow: COLUMN
                   widgets:
                     - label: {id: ui_z_sottotetto, text: "Sottotetto"}
+                    - obj:
+                        width: 100%
+                        height: 32
+                        pad_all: 0
+                        border_width: 0
+                        bg_opa: TRANSP
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                        widgets:
+                          - button:
+                              id: btn_set_minus_second
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x24507A
+                              widgets:
+                                - label: {align: CENTER, text: "-"}
+                              on_click:
+                                - script.execute:
+                                    id: ui_adjust_second
+                                    delta: -0.5
+                          - label:
+                              id: ui_set_second
+                              flex_grow: 3
+                              text_align: CENTER
+                              text: "--"
+                          - button:
+                              id: btn_set_plus_second
+                              flex_grow: 1
+                              height: 100%
+                              bg_color: 0x8A2A2A
+                              widgets:
+                                - label: {align: CENTER, text: "+"}
+                              on_click:
+                                - script.execute:
+                                    id: ui_adjust_second
+                                    delta: 0.5
 
 # -----------------------------------------------------------------------------
 # Refresh: rebuild every label from current state on a 2 s cadence.
 # -----------------------------------------------------------------------------
 script:
+  # Setpoint adjust (CLIMATE C8): each floor tab has a [Zona >] [-] set [+]
+  # row. The selected zone cycles through the floor's zones; +/- nudge that
+  # zone's PID target by 0.5°C, clamped to 15-30°C. Dual-mode zones share one
+  # PID climate entity per circuit, so the nudge targets the circuit the zone
+  # heats/cools with (radiant everywhere except the two fancoil-only zones).
+  - id: ui_adjust_ground
+    parameters:
+      delta: float
+    then:
+      - lambda: |-
+          esphome::climate::Climate *zones[] = {
+            &id(soggiorno_radiant_pid), &id(cucina_radiant_pid),
+            &id(bagno_terra_radiant_pid), &id(anticamera_radiant_pid),
+            &id(locale_tecnico_fancoil_pid)};
+          auto *c = zones[id(ui_sel_ground)];
+          float t = c->target_temperature + delta;
+          if (t < 15.0f) t = 15.0f;
+          if (t > 30.0f) t = 30.0f;
+          auto call = c->make_call();
+          call.set_target_temperature(t);
+          call.perform();
+      - script.execute: refresh_touch_ui
+  - id: ui_adjust_first
+    parameters:
+      delta: float
+    then:
+      - lambda: |-
+          esphome::climate::Climate *zones[] = {
+            &id(camera_nord_radiant_pid), &id(camera_sud_radiant_pid),
+            &id(camera_ospiti_radiant_pid), &id(camera_padronale_radiant_pid),
+            &id(bagno_grande_radiant_pid), &id(bagno_ospiti_radiant_pid),
+            &id(bagno_padronale_radiant_pid), &id(lavanderia_radiant_pid)};
+          auto *c = zones[id(ui_sel_first)];
+          float t = c->target_temperature + delta;
+          if (t < 15.0f) t = 15.0f;
+          if (t > 30.0f) t = 30.0f;
+          auto call = c->make_call();
+          call.set_target_temperature(t);
+          call.perform();
+      - script.execute: refresh_touch_ui
+  - id: ui_adjust_second
+    parameters:
+      delta: float
+    then:
+      - lambda: |-
+          auto *c = &id(sottotetto_fancoil_pid);
+          float t = c->target_temperature + delta;
+          if (t < 15.0f) t = 15.0f;
+          if (t > 30.0f) t = 30.0f;
+          auto call = c->make_call();
+          call.set_target_temperature(t);
+          call.perform();
+      - script.execute: refresh_touch_ui
+
   - id: refresh_touch_ui
     then:
       # ---- Home: season + demand + MEV + health ----
@@ -244,6 +439,47 @@ script:
                      id(first_floor_mev_alarm_active).state ? "ON" : "off",
                      fb);
             return std::string(b);
+      # ---- Home: dew-point protection + boost diagnostics (C8) ----
+      - lvgl.label.update:
+          id: ui_dew
+          text: !lambda |-
+            return "Dew GF " + climate_ui::fmt_or_dashes(id(ground_floor_max_dew_point).state) +
+                   " min " + climate_ui::fmt_or_dashes(id(ground_floor_supply_temp_minimum).state) +
+                   "  FF " + climate_ui::fmt_or_dashes(id(first_floor_max_dew_point).state) +
+                   " min " + climate_ui::fmt_or_dashes(id(first_floor_supply_temp_minimum).state);
+      - lvgl.label.update:
+          id: ui_boost
+          text: !lambda |-
+            return std::string("Boost  Soggiorno ") +
+                   (id(soggiorno_boost_active_sensor).state ? "ON" : "--") +
+                   "   Cucina " +
+                   (id(cucina_boost_active_sensor).state ? "ON" : "--");
+      # ---- Setpoint rows (C8) ----
+      - lvgl.label.update:
+          id: ui_set_ground
+          text: !lambda |-
+            static const char *names[] = {"Soggiorno", "Cucina", "Bagno", "Anticamera", "Loc.Tecnico"};
+            esphome::climate::Climate *zones[] = {
+              &id(soggiorno_radiant_pid), &id(cucina_radiant_pid),
+              &id(bagno_terra_radiant_pid), &id(anticamera_radiant_pid),
+              &id(locale_tecnico_fancoil_pid)};
+            int i = id(ui_sel_ground);
+            return climate_ui::fmt_setpoint(names[i], zones[i]->target_temperature);
+      - lvgl.label.update:
+          id: ui_set_first
+          text: !lambda |-
+            static const char *names[] = {"C.Nord", "C.Sud", "C.Ospiti", "C.Padron.",
+                                          "B.Grande", "B.Ospiti", "B.Padron.", "Lavanderia"};
+            esphome::climate::Climate *zones[] = {
+              &id(camera_nord_radiant_pid), &id(camera_sud_radiant_pid),
+              &id(camera_ospiti_radiant_pid), &id(camera_padronale_radiant_pid),
+              &id(bagno_grande_radiant_pid), &id(bagno_ospiti_radiant_pid),
+              &id(bagno_padronale_radiant_pid), &id(lavanderia_radiant_pid)};
+            int i = id(ui_sel_first);
+            return climate_ui::fmt_setpoint(names[i], zones[i]->target_temperature);
+      - lvgl.label.update:
+          id: ui_set_second
+          text: !lambda 'return climate_ui::fmt_setpoint("Sottotetto", id(sottotetto_fancoil_pid).target_temperature);'
       # ---- Zone rows (ground) ----
       - lvgl.label.update: { id: ui_z_soggiorno,       text: !lambda 'return climate_ui::fmt_zone("Soggiorno", id(soggiorno_temp_abstracted).state, id(soggiorno_radiant_pid_is_heating).state, id(soggiorno_radiant_pid_is_cooling).state);' }
       - lvgl.label.update: { id: ui_z_cucina,          text: !lambda 'return climate_ui::fmt_zone("Cucina", id(cucina_temp_abstracted).state, id(cucina_radiant_pid_is_heating).state, id(cucina_radiant_pid_is_cooling).state);' }
@@ -272,3 +508,10 @@ globals:
   - id: _touch_ui_marker
     type: bool
     initial_value: 'false'
+  # Selected zone index for each floor tab's setpoint control (C8)
+  - id: ui_sel_ground
+    type: int
+    initial_value: '0'
+  - id: ui_sel_first
+    type: int
+    initial_value: '0'

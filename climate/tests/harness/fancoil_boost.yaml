@@ -25,6 +25,12 @@ esphome:
 
 host:
 
+# The coordinator's epoch stamping (CLIMATE C9) reads a time component under
+# this id; on the host platform the system clock stands in for SNTP.
+time:
+  - platform: host
+    id: sntp_time
+
 logger:
   level: DEBUG
 

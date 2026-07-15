@@ -62,8 +62,9 @@ sections:
   # ===========================================================================
   # Ground Floor Relays (Board 1)
   # ===========================================================================
+  # Channel map: climate/CLAUDE.md Appendix B (single 32-ch board at 0x02).
   - type: grid
-    title: Ground Floor Relays (Board 1 - 0x02)
+    title: Ground Floor Relays (0x02)
     columns: 4
     cards:
       - type: tile
@@ -77,30 +78,30 @@ sections:
         icon: mdi:pump
 
       - type: tile
+        entity: switch.climate_control_relay_6
+        name: Relay 6 - Anticamera Radiant
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.climate_control_relay_7
+        name: Relay 7 - Bagno Terra Radiant
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.climate_control_relay_8
+        name: Relay 8 - Cucina Radiant
+        icon: mdi:valve
+
+      - type: tile
         entity: switch.climate_control_relay_9
         name: Relay 9 - Soggiorno Radiant
         icon: mdi:valve
 
-      - type: tile
-        entity: switch.climate_control_relay_10
-        name: Relay 10 - Cucina Radiant
-        icon: mdi:valve
-
-      - type: tile
-        entity: switch.climate_control_relay_11
-        name: Relay 11 - Bagno Terra Radiant
-        icon: mdi:valve
-
-      - type: tile
-        entity: switch.climate_control_relay_12
-        name: Relay 12 - Anticamera Radiant
-        icon: mdi:valve
-
   # ===========================================================================
-  # First Floor Relays (Board 2)
+  # First / Second Floor Relays
   # ===========================================================================
   - type: grid
-    title: First Floor Relays (Board 2 - 0x03)
+    title: First / Second Floor Relays (0x02)
     columns: 4
     cards:
       - type: tile
@@ -109,49 +110,49 @@ sections:
         icon: mdi:pump
 
       - type: tile
+        entity: switch.climate_control_relay_4
+        name: Relay 4 - SF Fancoil Pump
+        icon: mdi:pump
+
+      - type: tile
+        entity: switch.climate_control_relay_10
+        name: Relay 10 - Bagno Grande
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.climate_control_relay_11
+        name: Relay 11 - Bagno Ospiti
+        icon: mdi:valve
+
+      - type: tile
+        entity: switch.climate_control_relay_12
+        name: Relay 12 - Bagno Padronale
+        icon: mdi:valve
+
+      - type: tile
         entity: switch.climate_control_relay_13
         name: Relay 13 - Camera Nord
         icon: mdi:valve
 
       - type: tile
         entity: switch.climate_control_relay_14
-        name: Relay 14 - Camera Sud
+        name: Relay 14 - Camera Ospiti
         icon: mdi:valve
 
       - type: tile
         entity: switch.climate_control_relay_15
-        name: Relay 15 - Camera Ospiti
+        name: Relay 15 - Camera Padronale
         icon: mdi:valve
 
       - type: tile
         entity: switch.climate_control_relay_16
-        name: Relay 16 - Camera Padronale
+        name: Relay 16 - Camera Sud
         icon: mdi:valve
 
       - type: tile
         entity: switch.climate_control_relay_17
-        name: Relay 17 - Bagno Grande
+        name: Relay 17 - Lavanderia
         icon: mdi:valve
-
-      - type: tile
-        entity: switch.climate_control_relay_18
-        name: Relay 18 - MEV Power
-        icon: mdi:fan
-
-      - type: tile
-        entity: switch.climate_control_relay_19
-        name: Relay 19 - MEV Mode
-        icon: mdi:cog
-
-      - type: tile
-        entity: switch.climate_control_relay_20
-        name: Relay 20 - MEV Dehumidifier
-        icon: mdi:water-remove
-
-      - type: tile
-        entity: switch.climate_control_relay_21
-        name: Relay 21 - MEV Cooling
-        icon: mdi:snowflake
 
   # ===========================================================================
   # Analog Outputs (0-10V DAC)
@@ -263,37 +264,30 @@ sections:
     title: Sensor Failover Status (Sample Rooms)
     columns: 2
     cards:
+      # Failover is CAN-primary / HA-fallback (climate/room_sensors.yaml); the
+      # per-tier CAN/HA sensors are internal, so the dashboard shows the
+      # abstracted value plus which tier is active.
       # Soggiorno
       - type: tile
-        entity: sensor.climate_control_soggiorno_room_temp_abstracted
-        name: Soggiorno Temp (Active)
+        entity: sensor.climate_control_soggiorno_temperature_abstracted
+        name: Soggiorno Temp (Abstracted)
         icon: mdi:thermometer-check
 
       - type: tile
-        entity: sensor.climate_control_soggiorno_modbus_temp
-        name: Soggiorno Modbus Temp
-        icon: mdi:thermometer-bluetooth
-
-      - type: tile
-        entity: sensor.climate_control_room_soggiorno_temperature
-        name: Soggiorno HA Temp (Fallback)
-        icon: mdi:home-assistant
+        entity: sensor.climate_control_soggiorno_temperature_abstracted_active_sensor_tier
+        name: Soggiorno Active Tier (CAN/HA)
+        icon: mdi:chart-timeline-variant
 
       # Camera Nord
       - type: tile
-        entity: sensor.climate_control_camera_nord_room_temp_abstracted
-        name: Camera Nord Temp (Active)
+        entity: sensor.climate_control_camera_nord_temperature_abstracted
+        name: Camera Nord Temp (Abstracted)
         icon: mdi:thermometer-check
 
       - type: tile
-        entity: sensor.climate_control_camera_nord_modbus_temp
-        name: Camera Nord Modbus Temp
-        icon: mdi:thermometer-bluetooth
-
-      - type: tile
-        entity: sensor.climate_control_room_camera_nord_temperature
-        name: Camera Nord HA Temp (Fallback)
-        icon: mdi:home-assistant
+        entity: sensor.climate_control_camera_nord_temperature_abstracted_active_sensor_tier
+        name: Camera Nord Active Tier (CAN/HA)
+        icon: mdi:chart-timeline-variant
 
   # ===========================================================================
   # Dallas Temperature Sensors (1-Wire)
@@ -315,32 +309,35 @@ sections:
   # ===========================================================================
   # System Configuration Values
   # ===========================================================================
+  # Safe margins and boost thresholds live ON the controller since CLIMATE C2
+  # (persisted template numbers, HA-tunable) — no longer HA input_numbers.
+  # MEV bounds remain HA input_numbers (climate/home-assistant/mev_helpers.yaml).
   - type: grid
-    title: System Configuration (Input Numbers from HA)
+    title: System Configuration
     columns: 2
     cards:
       - type: tile
-        entity: input_number.ground_floor_safe_margin
+        entity: number.climate_control_ground_floor_radiant_safe_margin
         name: GF Safe Margin
         icon: mdi:shield-half-full
 
       - type: tile
-        entity: input_number.ground_floor_fancoil_boost_threshold
+        entity: number.climate_control_ground_floor_fancoil_boost_threshold
         name: GF Boost Threshold
         icon: mdi:thermometer-alert
 
       - type: tile
-        entity: input_number.ground_floor_fancoil_humidity_threshold
+        entity: number.climate_control_ground_floor_fancoil_humidity_threshold
         name: GF Humidity Threshold
         icon: mdi:water-percent-alert
 
       - type: tile
-        entity: input_number.ground_floor_predictive_boost_minutes
+        entity: number.climate_control_ground_floor_fancoil_predictive_boost_minutes
         name: GF Predictive Boost Min
         icon: mdi:timer-alert
 
       - type: tile
-        entity: input_number.first_floor_safe_margin
+        entity: number.climate_control_first_floor_radiant_safe_margin
         name: FF Safe Margin
         icon: mdi:shield-half-full
 
@@ -511,7 +508,7 @@ sections:
         entities:
           - entity: sensor.climate_control_max_co_primo_piano
             name: Max CO₂
-          - entity: sensor.climate_control_max_iaq_primo_piano
-            name: Max IAQ
+          - entity: sensor.climate_control_max_voc_index_primo_piano
+            name: Max VOC Index
           - entity: sensor.climate_control_first_floor_max_humidity
             name: Max Humidity

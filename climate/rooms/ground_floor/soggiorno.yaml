@@ -17,6 +17,13 @@ packages:
       ha_temperature_sensor_id: "sensor.room_soggiorno_temperature"
       ha_humidity_sensor_id: "sensor.room_soggiorno_humidity"
 
+  # Window open => fancoil off (CLIMATE C4; sensor map: docs/window-sensors-map.md)
+  window_guard: !include
+    file: ../../packages/components/window_guard.yaml
+    vars:
+      ha_window_sensor_id: "binary_sensor.soggiorno_window"
+      guarded_pid_id: soggiorno_fancoil_pid
+
   radiant: !include
     file: ../../packages/components/radiant.yaml
     vars:
@@ -53,7 +60,6 @@ packages:
     vars:
       pid_id: soggiorno_radiant_pid
       fancoil_pid_id: soggiorno_fancoil_pid
-      boost_active_global: soggiorno_boost_active
 
   autotune_fancoil: !include
     file: ../../packages/components/pid_autotune.yaml

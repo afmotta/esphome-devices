@@ -33,6 +33,13 @@
 #   last_mode_change_time_global - Global uint32_t id, millis() of the last
 #                                  boost/radiant transition
 #                                  (default: ${zone_slug}_last_mode_change_time)
+#   last_mode_change_epoch_global - Persisted uint32_t id, epoch seconds of the
+#                                  last transition; stamped only while the time
+#                                  source is valid, restored across reboots
+#                                  (default: ${zone_slug}_last_mode_change_epoch)
+#   time_id                      - Time component id used for epoch stamping
+#                                  (default: sntp_time; the test harness
+#                                  provides a host-clock time under this id)
 #
 # Dependencies:
 #   - ../components/trend_sensor.yaml (included automatically)
@@ -100,15 +107,36 @@ defaults:
   diagnostics_update_interval: 30s
   boost_active_global: ${zone_slug}_boost_active
   last_mode_change_time_global: ${zone_slug}_last_mode_change_time
+  last_mode_change_epoch_global: ${zone_slug}_last_mode_change_epoch
+  time_id: sntp_time
 
 # =============================================================================
-# Boot: sync automation state text sensor with restored select value
+# Boot: restore the coordinator from the select value persisted in flash.
+# restore_value republishes the option but does NOT fire set_action, so a
+# reboot mid-boost would otherwise leave the physical outputs (radiant
+# override 100%, PWM, fancoil COOL) unset while reporting "Fancoil Boost".
+# Re-setting the restored option replays set_action end-to-end; the
+# "Radiant Only" case only needs the reported-state resync (replaying it
+# would force the fancoil OFF and stomp a legitimate manual HA override).
 # =============================================================================
 esphome:
   on_boot:
     priority: -100  # Run after all components are initialized
     then:
-      - script.execute: ${zone_slug}_boost_update_idle
+      - if:
+          condition:
+            lambda: 'return id(${zone_slug}_boost_state).current_option() == "Fancoil Boost";'
+          then:
+            - logger.log:
+                format: "${zone_slug}: reboot during boost - replaying boost outputs"
+                level: INFO
+                tag: boost
+            - select.set:
+                id: ${zone_slug}_boost_state
+                option: "Fancoil Boost"
+            - script.execute: ${zone_slug}_boost_update_idle
+          else:
+            - script.execute: ${zone_slug}_boost_update_idle
 
 # =============================================================================
 # Raw globals: for external lambdas/scripts to read or assign directly via
@@ -122,6 +150,15 @@ globals:
     initial_value: 'false'
   - id: ${last_mode_change_time_global}
     type: uint32_t
+    initial_value: '0'
+  # Epoch-seconds companion to the millis() timestamp above (CLIMATE C9): the
+  # controller has no RTC (ADR-0014 §5), so millis-based "time in mode" resets
+  # on reboot. This one persists in flash and is stamped from ${time_id} only
+  # while wall time is valid — 0 means "never stamped / unknown". Consumers
+  # prefer it over the millis global whenever both time and value are valid.
+  - id: ${last_mode_change_epoch_global}
+    type: uint32_t
+    restore_value: yes
     initial_value: '0'
 
 # =============================================================================
@@ -161,6 +198,13 @@ select:
             - globals.set:
                 id: ${last_mode_change_time_global}
                 value: millis()
+            # Stamp wall-clock time only when valid; otherwise keep the last
+            # (restored) value — the boot replay runs before SNTP syncs and
+            # must not wipe the persisted transition time (CLIMATE C9).
+            - lambda: |-
+                auto now = id(${time_id}).utcnow();
+                if (now.is_valid())
+                  id(${last_mode_change_epoch_global}) = (uint32_t) now.timestamp;
             - binary_sensor.template.publish:
                 id: ${zone_slug}_boost_active_sensor
                 state: true
@@ -184,6 +228,11 @@ select:
             - globals.set:
                 id: ${last_mode_change_time_global}
                 value: millis()
+            # See the boost branch: valid-time-only epoch stamp (CLIMATE C9)
+            - lambda: |-
+                auto now = id(${time_id}).utcnow();
+                if (now.is_valid())
+                  id(${last_mode_change_epoch_global}) = (uint32_t) now.timestamp;
             - binary_sensor.template.publish:
                 id: ${zone_slug}_boost_active_sensor
                 state: false
@@ -285,13 +334,11 @@ script:
   # (priority -100, see esphome.on_boot above) to resync boost_active_global
   # and the HA-visible binary_sensor with whatever option the select restored
   # from flash - set_action only fires on an actual select.set call, which
-  # restore_value's boot-time publish_state does not trigger. This resyncs
-  # reported state only: last_mode_change_time_global intentionally stays at
-  # its initial 0 across a reboot (no RTC - see ADR-0014 §5 - so "time since
-  # boot" is the best available approximation), and the physical outputs
-  # (radiant override, PWM, fancoil mode) are NOT replayed here - restoring
-  # those on boot is a pre-existing gap in this coordinator, not something
-  # introduced by wiring the two globals.
+  # restore_value's boot-time publish_state does not trigger. The boot hook
+  # replays the physical outputs for a restored "Fancoil Boost" by re-setting
+  # the option (see esphome.on_boot above). last_mode_change_time_global
+  # resets to ~0 across a reboot (no RTC - see ADR-0014 §5 - so "time since
+  # boot" is the best available approximation).
   - id: ${zone_slug}_boost_update_idle
     mode: restart
     then:

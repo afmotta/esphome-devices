@@ -9,7 +9,16 @@
 #   room_name                - Display name (e.g., "Living Room")
 #   pid_id                   - PID climate entity to tune (e.g., "living_room_radiant_pid")
 #   fancoil_pid_id           - Fancoil PID to disable during autotune
-#   boost_active_global      - ID of the boost active global bool (e.g., "living_room_boost_active")
+#
+# Optional vars:
+#   boost_state_select_id    - The boost coordinator's select (default:
+#                              ${room_slug}_boost_state). Boost is ended via
+#                              select.set so the coordinator's set_action runs
+#                              end-to-end (releases the radiant override/PWM
+#                              lock, syncs boost_active_global and the boost
+#                              sensor) - never by writing the global directly,
+#                              which would leave the select and the 100%
+#                              radiant lock in place and corrupt the tune.
 #
 # Exposes:
 #   button.{room_slug}_radiant_autotune - Press to start safe autotuning
@@ -25,8 +34,10 @@
 #         room_name: "Living Room"
 #         pid_id: "living_room_radiant_pid"
 #         fancoil_pid_id: "living_room_fancoil_pid"
-#         boost_active_global: "living_room_boost_active"
 # =============================================================================
+
+defaults:
+  boost_state_select_id: ${room_slug}_boost_state
 
 button:
   - platform: template
@@ -38,11 +49,13 @@ button:
       - logger.log:
           format: "[Autotune] Starting autotune for ${room_name} - disabling interferences"
           level: INFO
-      # Disable boost mode
-      - lambda: |-
-          id(${boost_active_global}) = false;
-          ESP_LOGI("autotune", "Disabled boost mode for ${room_slug}");
-      # Turn off fancoil
+      # End boost through the coordinator so its set_action releases the
+      # radiant override/PWM lock and syncs the global + boost sensor
+      - select.set:
+          id: ${boost_state_select_id}
+          option: "Radiant Only"
+      # Fancoil off even if boost was not active (set_action also does this
+      # when it runs; explicit here because autotune requires it regardless)
       - climate.control:
           id: ${fancoil_pid_id}
           mode: "OFF"

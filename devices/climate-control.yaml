@@ -49,6 +49,9 @@ packages:
       update_interval: 2s
       id_offset: 0
       controller_name: "Relay Board 1"
+  # Outdoor temperature (CLIMATE C3): CAN outdoor node -> HA weather fallback.
+  # Override ha_outdoor_temperature_sensor_id here if the HA entity differs.
+  outdoor: !include ../climate/outdoor.yaml
   ground_floor: !include ../climate/rooms/ground_floor/ground-floor.yaml
   first_floor: !include ../climate/rooms/first_floor/first-floor.yaml
   second_floor: !include ../climate/rooms/second_floor/second-floor.yaml

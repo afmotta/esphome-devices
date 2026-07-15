@@ -1,0 +1,76 @@
+# =============================================================================
+# outdoor.yaml — outdoor temperature acquisition (CLIMATE C3)
+# =============================================================================
+# Two-tier failover, same doctrine as room_sensors.yaml (CAN → HA → NaN):
+#
+#   Tier 1 (CAN): `outdoor_temp_can` — fed by the outdoor CANBed+SHT45 node
+#     once it is commissioned (hardware approved 2026-07-15, to be ordered).
+#     Until the node exists the tier simply never has state and the failover
+#     rides Tier 2. The id follows the room pattern so the generated CAN
+#     routes can target it when the node lands in the registry.
+#   Tier 2 (HA): an outdoor temperature entity from Home Assistant — the heat
+#     pump's own outdoor sensor via the ISG web (`stiebel_eltron` integration,
+#     decision 2026-07-15: docs/heat-pump-integration.md) or an OpenWeather /
+#     weather-integration temperature. Override
+#     `ha_outdoor_temperature_sensor_id` from the composing entry point.
+#   Emergency: NaN — consumers (weather_compensation.yaml) hold their last
+#     valid output rather than acting on garbage.
+#
+# Also exposes `outdoor_temp_24h_mean`, a 24 h rolling mean sampled every
+# 5 min (NaN samples dropped) — the seasonal-mode Tier 2 "Weather
+# Intelligence" input and the sanity signal for curve tuning.
+# =============================================================================
+
+defaults:
+  ha_outdoor_temperature_sensor_id: "sensor.outdoor_temperature"
+
+sensor:
+  # Tier 1: CAN target (static declaration, populated by generated routes when
+  # the outdoor node is commissioned — see registry/nodes.csv)
+  - platform: template
+    id: outdoor_temp_can
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+
+  # Tier 2: Home Assistant (OpenWeather / weather integration)
+  - platform: homeassistant
+    entity_id: ${ha_outdoor_temperature_sensor_id}
+    id: outdoor_temp_ha
+    internal: true
+    filters:
+      - filter_out: nan
+
+  # 24 h rolling mean of the failover-resolved temperature: 288 samples at
+  # 5 min, published every 15 min. NaN samples (both tiers down) are dropped
+  # so an HA outage shortens the window instead of poisoning it.
+  - platform: template
+    id: outdoor_temp_24h_mean
+    name: "Outdoor Temperature 24h Mean"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    lambda: 'return id(outdoor_temp_abstracted).state;'
+    update_interval: 300s
+    filters:
+      - lambda: 'if (std::isnan(x)) return {}; return x;'
+      - sliding_window_moving_average:
+          window_size: 288
+          send_every: 3
+
+packages:
+  outdoor_failover: !include
+    file: packages/components/failover_sensor.yaml
+    vars:
+      sensor_id: outdoor_temp_abstracted
+      sensor_name: "Outdoor Temperature (Abstracted)"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      primary_sensor: outdoor_temp_can
+      secondary_sensor: outdoor_temp_ha
+      internal: "false"
+      primary_tier_label: "CAN"
+      secondary_tier_label: "HA"

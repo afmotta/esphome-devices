@@ -1,0 +1,157 @@
+# =============================================================================
+# Coordinator: weather_compensation.yaml (CLIMATE C3)
+# Purpose:   Weather-compensated supply temperature for a radiant mixing
+#            valve: the classic heating curve. In HEAT mode the mixing-valve
+#            PID target follows outdoor temperature — mild weather gets a
+#            cooler supply (better heat-pump COP, less overshoot); cold
+#            weather gets a warmer one. The COOL-mode target stays owned by
+#            the dew-point protection (ground-/first-floor.yaml); this
+#            coordinator only ever acts while the season select is HEAT, so
+#            the two writers cannot fight.
+#
+# Curve:  supply_target = base + slope × (reference_indoor − outdoor)
+#         clamped to [supply_min, supply_max]
+#   base       — supply temp when outdoor equals the reference indoor temp
+#   slope      — °C of supply per °C of outdoor deficit (radiant floors are
+#                low-temperature emitters: start ~0.8, tune on the building)
+#
+# Curve parameters are persisted on-controller template numbers (C2 pattern):
+# HA-tunable, flash-restored, never HA-dependent.
+#
+# When the outdoor temperature is NaN (both failover tiers down) the
+# coordinator HOLDS the last written target and logs — it never writes a
+# NaN-derived value.
+#
+# Required vars:
+#   area_slug              - e.g. "ground_floor" (entity-ID prefix)
+#   area_name              - e.g. "Ground Floor"
+#   mixing_valve_pid_id    - PID climate to drive (e.g. ground_floor_radiant_mixing_valve_pid)
+#   outdoor_sensor         - Outdoor temperature sensor id (outdoor_temp_abstracted)
+#
+# Optional vars:
+#   season_select_id       - Season select (default: hp_mode); acts only on "HEAT"
+#   reference_indoor_temp  - Curve pivot (default: 20.0 °C)
+#   curve_slope_default    - default 0.8
+#   curve_base_default     - default 30.0 °C
+#   supply_min_default     - default 24.0 °C
+#   supply_max_default     - default 40.0 °C (radiant floor safety ceiling)
+#   update_interval        - default 60s
+#
+# Exposes:
+#   number.{area_slug}_heat_curve_slope / _heat_curve_base /
+#          _heat_supply_min / _heat_supply_max
+#   sensor.{area_slug}_heat_supply_target — last computed curve output
+# =============================================================================
+
+defaults:
+  season_select_id: hp_mode
+  reference_indoor_temp: "20.0"
+  curve_slope_default: "0.8"
+  curve_base_default: "30.0"
+  supply_min_default: "24.0"
+  supply_max_default: "40.0"
+  update_interval: 60s
+
+number:
+  - platform: template
+    id: ${area_slug}_heat_curve_slope
+    name: "${area_name} Heat Curve Slope"
+    icon: "mdi:chart-line"
+    min_value: 0.2
+    max_value: 2.0
+    step: 0.05
+    initial_value: ${curve_slope_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
+
+  - platform: template
+    id: ${area_slug}_heat_curve_base
+    name: "${area_name} Heat Curve Base"
+    unit_of_measurement: "°C"
+    icon: "mdi:chart-line-variant"
+    min_value: 20
+    max_value: 45
+    step: 0.5
+    initial_value: ${curve_base_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
+
+  - platform: template
+    id: ${area_slug}_heat_supply_min
+    name: "${area_name} Heat Supply Min"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer-chevron-down"
+    min_value: 20
+    max_value: 35
+    step: 0.5
+    initial_value: ${supply_min_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
+
+  - platform: template
+    id: ${area_slug}_heat_supply_max
+    name: "${area_name} Heat Supply Max"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer-chevron-up"
+    min_value: 28
+    max_value: 45
+    step: 0.5
+    initial_value: ${supply_max_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
+
+sensor:
+  # Last computed curve output (diagnostic; NaN until the first valid compute)
+  - platform: template
+    id: ${area_slug}_heat_supply_target
+    name: "${area_name} Heat Supply Target"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    icon: "mdi:thermometer-auto"
+    update_interval: never
+
+interval:
+  - interval: ${update_interval}
+    then:
+      - if:
+          condition:
+            lambda: 'return id(${season_select_id}).current_option() == "HEAT";'
+          then:
+            - lambda: |-
+                const float outdoor = id(${outdoor_sensor}).state;
+                if (std::isnan(outdoor)) {
+                  // Both outdoor tiers down: hold the last written target.
+                  static uint32_t last_warn = 0;
+                  if (millis() - last_warn > 600000UL) {
+                    last_warn = millis();
+                    ESP_LOGW("weather_comp",
+                             "${area_name}: outdoor temp unavailable - holding last supply target");
+                  }
+                  return;
+                }
+                float target = id(${area_slug}_heat_curve_base).state +
+                               id(${area_slug}_heat_curve_slope).state *
+                                   (${reference_indoor_temp} - outdoor);
+                const float lo = id(${area_slug}_heat_supply_min).state;
+                const float hi = id(${area_slug}_heat_supply_max).state;
+                if (target < lo) target = lo;
+                if (target > hi) target = hi;
+
+                auto *pid = &id(${mixing_valve_pid_id});
+                // Only rewrite on a meaningful move; the PID does the rest.
+                if (std::isnan(pid->target_temperature) ||
+                    std::fabs(pid->target_temperature - target) >= 0.2f) {
+                  auto call = pid->make_call();
+                  call.set_target_temperature(target);
+                  call.perform();
+                  ESP_LOGI("weather_comp",
+                           "${area_name}: outdoor %.1fC -> supply target %.1fC",
+                           outdoor, target);
+                }
+                id(${area_slug}_heat_supply_target).publish_state(target);
