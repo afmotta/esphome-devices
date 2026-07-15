@@ -474,24 +474,27 @@ Examples:
 - `climate.pid_mixing_valve_radiante_piano_terra`
 
 #### Temperature Sensors
-- `sensor.{room_slug}_room_temp_abstracted` - Active temperature (failover)
-- `sensor.{room_slug}_modbus_temp` - Modbus sensor temperature
-- `sensor.room_{room_slug}_temperature` - HA fallback temperature
+Failover is CAN-primary / HA-fallback (`climate/room_sensors.yaml`); the per-tier
+CAN/HA sensors are `internal` and never reach HA — dashboards use the abstracted
+value plus the active-tier text sensor.
+- `sensor.{room_slug}_temperature_abstracted` - Failover-resolved temperature
+- `sensor.{room_slug}_temperature_abstracted_active_sensor_tier` - Active tier (CAN/HA)
 
 #### Humidity Sensors
-- `sensor.{room_slug}_room_humidity_abstracted` - Active humidity (failover)
-- `sensor.{room_slug}_modbus_humidity` - Modbus sensor humidity
-- `sensor.room_{room_slug}_humidity` - HA fallback humidity
+- `sensor.{room_slug}_humidity_abstracted` - Failover-resolved humidity
+- `sensor.{room_slug}_humidity_abstracted_active_sensor_tier` - Active tier (CAN/HA)
 
 #### Dew Point Sensors
 - `sensor.{room_slug}_dew_point` - Calculated dew point
 
-#### Air Quality Sensors (First Floor)
-- `sensor.{room_slug}_co2` - CO₂ level (from room sensor via UDP)
-- `sensor.{room_slug}_iaq` - Indoor Air Quality index
+#### Air Quality Sensors (First Floor, CAN-sourced)
+- `sensor.{room_slug}_co2_can` - CO₂ level
+- `sensor.{room_slug}_voc_index_can` / `_nox_index_can` - VOC/NOx indices
+- `sensor.{room_slug}_pm1_0_can` / `_pm2_5_can` / `_pm4_0_can` / `_pm10_can` - Particulates
+- `sensor.max_{quantity}_primo_piano` - First-floor max aggregates (CO₂, VOC, NOx, PM)
 
 #### Relay Switches
-- `switch.relay_{number}` - Relay switches (1-21+)
+- `switch.relay_{number}` - Relay switches (1-32; assignments in climate/CLAUDE.md Appendix B; 18-21 and 22-32 unallocated)
 
 #### Analog Outputs
 - `number.analog_output_{number}` - 0-10V DAC outputs (1-7+)

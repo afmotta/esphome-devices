@@ -180,8 +180,8 @@ defaults:
   room_slug: new_room
   room_name: "New Room"
   temperature_sensor: sensor.new_room_temp
-  radiant_relay: relay_6
-  fancoil_relay: relay_10
+  radiant_relay: relay_22   # pick an unallocated channel — see Appendix B
+  # No fancoil_relay: fancoils have no dedicated relay (floor pump + 0-10V fan, Appendix B/C)
 
 packages:
   sensors: !include ../../room_sensors.yaml
@@ -267,7 +267,7 @@ Live channel mapping (single 32-channel Relay Board, address `0x2`, `id_offset: 
 | `relay_15` | Camera Padronale | Radiant |
 | `relay_16` | Camera Sud | Radiant |
 | `relay_17` | Lavanderia | Radiant |
-| `relay_18`-`relay_21` | — | Reserved (freed by the Epic 18 MEV Modbus migration; still exposed as manual toggles on some dashboards, no ESPHome zone binding) |
+| `relay_18`-`relay_21` | — | Reserved (freed by the Epic 18 MEV Modbus migration; no ESPHome zone binding) |
 | `relay_22`-`relay_32` | — | Unallocated spare capacity |
 
 Fancoil units have no dedicated relay of their own — each floor's fancoil circulation runs off that floor's shared direct/mixing pump relay (`relay_2`, `relay_4`); the fan itself is 0-10V modulated via the Analog Outputs Board (Appendix C).

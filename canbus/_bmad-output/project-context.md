@@ -147,8 +147,8 @@ _Critical rules and patterns for implementing code in this project. Focus on uno
 **NEVER do these:**
 
 - **Never edit files in `nodes/` by hand.** They are generated output — all changes go through `nodes.csv` → `generate_nodes.py`. Shared config (SPI/CAN pins, the 8-button set) belongs in `common/base_node.yaml`, not in per-node files or the generator template.
-- **Never reintroduce the flat `node_id` / 11-bit ID model.** ADR-0001 is accepted: room, board, button, and event live in the 29-bit Extended CAN ID for INPUT frames; payloads carry protocol version, values, and parameters.
-- **Never assume HA event data fields are integers.** All fields in `esphome.canbus_button` and `esphome.canbus_heartbeat` are strings (`"7"`, not `7`). HA automation `event_data:` filters must use string values.
+- **Never reintroduce the 11-bit ID / semantics-in-the-frame model.** ADR-0007 superseded ADR-0001's wire layout: the 29-bit Extended CAN ID carries only category + flat `node_id` (13 bits); button/event live in the payload, and room/board/name live in the central `node_map.h` compiled from `registry/nodes.csv` — never on the node or in the frame.
+- **Never assume HA event data fields are integers.** All fields in `esphome.canbus_button` and the `canbus_node_*` events are strings (`"7"`, not `7`). HA automation `event_data:` filters must use string values. (Heartbeats are not forwarded as events — aliveness surfaces as edge events + aggregate entities, ADR-0011 §2.)
 - **Never skip the `x.size()` guard in CAN frame lambdas.** Malformed or short frames will crash without it.
 - **Never use Arduino framework on the gateway.** Native TWAI (`esp32_can`) requires `esp-idf`. Switching to Arduino silently breaks CAN.
 - **Never put security-critical actuation on the CAN bus.** Door locks, alarm arming, or any safety-critical actuator must not be driven from this bus without first revisiting ADR-0010. The bus is unauthenticated by decision (the physical envelope is the trust boundary), so any injected frame's worst case must stay behavioral and transient — never a lock thrown or an alarm disarmed. Standing constraint on all future feature intake.

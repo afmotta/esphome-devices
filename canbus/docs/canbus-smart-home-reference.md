@@ -2,7 +2,7 @@
 
 ## Overview
 
-A CAN bus-based wall button system for Alberto's fienile (barn conversion) in Pioltello. The house has 3 floors (ground: 9 rooms, first: 8 rooms, second: 2 rooms) with up to 100+ button boards, each with a standard set of 8 buttons. The system uses ESPHome on RP2040 button nodes and an ESP32-S3 gateway, communicating over CAN bus at 125 kbps.
+A CAN bus-based wall button system for Alberto's fienile (barn conversion) in Pioltello. The house has 3 floors (ground: 9 rooms, first: 8 rooms, second: 2 rooms) with up to 100+ button boards, each with a standard set of 8 buttons. The system uses ESPHome on RP2040 button nodes and two ESP32-S3 gateway-class devices (lighting controller + health monitor, ADR-0015), communicating over CAN bus at 125 kbps.
 
 ## Architecture
 
@@ -27,32 +27,38 @@ Both tap the same backbone segment. ADR-0015 split what ADR-0014 P4 had deployed
 
 ## CAN Protocol v1
 
-### CAN ID (standard 11-bit)
+### CAN ID (29-bit Extended, ADR-0007)
 
 ```
-Bit:  10  9 │ 8  7  6  5  4  3  2  1  0
-      C   C │ N  N  N  N  N  N  N  N  N
+Bit: 28 27 26 25 │ 24 .............. 12 │ 11 ............. 0
+     C  C  C  C  │ N  N  ........  N    │ r  r  ........  r
 
-C = Category (2 bits, 0-3)
-N = Node ID  (9 bits, 0-511)
+C = Category (4 bits, 0-15)   — message class + arbitration priority (lower = higher)
+N = Node ID  (13 bits, 0-8191) — flat, meaningless, assigned at flash time
+r = Reserved (12 bits)         — future per-category low fields; MUST be 0 for now
 ```
 
-The CAN ID is intentionally generic. It carries no semantic meaning about rooms or buttons — only a flat sequential node identifier and a category for bus arbitration priority and hardware filtering. All semantic data (room, board, button index, event type) lives in the 8-byte payload, making the payload fully self-describing.
+The CAN ID is intentionally generic. It carries no semantic meaning about rooms or buttons — only a flat node identifier and a category for bus arbitration priority and hardware filtering. A node's identity is its flat `node_id`; (room, board, name) live in a central `node_id → {...}` map compiled into the gateway-class devices (`protocol/node_map.h`, generated from `registry/nodes.csv`) — never on the node. All message content lives in the payload; all frames are sent with `use_extended_id: true`.
 
 **Categories** (lower value = higher CAN bus priority):
 
-| Value | Name       | Direction        | Purpose                        |
-|-------|------------|------------------|--------------------------------|
-| 0     | CAT_SYSTEM | bidirectional    | Emergency, errors              |
-| 1     | CAT_INPUT  | node → gateway   | Button events                  |
-| 2     | CAT_OUTPUT | gateway → node   | LED/relay commands, config     |
-| 3     | CAT_STATUS | node → gateway   | Heartbeat, health              |
+| Value | Name         | Direction         | Purpose                                        |
+|-------|--------------|-------------------|------------------------------------------------|
+| 0     | CAT_SYSTEM   | bidirectional     | Emergency, errors, controller liveness         |
+| 1     | CAT_INPUT    | node → gateway    | Button events                                  |
+| 2     | CAT_OUTPUT   | gateway → node    | Commands / config (defined; not yet wired)     |
+| 3     | CAT_STATUS   | node → gateway    | Heartbeat, health                              |
+| 4     | CAT_SENSOR   | node → controller | Environmental measurements (ADR-0006)          |
+| 5–14  | *(reserved)* | —                 | Future classes (e.g. CONFIG, DISCOVERY)        |
+| 15    | CAT_EXTENDED | —                 | Escape: real class is a subtype in the payload |
 
-The gateway uses CAN mask filtering (`can_id_mask: 0x600`) to match all messages of a given category regardless of node ID.
+Consumers use CAN mask filtering on the category bits (`can_id_mask: 0x1E000000` = `CAN_MASK_CATEGORY`) to match all messages of a given category regardless of node ID; `CAN_MASK_ADDR` additionally matches the node_id field (a node's RX filter for OUTPUT frames addressed to it).
 
-### Data payload (8 bytes)
+### Data payloads (variable length, ≤ 8 bytes)
 
-**Button event** (CAT_INPUT):
+Frames are variable-length; receivers guard against the per-message minimum (`BUTTON_PAYLOAD_MIN`, `HEARTBEAT_PAYLOAD_MIN`, `SENSOR_PAYLOAD_MIN`), never a fixed 8.
+
+**Button event** (CAT_INPUT, 4 bytes):
 
 ```
 Byte 0: Protocol version (0x01)
@@ -62,29 +68,38 @@ Byte 3: Event type
          0x01 = click
          0x02 = double_click
          0x03 = triple_click
-         0x04 = long_press (1–3 seconds)
-         0x05 = extra_long_press (3+ seconds)
-Byte 4: Room ID (0–255)
-Byte 5: Board ID (0–255)
-Byte 6–7: Reserved (0x00)
+         0x06 = hold          (fires while the button is still down, at hold_ms)
+         0x07 = hold_release  (fires when that hold ends)
 ```
 
-**Heartbeat** (CAT_STATUS, sent every 30 seconds):
+`0x04`/`0x05` were long/extra-long press, removed pre-live (ADR-0012 §2: a "long press" is derived centrally from the hold → hold_release pair). They are left unassigned so a frame from a not-yet-reflashed node decodes as "unknown" (logged, never forwarded).
+
+**Heartbeat** (CAT_STATUS, 5 bytes, sent every 30 seconds):
 
 ```
-Byte 0: Protocol version (0x01)
-Byte 1: Message type (0x01 = MSG_HEARTBEAT)
-Byte 2: Uptime in hours (uint8, wraps at 255)
-Byte 3: Button states bitmask (current GPIO states)
-Byte 4: Error flags (0x00 = healthy, 0x01 = CAN TX fail, 0x02 = bus off)
-Byte 5: Room ID
-Byte 6: Board ID
-Byte 7: Reserved (0x00)
+Byte 0:   Protocol version (0x01)
+Byte 1:   Message type (0x01 = MSG_HEARTBEAT)
+Byte 2:   Error flags (0x00 = healthy, 0x01 = CAN TX fail,
+          0x02 = bus off, 0x04 = bridge queue overflow — segment bridge only)
+Byte 3–4: Uptime in hours (uint16 LE; 0xFFFF = "at least 65535 h")
 ```
 
-### Why room/board are in the payload (not just the CAN ID)
+Heartbeats carry no button state — momentary buttons have no state (hard rule); buttons emit events only.
 
-ESPHome's `on_frame` CAN trigger provides the data bytes (`x`) but does not cleanly expose the received CAN ID as a lambda variable. When the gateway uses mask-based filtering to match all button events at once, it cannot decode which node sent the message from the CAN ID alone. Embedding room and board in the payload makes the frame self-describing and avoids the need for a custom ESPHome component. It also simplifies CAN trace debugging.
+**Sensor measurement** (CAT_SENSOR, 8 bytes, ADR-0006):
+
+```
+Byte 0:   Protocol version (0x01)
+Byte 1:   Status (0 = OK/publish; 1 warming up, 2 unavailable, 3 error,
+          4 out of range — all "ignore value")
+Byte 2–3: Measurement type (uint16 LE — SHT45 temp/RH, SEN66 temp/RH/PM/VOC/NOx/CO2)
+Byte 4–7: Value (32-bit LE; int32 for temperatures, uint32 otherwise,
+          scaling implied by the measurement type)
+```
+
+### Identity: node_id in the CAN ID, semantics in the central map
+
+ESPHome's `on_frame` trigger exposes the received CAN ID as the `can_id` lambda variable, so consumers decode the sender with `can_id_node(can_id)` even when mask-filtering a whole category. Room/board/name are resolved at the gateway from the compiled `node_map.h` (generated from `registry/nodes.csv`); an unknown node resolves to `255`/`"unknown"`. Frames therefore stay minimal, and renaming a room is a registry edit plus gateway reflash — never a node reflash.
 
 ## Project file structure
 
@@ -109,10 +124,18 @@ canbus/                       # flattened out of firmware/ (Phase 6a); the gatew
 │   └── health.yaml          # Health-monitor-side: transport health, !extends can0 (see devices/health-monitor.yaml)
 ├── tools/
 │   ├── allocate_node.py     # allocate the next node_id and register it
-│   ├── generate_nodes.py    # reads registry/nodes.csv -> per-node YAML + protocol/node_map.h
-│   └── commission.py        # assign room/board to a node_id, regenerate node_map.h
+│   ├── generate_nodes.py    # reads registry/nodes.csv -> per-node YAML + protocol/node_map.h,
+│   │                        #   protocol/bindings.h, climate routing artifacts, map.json
+│   ├── commission.py        # assign room/board to a node_id, regenerate node_map.h
+│   ├── bindings.py          # strict bindings.yaml reader + canonical manifest hash
+│   └── check_registry_pushed.py # ADR-0009 push-discipline gate (run before gateway reflash)
 ├── tests/
-│   └── test_protocol.cpp    # standalone native round-trip test for canbus_protocol.h
+│   ├── test_protocol.cpp    # native round-trip test for canbus_protocol.h
+│   ├── test_ha_arbitration.cpp / test_node_health.cpp / test_bridge_forwarding.cpp
+│   │                        # native tests for the pure-logic headers
+│   ├── test_bindings_contract.cpp # drift test for the frozen bindings.h consumer contract
+│   ├── test_bindings.py / test_generate_exports.py / test_push_gate.py # Python (stdlib-only)
+│   └── compile_sensor_node.yaml   # ESPHome compile check without touching generated nodes
 └── nodes/                   # Generated node YAML files (one per board)
     ├── node100.yaml
     ├── node101.yaml
@@ -128,7 +151,7 @@ from their `node_id` (the node's only identity) and optional sensor-kit package.
 
 ### Why the C++ header exists
 
-ESPHome `!lambda` blocks are inline C++. Without the header, every lambda would contain raw bit shifts and magic numbers (e.g. `return {0x01, 0x01, ${button_index}, 0x01, 0x00, 0x00, 0x00, 0x00};`). The header provides named constants (`EVT_CLICK`, `CAT_INPUT`) and helper functions (`can_id()`, `button_payload()`) so that lambdas are one-liners. It also provides decoder functions (`payload_room()`, `event_type_str()`) used by the gateway. Both nodes and gateway include the same header, so the protocol definition cannot drift.
+ESPHome `!lambda` blocks are inline C++. Without the header, every lambda would contain raw bit shifts and magic numbers (e.g. `return {0x01, 0x01, ${button_index}, 0x01};`). The header provides named constants (`EVT_CLICK`, `CAT_INPUT`) and helper functions (`can_id()`, `button_payload()`) so that lambdas are one-liners. It also provides decoder functions (`can_id_node()`, `payload_event_type()`, `event_type_str()`) used by the gateway-class devices. Both nodes and gateways include the same header, so the protocol definition cannot drift.
 
 ### Per-button package pattern
 
@@ -149,9 +172,9 @@ packages:
   btn7: !include { file: button.yaml, vars: { button_index: "7", button_gpio: "10" } }
 ```
 
-The `button.yaml` template creates a `binary_sensor` with `on_multi_click` handling all 5 event types. Click detection runs locally on the node (not on the gateway) because multi-click timing requires consistent millisecond-level precision that would be affected by CAN bus latency. The timing thresholds are compile-time constants in ESPHome's `on_multi_click` and cannot be changed at runtime.
+The `button.yaml` template creates a `binary_sensor` with `on_multi_click` handling the ADR-0012 gesture vocabulary: click / double_click / triple_click (release-time) plus hold / hold_release (press-phase — hold fires *while the button is still down*, once the press reaches `hold_ms`, default 800 ms; hold_release fires when that hold ends). Click detection runs locally on the node (not on the gateway) because multi-click timing requires consistent millisecond-level precision that would be affected by CAN bus latency. The timing thresholds are compile-time constants in ESPHome's `on_multi_click` and cannot be changed at runtime.
 
-Multi-click patterns are ordered longest-first (triple → double → single → long → extra long) so the longest sequence matches before shorter ones.
+Click patterns are ordered longest-first (triple → double → single) so the longest sequence matches before shorter ones; the hold pair coexists because it is timing-disjoint from clicks (ON ≤ 0.5 s vs ≥ hold_ms — the gap is deliberate gesture separation). long_press is not emitted by nodes; it is derived centrally from the hold → hold_release pair (ADR-0012 §2).
 
 ### CANBed RP2040 SPI pin mapping
 
@@ -199,39 +222,32 @@ in `base_node.yaml` itself.
 
 ## Gateway → Home Assistant integration
 
+Since the ADR-0015 split the HA surface is split by device: the **lighting controller** fires button events and hosts the ha_ready arbitration services (`lighting/packages/buttons.yaml`); the **health monitor** fires transport-health events (`canbus/packages/health.yaml`).
+
 ### Events fired
 
-The gateway fires two HA event types:
-
-**`esphome.canbus_button`** — on every button press:
+**`esphome.canbus_button`** (lighting controller) — on every recognized button event:
 ```yaml
 event_data:
-  room: "7"       # string
-  board: "2"      # string
-  button: "3"     # string (0-7)
-  event: "click"  # click | double_click | triple_click | long_press | extra_long_press
+  node_id: "101"   # string — the identity; everything below is resolved from node_map.h
+  room: "7"        # string
+  board: "2"       # string
+  name: "soggiorno-south"  # string ("unknown" for unmapped nodes)
+  button: "3"      # string (0-7)
+  event: "click"   # click | double_click | triple_click | hold | hold_release
+  event_id: "42"   # string — ACK correlation id (ADR-0003 arbitration)
 ```
+Unknown event types are logged, never fired. Events are only forwarded while `ha_ready` holds (heartbeat fresh + manifest hash match); otherwise the local fallback path runs instead (ADR-0013: click-only actuation against the relay bank).
 
-**`esphome.canbus_heartbeat`** — every 30 seconds per node:
-```yaml
-event_data:
-  room: "7"
-  board: "2"
-  uptime: "42"    # hours
-  errors: "0"     # 0 = healthy
-```
+**Health-monitor events** (ADR-0011): `esphome.canbus_node_lost` / `canbus_node_recovered` (node_id, name), `canbus_node_error` (node_id, name, error_flags as hex bitmask), and `canbus_node_unknown` (node_id — a live, uncommissioned node heartbeating; press its button to identify, then commission it). Heartbeats themselves are not forwarded as events — fleet state is exposed as entities (Nodes Online / Nodes Total / Nodes Missing) that survive HA reconnects.
 
-### HA services exposed
+### HA services exposed (lighting controller, ADR-0003 arbitration)
 
-**`esphome.canbus_gateway_canbus_send_output`** — send a command to a node:
-- `node_id`: int (0–511)
-- `subtype`: int (message sub-type)
-- `param1`, `param2`: int (command parameters)
+**`ha_readiness_heartbeat`** — HA calls this every few seconds with its `manifest_hash` (string); a mismatch with the compiled `BINDINGS_MANIFEST_HASH` disables HA authority.
 
-**`esphome.canbus_gateway_canbus_send_config`** — send a config parameter:
-- `node_id`: int (0–511)
-- `key`: int (config key)
-- `value`: int (uint16 value)
+**`ha_ack_event`** — HA's generated automation ACKs each forwarded button event by `event_id` (int); an ACK not arriving within `ack_timeout_ms` triggers the local fallback for that event.
+
+OUTPUT-command services (controller → node commands/config over CAT_OUTPUT) are defined in the protocol header but not yet wired; they land with the commissioning slice (CAN-Epic 5 track).
 
 ### Example HA automation
 
@@ -242,8 +258,7 @@ automation:
       - platform: event
         event_type: esphome.canbus_button
         event_data:
-          room: "1"
-          board: "0"
+          node_id: "102"
           button: "0"
           event: "click"
     action:
@@ -252,10 +267,12 @@ automation:
           entity_id: light.kitchen_main
 ```
 
+Hold-gesture reference automations (hold-to-dim, hold-to-move covers, derived long press) live in `lighting/home-assistant/ha_hold_automations.yaml`; the arbitration heartbeat/ACK automations in `canbus/home-assistant/ha_arbitration_automations.yaml` plus the generated `ha_manifest_package.yaml`.
+
 ## Known limitations and future work
 
-- **No OTA for nodes.** RP2040 boards without WiFi must be flashed via USB. A CAN-bus bootloader protocol (using a reserved category) could enable over-the-wire firmware updates from the gateway, but this has not been implemented.
-- **Click timing is compile-time.** ESPHome's `on_multi_click` timing values are baked into firmware. The CAN config message infrastructure is wired up in the protocol but cannot currently change click thresholds at runtime without a custom ESPHome component.
-- **Not yet compiled/tested.** The YAML and C++ have been designed but not compiled against ESPHome. The `on_frame` + `can_id_mask` + `homeassistant.event` chain in the gateway is the most likely area for issues.
-- **Single gateway.** The current setup has one gateway. For very long bus runs, per-floor gateways could use the category mask filtering to partition traffic.
-- **Node health dashboard.** The heartbeat events are fired to HA but no dashboard or alerting has been built to track node online/offline status.
+- **No OTA for nodes.** RP2040 boards without WiFi must be flashed via USB. ADR-0008 §4 considered and deliberately rejected a CAN bootloader (no category is allocated to it); the reflash story is the USB campaign runbook (`reflash-campaign-runbook.md`, still a bench-timing stub).
+- **Click/hold timing is compile-time.** ESPHome's `on_multi_click` timing values (including `hold_ms`) are baked into firmware. `MSG_CONFIG_WRITE`/`MSG_CONFIG_ACK` are defined in the protocol header but the CAT_OUTPUT path is not wired, so thresholds cannot yet be changed at runtime.
+- **No node actuation over CAN.** The transport currently carries button events, heartbeats, and sensor frames inbound only; all actuation is the lighting controller's local Modbus relay bank. Wiring CAT_OUTPUT (plus command retry/fault surfacing, Epic 5) is the planned next transport slice.
+- **Single backbone consumer pair.** The lighting controller and health monitor tap one backbone segment (a store-and-forward bridge exists for a second segment, ADR-0005). For very long bus runs, per-floor gateways could use the category mask filtering to partition traffic.
+- **Node health surfacing is aggregate-only.** The health monitor exposes fleet aggregates and fires per-node edge events (lost/recovered/error/unknown), but the generated per-node HA status entities, alerting automations, and "degraded last night" report are still deferred (ADR-0011 open item 2).

@@ -59,7 +59,7 @@ sections:
           - type: climate-preset-modes
 
       - type: tile
-        entity: switch.climate_control_relay_19
+        entity: switch.climate_control_relay_12
         name: Radiant Zone Valve
         icon: mdi:valve
 
