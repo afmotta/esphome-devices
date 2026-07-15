@@ -17,3 +17,65 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y g++
       - name: Run native verification battery
         run: bash scripts/verification-battery.sh --native-only
+
+  esphome-config:
+    name: ESPHome config gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ESPHome (repo pin)
+        run: pip install "esphome==2026.6.5"
+      - name: Generate CI dummy secrets
+        run: bash scripts/ci-dummy-secrets.sh
+      - name: Validate entry points
+        run: |
+          set -euo pipefail
+          for f in \
+            devices/locals/climate-control.yaml \
+            devices/locals/climate-control-touch.yaml \
+            devices/locals/wall-sensor.yaml \
+            devices/locals/room-sensor-soggiorno.yaml \
+            devices/light-controller.yaml \
+            devices/light-controller-touch.yaml \
+            devices/health-monitor.yaml \
+            devices/bridge.yaml \
+            climate/tests/compile_can_sensor_receiver.yaml
+          do
+            echo "::group::esphome config $f"
+            esphome config "$f" >/dev/null
+            echo "::endgroup::"
+          done
+
+  # Full compiles + the Climate failover e2e are heavy (ESP32-S3 esp-idf build),
+  # so they gate pushes to main rather than every PR iteration.
+  esphome-compile:
+    name: ESPHome compile gates (main)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ESPHome + e2e deps (repo pins)
+        run: pip install "esphome==2026.6.5" pytest pytest-asyncio aioesphomeapi
+      - name: Generate CI dummy secrets
+        run: bash scripts/ci-dummy-secrets.sh
+      - name: Cache PlatformIO toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.espressif
+          key: pio-${{ runner.os }}-esphome-2026.6.5
+      - name: Compile sensor-node fixture
+        run: esphome compile canbus/tests/compile_sensor_node.yaml
+      - name: Compile climate controller
+        run: esphome compile devices/locals/climate-control.yaml
+      - name: Climate failover e2e
+        run: python3 -m pytest climate/tests/e2e/test_failover_sensor.py

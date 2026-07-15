@@ -1,5 +1,9 @@
 substitutions:
   logger_level: INFO
+  # Relative to the MAIN config's directory, not this file's — entry points in
+  # devices/ use the default; wrappers one level deeper (devices/locals/,
+  # devices/remotes/) must override with "../../libs".
+  s1_pro_libs_path: ../libs
 
 esphome:
   name: "${device_name}"
@@ -47,7 +51,7 @@ script:
 external_components:
   - source:
       type: local
-      path: ../libs
+      path: ${s1_pro_libs_path}
 
 esp32:
   board: esp32-c3-devkitm-1

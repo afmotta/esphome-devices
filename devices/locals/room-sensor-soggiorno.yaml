@@ -6,6 +6,9 @@ substitutions:
   wifi_password: !secret wifi_password
   encryption_key: !secret encryption_key
   ota_password: !secret ota_password
+  # external_components local paths resolve against THIS file's directory
+  # (one level deeper than devices/) — see boards/s1-pro-multi-sense.yaml
+  s1_pro_libs_path: ../../libs
 
 packages:
   - !include "../room-sensor-soggiorno.yaml"
