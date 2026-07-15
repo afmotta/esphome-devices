@@ -460,6 +460,214 @@ def render_ha_package(manifest_hash: str) -> str:
     )
 
 
+def render_ha_node_health_package(export_nodes) -> str:
+    """Render canbus/home-assistant/ha_node_health_package.yaml (ADR-0011 open item 2):
+    the GENERATED HA-side half of health monitoring. Per mapped node, a trigger-based
+    template binary_sensor materialized from the health monitor's edge events
+    (esphome.canbus_node_lost / _recovered — ADR-0011 §2 keeps per-node entities OFF the
+    ESP32); plus the §4 three-class alerting automations:
+
+      Security     — canbus_node_unknown => immediate notification
+      Degraded     — lighting ha_ready falling, fallback counter rising (the reconnect
+                     report), health monitor unavailable => immediate notification
+      Maintenance  — node error flags => logbook; node offline => escalate only after
+                     1 h persistence; daily digest of missing nodes at 08:00
+
+    Notifications use persistent_notification (no per-user notify dependency); swap in a
+    notify.* action where a push target exists. Deterministic output: nodes sorted by id."""
+    nodes = sorted(export_nodes, key=lambda n: n["node_id"])
+
+    header = (
+        "# =============================================================================\n"
+        "# ha_node_health_package.yaml — GENERATED from registry/nodes.csv by\n"
+        "# tools/generate_nodes.py. DO NOT EDIT — re-run the generator after registry edits.\n"
+        "# =============================================================================\n"
+        "# Home Assistant package (NOT ESPHome config): per-node connectivity entities\n"
+        "# materialized from the health monitor's edge events, plus the ADR-0011 §4\n"
+        "# three-class alerting automations. Wire it into HA once, e.g.:\n"
+        "#   homeassistant:\n"
+        "#     packages:\n"
+        "#       canbus_node_health: !include ha_node_health_package.yaml\n"
+        "# A node's state is unknown until its first lost/recovered edge after HA start\n"
+        "# (accepted: ADR-0011 keeps per-node state off the ESP32; the fleet aggregates\n"
+        "# on the health monitor are authoritative at boot).\n"
+        "# =============================================================================\n\n"
+    )
+
+    tpl_blocks = ["template:\n"]
+    for n in nodes:
+        nid = n["node_id"]
+        loc = n["location"].replace('"', "'")
+        tpl_blocks.append(
+            f"  # node {nid} — {loc}\n"
+            "  - triggers:\n"
+            "      - trigger: event\n"
+            "        event_type: esphome.canbus_node_lost\n"
+            f'        event_data: {{node_id: "{nid}"}}\n'
+            "      - trigger: event\n"
+            "        event_type: esphome.canbus_node_recovered\n"
+            f'        event_data: {{node_id: "{nid}"}}\n'
+            "    binary_sensor:\n"
+            f'      - name: "CAN Node {nid} ({loc}) Online"\n'
+            f"        unique_id: canbus_node_{nid}_online\n"
+            "        device_class: connectivity\n"
+            "        state: >-\n"
+            "          {{ trigger.event.event_type == 'esphome.canbus_node_recovered' }}\n"
+        )
+
+    offline_triggers = "".join(
+        "      - trigger: state\n"
+        f"        entity_id: binary_sensor.can_node_{n['node_id']}_"
+        f"{_slugify_location(n['location'])}_online\n"
+        '        to: "off"\n'
+        "        for: \"01:00:00\"\n"
+        for n in nodes
+    )
+
+    automations = (
+        "\nautomation:\n"
+        "  # --- Security class (ADR-0011 §4 / ADR-0010 §6): immediate ---\n"
+        "  - id: canbus_alert_unknown_node\n"
+        '    alias: "CAN health: unknown node on bus"\n'
+        "    mode: queued\n"
+        "    triggers:\n"
+        "      - trigger: event\n"
+        "        event_type: esphome.canbus_node_unknown\n"
+        "    actions:\n"
+        "      - action: persistent_notification.create\n"
+        "        data:\n"
+        '          title: "CAN bus: unknown node"\n'
+        "          message: >-\n"
+        "            Uncommissioned node_id {{ trigger.event.data.node_id }} is\n"
+        "            heartbeating on the bus. Identify it (press one of its buttons)\n"
+        "            and commission it, or investigate (ADR-0010 §6).\n"
+        '          notification_id: "canbus_unknown_{{ trigger.event.data.node_id }}"\n'
+        "\n"
+        "  # --- Degraded-mode class (ADR-0011 §4): immediate ---\n"
+        "  - id: canbus_alert_ha_authority_lost\n"
+        '    alias: "CAN health: lighting fallback authority engaged"\n'
+        "    mode: single\n"
+        "    triggers:\n"
+        "      - trigger: state\n"
+        "        entity_id: binary_sensor.light_controller_ha_ready\n"
+        '        to: "off"\n'
+        '        for: "00:00:30"\n'
+        "    actions:\n"
+        "      - action: persistent_notification.create\n"
+        "        data:\n"
+        '          title: "CAN lighting: running on local fallback"\n'
+        "          message: >-\n"
+        "            ha_ready dropped — buttons are actuating via the controller-local\n"
+        "            bindings (click-only, ADR-0013) until HA authority is restored.\n"
+        '          notification_id: "canbus_ha_ready"\n'
+        "\n"
+        "  - id: canbus_alert_fallback_report\n"
+        '    alias: "CAN health: fallback events report"\n'
+        "    mode: single\n"
+        "    triggers:\n"
+        "      - trigger: state\n"
+        "        entity_id: sensor.light_controller_fallback_events\n"
+        "    conditions:\n"
+        "      - condition: template\n"
+        "        value_template: >-\n"
+        "          {{ trigger.from_state is not none\n"
+        "             and trigger.from_state.state not in ('unknown', 'unavailable')\n"
+        "             and trigger.to_state.state not in ('unknown', 'unavailable')\n"
+        "             and trigger.to_state.state | int(0) > trigger.from_state.state | int(0) }}\n"
+        "    actions:\n"
+        "      - action: persistent_notification.create\n"
+        "        data:\n"
+        '          title: "CAN lighting: degraded-mode report"\n'
+        "          message: >-\n"
+        "            Fallback events now {{ trigger.to_state.state }} (was\n"
+        "            {{ trigger.from_state.state }}) — button presses were handled\n"
+        "            locally while HA was away or slow to ACK (ADR-0011 §3).\n"
+        '          notification_id: "canbus_fallback_report"\n'
+        "\n"
+        "  - id: canbus_alert_health_monitor_down\n"
+        '    alias: "CAN health: health monitor unavailable"\n'
+        "    mode: single\n"
+        "    triggers:\n"
+        "      - trigger: state\n"
+        "        entity_id: sensor.canbus_health_monitor_nodes_online\n"
+        '        to: "unavailable"\n'
+        '        for: "00:02:00"\n'
+        "    actions:\n"
+        "      - action: persistent_notification.create\n"
+        "        data:\n"
+        '          title: "CAN bus: health monitor down"\n'
+        "          message: >-\n"
+        "            The health monitor is unavailable — transport health is\n"
+        "            unobserved (the watch hierarchy is broken at the gateway layer).\n"
+        '          notification_id: "canbus_health_monitor"\n'
+        "\n"
+        "  # --- Maintenance class (ADR-0011 §4): digest + 1 h escalation ---\n"
+        "  - id: canbus_log_node_errors\n"
+        '    alias: "CAN health: node error flags (logbook)"\n'
+        "    mode: queued\n"
+        "    triggers:\n"
+        "      - trigger: event\n"
+        "        event_type: esphome.canbus_node_error\n"
+        "    actions:\n"
+        "      - action: logbook.log\n"
+        "        data:\n"
+        '          name: "CAN node error"\n'
+        "          message: >-\n"
+        "            node {{ trigger.event.data.node_id }}\n"
+        "            ({{ trigger.event.data.name }}) error_flags\n"
+        "            {{ trigger.event.data.error_flags }}\n"
+        "\n"
+        "  - id: canbus_alert_node_offline_1h\n"
+        '    alias: "CAN health: node offline over an hour"\n'
+        "    mode: queued\n"
+        "    triggers:\n"
+        f"{offline_triggers}"
+        "    actions:\n"
+        "      - action: persistent_notification.create\n"
+        "        data:\n"
+        '          title: "CAN node offline > 1h"\n'
+        "          message: >-\n"
+        "            {{ trigger.to_state.attributes.friendly_name }} has been offline\n"
+        "            for over an hour (maintenance class, ADR-0011 §4).\n"
+        '          notification_id: "canbus_offline_{{ trigger.entity_id }}"\n'
+        "\n"
+        "  - id: canbus_daily_health_digest\n"
+        '    alias: "CAN health: daily digest"\n'
+        "    mode: single\n"
+        "    triggers:\n"
+        "      - trigger: time\n"
+        '        at: "08:00:00"\n'
+        "    conditions:\n"
+        "      - condition: template\n"
+        "        value_template: >-\n"
+        "          {{ states('sensor.canbus_health_monitor_nodes_missing') not in\n"
+        "             ('', 'unknown', 'unavailable') }}\n"
+        "    actions:\n"
+        "      - action: persistent_notification.create\n"
+        "        data:\n"
+        '          title: "CAN bus daily digest: nodes missing"\n'
+        "          message: >-\n"
+        "            Missing nodes: {{ states('sensor.canbus_health_monitor_nodes_missing') }}\n"
+        '          notification_id: "canbus_daily_digest"\n'
+    )
+
+    return header + "".join(tpl_blocks) + automations
+
+
+def _slugify_location(location: str) -> str:
+    """HA object_id slug for a generated per-node entity name, matching HA's own
+    sanitization of 'CAN Node {id} ({location}) Online' closely enough for the
+    escalation automation to reference the entity it just generated."""
+    out = []
+    for ch in location.lower():
+        if ch.isalnum():
+            out.append(ch)
+        else:
+            if out and out[-1] != "_":
+                out.append("_")
+    return "".join(out).strip("_")
+
+
 def _room_title(room_slug: str) -> str:
     return " ".join(part.capitalize() for part in room_slug.split("_"))
 
@@ -724,6 +932,11 @@ def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):
     ha_path = repo_root / "canbus" / "home-assistant" / "ha_manifest_package.yaml"
     ha_path.write_text(render_ha_package(manifest_hash))
     print(f"  ✓ {ha_path.name}  (HA readiness heartbeat echoes the hash automatically)")
+
+    health_path = repo_root / "canbus" / "home-assistant" / "ha_node_health_package.yaml"
+    health_path.write_text(render_ha_node_health_package(export_nodes))
+    print(f"  ✓ {health_path.name}  (per-node entities + ADR-0011 §4 alerting, "
+          f"{len(export_nodes)} node(s))")
 
     return manifest_hash, map_export["map_version"]
 

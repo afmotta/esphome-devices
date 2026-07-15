@@ -1,0 +1,176 @@
+# =============================================================================
+# ha_node_health_package.yaml — GENERATED from registry/nodes.csv by
+# tools/generate_nodes.py. DO NOT EDIT — re-run the generator after registry edits.
+# =============================================================================
+# Home Assistant package (NOT ESPHome config): per-node connectivity entities
+# materialized from the health monitor's edge events, plus the ADR-0011 §4
+# three-class alerting automations. Wire it into HA once, e.g.:
+#   homeassistant:
+#     packages:
+#       canbus_node_health: !include ha_node_health_package.yaml
+# A node's state is unknown until its first lost/recovered edge after HA start
+# (accepted: ADR-0011 keeps per-node state off the ESP32; the fleet aggregates
+# on the health monitor are authoritative at boot).
+# =============================================================================
+
+template:
+  # node 100 — Ground floor hallway
+  - triggers:
+      - trigger: event
+        event_type: esphome.canbus_node_lost
+        event_data: {node_id: "100"}
+      - trigger: event
+        event_type: esphome.canbus_node_recovered
+        event_data: {node_id: "100"}
+    binary_sensor:
+      - name: "CAN Node 100 (Ground floor hallway) Online"
+        unique_id: canbus_node_100_online
+        device_class: connectivity
+        state: >-
+          {{ trigger.event.event_type == 'esphome.canbus_node_recovered' }}
+  # node 101 — Ground floor living room
+  - triggers:
+      - trigger: event
+        event_type: esphome.canbus_node_lost
+        event_data: {node_id: "101"}
+      - trigger: event
+        event_type: esphome.canbus_node_recovered
+        event_data: {node_id: "101"}
+    binary_sensor:
+      - name: "CAN Node 101 (Ground floor living room) Online"
+        unique_id: canbus_node_101_online
+        device_class: connectivity
+        state: >-
+          {{ trigger.event.event_type == 'esphome.canbus_node_recovered' }}
+
+automation:
+  # --- Security class (ADR-0011 §4 / ADR-0010 §6): immediate ---
+  - id: canbus_alert_unknown_node
+    alias: "CAN health: unknown node on bus"
+    mode: queued
+    triggers:
+      - trigger: event
+        event_type: esphome.canbus_node_unknown
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "CAN bus: unknown node"
+          message: >-
+            Uncommissioned node_id {{ trigger.event.data.node_id }} is
+            heartbeating on the bus. Identify it (press one of its buttons)
+            and commission it, or investigate (ADR-0010 §6).
+          notification_id: "canbus_unknown_{{ trigger.event.data.node_id }}"
+
+  # --- Degraded-mode class (ADR-0011 §4): immediate ---
+  - id: canbus_alert_ha_authority_lost
+    alias: "CAN health: lighting fallback authority engaged"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.light_controller_ha_ready
+        to: "off"
+        for: "00:00:30"
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "CAN lighting: running on local fallback"
+          message: >-
+            ha_ready dropped — buttons are actuating via the controller-local
+            bindings (click-only, ADR-0013) until HA authority is restored.
+          notification_id: "canbus_ha_ready"
+
+  - id: canbus_alert_fallback_report
+    alias: "CAN health: fallback events report"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: sensor.light_controller_fallback_events
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ('unknown', 'unavailable')
+             and trigger.to_state.state not in ('unknown', 'unavailable')
+             and trigger.to_state.state | int(0) > trigger.from_state.state | int(0) }}
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "CAN lighting: degraded-mode report"
+          message: >-
+            Fallback events now {{ trigger.to_state.state }} (was
+            {{ trigger.from_state.state }}) — button presses were handled
+            locally while HA was away or slow to ACK (ADR-0011 §3).
+          notification_id: "canbus_fallback_report"
+
+  - id: canbus_alert_health_monitor_down
+    alias: "CAN health: health monitor unavailable"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: sensor.canbus_health_monitor_nodes_online
+        to: "unavailable"
+        for: "00:02:00"
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "CAN bus: health monitor down"
+          message: >-
+            The health monitor is unavailable — transport health is
+            unobserved (the watch hierarchy is broken at the gateway layer).
+          notification_id: "canbus_health_monitor"
+
+  # --- Maintenance class (ADR-0011 §4): digest + 1 h escalation ---
+  - id: canbus_log_node_errors
+    alias: "CAN health: node error flags (logbook)"
+    mode: queued
+    triggers:
+      - trigger: event
+        event_type: esphome.canbus_node_error
+    actions:
+      - action: logbook.log
+        data:
+          name: "CAN node error"
+          message: >-
+            node {{ trigger.event.data.node_id }}
+            ({{ trigger.event.data.name }}) error_flags
+            {{ trigger.event.data.error_flags }}
+
+  - id: canbus_alert_node_offline_1h
+    alias: "CAN health: node offline over an hour"
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.can_node_100_ground_floor_hallway_online
+        to: "off"
+        for: "01:00:00"
+      - trigger: state
+        entity_id: binary_sensor.can_node_101_ground_floor_living_room_online
+        to: "off"
+        for: "01:00:00"
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "CAN node offline > 1h"
+          message: >-
+            {{ trigger.to_state.attributes.friendly_name }} has been offline
+            for over an hour (maintenance class, ADR-0011 §4).
+          notification_id: "canbus_offline_{{ trigger.entity_id }}"
+
+  - id: canbus_daily_health_digest
+    alias: "CAN health: daily digest"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "08:00:00"
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ states('sensor.canbus_health_monitor_nodes_missing') not in
+             ('', 'unknown', 'unavailable') }}
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "CAN bus daily digest: nodes missing"
+          message: >-
+            Missing nodes: {{ states('sensor.canbus_health_monitor_nodes_missing') }}
+          notification_id: "canbus_daily_digest"

@@ -321,6 +321,38 @@ def test_ha_package_bakes_hash():
     assert "GENERATED" in p
 
 
+def test_ha_node_health_package_per_node_and_classes():
+    p = g.render_ha_node_health_package(NODES)
+    assert "GENERATED" in p
+    # One trigger-based template binary_sensor per mapped node, sorted by id
+    assert p.index("canbus_node_100_online") < p.index("canbus_node_101_online")
+    for nid in (100, 101):
+        assert f'event_data: {{node_id: "{nid}"}}' in p
+    assert "esphome.canbus_node_lost" in p and "esphome.canbus_node_recovered" in p
+    # ADR-0011 §4 three classes are all represented
+    assert "canbus_alert_unknown_node" in p          # security
+    assert "canbus_alert_ha_authority_lost" in p     # degraded-mode
+    assert "canbus_alert_fallback_report" in p       # degraded-mode (reconnect report)
+    assert "canbus_alert_health_monitor_down" in p   # degraded-mode
+    assert "canbus_log_node_errors" in p             # maintenance (logbook, not notify)
+    assert "canbus_alert_node_offline_1h" in p       # maintenance escalation
+    assert "canbus_daily_health_digest" in p         # maintenance digest
+    # The 1 h escalation references the entity ids HA derives from the names above
+    assert "binary_sensor.can_node_100_hallway_online" in p
+    assert "binary_sensor.can_node_101_living_room_online" in p
+
+
+def test_ha_node_health_location_slugs():
+    assert g._slugify_location("Ground floor hallway") == "ground_floor_hallway"
+    assert g._slugify_location("ground-floor living room") == "ground_floor_living_room"
+    assert g._slugify_location("  Attic (west)  ") == "attic_west"
+
+
+def test_ha_node_health_deterministic():
+    assert g.render_ha_node_health_package(NODES) == g.render_ha_node_health_package(
+        list(reversed(NODES)))
+
+
 def test_can_sensor_routes_empty_registry():
     p = g.render_can_sensor_routes([dict(n, sensors=0, room_slug="") for n in NODES])
     assert "can_sensor_routes.yaml" in p
