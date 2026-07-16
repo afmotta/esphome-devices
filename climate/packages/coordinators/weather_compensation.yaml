@@ -27,14 +27,23 @@
 #   area_name              - e.g. "Ground Floor"
 #   mixing_valve_pid_id    - PID climate to drive (e.g. ground_floor_radiant_mixing_valve_pid)
 #   outdoor_sensor         - Outdoor temperature sensor id (outdoor_temp_abstracted)
+#   curve_slope_default    - °C supply per °C outdoor deficit
+#   curve_base_default     - °C supply when outdoor = reference_indoor_temp
+#   supply_min_default     - °C floor of the curve output
+#   supply_max_default     - °C safety ceiling of the curve output
+#
+# The four curve parameters have NO package defaults on purpose: they are
+# emitter-specific — the ground floor's radiant FLOOR tolerates a much hotter
+# supply than the first floor's radiant CEILING (surface-comfort limit), so
+# every include must state its own set explicitly.
 #
 # Optional vars:
 #   season_select_id       - Season select (default: hp_mode); acts only on "HEAT"
 #   reference_indoor_temp  - Curve pivot (default: 20.0 °C)
-#   curve_slope_default    - default 0.8
-#   curve_base_default     - default 30.0 °C
-#   supply_min_default     - default 24.0 °C
-#   supply_max_default     - default 40.0 °C (radiant floor safety ceiling)
+#   supply_max_limit       - Upper bound of the supply-max TUNER itself
+#                            (default: 45.0). Set it to the emitter's hard
+#                            comfort/safety limit so the value can't be tuned
+#                            past it from HA (e.g. 34.0 for a radiant ceiling).
 #   update_interval        - default 60s
 #
 # Exposes:
@@ -46,10 +55,7 @@
 defaults:
   season_select_id: hp_mode
   reference_indoor_temp: "20.0"
-  curve_slope_default: "0.8"
-  curve_base_default: "30.0"
-  supply_min_default: "24.0"
-  supply_max_default: "40.0"
+  supply_max_limit: "45.0"
   update_interval: 60s
 
 number:
@@ -97,7 +103,9 @@ number:
     unit_of_measurement: "°C"
     icon: "mdi:thermometer-chevron-up"
     min_value: 28
-    max_value: 45
+    # The tuner's own ceiling is the emitter's hard limit — HA cannot raise
+    # the supply max past it (see supply_max_limit in the header).
+    max_value: ${supply_max_limit}
     step: 0.5
     initial_value: ${supply_max_default}
     restore_value: true

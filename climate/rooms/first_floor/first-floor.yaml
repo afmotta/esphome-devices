@@ -14,6 +14,10 @@ packages:
       one_wire_bus_id: one_wire_01
   # Weather-compensated HEAT-mode supply target (CLIMATE C3). COOL-mode
   # target stays owned by the dew-point protection below.
+  # Curve set for a radiant CEILING emitter: ceiling panels sit close to
+  # head height, so surface comfort caps the supply well below what the
+  # ground floor's radiant FLOOR tolerates — cooler base, gentler slope,
+  # hard ceiling at 33°C.
   weather_compensation: !include
     file: ../../packages/coordinators/weather_compensation.yaml
     vars:
@@ -21,6 +25,11 @@ packages:
       area_name: "First Floor"
       mixing_valve_pid_id: first_floor_radiant_mixing_valve_pid
       outdoor_sensor: outdoor_temp_abstracted
+      curve_slope_default: "0.6"
+      curve_base_default: "27.0"
+      supply_min_default: "23.0"
+      supply_max_default: "33.0"
+      supply_max_limit: "34.0"
   # MEV Modbus Control - Epic 18
   # Replaces relay-based mev.yaml with Modbus-based mev_modbus.yaml
   # Frees relays 18-21 for future use

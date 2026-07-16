@@ -17,6 +17,8 @@ packages:
       one_wire_bus_id: one_wire_01
   # Weather-compensated HEAT-mode supply target (CLIMATE C3). COOL-mode
   # target stays owned by the dew-point protection below.
+  # Curve set for a radiant FLOOR emitter (the first floor's radiant CEILING
+  # runs a deliberately cooler set — see first-floor.yaml).
   weather_compensation: !include
     file: ../../packages/coordinators/weather_compensation.yaml
     vars:
@@ -24,6 +26,10 @@ packages:
       area_name: "Ground Floor"
       mixing_valve_pid_id: ground_floor_radiant_mixing_valve_pid
       outdoor_sensor: outdoor_temp_abstracted
+      curve_slope_default: "0.8"
+      curve_base_default: "30.0"
+      supply_min_default: "24.0"
+      supply_max_default: "40.0"
   direct_pump_ground_floor_fancoil: !include
     file: ../../packages/components/direct_pump.yaml
     vars:
