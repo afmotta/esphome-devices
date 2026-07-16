@@ -159,7 +159,7 @@ The whole cross-system battery (canbus generator/python/native tests, lighting,
 these Climate checks, generator idempotence across `canbus`/`climate`/`registry`, and
 the Climate package failover e2e) is codified in `scripts/verification-battery.sh`:
 `bash scripts/verification-battery.sh` (or `--native-only` when ESPHome isn't
-installed). Verification runs pin `esphome==2026.6.5` (`climate/tests/pyproject.toml`).
+installed). Verification runs pin `esphome==2026.7.0` (`climate/tests/pyproject.toml`).
 
 ## Common Tasks
 

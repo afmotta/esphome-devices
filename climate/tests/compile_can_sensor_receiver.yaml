@@ -10,7 +10,7 @@
 esphome:
   name: t-can-sensor-receiver
   friendly_name: "Test CAN Sensor Receiver"
-  min_version: 2026.6.5
+  min_version: 2026.7.0
   includes:
     - ../../canbus/protocol/canbus_protocol.h
     - ../protocol/generated_can_sensor_routes.h

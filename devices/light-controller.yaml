@@ -94,3 +94,8 @@ logger:
 modbus:
   id: rs485_bus
   uart_id: modbus_uart
+  # ESPHome 2026.7.0 moved the defaults to 2000ms/600ms; keep the values the
+  # 2s relay-bank polling cadence was validated against (mirrors the climate
+  # controller's rs485_bus pin).
+  send_wait_time: 250ms
+  turnaround_time: 100ms

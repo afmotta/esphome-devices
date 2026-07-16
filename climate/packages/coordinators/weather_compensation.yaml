@@ -151,7 +151,7 @@ interval:
                 if (target < lo) target = lo;
                 if (target > hi) target = hi;
 
-                auto *pid = &id(${mixing_valve_pid_id});
+                auto *pid = id(${mixing_valve_pid_id});
                 // Only rewrite on a meaningful move; the PID does the rest.
                 if (std::isnan(pid->target_temperature) ||
                     std::fabs(pid->target_temperature - target) >= 0.2f) {

@@ -87,6 +87,11 @@ packet_transport:
 modbus:
   id: rs485_bus
   uart_id: modbus_uart
+  # ESPHome 2026.7.0 moved the defaults to 2000ms/600ms; keep the values the
+  # 2s relay/analog polling cadence was validated against (ADR-0014 bring-up
+  # may retune on real wire).
+  send_wait_time: 250ms
+  turnaround_time: 100ms
 
 one_wire:
   - platform: ds2484

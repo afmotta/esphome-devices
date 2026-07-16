@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.9 |
-| **Last Updated** | July 12, 2026 |
+| **Version** | 1.10 |
+| **Last Updated** | July 16, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -88,7 +88,7 @@ Standardized per ADR-0014 — the same three devices serve both the Climate and 
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **ESPHome** | 2026.6.5+ | ESP32 firmware framework (YAML-based); 2026.6.5 floor set by `boards/t-connect-pro.yaml` after validating the `modbus_controller`/`modbus_server` split (`sntp`/`ds2484` verified there) |
+| **ESPHome** | 2026.7.0+ | ESP32 firmware framework (YAML-based); 2026.7.0 floor set by `boards/t-connect-pro.yaml` (2026.7.0 modbus hub overhaul — explicit `send_wait_time`/`turnaround_time` pinned in the entry points) and `boards/canbed-rp2040.yaml` (`rp2040:` → `rp2:` platform rename) |
 | **Python** | 3.x | Custom component development (LD2450 sensor driver) |
 | **C++** | (ESP-IDF) | Low-level sensor integrations and performance-critical code |
 | **YAML** | 1.2 | Configuration language for ESPHome |
@@ -594,7 +594,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check YAML syntax (indentation, colons, dashes)
 - Verify all `!include` paths are correct
 - Ensure all substitution variables are defined
-- Check ESPHome version (min 2026.6.5 for the T-Connect Pro entry points)
+- Check ESPHome version (min 2026.7.0 for the T-Connect Pro and CAN-node entry points)
 
 **Sensor Failover**:
 - Check failover logs in Home Assistant
@@ -617,6 +617,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-16 | 1.10 | Upgraded ESPHome to 2026.7.0 (pins in CI/`climate/tests/pyproject.toml`, floors in `boards/t-connect-pro.yaml` and new `boards/canbed-rp2040.yaml` `min_version`); pinned explicit modbus hub timing (250ms/100ms) against the 2026.7.0 default change; renamed `rp2040:` → `rp2:` | AI Assistant |
 | 2026-07-12 | 1.9 | Renamed the active application system from `hvac/` to `climate/`, updated active tooling/docs to use `CLIMATE-Epic` for future work, and left historical implementation artifacts under their original names | AI Assistant |
 | 2026-07-12 | 1.8 | Folded the Vesta package boundary back into the monorepo: climate packages now live under `climate/packages/`, shared Modbus I/O drivers under top-level `packages/devices/modbus-io/`, and active architecture/docs no longer treat Vesta as an extractable library | AI Assistant |
 | 2026-07-12 | 1.7 | Raised the T-Connect Pro HVAC support floor to ESPHome 2026.6.5 after verifying the repo uses external Modbus slave devices but no ESPHome `modbus_server` blocks; updated version references accordingly | AI Assistant |

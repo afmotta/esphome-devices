@@ -12,8 +12,8 @@
 # idempotence check, loudly skipping every step that needs the `esphome` CLI:
 # the ESPHome config/compile gates and the Climate package failover e2e (whose fixture
 # compiles a host-platform harness). Use it when ESPHome is not installed.
-# ESPHome pin for full runs: esphome==2026.6.5 (climate/tests/pyproject.toml's
-# deliberate pin, >= the repo entry points' 2026.6.5 floor). The Climate package e2e
+# ESPHome pin for full runs: esphome==2026.7.0 (climate/tests/pyproject.toml's
+# deliberate pin, >= the repo entry points' 2026.7.0 floor). The Climate package e2e
 # step additionally needs pytest, pytest-asyncio, and aioesphomeapi.
 #
 # NOTE — the "generator idempotence" step regenerates every generated artifact
@@ -49,7 +49,7 @@ done
 # Pre-flight: in full mode the esphome CLI must exist; fail early and clearly.
 if [ "$NATIVE_ONLY" -eq 0 ] && ! command -v esphome >/dev/null 2>&1; then
   echo "error: 'esphome' CLI not found on PATH." >&2
-  echo "  install it (pip install \"esphome==2026.6.5\") or re-run with --native-only" >&2
+  echo "  install it (pip install \"esphome==2026.7.0\") or re-run with --native-only" >&2
   exit 2
 fi
 

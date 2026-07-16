@@ -15,10 +15,12 @@ packages:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  # 2026.6.5, not the repo-wide 2026.3.0 floor: the only version actually
+  # 2026.7.0, not the repo-wide 2026.3.0 floor: the only version actually
   # verified end-to-end for the T-Connect Pro HVAC/gateway paths, including
-  # the sntp/ds2484 platforms this board's first consumer adds.
-  min_version: 2026.6.5
+  # the sntp/ds2484 platforms this board's first consumer adds and the
+  # 2026.7.0 modbus client/server hub overhaul (explicit timing pinned in
+  # the entry points).
+  min_version: 2026.7.0
   comment: "LilyGO T-Connect Pro"
 
 # LilyGO T-Connect Pro uses ESP32-S3-R8 (WROOM module)

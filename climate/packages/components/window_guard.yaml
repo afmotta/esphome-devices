@@ -84,7 +84,7 @@ interval:
       - lambda: |-
           const uint32_t now = millis();
           int state = id(${room_slug}_window_guard_state);
-          auto *pid = &id(${guarded_pid_id});
+          auto *pid = id(${guarded_pid_id});
 
           // Unavailable sensor (HA down / contact offline) => treated closed:
           // the guard degrades to a no-op, never to a stuck shutdown.

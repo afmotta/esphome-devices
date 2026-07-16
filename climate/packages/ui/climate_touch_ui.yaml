@@ -344,9 +344,9 @@ script:
     then:
       - lambda: |-
           esphome::climate::Climate *zones[] = {
-            &id(soggiorno_radiant_pid), &id(cucina_radiant_pid),
-            &id(bagno_terra_radiant_pid), &id(anticamera_radiant_pid),
-            &id(locale_tecnico_fancoil_pid)};
+            id(soggiorno_radiant_pid), id(cucina_radiant_pid),
+            id(bagno_terra_radiant_pid), id(anticamera_radiant_pid),
+            id(locale_tecnico_fancoil_pid)};
           auto *c = zones[id(ui_sel_ground)];
           float t = c->target_temperature + delta;
           if (t < 15.0f) t = 15.0f;
@@ -361,10 +361,10 @@ script:
     then:
       - lambda: |-
           esphome::climate::Climate *zones[] = {
-            &id(camera_nord_radiant_pid), &id(camera_sud_radiant_pid),
-            &id(camera_ospiti_radiant_pid), &id(camera_padronale_radiant_pid),
-            &id(bagno_grande_radiant_pid), &id(bagno_ospiti_radiant_pid),
-            &id(bagno_padronale_radiant_pid), &id(lavanderia_radiant_pid)};
+            id(camera_nord_radiant_pid), id(camera_sud_radiant_pid),
+            id(camera_ospiti_radiant_pid), id(camera_padronale_radiant_pid),
+            id(bagno_grande_radiant_pid), id(bagno_ospiti_radiant_pid),
+            id(bagno_padronale_radiant_pid), id(lavanderia_radiant_pid)};
           auto *c = zones[id(ui_sel_first)];
           float t = c->target_temperature + delta;
           if (t < 15.0f) t = 15.0f;
@@ -378,7 +378,7 @@ script:
       delta: float
     then:
       - lambda: |-
-          auto *c = &id(sottotetto_fancoil_pid);
+          auto *c = id(sottotetto_fancoil_pid);
           float t = c->target_temperature + delta;
           if (t < 15.0f) t = 15.0f;
           if (t > 30.0f) t = 30.0f;
@@ -392,7 +392,7 @@ script:
       # ---- Home: season + demand + MEV + health ----
       - lvgl.label.update:
           id: ui_season
-          text: !lambda 'return std::string("Mode: ") + id(hp_mode).state;'
+          text: !lambda 'return std::string("Mode: ") + id(hp_mode).current_option();'
       - lvgl.label.update:
           id: ui_season_sub
           text: !lambda 'return id(hp_mode_season).state;'
@@ -460,9 +460,9 @@ script:
           text: !lambda |-
             static const char *names[] = {"Soggiorno", "Cucina", "Bagno", "Anticamera", "Loc.Tecnico"};
             esphome::climate::Climate *zones[] = {
-              &id(soggiorno_radiant_pid), &id(cucina_radiant_pid),
-              &id(bagno_terra_radiant_pid), &id(anticamera_radiant_pid),
-              &id(locale_tecnico_fancoil_pid)};
+              id(soggiorno_radiant_pid), id(cucina_radiant_pid),
+              id(bagno_terra_radiant_pid), id(anticamera_radiant_pid),
+              id(locale_tecnico_fancoil_pid)};
             int i = id(ui_sel_ground);
             return climate_ui::fmt_setpoint(names[i], zones[i]->target_temperature);
       - lvgl.label.update:
@@ -471,10 +471,10 @@ script:
             static const char *names[] = {"C.Nord", "C.Sud", "C.Ospiti", "C.Padron.",
                                           "B.Grande", "B.Ospiti", "B.Padron.", "Lavanderia"};
             esphome::climate::Climate *zones[] = {
-              &id(camera_nord_radiant_pid), &id(camera_sud_radiant_pid),
-              &id(camera_ospiti_radiant_pid), &id(camera_padronale_radiant_pid),
-              &id(bagno_grande_radiant_pid), &id(bagno_ospiti_radiant_pid),
-              &id(bagno_padronale_radiant_pid), &id(lavanderia_radiant_pid)};
+              id(camera_nord_radiant_pid), id(camera_sud_radiant_pid),
+              id(camera_ospiti_radiant_pid), id(camera_padronale_radiant_pid),
+              id(bagno_grande_radiant_pid), id(bagno_ospiti_radiant_pid),
+              id(bagno_padronale_radiant_pid), id(lavanderia_radiant_pid)};
             int i = id(ui_sel_first);
             return climate_ui::fmt_setpoint(names[i], zones[i]->target_temperature);
       - lvgl.label.update:

@@ -9,7 +9,13 @@
 substitutions:
   logger_level: INFO
 
-rp2040:
+# ESPHome 2026.7.0 renamed the platform key rp2040: -> rp2: (the old key is a
+# deprecated alias until 2027.7.0), making 2026.7.0 a hard floor for node
+# builds — enforced here so older toolchains fail with a clear version error.
+esphome:
+  min_version: 2026.7.0
+
+rp2:
   board: rpipico
 
 logger:

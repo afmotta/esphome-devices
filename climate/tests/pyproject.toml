@@ -2,14 +2,23 @@
 name = "climate-package-tests"
 version = "0.1.0"
 description = "Test suite for the Climate ESPHome packages"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 # esphome is pinned deliberately; bumping it (and re-locking) doubles as a
 # compatibility test before raising min_version in the packages.
 dependencies = [
-    "esphome==2026.6.5",
+    "esphome==2026.7.0",
     "aioesphomeapi>=32.0.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+]
+
+[tool.uv]
+# esphome 2026.7.0 pins cryptography==49.0.0, which esptool 5.3.1 caps below
+# 49 on Intel macOS only — unsatisfiable there, irrelevant here. Lock for the
+# environments this suite actually runs on: arm64 macOS (local) and Linux (CI).
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux'",
 ]
 
 [tool.pytest.ini_options]

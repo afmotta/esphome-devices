@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install ESPHome (repo pin)
-        run: pip install "esphome==2026.6.5"
+        run: pip install "esphome==2026.7.0"
       - name: Generate CI dummy secrets
         run: bash scripts/ci-dummy-secrets.sh
       - name: Validate entry points
@@ -63,7 +63,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install ESPHome + e2e deps (repo pins)
-        run: pip install "esphome==2026.6.5" pytest pytest-asyncio aioesphomeapi
+        run: pip install "esphome==2026.7.0" pytest pytest-asyncio aioesphomeapi
       - name: Generate CI dummy secrets
         run: bash scripts/ci-dummy-secrets.sh
       - name: Cache PlatformIO toolchains
@@ -72,7 +72,7 @@ jobs:
           path: |
             ~/.platformio
             ~/.espressif
-          key: pio-${{ runner.os }}-esphome-2026.6.5
+          key: pio-${{ runner.os }}-esphome-2026.7.0
       - name: Compile sensor-node fixture
         run: esphome compile canbus/tests/compile_sensor_node.yaml
       - name: Compile climate controller

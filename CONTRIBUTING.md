@@ -51,7 +51,7 @@ For a fast local gate that does not need ESPHome:
 bash scripts/verification-battery.sh --native-only
 ```
 
-For deploy-affecting changes on a machine with ESPHome 2026.6.5 and the HVAC package test dependencies:
+For deploy-affecting changes on a machine with ESPHome 2026.7.0 and the HVAC package test dependencies:
 
 ```bash
 bash scripts/verification-battery.sh
