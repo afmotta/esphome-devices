@@ -116,6 +116,41 @@ Division of labour stands: the WPM runs its own weather-compensated curve for
 the HP outgoing temperature (own outdoor sensor); the repo's C3 compensation
 governs the mixing valves downstream. Complementary, not competing.
 
+## Curve coordination (evaluated 2026-07-16)
+
+The mixing valves can only mix **down**, so the C3 curve targets are reachable
+only while the WPM supply stays above the hottest downstream request plus a
+valve-authority margin (~2–3 K). Symmetrically, supply above what is needed
+wastes COP (~2–2.5% per K). Coordination is therefore required — but because
+the WPM curve and both C3 curves are functions of the **same input** (outdoor
+temperature), the relationship is established once, at commissioning, and then
+holds across the whole outdoor range by construction. No runtime protocol.
+
+**Commissioning rule (heating):** shape the WPM curve to envelope the hottest
+consumer at every outdoor temperature. That consumer is **not** the radiant
+curves (GF floor caps at 40 °C, FF ceiling at 33 °C) — it is the **unmixed
+fancoil circuits** (Locale Tecnico, Sottotetto heat on direct-pump primary
+water), which want warmer supply in deep winter than either mixing curve.
+Practically: WPM curve ≥ max(fancoil heating need, GF curve + 3 K, FF curve
++ 3 K) at design outdoor temperature.
+
+**Cooling:** safe by construction — dew-point protection mixes *up* from the
+cold primary, so the WPM cooling setpoint only needs to be cold enough for
+fancoil dehumidification; radiant circuits blend to their floor regardless.
+
+**Runtime optimization (optional, later):** dynamically lowering the WPM
+setpoint toward the actual max C3 target would recover COP whenever fancoils
+are idle. Only possible via the ISG/HA tier (Modbus TCP writes), so it must be
+an *optimization overlay* that fails safe: HA down ⇒ the WPM's static envelope
+curve carries on, merely less efficient. Do not build until the system has run
+a season on the static envelope.
+
+**Cheap autonomous diagnostic (recommended small work item):** the controller
+already knows each circuit's supply temperature (Dallas) and target — a
+"supply deficit" sensor (valve PID ≥ 95% while supply < target − 1 K for
+N minutes) surfaces an under-enveloped WPM curve as a dashboard warning
+instead of an unexplained cold floor.
+
 ## Open items
 
 - [ ] Order the ISG web with the heat pump (or confirm the chosen unit ships
