@@ -22,6 +22,16 @@
 
 esphome:
   name: t-fancoil-boost
+  # The commissioning gate defaults OFF in production (a freshly flashed
+  # controller runs radiant-only until the zone is cleared for hybrid
+  # operation). The harness models an already-commissioned zone, so it opens
+  # the gate at boot; the gate's own behaviour is covered by dedicated tests
+  # that drive it via set_boost_enabled. Priority -200 runs after the
+  # coordinator's own -100 boot replay.
+  on_boot:
+    priority: -200
+    then:
+      - switch.turn_on: test_zone_boost_enabled
 
 host:
 
@@ -85,6 +95,17 @@ api:
         - binary_sensor.template.publish:
             id: stub_cooling_mode
             state: !lambda "return value;"
+    - action: set_boost_enabled
+      variables:
+        value: bool
+      then:
+        - if:
+            condition:
+              lambda: "return value;"
+            then:
+              - switch.turn_on: test_zone_boost_enabled
+            else:
+              - switch.turn_off: test_zone_boost_enabled
 
 # Input stubs: state is NaN/off until a test publishes via the actions above.
 sensor:

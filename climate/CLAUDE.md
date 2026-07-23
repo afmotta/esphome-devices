@@ -138,6 +138,31 @@ Room temperature/humidity control data does **not** travel over this bus — it 
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
 - MEV polling: 30 seconds (`climate/mev_modbus.yaml` default)
 
+## Commissioning gates (progressive deployment)
+
+Deployment is a **season-phased progressive rollout** on a single firmware image —
+see `docs/climate-deployment-runbook.md`. Features are gated at runtime, not at build
+time, because the `any_pid_requesting_heat/cool` aggregation in
+`devices/climate-control.yaml` hard-references every zone's PID (compiling zones out
+would break the build). Three gates default to the safe state, so a freshly flashed
+controller comes up idle:
+
+| Gate | Default | Effect when off/held |
+|---|---|---|
+| `hp_mode_manual_hold` | **ON** | Calendar + demand tiers suspended; the operator owns `hp_mode` |
+| `{zone}_boost_enabled` | **OFF** | No hybrid radiant+fancoil boost; an active boost drops to "Radiant Only" |
+| `first_floor_mev_enabled` | **OFF** | Fan forced to 0; humidity cascade released to "Fan Only" |
+
+Two constraints drive the phase order and are easy to get wrong:
+
+- **`hp_mode` mirrors the source, it does not command it.** The heat pump produces
+  either hot or chilled water house-wide and the changeover happens at the source
+  (no changeover relay exists). You can only commission the emitters for the season
+  currently being produced, so full coverage spans both seasons.
+- **First-floor cooling requires MEV.** The first floor cools via a radiant *ceiling*;
+  its dew-point-limited supply only cools safely once MEV dehumidification has lowered
+  the room dew point. MEV is commissioned in Phase 0, ahead of any cooling.
+
 ## Test & verify (from repo root)
 
 ```bash

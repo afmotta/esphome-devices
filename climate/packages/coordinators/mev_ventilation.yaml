@@ -34,6 +34,16 @@
 #   sensor.{component_id}_final_fan_speed       - Calculated fan speed (0-100%)
 #   text_sensor.{component_id}_automation_state - Current state machine status
 #   select.{component_id}_humidity_state        - Humidity cascade state selector
+#   switch.{component_id}_enabled               - Commissioning gate (default OFF)
+#
+# Commissioning gate:
+#   {component_id}_enabled defaults OFF, so a freshly flashed controller leaves
+#   the unit still. Ventilation is commissioned in its own phase, ahead of any
+#   cooling: the first floor cools via a radiant CEILING whose dew-point-limited
+#   supply only cools safely once MEV dehumidification has pulled the room dew
+#   point down. Switching the gate off forces fan speed to 0 (same hard-off path
+#   as the alarm) and drops the cascade back to "Fan Only" so the dehumidifier
+#   and integration outputs are released.
 #
 # Example:
 #   packages:
@@ -94,6 +104,11 @@ sensor:
     accuracy_decimals: 0
     update_interval: 60s
     lambda: |-
+      // Commissioning gate: unit not yet cleared to run (see header).
+      if (!id(${component_id}_enabled).state) {
+        return 0.0f;
+      }
+
       // Alarm => demand 0, DELIBERATELY hard-off (decision 2026-07-15, C1):
       // the alarm sensor aggregates all 39 Cappellotto alarm types with no
       // severity mapping, so a blanket minimum-purge floor could force demand
@@ -117,6 +132,16 @@ sensor:
         - number.set:
             id: ${fan_speed_number}
             value: !lambda "return x;"
+
+# Commissioning gate: OFF until ventilation is cleared to run (see header).
+switch:
+  - platform: template
+    name: "${component_name} Enabled"
+    id: ${component_id}_enabled
+    icon: mdi:fan
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
 
 # Diagnostic Sensors
 text_sensor:
@@ -242,6 +267,7 @@ binary_sensor:
     id: ${component_id}_should_escalate_dehum
     internal: true
     lambda: |-
+      if (!id(${component_id}_enabled).state) return false;
       auto state = id(${component_id}_humidity_state).current_option();
       float fan = id(${component_id}_final_fan_speed).state;
       float rate = id(${humidity_rate_sensor}).state;
@@ -259,6 +285,7 @@ binary_sensor:
     id: ${component_id}_should_escalate_integration
     internal: true
     lambda: |-
+      if (!id(${component_id}_enabled).state) return false;
       auto state = id(${component_id}_humidity_state).current_option();
       float fan = id(${component_id}_final_fan_speed).state;
       float rate = id(${humidity_rate_sensor}).state;
@@ -290,6 +317,25 @@ binary_sensor:
     on_release:
       - script.stop: ${component_id}_deescalate_to_dehumidifying
       - script.execute: ${component_id}_update_idle_state
+
+  # Safety: gate switched off while the cascade was escalated → release the
+  # dehumidifier/integration outputs immediately (fan speed is already forced
+  # to 0 by the final_fan_speed gate).
+  - platform: template
+    name: "${component_name} Disabled Override"
+    id: ${component_id}_disabled_override
+    internal: true
+    lambda: |-
+      if (id(${component_id}_enabled).state) return false;
+      return id(${component_id}_humidity_state).current_option() != "Fan Only";
+    on_press:
+      - select.set:
+          id: ${component_id}_humidity_state
+          option: "Fan Only"
+      - logger.log:
+          format: "MEV: Disabled - cascade released to Fan Only"
+          level: INFO
+          tag: mev
 
   - platform: template
     name: "${component_name} Should De-escalate to Fan Only"

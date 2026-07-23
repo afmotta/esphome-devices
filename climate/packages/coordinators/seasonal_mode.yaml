@@ -30,11 +30,23 @@
 #
 # Exposes:
 #   select.${seasonal_mode_id}                   - Mode selector (HEAT/COOL/SANITARY_ONLY)
+#   switch.${seasonal_mode_id}_manual_hold       - Commissioning hold; suspends tiers 1+3
 #   text_sensor.${seasonal_mode_id}_reason       - Why current mode was set
 #   text_sensor.${seasonal_mode_id}_season       - Current season classification
 #   binary_sensor.${seasonal_mode_id}_summer     - Compatibility: true when COOL
 #   binary_sensor.${heat_demand_id}              - Safe no-demand stub; extend with demand aggregation
 #   binary_sensor.${cool_demand_id}              - Safe no-demand stub; extend with demand aggregation
+#
+# Manual hold (commissioning):
+#   The heat pump produces either hot OR chilled water house-wide, and that
+#   changeover happens at the source — this select only MIRRORS it so the zone
+#   PIDs pick heat-vs-cool behaviour. While ${seasonal_mode_id}_manual_hold is
+#   ON (the power-on default), the calendar and demand tiers are suspended and
+#   the operator owns the select, so it can be pinned to whatever the source is
+#   actually producing. Release it (switch OFF) only once both seasons have been
+#   commissioned AND the calendar date ranges above match the installer's real
+#   source-changeover schedule — otherwise the calendar can drive the select to
+#   a mode the source is not producing.
 #
 # Usage note:
 #   The demand binary sensors (heat_demand_id, cool_demand_id) default to false
@@ -141,6 +153,18 @@ binary_sensor:
     lambda: |-
       return false;
 
+switch:
+  # Commissioning hold. Defaults ON so a freshly flashed controller never moves
+  # the season select on its own: during bring-up the operator pins it to the
+  # mode the source is actually producing, one season at a time.
+  - platform: template
+    id: ${seasonal_mode_id}_manual_hold
+    name: "${seasonal_mode_name} Manual Hold"
+    icon: mdi:hand-back-right
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
 script:
   - id: ${seasonal_mode_id}_check_calendar
     then:
@@ -219,5 +243,11 @@ script:
 interval:
   - interval: ${check_interval}
     then:
-      - script.execute: ${seasonal_mode_id}_check_calendar
-      - script.execute: ${seasonal_mode_id}_check_demand
+      # Tiers 1 (calendar) and 3 (demand) are suspended while the hold is on —
+      # see "Manual hold (commissioning)" in the header.
+      - if:
+          condition:
+            switch.is_off: ${seasonal_mode_id}_manual_hold
+          then:
+            - script.execute: ${seasonal_mode_id}_check_calendar
+            - script.execute: ${seasonal_mode_id}_check_demand

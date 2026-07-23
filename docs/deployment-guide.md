@@ -5,6 +5,11 @@
 > ADR-0014 (LilyGO T-Connect Pro + Waveshare Modbus RTU I/O boards, single master, room
 > sensors over HA/UDP). Kept as historical record; for the live system see root
 > `CLAUDE.md`, `climate/CLAUDE.md`, and `docs/rs485-wiring-guide.md`.
+>
+> **Superseded by `docs/climate-deployment-runbook.md`** — the current season-phased
+> progressive rollout for ADR-0014 hardware. The phase/rollback *shape* below carried
+> over; the `use_modbus` flag, the master/slave phases, and the Modbus room sensors
+> did not.
 
 **Project:** ESPHome Multi-Floor Climate Control - Modbus RTU Enhancement  
 **Version:** 1.0  

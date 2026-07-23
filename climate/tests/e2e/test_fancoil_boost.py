@@ -151,3 +151,34 @@ async def test_season_change_ends_boost_immediately(run_harness):
     await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=1.5)
     await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is False)
     await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF)
+
+
+async def test_commissioning_gate_suppresses_activation(run_harness):
+    """Gate off: a zone that would otherwise boost stays radiant-only.
+
+    The gate defaults OFF in production so a freshly flashed controller runs
+    radiant-only until the zone is explicitly cleared for hybrid operation.
+    """
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)
+    await h.call("set_boost_enabled", value=False)
+
+    # Same stimulus reach_boost() uses; must not even start the timer.
+    await h.call("set_temperature", value=26.0)
+    await asyncio.sleep(3)  # > min_time_in_state (2 s): a timer would have fired
+    assert h.states[STATE].state == "Radiant Only"
+    assert h.states[AUTOMATION].state == "Idle"
+    assert h.states[OVERRIDE_SWITCH].state is False
+
+
+async def test_disabling_gate_during_boost_drops_to_radiant(run_harness):
+    """Gate switched off mid-boost releases the hardware immediately."""
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)
+    await reach_boost(h)
+
+    # Same override path as the end-of-season safety: no anti-cycling delay.
+    await h.call("set_boost_enabled", value=False)
+    await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=1.5)
+    await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is False)
+    await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF)

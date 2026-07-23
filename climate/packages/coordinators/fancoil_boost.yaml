@@ -54,12 +54,20 @@
 #   3. Predictive: radiant output saturated AND temp not decreasing
 #      (uses predictive_minutes as delay - saturation must persist)
 #
+#   All three are additionally gated on {zone_slug}_boost_enabled, which
+#   defaults OFF: hybrid radiant+fancoil operation is the last step of the
+#   cooling commissioning campaign, so a freshly flashed controller runs
+#   radiant-only until the zone is explicitly cleared for boost. Switching it
+#   off while a boost is running drops the zone back to "Radiant Only"
+#   immediately, via the same override path as the end-of-cooling-season safety.
+#
 # Deactivation (AND logic - both must be satisfied):
 #   - Temperature: delta <= 0 (target reached)
 #   - Humidity:    <= threshold - hysteresis/2 (below dead band)
 #
 # Exposes:
 #   select.{zone_slug}_boost_state                    - Boost state selector
+#   switch.{zone_slug}_boost_enabled                   - Commissioning gate (default OFF)
 #   text_sensor.{zone_slug}_boost_automation_state     - Current automation status
 #   sensor.{zone_slug}_temp_delta                      - Temperature delta from target
 #   sensor.{zone_slug}_radiant_output_pct              - Radiant PID output %
@@ -242,6 +250,18 @@ select:
                 tag: boost
 
 # =============================================================================
+# Commissioning gate: OFF until this zone is cleared for hybrid operation.
+# =============================================================================
+switch:
+  - platform: template
+    name: "${zone_name} Boost Enabled"
+    id: ${zone_slug}_boost_enabled
+    icon: mdi:fan-plus
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# =============================================================================
 # Diagnostic sensors
 # =============================================================================
 text_sensor:
@@ -370,6 +390,7 @@ binary_sensor:
     id: ${zone_slug}_should_boost_temp
     internal: true
     lambda: |-
+      if (!id(${zone_slug}_boost_enabled).state) return false;
       if (!id(${cooling_mode_sensor}).state) return false;
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Radiant Only") return false;
@@ -389,6 +410,7 @@ binary_sensor:
     id: ${zone_slug}_should_boost_humidity
     internal: true
     lambda: |-
+      if (!id(${zone_slug}_boost_enabled).state) return false;
       if (!id(${cooling_mode_sensor}).state) return false;
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Radiant Only") return false;
@@ -410,6 +432,7 @@ binary_sensor:
     id: ${zone_slug}_should_boost_predictive
     internal: true
     lambda: |-
+      if (!id(${zone_slug}_boost_enabled).state) return false;
       if (!id(${cooling_mode_sensor}).state) return false;
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Radiant Only") return false;
@@ -449,19 +472,22 @@ binary_sensor:
       - script.stop: ${zone_slug}_deactivate_boost
       - script.execute: ${zone_slug}_boost_update_idle
 
-  # Safety: cooling season ended while boost active → immediate deactivation
+  # Safety: cooling season ended, or the commissioning gate was switched off,
+  # while boost was active → immediate deactivation
   - platform: template
     name: "${zone_name} Boost Season Override"
     id: ${zone_slug}_boost_season_override
     internal: true
     lambda: |-
       auto state = id(${zone_slug}_boost_state).current_option();
-      return state == "Fancoil Boost" && !id(${cooling_mode_sensor}).state;
+      if (state != "Fancoil Boost") return false;
+      return !id(${cooling_mode_sensor}).state ||
+             !id(${zone_slug}_boost_enabled).state;
     on_press:
       - select.set:
           id: ${zone_slug}_boost_state
           option: "Radiant Only"
       - logger.log:
-          format: "${zone_slug}: Boost disabled - heating season"
+          format: "${zone_slug}: Boost ended - heating season or gate switched off"
           level: INFO
           tag: boost
