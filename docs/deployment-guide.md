@@ -10,6 +10,9 @@
 > progressive rollout for ADR-0014 hardware. The phase/rollback *shape* below carried
 > over; the `use_modbus` flag, the master/slave phases, and the Modbus room sensors
 > did not.
+>
+> For day-to-day operations and hardware-replacement procedures on the live system,
+> see the [Maintenance Guide](https://afmotta.github.io/esphome-devices/).
 
 **Project:** ESPHome Multi-Floor Climate Control - Modbus RTU Enhancement  
 **Version:** 1.0  

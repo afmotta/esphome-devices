@@ -5,6 +5,9 @@
 > (ADR-0014); its companion re-addressing utilities were retired in the same sweep (see
 > `docs/change_waveshare_relay_address.yaml` for the current commissioning tool). Kept
 > as historical record.
+>
+> For day-to-day operations and hardware-replacement procedures on the live system,
+> see the [Maintenance Guide](https://afmotta.github.io/esphome-devices/).
 
 ## Device Information
 

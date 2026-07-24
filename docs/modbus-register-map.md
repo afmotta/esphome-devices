@@ -1,5 +1,13 @@
 # Modbus Register Map
 
+> **Historical document (Gen-1 hardware).** This register map describes the retired
+> KC868-A6/A16 master/slave Modbus topology (`gruppo-miscelazione` / `distribuzione-piano-terra`),
+> superseded by ADR-0014's single-master T-Connect Pro + Waveshare RTU I/O family. For
+> current Modbus addressing/registers see `climate/CLAUDE.md` Appendices A–C; for
+> troubleshooting and hardware-replacement procedures see the
+> [Maintenance Guide](https://afmotta.github.io/esphome-devices/). Kept as historical
+> record.
+
 This document defines the Modbus register layout for the ESPHome climate control system implementing RS485 Modbus RTU communication between master and slave controllers.
 
 ## Master Device: gruppo-miscelazione (Modbus Address 0x01)

@@ -1,0 +1,109 @@
+site_name: Casa Motta — Maintenance Guide
+site_description: >-
+  Practical maintenance, troubleshooting, and hardware-replacement guide for the
+  house's canbus, lighting, and climate control systems.
+site_url: https://afmotta.github.io/esphome-devices/
+repo_url: https://github.com/afmotta/esphome-devices
+repo_name: afmotta/esphome-devices
+edit_uri: edit/main/docs-site/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tracking
+    - navigation.top
+    - navigation.tabs
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      languages:
+        - locale: en
+          name: English
+          build: true
+          default: true
+        - locale: it
+          name: Italiano
+          build: true
+          nav_translations:
+            Home: Home
+            Getting Started: Per iniziare
+            Everyday Monitoring: Controlli quotidiani
+            Troubleshooting: Risoluzione problemi
+            CAN Bus: Bus CAN
+            RS485 / Modbus: RS485 / Modbus
+            Climate: Climatizzazione
+            Lighting: Illuminazione
+            Network / Home Assistant: Rete / Home Assistant
+            Hardware Died: Guasto hardware
+            Which device died?: Quale dispositivo è guasto?
+            CAN Node: Nodo CAN
+            CAN Bridge: Bridge CAN
+            Health Monitor: Monitor di salute bus
+            Controller (T-Connect Pro): Controller (T-Connect Pro)
+            Relay Board: Scheda relè
+            Analog Output Board: Scheda uscite analogiche
+            MEV Unit: Unità VMC
+            Room Sensor Board: Scheda sensore ambiente
+            Routine Maintenance: Manutenzione ordinaria
+            Reference: Riferimento
+            Hardware & Address Table: Tabella hardware e indirizzi
+            Glossary (Italian Terms): Glossario (termini italiani)
+            Document Map: Mappa dei documenti
+            Confidence Ledger: Registro di affidabilità
+
+nav:
+  - Home: index.md
+  - Getting Started: setup.md
+  - Everyday Monitoring: monitoring.md
+  - Troubleshooting:
+      - CAN Bus: troubleshooting/canbus.md
+      - RS485 / Modbus: troubleshooting/rs485-modbus.md
+      - Climate: troubleshooting/climate.md
+      - Lighting: troubleshooting/lighting.md
+      - Network / Home Assistant: troubleshooting/network.md
+  - Hardware Died:
+      - Which device died?: hardware/index.md
+      - CAN Node: hardware/can-node.md
+      - CAN Bridge: hardware/bridge.md
+      - Health Monitor: hardware/health-monitor.md
+      - Controller (T-Connect Pro): hardware/controller.md
+      - Relay Board: hardware/relay-board.md
+      - Analog Output Board: hardware/analog-board.md
+      - MEV Unit: hardware/mev.md
+      - Room Sensor Board: hardware/room-sensor.md
+  - Routine Maintenance: maintenance-tasks.md
+  - Reference:
+      - Hardware & Address Table: reference/hardware-table.md
+      - Glossary (Italian Terms): reference/glossary.md
+      - Document Map: reference/doc-map.md
+      - Confidence Ledger: reference/confidence-ledger.md

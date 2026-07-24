@@ -5,6 +5,9 @@
 > over Home Assistant with a UDP fallback (`climate/room_sensors.yaml`), and the Modbus bus
 > now carries only I/O boards (ADR-0014). Kept as the historical record of the original
 > Story 1.6 evaluation.
+>
+> For day-to-day operations and hardware-replacement procedures on the live system,
+> see the [Maintenance Guide](https://afmotta.github.io/esphome-devices/).
 
 **Project:** ESPHome Multi-Floor Climate Control  
 **Story:** 1.6 - Room Temperature and Humidity Sensor Integration  

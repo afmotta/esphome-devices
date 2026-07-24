@@ -485,6 +485,7 @@ external_components:
 | `climate/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
 | `climate/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
 | `climate/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
+| [Maintenance Guide](https://afmotta.github.io/esphome-devices/) (`docs-site/`) | Practical, non-expert-oriented operations/troubleshooting/hardware-replacement site (EN + IT), deployed via GitHub Pages |
 
 ### Key Documentation Files
 

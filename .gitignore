@@ -12,3 +12,5 @@ secrets.yaml
 __pycache__/
 *.pyc
 venv/
+docs-site/site/
+docs-site/.venv*/
