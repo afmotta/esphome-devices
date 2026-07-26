@@ -160,7 +160,8 @@ toolchain-upgrade procedure, not in someone's memory.
 
 Performed on hardware 2026-07-26 with `devices/locals/t-connect-pro-debug-shared.yaml`, a
 self-contained bring-up build carrying no repo packages so the composition layering was not a
-variable:
+variable. That file has since been deleted (see below); the experiment it ran is recorded here
+because the record, not the file, is what the next person needs:
 
 1. **Boot log** shows `SPI host 2 already initialized (shared with 'spi:'); adding W5500 as a
    device` — proof the shared path was taken rather than the old failure.
@@ -172,8 +173,27 @@ variable:
    coordinate system — touch needed both mirror flags inverted relative to the display's
    transform, now recorded in `boards/t-connect-pro-display.yaml`.
 
-The three debug entry points (`t-connect-pro-debug{,-wifi,-shared}.yaml` on the shared
-`-panel.yaml`) are retained as the reproduction and regression harness for the upgrade check.
+### The debug harness (removed 2026-07-26)
+
+The four bring-up entry points — `t-connect-pro-debug-panel.yaml` (display + touch + a minimal
+tick UI) and the three network variants below — were originally retained as the reproduction and
+regression harness. They were deleted once the arrangement was proven on hardware and the climate
+touch build gained its own liveness indicator, which makes it a better regression target: it
+exercises the fork in the real composition rather than in isolation. The upgrade check in
+`CLAUDE.md` now points there.
+
+The three-way experiment is recorded here so a throwaway harness can be rebuilt from
+`boards/t-connect-pro-display.yaml` if a future ESPHome bump breaks the shared bus and it needs to
+be bisected away from the full climate config:
+
+| Variant | `interface:` | Network | Expected result |
+|---|---|---|---|
+| `-debug.yaml` | `spi3` | Ethernet | **Fails** — two controllers on GPIO11/12/13; the W5500 (setup_priority WIFI 250) takes the pads from the display bus (BUS 1000) after the panel is already initialised, so the panel shows uninitialised GRAM forever while Ethernet works |
+| `-debug-wifi.yaml` | `spi3` | WiFi | **Control** — WiFi touches none of those pads, so the panel renders; isolates pad contention from a bad panel config (mipi_spi geometry, `invert_colors`, the missing reset line) |
+| `-debug-shared.yaml` | `spi2` | Ethernet | **The fix** — one controller, CS lines arbitrating; requires the fork |
+
+Recovering the deleted files themselves is a `git show` away — they were removed in the commit
+that reworked the climate touch UI.
 
 ## Open items
 

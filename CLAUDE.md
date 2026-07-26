@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.11 |
+| **Version** | 1.12 |
 | **Last Updated** | July 26, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
@@ -156,7 +156,8 @@ esphome-devices/
 │   └── home-assistant/        # Dashboards (Lovelace)
 │
 ├── packages/                  # Cross-system ESPHome packages (shared, no owning app system)
-│   └── devices/modbus-io/     # Relay/analog Modbus I/O board drivers used by climate + lighting
+│   ├── devices/modbus-io/     # Relay/analog Modbus I/O board drivers used by climate + lighting
+│   └── ui/dark_theme.yaml     # Shared LVGL dark theme for both T-Connect Pro onboard panels
 │
 ├── boards/                    # Board hardware definitions (shared, no owning system)
 │   ├── t-connect-pro.yaml / t-connect-pro-ethernet.yaml / t-connect-pro-wifi.yaml # LilyGO T-Connect Pro (both controllers, ADR-0014)
@@ -418,11 +419,27 @@ display (ADR-0016). Upstream owes it no compatibility, so **every ESPHome versio
    and re-apply the two changes (tolerate `ESP_ERR_INVALID_STATE` in
    `ethernet_component_esp32.cpp`; downgrade `_final_validate_spi`'s same-interface error in
    `__init__.py`). Both are marked `LOCAL FORK (esphome-devices)` in the source.
-2. Re-run the bring-up check with `devices/locals/t-connect-pro-debug-shared.yaml`: the boot log
-   must show `SPI host 2 already initialized (shared with 'spi:')`, and both the on-screen tick
-   and the Ethernet IP must stay live.
+2. Re-run the bring-up check by flashing `devices/locals/climate-control-touch.yaml` — the
+   Ethernet + panel build is itself the regression harness, since it exercises the shared bus in
+   exactly the arrangement the fork enables. Confirm all three:
+   - the boot log shows `SPI host 2 already initialized (shared with 'spi:')` — proof the shared
+     path was taken rather than the old two-controller failure;
+   - the status strip's liveness dot keeps pulsing, i.e. the display is still being flushed (a
+     frozen dot is the "panel died" signal the old debug build's tick counter provided);
+   - the dot stays green, i.e. the API — and therefore Ethernet — survived alongside it.
+
+   Under load: switch tabs repeatedly (each is a full-screen repaint) while pinging the device.
+   The fork's risk is the display holding the SPI bus long enough to stall the W5500, so packet
+   loss or API drops during redraws is the failure to watch for.
 
 Skipping this does not fail the build — it fails the *panel*, silently, at runtime.
+
+The dedicated `t-connect-pro-debug*.yaml` bring-up harness that originally proved this was removed
+on 2026-07-26 (its diagnosis is preserved in ADR-0016 and in the comments in
+`boards/t-connect-pro-display.yaml`). If a future upgrade breaks the shared bus and you need to
+bisect it away from the full climate config, ADR-0016 §Verification describes the three-way
+experiment — spi3+Ethernet (fails), spi3+WiFi (control), spi2+Ethernet (fix) — well enough to
+rebuild a throwaway harness from the board file.
 
 ### Testing Levels
 
@@ -637,6 +654,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-26 | 1.12 | Climate touch UI reworked: shared LVGL dark theme extracted to `packages/ui/dark_theme.yaml` and adopted by both panels (a tabview covers the screen, so `lvgl: bg_color:` alone never made either panel dark — the tabview's own `tab_style`/`content_style` and a `theme:` block are what do it); zone rows rebuilt as four aligned columns (name/temp/target/state) from `climate/packages/ui/zone_row.yaml` + `zone_refresh.yaml` with semantic colour for heat/cool/idle and for degraded sensor tiers; tap-to-select zone rows; always-visible status strip on the LVGL top layer carrying alarms and a liveness pulse; two-column Home tab; 2 s refresh now skipped while LVGL is paused. Panel entry points consolidated: the four `t-connect-pro-debug*.yaml` bring-up builds deleted (their diagnosis preserved in ADR-0016 §Verification) and the fork's mandatory upgrade check repointed at `devices/locals/climate-control-touch.yaml`, whose new liveness dot makes it a better regression target; the WiFi touch variant committed rather than left as untracked WIP | AI Assistant |
 | 2026-07-26 | 1.11 | ADR-0016: W5500 Ethernet and the onboard display now share ONE SPI controller (`spi2`), arbitrated by their CS lines, via a local fork of the core `ethernet` component in `libs/esphome_overrides/` — the previous two-controller arrangement was electrically impossible and the panel never rendered. Both touch builds keep Ethernet (lighting's forced WiFi override removed); panels idle asleep via LVGL `on_idle`. Added the mandatory fork re-verification step to the ESPHome upgrade procedure | AI Assistant |
 | 2026-07-16 | 1.10 | Upgraded ESPHome to 2026.7.0 (pins in CI/`climate/tests/pyproject.toml`, floors in `boards/t-connect-pro.yaml` and new `boards/canbed-rp2040.yaml` `min_version`); pinned explicit modbus hub timing (250ms/100ms) against the 2026.7.0 default change; renamed `rp2040:` → `rp2:` | AI Assistant |
 | 2026-07-12 | 1.9 | Renamed the active application system from `hvac/` to `climate/`, updated active tooling/docs to use `CLIMATE-Epic` for future work, and left historical implementation artifacts under their original names | AI Assistant |

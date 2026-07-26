@@ -1,0 +1,78 @@
+# =============================================================================
+# Fragment: one zone row on a floor tab of the climate touch UI
+# =============================================================================
+# Included as a single item of a tabview tab's `widgets:` list:
+#
+#   - !include
+#       file: zone_row.yaml
+#       vars: {zone_slug: soggiorno, zone_label: "Soggiorno",
+#              zone_index: "0", sel_global: ui_sel_ground, row_height: "26"}
+#
+# Four columns rather than one printf-padded label: the panel font (Montserrat)
+# is proportional, so the old "%-16s" padding never actually lined the numbers
+# up — "Camera Padronale" and "Bagno" pushed their temperatures to different
+# x positions. Fixed-width right-aligned columns do line up.
+#
+#   name (grows) | temp | target | state
+#
+# Values are written by the matching zone_refresh.yaml script; only the name is
+# static. The row is the touch target for selecting which zone the floor's
+# +/- setpoint control acts on — see zone_refresh.yaml for the `checked` state
+# that marks the selection.
+#
+# Required vars:
+#   zone_slug   - entity slug, e.g. soggiorno (also names this row's widget ids)
+#   zone_label  - text shown in the name column
+#   zone_index  - this zone's position in its floor's zone array
+#   sel_global  - global holding that floor's selected index
+#   row_height  - row height in px; each floor picks the largest that fits
+# =============================================================================
+obj:
+  id: ui_zrow_${zone_slug}
+  width: 100%
+  height: ${row_height}
+  pad_all: 0
+  pad_left: 3
+  pad_right: 3
+  border_width: 0
+  radius: 3
+  bg_opa: TRANSP
+  # Tap the row to make it the target of the floor's +/- control. NOTE the
+  # panel is 2.33" (about 54 x 25 mm), so a 16px row on the nine-zone Primo
+  # tab is under 2 mm tall — precise for a fingertip. The floor tabs keep a
+  # [>] cycle button alongside +/- for exactly that reason; this is the fast
+  # path, not the only path.
+  clickable: true
+  checked:
+    bg_color: 0x1F252E
+    bg_opa: COVER
+  layout:
+    type: flex
+    flex_flow: ROW
+    flex_align_cross: CENTER
+    pad_column: 4
+  widgets:
+    - label:
+        id: ui_zname_${zone_slug}
+        flex_grow: 1
+        text: "${zone_label}"
+    - label:
+        id: ui_ztemp_${zone_slug}
+        width: 54
+        text_align: RIGHT
+        text: "--"
+    - label:
+        id: ui_ztgt_${zone_slug}
+        width: 46
+        text_align: RIGHT
+        text_color: 0x8B949E
+        text: "--"
+    - label:
+        id: ui_zstate_${zone_slug}
+        width: 48
+        text_align: RIGHT
+        text_color: 0x8B949E
+        text: "--"
+  on_click:
+    - lambda: 'id(${sel_global}) = ${zone_index};'
+    - script.execute: refresh_touch_ui

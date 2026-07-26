@@ -1,0 +1,76 @@
+# =============================================================================
+# Fragment: a floor tab's setpoint control row for the climate touch UI
+# =============================================================================
+# Included as the last item of a floor tab's `widgets:` list:
+#
+#   - !include
+#       file: setpoint_row.yaml
+#       vars: {floor_slug: ground, sel_global: ui_sel_ground,
+#              zone_count: "5", adjust_script: ui_adjust_ground}
+#
+#   [>]  [   -   ]  Soggiorno set 21.5C  [   +   ]
+#
+# The primary way to choose which zone +/- acts on is tapping its row
+# (zone_row.yaml). [>] cycles instead — kept because a row on the nine-zone
+# Primo tab is 16px, under 2mm on this panel, which is a demanding target for a
+# fingertip. It is the fallback, not the main path, so it gets the narrowest
+# button here.
+#
+# Both floor tabs use this fragment. Sottotetto, the lone second-floor zone,
+# sits on the Primo tab as its ninth zone rather than having a floor of its own,
+# so there is no third variant.
+#
+# Required vars:
+#   floor_slug     - ground | first (names the widget ids)
+#   sel_global     - global holding this tab's selected zone index
+#   zone_count     - number of zones on the tab, for the [>] wrap-around
+#                    (first = 9: eight first-floor zones plus Sottotetto)
+#   adjust_script  - the floor's +/- script, called with delta: -0.5 / 0.5
+# =============================================================================
+obj:
+  width: 100%
+  height: 30
+  pad_all: 0
+  border_width: 0
+  bg_opa: TRANSP
+  layout:
+    type: flex
+    flex_flow: ROW
+    pad_column: 4
+  widgets:
+    - button:
+        id: btn_zone_${floor_slug}
+        width: 34
+        height: 100%
+        widgets:
+          - label: {align: CENTER, text: ">"}
+        on_click:
+          - lambda: 'id(${sel_global}) = (id(${sel_global}) + 1) % ${zone_count};'
+          - script.execute: refresh_touch_ui
+    - button:
+        id: btn_set_minus_${floor_slug}
+        width: 56
+        height: 100%
+        bg_color: 0x24507A
+        widgets:
+          - label: {align: CENTER, text: "-"}
+        on_click:
+          - script.execute:
+              id: ${adjust_script}
+              delta: -0.5
+    - label:
+        id: ui_set_${floor_slug}
+        flex_grow: 1
+        text_align: CENTER
+        text: "--"
+    - button:
+        id: btn_set_plus_${floor_slug}
+        width: 56
+        height: 100%
+        bg_color: 0x8A2A2A
+        widgets:
+          - label: {align: CENTER, text: "+"}
+        on_click:
+          - script.execute:
+              id: ${adjust_script}
+              delta: 0.5

@@ -1,0 +1,59 @@
+# =============================================================================
+# Fragment: the refresh script for one zone row of the climate touch UI
+# =============================================================================
+# Included as a single item of the top-level `script:` list, paired one-to-one
+# with a zone_row.yaml include:
+#
+#   - !include
+#       file: zone_refresh.yaml
+#       vars: {zone_slug: soggiorno, pid_id: soggiorno_radiant_pid,
+#              zone_index: "0", sel_global: ui_sel_ground}
+#
+# A script (rather than actions written inline in refresh_touch_ui) is what
+# makes the per-zone updates shareable: fourteen zones x four widget updates is
+# 56 actions, and hand-writing them was how the old single-label version drifted
+# out of sync with the room files. refresh_touch_ui just calls these in order.
+#
+# Colours are chosen here rather than in touch_ui_format.h so that header stays
+# free of LVGL types. They are the palette from packages/ui/dark_theme.yaml:
+#   text 0xE6EDF3 · muted 0x8B949E · heat 0xE07A4F · cool 0x5AA9E6
+#   warn 0xE0A24F (sensor on the HA fallback tier) · alarm 0xE05A4F (no reading)
+#
+# Required vars:
+#   zone_slug   - entity slug; names both the widget ids and the sensor ids
+#   pid_id      - the zone's PID climate entity (radiant, or fancoil for the
+#                 two fancoil-only zones); also the prefix of its
+#                 _is_heating / _is_cooling binary sensors
+#   zone_index  - this zone's position in its floor's zone array
+#   sel_global  - global holding that floor's selected index
+# =============================================================================
+id: ui_refresh_${zone_slug}
+then:
+  # Temperature, coloured by which failover tier is actually feeding it. A zone
+  # on the HA fallback still reads plausibly, so without this a degraded sensor
+  # chain is invisible until someone reads the tally on the status strip.
+  - lvgl.label.update:
+      id: ui_ztemp_${zone_slug}
+      text: !lambda 'return climate_ui::fmt_temp(id(${zone_slug}_temp_abstracted).state);'
+      text_color: !lambda |-
+        if (std::isnan(id(${zone_slug}_temp_abstracted).state)) return lv_color_hex(0xE05A4F);
+        return id(${zone_slug}_temp_abstracted_sensor_tier).state == "CAN"
+                 ? lv_color_hex(0xE6EDF3)
+                 : lv_color_hex(0xE0A24F);
+  - lvgl.label.update:
+      id: ui_ztgt_${zone_slug}
+      text: !lambda 'return climate_ui::fmt_or_dashes(id(${pid_id}).target_temperature);'
+  - lvgl.label.update:
+      id: ui_zstate_${zone_slug}
+      text: !lambda |-
+        return climate_ui::state_text(id(${pid_id}_is_heating).state,
+                                      id(${pid_id}_is_cooling).state);
+      text_color: !lambda |-
+        if (id(${pid_id}_is_heating).state) return lv_color_hex(0xE07A4F);
+        if (id(${pid_id}_is_cooling).state) return lv_color_hex(0x5AA9E6);
+        return lv_color_hex(0x8B949E);
+  # Selection highlight for the floor's +/- control.
+  - lvgl.widget.update:
+      id: ui_zrow_${zone_slug}
+      state:
+        checked: !lambda 'return id(${sel_global}) == ${zone_index};'

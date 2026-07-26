@@ -170,8 +170,10 @@ touchscreen:
       ignore_strapping_warning: true
     reset_pin: GPIO47
     # Maps touch onto the same 480x222 landscape space the UI is laid out in.
-    # HARDWARE-VERIFIED 2026-07-25 (corner-tap test, devices/locals/
-    # t-connect-pro-debug-panel.yaml): the CST226SE and ST7796 do NOT share a
+    # HARDWARE-VERIFIED 2026-07-25 by a corner-tap test (in the since-deleted
+    # t-connect-pro-debug-panel.yaml bring-up build, ADR-0016 §Verification —
+    # these values are the result, not something to re-derive): the
+    # CST226SE and ST7796 do NOT share a
     # native coordinate system — mirroring the display's transform verbatim put
     # touch a full 180° out (a tap top-left registered bottom-right). Both axes
     # needed reversing, hence both mirror flags inverted relative to the

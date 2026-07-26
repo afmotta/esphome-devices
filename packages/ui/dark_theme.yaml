@@ -1,0 +1,65 @@
+# =============================================================================
+# Shared LVGL dark theme — T-Connect Pro onboard panels
+# =============================================================================
+# Included as a package by BOTH on-device UIs (climate/packages/ui/
+# climate_touch_ui.yaml, lighting/packages/ui/light_touch_ui.yaml) so the two
+# panels on the same hardware cannot drift apart. It lives at the top level
+# rather than under either system for the same reason packages/devices/modbus-io/
+# does: it belongs to no single application system.
+#
+# WHY A THEME IS NEEDED AT ALL. Setting `bg_color` on the `lvgl:` block only
+# paints the SCREEN. Both panels put a tabview over the whole screen, so the
+# colours you actually see come from LVGL's built-in default theme — which is
+# light. Three mechanisms are needed to make a panel genuinely dark, and only
+# the first two live here (the third is per-UI because it is written on the
+# tabview widget itself):
+#
+#   1. `dark_mode: true` — flips LVGL's built-in default theme
+#      (LV_THEME_DEFAULT_DARK), so anything not explicitly styled anywhere
+#      lands dark rather than white. This is the safety net.
+#   2. `theme:` per-widget styles — applied to every widget of that type
+#      declared in the config. This is the deliberate palette.
+#   3. (per-UI) the tabview's `tab_style:` / `content_style:` — the tab bar and
+#      content are objects LVGL creates internally, which the theme map above
+#      never sees. Without them a panel keeps the stock light card-on-white
+#      look no matter what else is set.
+#
+# PALETTE — the single source of truth for both panels. Values are repeated as
+# literals in the UI packages (YAML anchors do not survive ESPHome's package
+# merge), so when changing one, grep for the hex value.
+#
+#   base       0x0D1117  screen / tab content background
+#   surface    0x161B22  raised surfaces (tab bar, status strip)
+#   raised     0x1F252E  selected row
+#   neutral    0x30363D  default button fill, selected tab
+#   border     0x272E36  hairline separators
+#   text       0xE6EDF3  primary text
+#   muted      0x8B949E  secondary text / idle state
+#   heat       0xE07A4F  heating (text)      0x8A2A2A heating (fill)
+#   cool       0x5AA9E6  cooling (text)      0x24507A cooling (fill)
+#   ok         0x3FB950  healthy             0x2F6F4F ok (fill)
+#   warn       0xE0A24F  degraded (sensor on fallback tier)
+#   alarm      0xE05A4F  alarm / emergency
+# =============================================================================
+
+lvgl:
+  bg_color: 0x0D1117
+  text_color: 0xE6EDF3
+  theme:
+    dark_mode: true
+    obj:
+      bg_color: 0x161B22
+      border_color: 0x272E36
+      border_width: 0
+      radius: 4
+    button:
+      bg_color: 0x30363D
+      bg_opa: COVER
+      border_width: 0
+      radius: 4
+      text_color: 0xE6EDF3
+      # Press feedback that works on every button regardless of its accent
+      # colour: fade the fill toward the dark background rather than picking a
+      # second hand-tuned shade for each of the red/blue/green buttons.
+      pressed:
+        bg_opa: 60%

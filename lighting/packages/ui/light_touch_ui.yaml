@@ -73,12 +73,16 @@ globals:
     type: uint32_t
     initial_value: '0'
 
+# Colours, and the LVGL default-theme override that makes the tabview dark —
+# shared with the climate panel so the two screens on identical hardware cannot
+# drift apart. See that file for why `bg_color` alone is not enough.
+packages:
+  theme: !include ../../../packages/ui/dark_theme.yaml
+
 lvgl:
   displays: [panel_display]
   touchscreens: [panel_touch]
   buffer_size: 25%
-  bg_color: 0x101418
-  text_color: 0xEAEAEA
   # Idle sleep — same rationale as climate/packages/ui/climate_touch_ui.yaml.
   # After 5 minutes untouched, blank the backlight and pause LVGL. A paused LVGL
   # renders nothing, taking this display's share of the SPI bus it co-owns with
@@ -97,6 +101,32 @@ lvgl:
         id: main_tabs
         position: top
         size: 26
+        # The tab bar is the one raised surface on the panel; the content below
+        # it sits flat on the base colour. These style the tabview's INTERNAL
+        # bar and content objects — LVGL creates them itself, so the shared
+        # theme map never sees them, and without this the panel keeps the stock
+        # light card-on-white look.
+        tab_style:
+          bg_color: 0x161B22
+          border_color: 0x272E36
+          border_width: 1
+          border_side: BOTTOM
+          radius: 0
+          pad_all: 0
+          items:
+            bg_color: 0x161B22
+            bg_opa: COVER
+            text_color: 0x8B949E
+            border_width: 0
+            radius: 0
+            checked:
+              bg_color: 0x30363D
+              text_color: 0xE6EDF3
+        content_style:
+          bg_color: 0x0D1117
+          bg_opa: COVER
+          border_width: 0
+          radius: 0
         tabs:
           # -------------------------------------------------------------- Status
           - name: "Status"
@@ -120,11 +150,11 @@ lvgl:
                         text: "Fallback events: --"
                     - label:
                         id: ui_manifest
-                        text_color: 0x9AA0A6
+                        text_color: 0x8B949E
                         text: "Manifest: --"
                     - label:
                         id: ui_last_btn
-                        text_color: 0x9AA0A6
+                        text_color: 0x8B949E
                         text: "Last button: --"
           # -------------------------------------------------------------- Relays
           - name: "Relays"
@@ -186,7 +216,6 @@ lvgl:
                         id: btn_all_off
                         width: 100%
                         height: 26
-                        bg_color: 0x4A4A4A
                         widgets:
                           - label:
                               align: CENTER
@@ -217,7 +246,7 @@ lvgl:
                   widgets:
                     - label:
                         id: ui_btn_hint
-                        text_color: 0x9AA0A6
+                        text_color: 0x8B949E
                         text: "Press a wall button to commission it:"
                     - label:
                         id: ui_btn_feed
