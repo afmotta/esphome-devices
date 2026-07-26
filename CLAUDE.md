@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.10 |
-| **Last Updated** | July 16, 2026 |
+| **Version** | 1.11 |
+| **Last Updated** | July 26, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -177,7 +177,10 @@ esphome-devices/
 │   └── remotes/               # Remote GitHub-based deployment configs
 │
 ├── libs/                      # Custom Python/C++ components
-│   └── s1_pro/                # LD2450 radar driver
+│   ├── s1_pro/                # LD2450 radar driver
+│   └── esphome_overrides/     # Local FORKS of core ESPHome components (shadow the built-ins)
+│       └── ethernet/          # W5500 sharing one SPI controller with the onboard display (ADR-0016)
+│                              #   ⚠ pinned to ESPHome 2026.7.1 — re-verify on every upgrade
 │
 ├── docs/                      # Project documentation and guides
 │
@@ -405,6 +408,22 @@ substitutions:
 
 ## Testing & Deployment
 
+### Upgrading ESPHome — required fork check
+
+`libs/esphome_overrides/ethernet/` is a **local fork of a core ESPHome component**, copied from
+2026.7.1 and carrying two changes that let the W5500 share an SPI controller with the onboard
+display (ADR-0016). Upstream owes it no compatibility, so **every ESPHome version bump must**:
+
+1. Diff the new upstream `esphome/components/ethernet/` against `libs/esphome_overrides/ethernet/`
+   and re-apply the two changes (tolerate `ESP_ERR_INVALID_STATE` in
+   `ethernet_component_esp32.cpp`; downgrade `_final_validate_spi`'s same-interface error in
+   `__init__.py`). Both are marked `LOCAL FORK (esphome-devices)` in the source.
+2. Re-run the bring-up check with `devices/locals/t-connect-pro-debug-shared.yaml`: the boot log
+   must show `SPI host 2 already initialized (shared with 'spi:')`, and both the on-screen tick
+   and the Ethernet IP must stay live.
+
+Skipping this does not fail the build — it fails the *panel*, silently, at runtime.
+
 ### Testing Levels
 
 1. **Component Testing**: Test individual component packages in isolation
@@ -618,6 +637,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-07-26 | 1.11 | ADR-0016: W5500 Ethernet and the onboard display now share ONE SPI controller (`spi2`), arbitrated by their CS lines, via a local fork of the core `ethernet` component in `libs/esphome_overrides/` — the previous two-controller arrangement was electrically impossible and the panel never rendered. Both touch builds keep Ethernet (lighting's forced WiFi override removed); panels idle asleep via LVGL `on_idle`. Added the mandatory fork re-verification step to the ESPHome upgrade procedure | AI Assistant |
 | 2026-07-16 | 1.10 | Upgraded ESPHome to 2026.7.0 (pins in CI/`climate/tests/pyproject.toml`, floors in `boards/t-connect-pro.yaml` and new `boards/canbed-rp2040.yaml` `min_version`); pinned explicit modbus hub timing (250ms/100ms) against the 2026.7.0 default change; renamed `rp2040:` → `rp2:` | AI Assistant |
 | 2026-07-12 | 1.9 | Renamed the active application system from `hvac/` to `climate/`, updated active tooling/docs to use `CLIMATE-Epic` for future work, and left historical implementation artifacts under their original names | AI Assistant |
 | 2026-07-12 | 1.8 | Folded the Vesta package boundary back into the monorepo: climate packages now live under `climate/packages/`, shared Modbus I/O drivers under top-level `packages/devices/modbus-io/`, and active architecture/docs no longer treat Vesta as an extractable library | AI Assistant |

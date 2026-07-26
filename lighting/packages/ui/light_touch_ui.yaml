@@ -79,6 +79,19 @@ lvgl:
   buffer_size: 25%
   bg_color: 0x101418
   text_color: 0xEAEAEA
+  # Idle sleep — same rationale as climate/packages/ui/climate_touch_ui.yaml.
+  # After 5 minutes untouched, blank the backlight and pause LVGL. A paused LVGL
+  # renders nothing, taking this display's share of the SPI bus it co-owns with
+  # the W5500 (boards/t-connect-pro-display.yaml) to zero.
+  #
+  # Waking is safe: Touchscreen::loop() fires its own on_touch trigger
+  # (touchscreen.cpp:139) before notifying LVGL's listener, so the handler below
+  # still runs while LVGL is paused. The screen cannot get stuck dark.
+  on_idle:
+    timeout: 5min
+    then:
+      - lvgl.pause:
+      - light.turn_off: display_backlight
   widgets:
     - tabview:
         id: main_tabs
@@ -276,6 +289,15 @@ script:
       - lvgl.widget.update: {id: relay_cell_29, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_29).state));'}
       - lvgl.widget.update: {id: relay_cell_30, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_30).state));'}
       - lvgl.widget.update: {id: relay_cell_31, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_31).state));'}
+
+# Wake on touch: restore the backlight and resume rendering, then repaint
+# immediately so the first thing shown is current rather than 5-minutes stale.
+touchscreen:
+  - id: !extend panel_touch
+    on_touch:
+      - light.turn_on: display_backlight
+      - lvgl.resume:
+      - script.execute: refresh_light_ui
 
 interval:
   - interval: 2s

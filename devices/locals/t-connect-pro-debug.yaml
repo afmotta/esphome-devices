@@ -1,0 +1,72 @@
+# =============================================================================
+# Bring-up / regression firmware — Ethernet + display (the FAILING case)
+# =============================================================================
+# This is the reproduction, not a working config. Root cause, confirmed against
+# the ESPHome 2026.7.1 sources:
+#
+#   1. ESPHome's W5500 driver hardcodes SPI2_HOST and calls spi_bus_initialize()
+#      itself (ethernet_component.h:254, ethernet_component_esp32.cpp:182). It
+#      does NOT go through the `spi:` hub, so the display cannot share its bus.
+#   2. The display bus is therefore forced to SPI3_HOST — a DIFFERENT hardware
+#      controller pointed at the SAME three pads.
+#   3. On the ESP32-S3 a pad has exactly one output source. GPIO11/12/13 happen
+#      to be SPI2's native IO_MUX pins (FSPID/FSPICLK/FSPIQ), so when the W5500
+#      initialises it takes the pads over the GPIO-matrix routing SPI3 had set.
+#   4. Setup order seals it: `spi:` is setup_priority BUS (1000), the display is
+#      DATA (600), ethernet is WIFI (250) — so the panel is initialised and
+#      turned on FIRST, and only then does the W5500 steal the clock and MOSI.
+#      LVGL flushes from loop() (lvgl_esphome.cpp:861), i.e. after all setup, so
+#      not one frame ever reaches the panel.
+#
+#   => The panel powers up, backlight on, DISPON, displaying its uninitialised
+#      GRAM — "random pixels with random colors" — forever. Ethernet works fine;
+#      it won the bus.
+#
+# ESPHome guards the same-host case explicitly (ethernet/__init__.py:507-511
+# refuses `ethernet` and `spi` on one interface) but has no check for two
+# different hosts aimed at one set of pads, which is the hole this config falls
+# into. `allow_other_uses` only silences ESPHome's own pin bookkeeping — it does
+# not make the silicon capable of two drivers on one pad. Distinct CS lines only
+# arbitrate devices on ONE controller, which is not what we have.
+#
+# Flash t-connect-pro-debug-wifi.yaml to see the panel work with these pads
+# uncontested. To keep Ethernet AND the display, the W5500 and the panel must
+# live on a single SPI controller — which ESPHome's ethernet component cannot
+# currently do.
+#
+# TRACKED HARNESS — do not delete. CLAUDE.md's ESPHome-upgrade procedure and
+# ADR-0016's verification section both reference these builds: they are how you
+# re-prove the libs/esphome_overrides/ethernet fork after an upstream bump.
+# =============================================================================
+
+substitutions:
+  debug_name: t-connect-pro-debug-eth
+  display_spi_interface: spi3
+  # The display bus and the W5500 genuinely co-claim GPIO12/11/13 here, so
+  # ESPHome's pin bookkeeping needs them marked. (This is what makes the config
+  # *compile*; it is not what makes the hardware work — see above.)
+  shared_spi_pins: "true"
+
+packages:
+  panel: !include t-connect-pro-debug-panel.yaml
+
+ethernet:
+  type: W5500
+  clk_pin:
+    number: GPIO12
+    allow_other_uses: true
+  mosi_pin:
+    number: GPIO11
+    allow_other_uses: true
+  miso_pin:
+    number: GPIO13
+    allow_other_uses: true
+  cs_pin: GPIO10
+  interrupt_pin: GPIO9
+  reset_pin: GPIO48
+
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      id: dbg_ip
+      name: "IP Address"

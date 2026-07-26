@@ -1,4 +1,13 @@
 substitutions:
+  # Placeholder default only. Every real entry point overrides this (climate via
+  # its `defaults:`, lighting via its `substitutions:`), and that override always
+  # wins for the resolved esphome.name. It exists solely so ESPHome 2026.7's
+  # substitution engine can eagerly evaluate the ${device_name} references inside
+  # the wifi/ethernet !include package values below without warning that
+  # 'device_name' is undefined at this scope. friendly_name is deliberately NOT
+  # defaulted here — the network packages don't reference it, and a board-level
+  # default for it would (unlike device_name) override the entry point's value.
+  device_name: t-connect-pro
   wifi_package: !include t-connect-pro-wifi.yaml
   ethernet_package: !include t-connect-pro-ethernet.yaml
   enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
@@ -15,11 +24,6 @@ packages:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  # 2026.7.0, not the repo-wide 2026.3.0 floor: the only version actually
-  # verified end-to-end for the T-Connect Pro HVAC/gateway paths, including
-  # the sntp/ds2484 platforms this board's first consumer adds and the
-  # 2026.7.0 modbus client/server hub overhaul (explicit timing pinned in
-  # the entry points).
   min_version: 2026.7.0
   comment: "LilyGO T-Connect Pro"
 

@@ -2,42 +2,90 @@
 # LilyGO T-Connect Pro — onboard display + touch hardware bring-up
 # =============================================================================
 # Shared display hardware for both T-Connect Pro controllers. Composed into a
-# build by the opt-in touchscreen wrapper (e.g. devices/locals/climate-control-touch.yaml
-# or devices/light-controller-touch.yaml), which also sets shared_spi_pins: "true".
-# Pure hardware here — the LVGL UI itself lives in each system's UI package
-# (climate/packages/ui/climate_touch_ui.yaml, lighting/packages/ui/light_touch_ui.yaml),
-# which reference the system-neutral `panel_display` / `panel_touch` ids declared below.
+# build by the opt-in touchscreen wrapper (e.g. devices/locals/climate-control-touch.yaml,
+# which runs Ethernet and sets shared_spi_pins: "true"; or
+# devices/light-controller-touch.yaml, which runs WiFi instead and leaves it
+# at its "false" default). Pure hardware here — the LVGL UI itself lives in
+# each system's UI package (climate/packages/ui/climate_touch_ui.yaml,
+# lighting/packages/ui/light_touch_ui.yaml), which reference the
+# system-neutral `panel_display` / `panel_touch` ids declared below.
 #
 # Panel: 2.33" ST7796 SPI LCD, native 222(w)x480(h), driven landscape as
 # 480x222. Touch: CST226SE on the shared i2cbus. Backlight: GPIO46.
 # Pin numbers verified against LilyGO's libraries/private_library/pin_config.h.
 #
-# SPI SHARING (the crux): the ST7796 SCLK/MOSI/MISO (GPIO12/11/13) are the same
-# physical pads as the W5500 Ethernet. ESPHome's W5500 driver owns one hardware
-# SPI controller directly, so this bus is forced onto the SECOND controller
-# (`interface: spi3`) and the three shared pins are marked `allow_other_uses`
-# (mirrored in boards/t-connect-pro-ethernet.yaml). Bus access is arbitrated by
-# the distinct CS lines (display CS=21, W5500 CS=10). See ADR-0014.
+# SPI SHARING (the crux) — CORRECTED 2026-07-25 after hardware bring-up.
+#
+# The ST7796 SCLK/MOSI/MISO (GPIO12/11/13) are the same physical pads as the
+# W5500 Ethernet. This file previously put the display on a SECOND controller
+# (`interface: spi3`) and claimed the distinct CS lines arbitrated the two. That
+# was wrong, and the panel showed nothing but uninitialised GRAM noise:
+#
+#   An ESP32-S3 pad has exactly ONE output source. Two SPI controllers aimed at
+#   the same pads cannot both drive them — whichever initialises last wins and
+#   the other device goes silent. GPIO11/12/13 are SPI2's native IO_MUX pads, so
+#   the W5500 (setup_priority WIFI 250) took them from the display bus
+#   (setup_priority BUS 1000) after the panel had already been initialised.
+#   CS-line arbitration only works among devices on ONE controller.
+#
+# The fix is to put both devices on that ONE controller — `interface: spi2`,
+# the same host the ethernet component uses — where CS=21 (display) and CS=10
+# (W5500) genuinely do arbitrate, exactly as LilyGO's own Arduino code does.
+# ESP-IDF serialises the two: the display's delegate takes the bus lock per
+# transaction, so W5500 traffic interleaves between display writes.
+#
+# That requires the local fork of the `ethernet` component included below —
+# upstream ESPHome refuses to share (its docs state SPI ethernet "can't be
+# shared with other devices") and its validator rejects a matching interface.
+# See ADR-0016 and libs/esphome_overrides/ethernet/.
+#
+# `allow_other_uses` (gated on `shared_spi_pins`) is still required whenever
+# Ethernet is also enabled, because two config blocks legitimately name the same
+# pads; on a WiFi-only build the display owns them outright and the flag stays
+# false. Verified on hardware 2026-07-25: Ethernet and the panel both live,
+# including under a 30 fps full-screen redraw stress test.
 # =============================================================================
+
+# Local fork of the core `ethernet` component, which is what makes the shared
+# bus above legal. Lives here rather than in t-connect-pro-ethernet.yaml so that
+# screen-less Ethernet builds keep the stock upstream component — only builds
+# that actually create the sharing take on the fork. External components are
+# inserted at sys.meta_path position 0, so this shadows the built-in. The path
+# resolves against the CLI-invoked file's directory, hence the substitution
+# (same convention as boards/s1-pro-multi-sense.yaml's s1_pro_libs_path).
+external_components:
+  - source:
+      type: local
+      path: ${esphome_overrides_path}
+    components: [ethernet]
 
 spi:
   - id: display_spi
-    interface: spi3
+    # spi2, NOT spi3: the same controller the W5500 uses. This is the whole
+    # point — see the header. It is also the better choice on a WiFi-only build,
+    # since GPIO11/12/13 are spi2's native IO_MUX pads (direct routing, no
+    # GPIO matrix).
+    interface: spi2
     clk_pin:
       number: GPIO12
-      allow_other_uses: true
+      allow_other_uses: ${shared_spi_pins}
     mosi_pin:
       number: GPIO11
-      allow_other_uses: true
+      allow_other_uses: ${shared_spi_pins}
     miso_pin:
       number: GPIO13
-      allow_other_uses: true
+      allow_other_uses: ${shared_spi_pins}
 
 # Backlight — ADR-0014 §5 notes it powers up held off; drive it on via LEDC so
 # brightness is also adjustable from HA.
 output:
   - platform: ledc
-    pin: GPIO46
+    # GPIO46 is an ESP32-S3 strapping pin, but on the T-Connect Pro it is the
+    # panel backlight by board design (LilyGO pin_config.h SCREEN_BL=46), so the
+    # strapping warning is expected — acknowledge it.
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
     id: backlight_output
 
 light:
@@ -48,31 +96,55 @@ light:
     restore_mode: ALWAYS_ON
 
 display:
-  - platform: ili9xxx
+  - platform: mipi_spi
     model: ST7796
     id: panel_display
     spi_id: display_spi
     cs_pin: GPIO21
     dc_pin: GPIO41
-    # Panel RST is tied on the module (pin_config RST = -1) — no reset_pin.
+    # No reset_pin: this panel's reset is tied on the module (pin_config
+    # SCREEN_RST = -1), so mipi_spi issues a software reset (SWRESET) in the init
+    # sequence instead of pulsing a GPIO. (This is also why the mipi_spi
+    # T-DISPLAY-S3-PRO model — same panel, different LilyGO board — can't be used
+    # here: it hardcodes reset_pin=47, which is our TOUCH reset, and mipi_spi
+    # offers no way to disable an inherited model reset pin.)
     #
-    # BRING-UP CALIBRATION — the 222-wide panel is a window into the ST7796's
-    # 320-wide GRAM, so it needs a column offset plus landscape rotation. These
-    # are starting values; confirm against LilyGO's Arduino_GFX new_ST7796 init
-    # (examples/Original_Test) and tune on the physical panel:
+    # dimensions: are the LOGICAL landscape size (480x222), not the panel's
+    # native 222x480 portrait. Two things force declaring them explicitly:
+    #   1. LVGL rejects a display `rotation:`, so landscape must come from
+    #      `transform: swap_xy` below (not rotation).
+    #   2. mipi_spi makes `dimensions:` a required field whenever
+    #      `transform: swap_xy` is set (display.py model_schema).
+    # Geometry: the base ST7796 model's native GRAM is 320x480. With swap_xy,
+    # mipi_spi swaps that to 480x320, then our offset_height=49 seats the
+    # 222-tall visible window in that 320 native height (mipi_spi auto-computes
+    # the matching 49px trailing pad), i.e. (320-222)/2 = 49 centering. Columns
+    # span the full 480. HARDWARE-VERIFIED 2026-07-26: the image is correctly
+    # seated — neither shifted nor clipped — so the 49px centering is right.
     dimensions:
-      width: 222
-      height: 480
-      offset_width: 49    # (320-222)/2 — verify on hardware
-      offset_height: 0
-    # LVGL rejects the display's `rotation:`; get landscape via transform (applied
-    # at flush level, LVGL-compatible). swap_xy -> 480x222; mirror is orientation
-    # calibration, tune with the touch transform on the physical panel.
+      width: 480
+      height: 222
+      offset_width: 0
+      offset_height: 49    # (320-222)/2 GRAM centering — verified on hardware
+    # Landscape via transform (swap_xy). HARDWARE-VERIFIED 2026-07-26: text reads
+    # correctly and is not mirrored, so these values are right for mipi_spi (they
+    # were originally carried over from the old ili9xxx driver, which computes
+    # MADCTL differently, and the base ST7796 model's own mirror_x=True default
+    # is overridden by this explicit block — both were open questions, both
+    # settled).
+    #
+    # NOTE the touch transform below does NOT match this one. That is not a bug:
+    # the CST226SE and the ST7796 have different native coordinate systems, as
+    # the corner-tap test proved. See its comment.
     transform:
       swap_xy: true
-      mirror_x: true
+      mirror_x: false
       mirror_y: false
-    invert_colors: true   # typical for these IPS panels; verify on hardware
+    # Typical for these IPS panels. HARDWARE-VERIFIED 2026-07-26: the UI renders
+    # light-on-dark as designed (near-black background, near-white text); a wrong
+    # setting inverts that to a white background with pastel complements, which
+    # is unmistakable.
+    invert_colors: true
     auto_clear_enabled: false
     update_interval: never   # LVGL owns flushing
 
@@ -80,6 +152,32 @@ touchscreen:
   - platform: cst226
     id: panel_touch
     i2c_id: i2cbus            # shared bus from boards/t-connect-pro.yaml (SDA39/SCL40)
-    interrupt_pin: GPIO3
+    # The CST226 INT line idles high and pulses low on touch; ESPHome's cst226
+    # driver attaches a FALLING-edge interrupt but applies no pull-up, so a
+    # floating GPIO3 never sees a clean edge and the interrupt never fires —
+    # touch stays completely dead while the panel otherwise works. LilyGO's own
+    # driver sets INPUT_PULLUP before attachInterrupt(FALLING) (Arduino_DriveBus
+    # Arduino_IIC.cpp), so mirror that with an internal pull-up here.
+    interrupt_pin:
+      number: GPIO3
+      mode:
+        input: true
+        pullup: true
+      # GPIO3 is an ESP32-S3 strapping pin, but on the T-Connect Pro it is the
+      # touch INT line by board design (LilyGO pin_config.h TOUCH_INT=3) and the
+      # pull-up above is required for the interrupt to fire, so the strapping
+      # warning is expected — acknowledge it.
+      ignore_strapping_warning: true
     reset_pin: GPIO47
-    # transform (mirror/swap) is calibrated with the display rotation at bring-up
+    # Maps touch onto the same 480x222 landscape space the UI is laid out in.
+    # HARDWARE-VERIFIED 2026-07-25 (corner-tap test, devices/locals/
+    # t-connect-pro-debug-panel.yaml): the CST226SE and ST7796 do NOT share a
+    # native coordinate system — mirroring the display's transform verbatim put
+    # touch a full 180° out (a tap top-left registered bottom-right). Both axes
+    # needed reversing, hence both mirror flags inverted relative to the
+    # display's. swap_xy is unchanged: a point reflection commutes with the
+    # transpose, so only the mirrors carry the correction.
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true

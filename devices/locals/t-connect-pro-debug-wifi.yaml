@@ -1,0 +1,50 @@
+# =============================================================================
+# Bring-up / regression firmware — WiFi + display (the CONTROL case)
+# =============================================================================
+# Identical to t-connect-pro-debug.yaml in every respect except the network:
+# WiFi touches none of GPIO12/11/13, so the display's SPI3 bus owns those pads
+# outright and nothing steals them after setup.
+#
+# This is the discriminating test for the "random pixels" symptom:
+#
+#   Panel renders correctly here  -> confirms the Ethernet/display SPI pad
+#                                    contention documented in the sibling file;
+#                                    the panel and its config are fine.
+#   Panel still shows noise here  -> the contention is NOT the (only) cause;
+#                                    suspect the panel config itself — most
+#                                    likely candidates are the mipi_spi geometry
+#                                    (offset_height 49), invert_colors, or the
+#                                    missing reset line, none of which have ever
+#                                    been verified on hardware.
+#
+# Note `shared_spi_pins: "false"`: with Ethernet gone nothing else claims those
+# pads, and ESPHome rejects a lone allow_other_uses when no second consumer
+# exists.
+#
+# TRACKED HARNESS — do not delete. CLAUDE.md's ESPHome-upgrade procedure and
+# ADR-0016's verification section both reference these builds: they are how you
+# re-prove the libs/esphome_overrides/ethernet fork after an upstream bump.
+# =============================================================================
+
+substitutions:
+  debug_name: t-connect-pro-debug-wifi
+  display_spi_interface: spi3
+  # Display owns GPIO12/11/13 alone here — no co-claim, so no allow_other_uses.
+  shared_spi_pins: "false"
+
+packages:
+  panel: !include t-connect-pro-debug-panel.yaml
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "T-Connect Debug"
+
+captive_portal:
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      id: dbg_ip
+      name: "IP Address"

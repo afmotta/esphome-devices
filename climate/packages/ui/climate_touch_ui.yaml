@@ -37,6 +37,22 @@ lvgl:
   buffer_size: 25%
   bg_color: 0x101418
   text_color: 0xEAEAEA
+  # Idle sleep. The panel lives behind an enclosure door in the technical room
+  # and is used for commissioning, debugging, and a seasonal mode change a few
+  # times a year — so its steady state is "nobody is looking at it". After 5
+  # minutes untouched, blank the backlight and pause LVGL: a paused LVGL renders
+  # nothing, which takes this display's share of the SPI bus it now co-owns with
+  # the W5500 (see boards/t-connect-pro-display.yaml) to exactly zero, and saves
+  # the panel from years of pointless duty.
+  #
+  # Waking is safe: Touchscreen::loop() fires its own on_touch trigger
+  # (touchscreen.cpp:139) before notifying LVGL's listener, so the handler below
+  # still runs while LVGL is paused. The screen cannot get stuck dark.
+  on_idle:
+    timeout: 5min
+    then:
+      - lvgl.pause:
+      - light.turn_off: display_backlight
   widgets:
     - tabview:
         id: main_tabs
@@ -497,6 +513,16 @@ script:
       - lvgl.label.update: { id: ui_z_lavanderia,      text: !lambda 'return climate_ui::fmt_zone("Lavanderia", id(lavanderia_temp_abstracted).state, id(lavanderia_radiant_pid_is_heating).state, id(lavanderia_radiant_pid_is_cooling).state);' }
       # ---- Zone rows (second) ----
       - lvgl.label.update: { id: ui_z_sottotetto,      text: !lambda 'return climate_ui::fmt_zone("Sottotetto", id(sottotetto_temp_abstracted).state, id(sottotetto_fancoil_pid_is_heating).state, id(sottotetto_fancoil_pid_is_cooling).state);' }
+
+# Wake on touch: restore the backlight and resume rendering, then repaint
+# immediately so the first thing shown is current rather than 5-minutes stale.
+# The touch that wakes the panel is deliberately not passed through to a widget.
+touchscreen:
+  - id: !extend panel_touch
+    on_touch:
+      - light.turn_on: display_backlight
+      - lvgl.resume:
+      - script.execute: refresh_touch_ui
 
 interval:
   - interval: 2s

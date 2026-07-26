@@ -40,6 +40,10 @@ substitutions:
   # ${friendly_name} actually resolve.
   device_name: light-controller
   friendly_name: "Lighting Controller"
+  # Direct-compile default (this controller has no locals/remotes wrapper, by
+  # design). Forwarded rather than hardcoded so devices/light-controller-touch.yaml
+  # can override it to "false" (WiFi) via its own top-level substitutions:.
+  enable_ethernet: true
 
 packages:
   # Board first: provides modbus_uart (consumed by the relays package below)
@@ -47,7 +51,7 @@ packages:
   base: !include
     file: ../boards/t-connect-pro.yaml
     vars:
-      enable_ethernet: true
+      enable_ethernet: ${enable_ethernet}
   # Lighting: decodes CAT_INPUT button frames off can0 (defined in this entry
   # point below), fires HA events, owns the ha_ready gate + single-click fallback.
   buttons: !include ../lighting/packages/buttons.yaml
