@@ -1,0 +1,67 @@
+# =============================================================================
+# Fragment: one button-event row on the Buttons tab of the lighting touch UI
+# =============================================================================
+# Included as a single item of the Buttons tab's `widgets:` list:
+#
+#   - !include {file: button_row.yaml, vars: {row_index: "0"}}
+#
+# Four columns rather than one printf-padded string, for the same reason the
+# climate panel's zone rows are four columns: the panel font (Montserrat) is
+# proportional, so "%-16s" padding never actually lines anything up — "Cucina"
+# and "Camera Padronale" push their gesture to different x positions. Fixed-width
+# right-aligned columns do line up, and a column of gestures is what you scan
+# when checking that a wall button decodes the way you expect.
+#
+#   node name (grows) | btnN | gesture | age
+#
+# Row 0 is the newest press and is the only row that takes the selected-row
+# highlight — nothing here is tappable (there is no per-event action to take),
+# so the highlight is purely "this is the one that just happened".
+#
+# Values are written by the matching button_refresh.yaml script; a row past the
+# end of the log renders blank rather than stale.
+#
+# Required vars:
+#   row_index  - 0-based position in the newest-first log (0..BUTTON_LOG_MAX-1)
+# =============================================================================
+obj:
+  id: ui_brow_${row_index}
+  width: 100%
+  height: 18
+  pad_all: 0
+  pad_left: 3
+  pad_right: 3
+  border_width: 0
+  radius: 3
+  bg_opa: TRANSP
+  clickable: false
+  checked:
+    bg_color: 0x1F252E
+    bg_opa: COVER
+  layout:
+    type: flex
+    flex_flow: ROW
+    flex_align_cross: CENTER
+    pad_column: 4
+  widgets:
+    - label:
+        id: ui_bname_${row_index}
+        flex_grow: 1
+        text: ""
+    - label:
+        id: ui_bbtn_${row_index}
+        width: 40
+        text_align: RIGHT
+        text_color: 0x8B949E
+        text: ""
+    - label:
+        id: ui_bgest_${row_index}
+        width: 44
+        text_align: RIGHT
+        text: ""
+    - label:
+        id: ui_bage_${row_index}
+        width: 46
+        text_align: RIGHT
+        text_color: 0x8B949E
+        text: ""

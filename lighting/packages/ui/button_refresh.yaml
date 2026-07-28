@@ -1,0 +1,65 @@
+# =============================================================================
+# Fragment: the refresh script for one button-event row of the lighting touch UI
+# =============================================================================
+# Included as a single item of the top-level `script:` list, paired one-to-one
+# with a button_row.yaml include:
+#
+#   - !include {file: button_refresh.yaml, vars: {row_index: "0"}}
+#
+# A script (rather than actions written inline in refresh_light_ui) for the same
+# reason the climate panel's zone rows use one: eight rows x five widget updates
+# is 40 actions, and hand-writing them is how the row indices drift apart.
+#
+# Colours are chosen here rather than in touch_ui_format.h so that header stays
+# free of LVGL types. They are the palette from packages/ui/dark_theme.yaml:
+#   text 0xE6EDF3 · muted 0x8B949E · ok 0x3FB950 (a press within the last 5s,
+#   i.e. the one you just made) · warn 0xE0A24F (hold — the gesture that starts
+#   a dimmer ramp rather than a discrete action)
+#
+# Required vars:
+#   row_index  - 0-based position in the newest-first log
+# =============================================================================
+id: ui_refresh_brow_${row_index}
+then:
+  - lvgl.label.update:
+      id: ui_bname_${row_index}
+      text: !lambda |-
+        const auto *e = light_ui::button_log_at(${row_index});
+        if (e == nullptr) return std::string("");
+        return std::string(node_map_name(e->node_id));
+  - lvgl.label.update:
+      id: ui_bbtn_${row_index}
+      text: !lambda |-
+        const auto *e = light_ui::button_log_at(${row_index});
+        if (e == nullptr) return std::string("");
+        return light_ui::fmt_button_col(e->button);
+  - lvgl.label.update:
+      id: ui_bgest_${row_index}
+      text: !lambda |-
+        const auto *e = light_ui::button_log_at(${row_index});
+        if (e == nullptr) return std::string("");
+        return light_ui::gesture_short(e->event);
+      text_color: !lambda |-
+        const auto *e = light_ui::button_log_at(${row_index});
+        if (e == nullptr) return lv_color_hex(0x8B949E);
+        if (e->event == "hold") return lv_color_hex(0xE0A24F);
+        if (e->event == "hold_release") return lv_color_hex(0x8B949E);
+        return lv_color_hex(0xE6EDF3);
+  # Age is what makes a stale feed obvious: a screen full of events that all say
+  # "4m" means nothing has been pressed since, not that the decode broke.
+  - lvgl.label.update:
+      id: ui_bage_${row_index}
+      text: !lambda |-
+        const auto *e = light_ui::button_log_at(${row_index});
+        if (e == nullptr) return std::string("");
+        return light_ui::fmt_age((millis() - e->ms) / 1000);
+      text_color: !lambda |-
+        const auto *e = light_ui::button_log_at(${row_index});
+        if (e == nullptr) return lv_color_hex(0x8B949E);
+        return (millis() - e->ms) < 5000 ? lv_color_hex(0x3FB950)
+                                         : lv_color_hex(0x8B949E);
+  # Highlight the newest press, and only once there is one to highlight.
+  - lvgl.widget.update:
+      id: ui_brow_${row_index}
+      state:
+        checked: !lambda 'return ${row_index} == 0 && light_ui::button_log_at(0) != nullptr;'

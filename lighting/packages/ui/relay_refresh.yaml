@@ -1,0 +1,22 @@
+# =============================================================================
+# Fragment: the refresh action for one relay cell of the lighting touch UI
+# =============================================================================
+# Included as a single action of refresh_light_ui, paired one-to-one with a
+# relay_cell.yaml include:
+#
+#   - !include {file: relay_refresh.yaml, vars: {relay_index: "0"}}
+#
+# One action, so unlike the climate panel's zone rows this needs no per-cell
+# script — `checked` does all the work (see relay_cell.yaml).
+#
+# Driven from the switch, never from the tap: a coil the Modbus write never
+# reached, or one changed from Home Assistant, corrects itself on the next
+# refresh instead of the panel showing what it wishes had happened.
+#
+# Required vars:
+#   relay_index  - 0-based relay id, 0-31
+# =============================================================================
+lvgl.widget.update:
+  id: ui_relay_${relay_index}
+  state:
+    checked: !lambda 'return id(relay_${relay_index}).state;'

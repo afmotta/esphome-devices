@@ -2,11 +2,9 @@
 #
 # Identical to devices/light-controller.yaml (button events + relay bank) plus
 # the two additive display packages: the shared display hardware and the
-# lighting commissioning/diagnostics UI. Runs WiFi instead of Ethernet
-# (enable_ethernet: false below), so the display has GPIO12/11/13 (spi3) to
-# itself — no pin sharing with the W5500 needed here (contrast the Ethernet+
-# display combo in devices/locals/climate-control-touch.yaml, which does need
-# shared_spi_pins: "true").
+# lighting commissioning/diagnostics UI. It keeps light-controller.yaml's
+# Ethernet, with the display sharing the W5500's SPI controller — see the
+# CHANGED note below and boards/t-connect-pro-display.yaml.
 #
 # Lives in devices/ (not devices/locals/) alongside its base entry point:
 # light-controller.yaml is compiled directly (no locals/remotes wrapper, by

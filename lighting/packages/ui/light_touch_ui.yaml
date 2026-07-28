@@ -7,36 +7,53 @@
 # devices/light-controller-touch.yaml (which sets shared_spi_pins: "true").
 # The plain devices/light-controller.yaml build (no screen) is unaffected.
 #
-# Layout: a 3-tab tabview on the 480x222 landscape panel.
-#   Status  — HA authority (ha_ready), fallback-event counter, manifest hash,
-#             and a one-line last-button summary
+# THE PANEL IS SMALL — the same 480x222 on 2.33" (about 54 x 25 mm) as the
+# climate panel, and every layout decision below is the same consequence:
+# two-character gesture labels, 18px rows, and a persistent 18px status strip
+# instead of a fourth tab. It is a commissioning panel behind an enclosure door,
+# not something anyone operates daily.
+#
+# STRUCTURE MIRRORS THE CLIMATE PANEL deliberately. Both run on identical
+# hardware, both are read by the same person doing the same kind of work, and
+# the two drifting apart into different idioms is the failure this shape avoids:
+# shared theme package, one read-only glance tab, aligned four-column rows for
+# the repeated element, semantic colour, and one status strip pinned across
+# every tab. Only the subject matter differs.
+#
+# Layout: a 3-tab tabview, plus a status strip pinned across every tab.
+#   Home    — read-only glance page: HA authority, manifest agreement, relay
+#             tally, fallback counter, newest button press. Nothing here writes.
 #   Relays  — 32-cell grid of relay_0..relay_31; tap a cell to toggle that coil
 #             (commissioning: pulse a relay to learn which circuit it drives),
 #             plus an ALL OFF reset
-#   Buttons — live last-button feed (node name + button + gesture + age),
-#             fed by this package's own capture-only can0 tap below
+#   Buttons — the last 8 decoded presses as aligned rows (node | btn | gesture |
+#             age), fed by this package's own capture-only can0 tap below
+#   strip   — always-visible health summary + a pulsing liveness dot
 #
-# Monitoring is the point, so values are read-only and rebuilt by a single 2 s
-# `interval:` script (matches the relay Modbus poll cadence). The only writes are
-# the relay-cell taps and ALL OFF. All bound ids come from packages already in
-# devices/light-controller.yaml:
+# Values are refreshed by a single 2 s `interval:` script (matches the relay
+# Modbus poll cadence), skipped entirely while LVGL is paused — which is the
+# panel's steady state. The only writes are the relay-cell taps and ALL OFF.
+#
+# All bound ids come from packages already in devices/light-controller.yaml:
 #   binary_sensor.ha_ready_sensor, sensor.fallback_events_sensor +
-#     global fallback_events, text_sensor.binding_manifest_hash (buttons.yaml)
-#   switch.relay_0 .. relay_31 (relay_bank.yaml)
+#     globals fallback_events / ha_hash_ok / ha_hb_seen,
+#     text_sensor.binding_manifest_hash (buttons.yaml)
+#   switch.relay_0 .. relay_31 + relay_store() (relay_bank.yaml/relay_channel.yaml)
 # Button decode + node_map_name() come from the canbus headers the entry point
 # already includes (canbus_protocol.h / node_map.h).
 # =============================================================================
 
-# Button/relay formatter (light_ui::*). Path is relative to the CLI-invoked
-# file's dir (devices/…), matching light-controller.yaml's own includes.
+# Button formatters and the event log (light_ui::*). Path is relative to the
+# CLI-invoked file's dir (devices/…), matching light-controller.yaml's own
+# includes.
 esphome:
   includes:
     - ../lighting/packages/ui/touch_ui_format.h
 
-# Capture-only tap into can0 for the last-button feed. buttons.yaml owns the real
-# CAT_INPUT decode/forward/fallback; this second on_frame only records the most
-# recent press for display (leaves buttons.yaml untouched). Guard in the
-# `condition:` so the action lambda stays a clean record-only write.
+# Capture-only tap into can0 for the Buttons feed. buttons.yaml owns the real
+# CAT_INPUT decode/forward/fallback; this second on_frame only records the press
+# for display (leaves buttons.yaml untouched). Guard in the `condition:` so the
+# action lambda stays a clean record-only write.
 canbus:
   - id: !extend can0
     on_frame:
@@ -49,29 +66,10 @@ canbus:
                 lambda: 'if (x.size() < BUTTON_PAYLOAD_MIN) return false; return x[0] == PROTO_V1 && payload_type(x) == MSG_BUTTON_EVENT;'
               then:
                 - lambda: |-
-                    id(g_btn_node) = can_id_node(can_id);
-                    id(g_btn_index) = payload_button_index(x);
-                    id(g_btn_event_str) = event_type_str(payload_event_type(x));
-                    id(g_btn_ms) = millis();
-                    id(g_btn_seen) = true;
-
-# Last-button feed state (display-only; distinct from buttons.yaml's arbitration globals).
-globals:
-  - id: g_btn_seen
-    type: bool
-    initial_value: 'false'
-  - id: g_btn_node
-    type: uint32_t
-    initial_value: '0'
-  - id: g_btn_index
-    type: uint32_t
-    initial_value: '0'
-  - id: g_btn_event_str
-    type: std::string
-    initial_value: '""'
-  - id: g_btn_ms
-    type: uint32_t
-    initial_value: '0'
+                    light_ui::button_log_push(can_id_node(can_id),
+                                              payload_button_index(x),
+                                              event_type_str(payload_event_type(x)),
+                                              millis());
 
 # Colours, and the LVGL default-theme override that makes the tabview dark —
 # shared with the climate panel so the two screens on identical hardware cannot
@@ -96,6 +94,69 @@ lvgl:
     then:
       - lvgl.pause:
       - light.turn_off: display_backlight
+
+  # ---------------------------------------------------------------------------
+  # Status strip — pinned across every tab (mirrors the climate panel's).
+  # ---------------------------------------------------------------------------
+  # Two things that must never depend on which tab happens to be open:
+  #
+  #   Faults. A binding-manifest mismatch means the compiled fallback bindings
+  #   and Home Assistant's bindings.yaml disagree, so a press during an HA
+  #   outage may drive the wrong circuit (ADR-0009 §6) — that is the one state
+  #   here worth red. HA-not-ready is amber: degraded, but it is the state the
+  #   fallback path was designed for.
+  #
+  #   Liveness. The panel's real failure mode is showing STALE values — a frozen
+  #   refresh, a wedged LVGL, a dead link — and a stale screen is
+  #   indistinguishable from a quiet house. The dot pulses once per refresh, so
+  #   a dot that stops moving means the values stopped meaning anything. Its
+  #   colour carries the API link: green connected, amber not.
+  #
+  # It lives on the top layer so it survives tab switches; each tab reserves
+  # 18px of bottom padding so nothing is ever hidden underneath it. Neither the
+  # layer nor the strip takes touches — taps fall through to the widgets below.
+  top_layer:
+    bg_opa: TRANSP
+    clickable: false
+    widgets:
+      - obj:
+          id: ui_strip
+          align: BOTTOM_MID
+          width: 100%
+          height: 18
+          pad_all: 0
+          pad_left: 4
+          pad_right: 4
+          radius: 0
+          border_width: 1
+          border_side: TOP
+          border_color: 0x272E36
+          bg_color: 0x161B22
+          bg_opa: COVER
+          clickable: false
+          layout:
+            type: flex
+            flex_flow: ROW
+            flex_align_cross: CENTER
+            pad_column: 4
+          widgets:
+            - label:
+                id: ui_strip_text
+                flex_grow: 1
+                text_color: 0x8B949E
+                # Plain ASCII: the built-in Montserrat glyph set is essentially
+                # ASCII, so anything typographic here risks a placeholder box.
+                text: "starting"
+            - obj:
+                id: ui_live_dot
+                width: 8
+                height: 8
+                radius: 4
+                border_width: 0
+                bg_color: 0x30363D
+                bg_opa: COVER
+                clickable: false
+
   widgets:
     - tabview:
         id: main_tabs
@@ -128,196 +189,319 @@ lvgl:
           border_width: 0
           radius: 0
         tabs:
-          # -------------------------------------------------------------- Status
-          - name: "Status"
-            id: tab_status
+          # ---------------------------------------------------------------- Home
+          # READ-ONLY BY CONSTRUCTION: nothing on this tab writes anything, so
+          # no tap on the screen you land on can pulse a circuit in the house.
+          # Was "Status", and was a stack of default-size labels; it is now the
+          # same glance page the climate panel opens on, set in larger type
+          # because on a screen 25 mm tall legibility is worth more than density.
+          #
+          # Line widths are checked against the full 474px: the longest,
+          # "Fallback  0 events (0 today)" at montserrat_20, is about 300px.
+          - name: "Home"
+            id: tab_home
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 3
+            pad_bottom: 18
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              pad_row: 2
             widgets:
-              - obj:
-                  width: 100%
-                  height: 100%
-                  pad_all: 4
-                  border_width: 0
-                  bg_opa: TRANSP
-                  layout:
-                    type: flex
-                    flex_flow: COLUMN
-                  widgets:
-                    - label:
-                        id: ui_ha_ready
-                        text: "HA Ready: --"
-                    - label:
-                        id: ui_fallback
-                        text: "Fallback events: --"
-                    - label:
-                        id: ui_manifest
-                        text_color: 0x8B949E
-                        text: "Manifest: --"
-                    - label:
-                        id: ui_last_btn
-                        text_color: 0x8B949E
-                        text: "Last button: --"
+              # Who is driving the lights — the one thing worth reading from
+              # across the room, so it gets the largest type here. "FALLBACK"
+              # is the longest option at ~140px in a 474px column.
+              - label:
+                  id: ui_ha_head
+                  text_font: montserrat_28
+                  text: "--"
+              # The manifest line sits directly under the headline because the
+              # two are read together: "FALLBACK" is fine, "FALLBACK" with a
+              # mismatched manifest means the fallback may drive wrong circuits.
+              - label:
+                  id: ui_manifest
+                  text_color: 0x8B949E
+                  text: "Manifest --"
+              - label:
+                  id: ui_relays
+                  text_font: montserrat_20
+                  text: "Relays --"
+              - label:
+                  id: ui_fallback
+                  text_font: montserrat_20
+                  text: "Fallback --"
+              - label:
+                  id: ui_last_btn
+                  text_font: montserrat_20
+                  text_color: 0x8B949E
+                  text: "Last --"
           # -------------------------------------------------------------- Relays
+          # Eight cells across, four rows: 8 x 56 + 7 x 2 = 462 of the 472px
+          # usable width, and 4 x 32 + 3 x 2 = 134 of the 174px between the tab
+          # bar and the status strip, leaving room for ALL OFF beneath.
+          #
+          # A cell's fill is its coil state (checked = on, see relay_cell.yaml),
+          # which is the whole readout: 32 numbers where the lit ones are the
+          # circuits currently energised.
           - name: "Relays"
             id: tab_relays
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 2
+            pad_bottom: 18
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              pad_row: 2
             widgets:
               - obj:
                   width: 100%
-                  height: 100%
-                  pad_all: 2
+                  flex_grow: 1
+                  pad_all: 0
                   border_width: 0
                   bg_opa: TRANSP
                   layout:
                     type: flex
-                    flex_flow: COLUMN
+                    flex_flow: ROW_WRAP
+                    pad_row: 2
+                    pad_column: 2
                   widgets:
-                    - obj:
-                        width: 100%
-                        flex_grow: 1
-                        pad_all: 2
-                        border_width: 0
-                        bg_opa: TRANSP
-                        layout:
-                          type: flex
-                          flex_flow: ROW_WRAP
-                        widgets:
-                          - button: {id: relay_cell_0,  width: 54, height: 32, widgets: [{label: {text: "00", align: CENTER}}], on_click: [{switch.toggle: relay_0}]}
-                          - button: {id: relay_cell_1,  width: 54, height: 32, widgets: [{label: {text: "01", align: CENTER}}], on_click: [{switch.toggle: relay_1}]}
-                          - button: {id: relay_cell_2,  width: 54, height: 32, widgets: [{label: {text: "02", align: CENTER}}], on_click: [{switch.toggle: relay_2}]}
-                          - button: {id: relay_cell_3,  width: 54, height: 32, widgets: [{label: {text: "03", align: CENTER}}], on_click: [{switch.toggle: relay_3}]}
-                          - button: {id: relay_cell_4,  width: 54, height: 32, widgets: [{label: {text: "04", align: CENTER}}], on_click: [{switch.toggle: relay_4}]}
-                          - button: {id: relay_cell_5,  width: 54, height: 32, widgets: [{label: {text: "05", align: CENTER}}], on_click: [{switch.toggle: relay_5}]}
-                          - button: {id: relay_cell_6,  width: 54, height: 32, widgets: [{label: {text: "06", align: CENTER}}], on_click: [{switch.toggle: relay_6}]}
-                          - button: {id: relay_cell_7,  width: 54, height: 32, widgets: [{label: {text: "07", align: CENTER}}], on_click: [{switch.toggle: relay_7}]}
-                          - button: {id: relay_cell_8,  width: 54, height: 32, widgets: [{label: {text: "08", align: CENTER}}], on_click: [{switch.toggle: relay_8}]}
-                          - button: {id: relay_cell_9,  width: 54, height: 32, widgets: [{label: {text: "09", align: CENTER}}], on_click: [{switch.toggle: relay_9}]}
-                          - button: {id: relay_cell_10, width: 54, height: 32, widgets: [{label: {text: "10", align: CENTER}}], on_click: [{switch.toggle: relay_10}]}
-                          - button: {id: relay_cell_11, width: 54, height: 32, widgets: [{label: {text: "11", align: CENTER}}], on_click: [{switch.toggle: relay_11}]}
-                          - button: {id: relay_cell_12, width: 54, height: 32, widgets: [{label: {text: "12", align: CENTER}}], on_click: [{switch.toggle: relay_12}]}
-                          - button: {id: relay_cell_13, width: 54, height: 32, widgets: [{label: {text: "13", align: CENTER}}], on_click: [{switch.toggle: relay_13}]}
-                          - button: {id: relay_cell_14, width: 54, height: 32, widgets: [{label: {text: "14", align: CENTER}}], on_click: [{switch.toggle: relay_14}]}
-                          - button: {id: relay_cell_15, width: 54, height: 32, widgets: [{label: {text: "15", align: CENTER}}], on_click: [{switch.toggle: relay_15}]}
-                          - button: {id: relay_cell_16, width: 54, height: 32, widgets: [{label: {text: "16", align: CENTER}}], on_click: [{switch.toggle: relay_16}]}
-                          - button: {id: relay_cell_17, width: 54, height: 32, widgets: [{label: {text: "17", align: CENTER}}], on_click: [{switch.toggle: relay_17}]}
-                          - button: {id: relay_cell_18, width: 54, height: 32, widgets: [{label: {text: "18", align: CENTER}}], on_click: [{switch.toggle: relay_18}]}
-                          - button: {id: relay_cell_19, width: 54, height: 32, widgets: [{label: {text: "19", align: CENTER}}], on_click: [{switch.toggle: relay_19}]}
-                          - button: {id: relay_cell_20, width: 54, height: 32, widgets: [{label: {text: "20", align: CENTER}}], on_click: [{switch.toggle: relay_20}]}
-                          - button: {id: relay_cell_21, width: 54, height: 32, widgets: [{label: {text: "21", align: CENTER}}], on_click: [{switch.toggle: relay_21}]}
-                          - button: {id: relay_cell_22, width: 54, height: 32, widgets: [{label: {text: "22", align: CENTER}}], on_click: [{switch.toggle: relay_22}]}
-                          - button: {id: relay_cell_23, width: 54, height: 32, widgets: [{label: {text: "23", align: CENTER}}], on_click: [{switch.toggle: relay_23}]}
-                          - button: {id: relay_cell_24, width: 54, height: 32, widgets: [{label: {text: "24", align: CENTER}}], on_click: [{switch.toggle: relay_24}]}
-                          - button: {id: relay_cell_25, width: 54, height: 32, widgets: [{label: {text: "25", align: CENTER}}], on_click: [{switch.toggle: relay_25}]}
-                          - button: {id: relay_cell_26, width: 54, height: 32, widgets: [{label: {text: "26", align: CENTER}}], on_click: [{switch.toggle: relay_26}]}
-                          - button: {id: relay_cell_27, width: 54, height: 32, widgets: [{label: {text: "27", align: CENTER}}], on_click: [{switch.toggle: relay_27}]}
-                          - button: {id: relay_cell_28, width: 54, height: 32, widgets: [{label: {text: "28", align: CENTER}}], on_click: [{switch.toggle: relay_28}]}
-                          - button: {id: relay_cell_29, width: 54, height: 32, widgets: [{label: {text: "29", align: CENTER}}], on_click: [{switch.toggle: relay_29}]}
-                          - button: {id: relay_cell_30, width: 54, height: 32, widgets: [{label: {text: "30", align: CENTER}}], on_click: [{switch.toggle: relay_30}]}
-                          - button: {id: relay_cell_31, width: 54, height: 32, widgets: [{label: {text: "31", align: CENTER}}], on_click: [{switch.toggle: relay_31}]}
-                    - button:
-                        id: btn_all_off
-                        width: 100%
-                        height: 26
-                        widgets:
-                          - label:
-                              align: CENTER
-                              text: "ALL OFF"
-                        on_click:
-                          - lambda: |-
-                              id(relay_0).turn_off();  id(relay_1).turn_off();  id(relay_2).turn_off();  id(relay_3).turn_off();
-                              id(relay_4).turn_off();  id(relay_5).turn_off();  id(relay_6).turn_off();  id(relay_7).turn_off();
-                              id(relay_8).turn_off();  id(relay_9).turn_off();  id(relay_10).turn_off(); id(relay_11).turn_off();
-                              id(relay_12).turn_off(); id(relay_13).turn_off(); id(relay_14).turn_off(); id(relay_15).turn_off();
-                              id(relay_16).turn_off(); id(relay_17).turn_off(); id(relay_18).turn_off(); id(relay_19).turn_off();
-                              id(relay_20).turn_off(); id(relay_21).turn_off(); id(relay_22).turn_off(); id(relay_23).turn_off();
-                              id(relay_24).turn_off(); id(relay_25).turn_off(); id(relay_26).turn_off(); id(relay_27).turn_off();
-                              id(relay_28).turn_off(); id(relay_29).turn_off(); id(relay_30).turn_off(); id(relay_31).turn_off();
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "0",  relay_label: "00"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "1",  relay_label: "01"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "2",  relay_label: "02"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "3",  relay_label: "03"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "4",  relay_label: "04"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "5",  relay_label: "05"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "6",  relay_label: "06"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "7",  relay_label: "07"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "8",  relay_label: "08"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "9",  relay_label: "09"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "10", relay_label: "10"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "11", relay_label: "11"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "12", relay_label: "12"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "13", relay_label: "13"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "14", relay_label: "14"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "15", relay_label: "15"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "16", relay_label: "16"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "17", relay_label: "17"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "18", relay_label: "18"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "19", relay_label: "19"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "20", relay_label: "20"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "21", relay_label: "21"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "22", relay_label: "22"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "23", relay_label: "23"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "24", relay_label: "24"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "25", relay_label: "25"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "26", relay_label: "26"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "27", relay_label: "27"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "28", relay_label: "28"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "29", relay_label: "29"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "30", relay_label: "30"}}
+                    - !include {file: relay_cell.yaml, vars: {relay_index: "31", relay_label: "31"}}
+              # The one destructive control on the panel, so it is a full-width
+              # target that cannot be hit by a mis-tap on the grid above.
+              - button:
+                  id: btn_all_off
+                  width: 100%
+                  height: 26
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "ALL OFF"
+                  on_click:
+                    # Via relay_store() rather than 32 named ids: the store is
+                    # populated by each channel's own on_boot registration
+                    # (relay_channel.yaml), so a bank resized in relay_bank.yaml
+                    # cannot leave a stale channel energised here.
+                    - lambda: |-
+                        for (uint8_t i = 0; i < MAX_RELAYS; i++) {
+                          auto *sw = relay_store(i);
+                          if (sw != nullptr) sw->turn_off();
+                        }
+                    - script.execute: refresh_light_ui
           # ------------------------------------------------------------- Buttons
+          # Eight rows of 18px plus the 16px hint = 160 of the 174px available.
+          # Newest first; see button_row.yaml for why this is four columns and
+          # not one formatted string.
           - name: "Buttons"
             id: tab_buttons
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 2
+            pad_bottom: 18
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              pad_row: 0
             widgets:
-              - obj:
-                  width: 100%
-                  height: 100%
-                  pad_all: 4
-                  border_width: 0
-                  bg_opa: TRANSP
-                  layout:
-                    type: flex
-                    flex_flow: COLUMN
-                  widgets:
-                    - label:
-                        id: ui_btn_hint
-                        text_color: 0x8B949E
-                        text: "Press a wall button to commission it:"
-                    - label:
-                        id: ui_btn_feed
-                        text: "No button events yet"
+              - label:
+                  id: ui_btn_hint
+                  text_color: 0x8B949E
+                  text: "Press a wall button to commission it:"
+              - !include {file: button_row.yaml, vars: {row_index: "0"}}
+              - !include {file: button_row.yaml, vars: {row_index: "1"}}
+              - !include {file: button_row.yaml, vars: {row_index: "2"}}
+              - !include {file: button_row.yaml, vars: {row_index: "3"}}
+              - !include {file: button_row.yaml, vars: {row_index: "4"}}
+              - !include {file: button_row.yaml, vars: {row_index: "5"}}
+              - !include {file: button_row.yaml, vars: {row_index: "6"}}
+              - !include {file: button_row.yaml, vars: {row_index: "7"}}
 
 # -----------------------------------------------------------------------------
 # Refresh: rebuild every widget from current state on a 2 s cadence.
 # -----------------------------------------------------------------------------
 script:
+  # ---- one script per button row (see button_refresh.yaml) ----
+  - !include {file: button_refresh.yaml, vars: {row_index: "0"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "1"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "2"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "3"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "4"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "5"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "6"}}
+  - !include {file: button_refresh.yaml, vars: {row_index: "7"}}
+
   - id: refresh_light_ui
     then:
-      # ---- Status ----
+      # Relay tally and the liveness pulse, computed once. Home and the status
+      # strip both read the tally, and recomputing it in each of them is how the
+      # two would drift apart.
+      - lambda: |-
+          int on = 0;
+          for (uint8_t i = 0; i < MAX_RELAYS; i++) {
+            auto *sw = relay_store(i);
+            if (sw != nullptr && sw->state) on++;
+          }
+          id(ui_relays_on) = on;
+          id(ui_blink) = !id(ui_blink);
+
+      # ---- Home ----
       - lvgl.label.update:
-          id: ui_ha_ready
-          text: !lambda 'return std::string("HA Ready: ") + (id(ha_ready_sensor).state ? "YES" : "NO");'
-          text_color: !lambda 'return id(ha_ready_sensor).state ? lv_color_hex(0x2FBF71) : lv_color_hex(0xE05555);'
-      - lvgl.label.update:
-          id: ui_fallback
-          text: !lambda |-
-            char b[40];
-            snprintf(b, sizeof(b), "Fallback events: %u", (unsigned) id(fallback_events));
-            return std::string(b);
+          id: ui_ha_head
+          text: !lambda 'return std::string(id(ha_ready_sensor).state ? "HA READY" : "FALLBACK");'
+          text_color: !lambda |-
+            // Ready is the normal state and gets no accent; fallback is the one
+            // that should catch the eye.
+            return id(ha_ready_sensor).state ? lv_color_hex(0xE6EDF3)
+                                             : lv_color_hex(0xE0A24F);
+      # ha_hash_ok is meaningless until the first HA heartbeat arrives (it
+      # starts false), so "no HA" and "MISMATCH" are distinct states here — the
+      # panel must not accuse Home Assistant of drift before it has spoken.
       - lvgl.label.update:
           id: ui_manifest
           text: !lambda |-
             std::string h = id(binding_manifest_hash).state;
             if (h.size() > 8) h = h.substr(0, 8);
-            return std::string("Manifest: ") + (h.empty() ? "--" : h);
+            std::string agree = !id(ha_hb_seen) ? "no HA"
+                                : (id(ha_hash_ok) ? "matches HA" : "MISMATCH");
+            return "Manifest " + (h.empty() ? std::string("--") : h) + "  " + agree;
+          text_color: !lambda |-
+            return (id(ha_hb_seen) && !id(ha_hash_ok)) ? lv_color_hex(0xE05A4F)
+                                                       : lv_color_hex(0x8B949E);
+      - lvgl.label.update:
+          id: ui_relays
+          text: !lambda |-
+            char b[40];
+            snprintf(b, sizeof(b), "Relays  %d / %d on", id(ui_relays_on), (int) MAX_RELAYS);
+            return std::string(b);
+      - lvgl.label.update:
+          id: ui_fallback
+          text: !lambda |-
+            char b[40];
+            snprintf(b, sizeof(b), "Fallback  %u events", (unsigned) id(fallback_events));
+            return std::string(b);
+          # Any fallback firing means presses were actuated locally instead of
+          # by HA, so the count is worth colouring rather than just printing.
+          text_color: !lambda |-
+            return id(fallback_events) > 0 ? lv_color_hex(0xE0A24F)
+                                           : lv_color_hex(0xE6EDF3);
       - lvgl.label.update:
           id: ui_last_btn
-          text: !lambda 'return light_ui::fmt_button_short(id(g_btn_seen), node_map_name(id(g_btn_node)), id(g_btn_index), id(g_btn_event_str));'
-      # ---- Buttons feed ----
-      - lvgl.label.update:
-          id: ui_btn_feed
           text: !lambda |-
-            uint32_t age = id(g_btn_seen) ? (millis() - id(g_btn_ms)) / 1000 : 0;
-            return light_ui::fmt_button(id(g_btn_seen), node_map_name(id(g_btn_node)),
-                                        id(g_btn_index), id(g_btn_event_str), age);
-      # ---- Relay grid (colour each cell by its coil state) ----
-      - lvgl.widget.update: {id: relay_cell_0,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_0).state));'}
-      - lvgl.widget.update: {id: relay_cell_1,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_1).state));'}
-      - lvgl.widget.update: {id: relay_cell_2,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_2).state));'}
-      - lvgl.widget.update: {id: relay_cell_3,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_3).state));'}
-      - lvgl.widget.update: {id: relay_cell_4,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_4).state));'}
-      - lvgl.widget.update: {id: relay_cell_5,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_5).state));'}
-      - lvgl.widget.update: {id: relay_cell_6,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_6).state));'}
-      - lvgl.widget.update: {id: relay_cell_7,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_7).state));'}
-      - lvgl.widget.update: {id: relay_cell_8,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_8).state));'}
-      - lvgl.widget.update: {id: relay_cell_9,  bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_9).state));'}
-      - lvgl.widget.update: {id: relay_cell_10, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_10).state));'}
-      - lvgl.widget.update: {id: relay_cell_11, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_11).state));'}
-      - lvgl.widget.update: {id: relay_cell_12, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_12).state));'}
-      - lvgl.widget.update: {id: relay_cell_13, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_13).state));'}
-      - lvgl.widget.update: {id: relay_cell_14, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_14).state));'}
-      - lvgl.widget.update: {id: relay_cell_15, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_15).state));'}
-      - lvgl.widget.update: {id: relay_cell_16, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_16).state));'}
-      - lvgl.widget.update: {id: relay_cell_17, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_17).state));'}
-      - lvgl.widget.update: {id: relay_cell_18, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_18).state));'}
-      - lvgl.widget.update: {id: relay_cell_19, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_19).state));'}
-      - lvgl.widget.update: {id: relay_cell_20, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_20).state));'}
-      - lvgl.widget.update: {id: relay_cell_21, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_21).state));'}
-      - lvgl.widget.update: {id: relay_cell_22, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_22).state));'}
-      - lvgl.widget.update: {id: relay_cell_23, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_23).state));'}
-      - lvgl.widget.update: {id: relay_cell_24, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_24).state));'}
-      - lvgl.widget.update: {id: relay_cell_25, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_25).state));'}
-      - lvgl.widget.update: {id: relay_cell_26, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_26).state));'}
-      - lvgl.widget.update: {id: relay_cell_27, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_27).state));'}
-      - lvgl.widget.update: {id: relay_cell_28, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_28).state));'}
-      - lvgl.widget.update: {id: relay_cell_29, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_29).state));'}
-      - lvgl.widget.update: {id: relay_cell_30, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_30).state));'}
-      - lvgl.widget.update: {id: relay_cell_31, bg_color: !lambda 'return lv_color_hex(light_ui::relay_rgb(id(relay_31).state));'}
+            const auto *e = light_ui::button_log_at(0);
+            if (e == nullptr) return std::string("Last  no button events yet");
+            return light_ui::fmt_last_button(node_map_name(e->node_id), e->button,
+                                             e->event, (millis() - e->ms) / 1000);
+
+      # ---- Relay grid (see relay_refresh.yaml) ----
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "0"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "1"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "2"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "3"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "4"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "5"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "6"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "7"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "8"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "9"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "10"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "11"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "12"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "13"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "14"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "15"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "16"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "17"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "18"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "19"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "20"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "21"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "22"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "23"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "24"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "25"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "26"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "27"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "28"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "29"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "30"}}
+      - !include {file: relay_refresh.yaml, vars: {relay_index: "31"}}
+
+      # ---- Button rows ----
+      - script.execute: ui_refresh_brow_0
+      - script.execute: ui_refresh_brow_1
+      - script.execute: ui_refresh_brow_2
+      - script.execute: ui_refresh_brow_3
+      - script.execute: ui_refresh_brow_4
+      - script.execute: ui_refresh_brow_5
+      - script.execute: ui_refresh_brow_6
+      - script.execute: ui_refresh_brow_7
+
+      # ---- Status strip ----
+      # Fault precedence: a manifest mismatch outranks HA being down, because it
+      # is the one that makes the fallback itself untrustworthy.
+      - lvgl.widget.update:
+          id: ui_strip
+          bg_color: !lambda |-
+            if (id(ha_hb_seen) && !id(ha_hash_ok)) return lv_color_hex(0x5A1F1C);
+            if (!id(ha_ready_sensor).state) return lv_color_hex(0x4A3A1F);
+            return lv_color_hex(0x161B22);
+      - lvgl.label.update:
+          id: ui_strip_text
+          text: !lambda |-
+            char b[64];
+            if (id(ha_hb_seen) && !id(ha_hash_ok)) {
+              snprintf(b, sizeof(b), "ALARM  binding manifest mismatch");
+            } else if (!id(ha_ready_sensor).state) {
+              snprintf(b, sizeof(b), "FALLBACK  HA not ready - relays driven locally");
+            } else {
+              snprintf(b, sizeof(b), "HA ready   relays %d/%d on   fallback %u",
+                       id(ui_relays_on), (int) MAX_RELAYS,
+                       (unsigned) id(fallback_events));
+            }
+            return std::string(b);
+          text_color: !lambda |-
+            bool degraded = (id(ha_hb_seen) && !id(ha_hash_ok)) || !id(ha_ready_sensor).state;
+            return degraded ? lv_color_hex(0xE6EDF3) : lv_color_hex(0x8B949E);
+      # Pulse: alternates every refresh, so movement means the loop is alive.
+      # Colour is the API link — green connected, amber not.
+      - lvgl.widget.update:
+          id: ui_live_dot
+          bg_color: !lambda |-
+            if (!id(ui_blink)) return lv_color_hex(0x30363D);
+            return id(panel_api_status).state ? lv_color_hex(0x3FB950)
+                                              : lv_color_hex(0xE0A24F);
 
 # Wake on touch: restore the backlight and resume rendering, then repaint
 # immediately so the first thing shown is current rather than 5-minutes stale.
@@ -328,7 +512,37 @@ touchscreen:
       - lvgl.resume:
       - script.execute: refresh_light_ui
 
+# API link state for the strip's liveness dot. "API connected" also implies the
+# network is up, which is why the dot needs no separate link indicator. Note
+# this is NOT the same thing as ha_ready_sensor, which additionally requires a
+# live HA heartbeat and a matching manifest — a laptop log session connects the
+# API without making HA the authority.
+binary_sensor:
+  - platform: status
+    id: panel_api_status
+    name: "API Connected"
+    entity_category: diagnostic
+
 interval:
   - interval: 2s
     then:
-      - script.execute: refresh_light_ui
+      # Skipped while the panel sleeps. A paused LVGL discards these updates
+      # anyway, so this is ~50 lambda evaluations and widget writes per 2 s that
+      # bought nothing — and it kept invalidating regions on the SPI bus the
+      # display shares with the W5500.
+      - if:
+          condition:
+            not:
+              lvgl.is_paused:
+          then:
+            - script.execute: refresh_light_ui
+
+globals:
+  # Relay tally, recomputed once per refresh (see refresh_light_ui).
+  - id: ui_relays_on
+    type: int
+    initial_value: '0'
+  # Toggled every refresh to drive the status strip's liveness pulse.
+  - id: ui_blink
+    type: bool
+    initial_value: 'false'

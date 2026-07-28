@@ -1,0 +1,36 @@
+# =============================================================================
+# Fragment: one relay cell on the Relays tab of the lighting touch UI
+# =============================================================================
+# Included as a single item of the relay grid's `widgets:` list:
+#
+#   - !include
+#       file: relay_cell.yaml
+#       vars: {relay_index: "0", relay_label: "00"}
+#
+# ON/OFF is carried by LVGL's `checked` state rather than a bg_color written
+# from a lambda — same mechanism as the climate panel's mode/MEV buttons. The
+# OFF fill then comes from the shared theme's button style for free, so a cell
+# can never drift out of the palette, and the refresh is one action per cell
+# (relay_refresh.yaml) instead of a colour computation.
+#
+# Tapping toggles the coil. That is the whole point of this tab: pulse a relay
+# and watch which circuit in the house moves, which is how the lighting circuit
+# inventory gets built (registry/bindings.yaml is still empty).
+#
+# Required vars:
+#   relay_index  - 0-based relay id, 0-31; names the widget and the switch
+#   relay_label  - the two-character text in the cell ("00".."31")
+# =============================================================================
+button:
+  id: ui_relay_${relay_index}
+  width: 56
+  height: 32
+  checked:
+    bg_color: 0x2F6F4F
+  widgets:
+    - label:
+        align: CENTER
+        text: "${relay_label}"
+  on_click:
+    - switch.toggle: relay_${relay_index}
+    - script.execute: refresh_light_ui

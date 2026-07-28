@@ -38,8 +38,8 @@
 #   heat       0xE07A4F  heating (text)      0x8A2A2A heating (fill)
 #   cool       0x5AA9E6  cooling (text)      0x24507A cooling (fill)
 #   ok         0x3FB950  healthy             0x2F6F4F ok (fill)
-#   warn       0xE0A24F  degraded (sensor on fallback tier)
-#   alarm      0xE05A4F  alarm / emergency
+#   warn       0xE0A24F  degraded            0x4A3A1F degraded (strip fill)
+#   alarm      0xE05A4F  alarm / emergency   0x5A1F1C alarm (strip fill)
 # =============================================================================
 
 lvgl:
