@@ -8,18 +8,29 @@ Usage:
     3. Generated configs appear in nodes/
 
 CSV format:
-    node_id,floor,room,board,location,sensors,room_slug
-    100,0,7,0,"Ground floor hallway",0,
+    node_id,floor,room,board,location,profile,room_slug
+    100,0,7,0,"Ground floor hallway",buttons,
 
-The `sensors` column (blank/0 = none, 1 = SHT45+SEN66 kit) adds the ADR-0006 sensor_kit
-package to the generated node. Sensor frames carry the host node's node_id, so a
-sensor-equipped node's registry room must be the sensors' physical room.
+The `profile` column (ADR-0017) is the node's deployment profile — a single value that
+selects which packages the generated config composes on top of node_core.yaml:
+
+    buttons          wall plate, no sensing
+    buttons+sensors  wall plate + the ADR-0006 SHT45/SEN66 kit
+    sensors          sensor puck, no switch plate
+    bridge           ADR-0005 segment forwarder (second MCP2515 on can1)
+
+It is deliberately single-valued: ADR-0005 requires single-purpose bridge firmware, and a
+one-of-N column makes "bridge AND sensors" unrepresentable rather than merely rejected.
+Everything the generator once branched on via `has_sensors` is now a PROFILES lookup.
+
+Sensor frames carry the host node's node_id, so a sensor-bearing node's registry room must
+be the sensors' physical room.
 
 The `room_slug` column (spec-map-json-contract) joins a node to a climate zone. Values are
 validated against the climate room packages (climate/rooms/**), never freehand;
-blank = not joined to a climate zone (corridors, stairwells, not-yet-commissioned). A
-sensors=1 node MUST carry a room_slug — its measurements are consumed per climate zone. The
-numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
+blank = not joined to a climate zone (corridors, stairwells, bridges, not-yet-commissioned).
+A sensor-bearing profile MUST carry a room_slug — its measurements are consumed per climate
+zone. The numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
 
 The CSV header must match CSV_HEADER exactly. Pre-live there is exactly one nodes.csv (the
 committed one), so there is no legacy-format tolerance: a schema change edits CSV_HEADER and
@@ -30,10 +41,10 @@ Extended CAN ID. It is the ONLY thing flashed into the node. floor/room/board/lo
 map-seed metadata for the central node_id -> {...} map on the controller/HA — they are NOT
 flashed into the node config (kept here as the registry / map seed).
 
-Every node composes the canbus base node behavior package, which itself pulls in the generic
-CANBed RP2040 board package. Generated files stay thin: concrete device identity,
-node_id/debounce_ms, the base include, and any opt-in device packages such as the ADR-0006
-sensor kit.
+Every node composes canbus/packages/node_core.yaml, which itself pulls in the generic
+CANBed RP2040 board package. Generated files stay thin: concrete device identity, node_id
+(plus debounce_ms where the profile has buttons), the node_core include, and the profile's
+packages.
 """
 
 import csv
@@ -41,6 +52,7 @@ import hashlib
 import json
 import re
 import sys
+from collections import namedtuple
 from pathlib import Path
 
 import bindings  # binding-manifest reader + canonical hash (ADR-0009)
@@ -50,38 +62,105 @@ REPO_ROOT = ROOT.parent  # repo root (registry/ lives here, elevated out of firm
 
 TEMPLATE = """\
 # =============================================================================
-# Node: {name} — node_id {node_id}
+# {kind}: {name} — node_id {node_id}
 # =============================================================================
 # GENERATED from registry/nodes.csv by tools/generate_nodes.py. DO NOT EDIT.
 # Identity-only: the node knows just its node_id. Floor/room/board/location are NOT known at
 # flash time (the node is flashed at allocation, positioned/commissioned later) — they live in
 # the registry and the gateway's node_map.h, never here (ADR-0007).
-# Hardware: CANBed RP2040 board pulled in by packages/base_node.yaml
-# Buttons:  standard 8-button set (btn0–btn7) from packages/base_node.yaml
-{sensor_comment}# CAN IDs (29-bit Extended, computed at runtime from node_id):
-#   Input  = 0x{input_id:08X}  (CAT_INPUT,  node -> controller, button events)
-#   Status = 0x{status_id:08X}  (CAT_STATUS, node -> controller, heartbeat)
-# =============================================================================
+# Profile:  {profile} (ADR-0017)
+# Hardware: CANBed RP2040 board pulled in by packages/node_core.yaml
+{profile_comment}# CAN IDs (29-bit Extended, computed at runtime from node_id):
+{can_id_comment}# =============================================================================
 
 substitutions:
   node_id: "{node_id}"
-  debounce_ms: "50"
-
+{debounce}
 esphome:
-{i}name: node_{node_id}
-{i}friendly_name: "Node {node_id}"
+{i}name: {esphome_name}
+{i}friendly_name: "{kind} {node_id}"
 
 packages:
-  base: !include ../packages/base_node.yaml
-{sensor_pkg}"""
+  core: !include ../packages/node_core.yaml
+{profile_pkgs}"""
 
-# Appended to TEMPLATE for rows with sensors=1 (ADR-0006). The sensor frames carry the host
-# node's node_id, so the host's registry room must be the sensors' physical room.
-SENSOR_COMMENT = (
-    "# Sensors:  SHT45 + SEN66 kit from packages/sensor_kit.yaml "
-    "(CAT_SENSOR, host room = sensor room)\n"
-)
-SENSOR_PKG = "  sensor_kit: !include ../packages/sensor_kit.yaml\n"
+# --------------------------------------------------------------------------------------
+# Deployment profiles (ADR-0017)
+# --------------------------------------------------------------------------------------
+# One value per registry row, selecting the packages composed on top of node_core.yaml.
+# Single-valued ON PURPOSE: ADR-0005 requires single-purpose bridge firmware, and a one-of-N
+# column makes "bridge AND sensors" unrepresentable rather than something validation has to
+# catch. Every generator branch below is a lookup into this table — if you find yourself
+# adding an `if profile == ...`, add a Profile field instead.
+#
+# Adding a profile (e.g. reviving the archived T-2CAN bridge as `bridge-t2can`, or the one
+# safe mixed profile `bridge+buttons`) is a new row here plus its package file. No schema
+# change, no migration.
+#
+#   packages — (yaml key, file under canbus/packages/) pairs, in include order
+#   buttons  — emits debounce_ms and the CAT_INPUT id comment
+#   sensors  — requires a room_slug, feeds the Climate route artifacts and map.json `sensors`
+#   prefix   — generated filename and ESPHome device name stem
+#   kind     — human label in the file header and friendly_name
+Profile = namedtuple("Profile", "packages buttons sensors prefix kind")
+
+PROFILES = {
+    "buttons": Profile(
+        packages=(("buttons", "buttons_8.yaml"),),
+        buttons=True, sensors=False, prefix="node", kind="Node",
+    ),
+    "buttons+sensors": Profile(
+        packages=(("buttons", "buttons_8.yaml"), ("sensor_kit", "sensor_kit.yaml")),
+        buttons=True, sensors=True, prefix="node", kind="Node",
+    ),
+    "sensors": Profile(
+        packages=(("sensor_kit", "sensor_kit.yaml"),),
+        buttons=False, sensors=True, prefix="node", kind="Node",
+    ),
+    "bridge": Profile(
+        packages=(("bridge", "bridge.yaml"),),
+        buttons=False, sensors=False, prefix="bridge", kind="Bridge",
+    ),
+}
+
+# Header comment contributed by each package, so a generated file explains itself.
+PACKAGE_COMMENTS = {
+    "buttons_8.yaml": "# Buttons:  standard 8-button set (btn0–btn7) from packages/buttons_8.yaml\n",
+    "sensor_kit.yaml": ("# Sensors:  SHT45 + SEN66 kit from packages/sensor_kit.yaml "
+                        "(CAT_SENSOR, host room = sensor room)\n"),
+    "bridge.yaml": ("# Bridge:   store-and-forward, can0 (backbone) <-> can1 (zone), from\n"
+                    "#           packages/bridge.yaml + boards/canbed-rp2040-can1.yaml.\n"
+                    "#           Single-purpose (ADR-0005): never carries buttons or sensors.\n"),
+}
+
+
+def render_node(node_id: int, profile_name: str) -> tuple:
+    """Render one generated config. Returns (filename, contents)."""
+    profile = PROFILES[profile_name]
+    name = f"{profile.prefix}{node_id:03d}"
+
+    can_id_comment = ""
+    if profile.buttons:
+        can_id_comment += (f"#   Input  = 0x{can_id(CAT_INPUT, node_id):08X}"
+                           "  (CAT_INPUT,  node -> controller, button events)\n")
+    can_id_comment += (f"#   Status = 0x{can_id(CAT_STATUS, node_id):08X}"
+                       "  (CAT_STATUS, node -> controller, heartbeat)\n")
+
+    contents = TEMPLATE.format(
+        kind=profile.kind,
+        name=name,
+        node_id=node_id,
+        profile=profile_name,
+        profile_comment="".join(PACKAGE_COMMENTS[f] for _, f in profile.packages),
+        can_id_comment=can_id_comment,
+        # Only buttons need debouncing; a bridge or a sensor puck has none.
+        debounce='  debounce_ms: "50"\n' if profile.buttons else "",
+        esphome_name=f"{profile.prefix}_{node_id}",
+        profile_pkgs="".join(f"  {key}: !include ../packages/{f}\n"
+                             for key, f in profile.packages),
+        i="  ",
+    )
+    return f"{name}.yaml", contents
 
 FLOOR_LABELS = {0: "Ground", 1: "First", 2: "Second", 3: "Third"}
 
@@ -92,11 +171,12 @@ FLOOR_LABELS = {0: "Ground", 1: "First", 2: "Second", 3: "Third"}
 FLOOR_SLUGS = {0: "ground_floor", 1: "first_floor", 2: "second_floor"}
 
 # The registry schema, single source of truth: allocate_node.py and commission.py import it.
-CSV_HEADER = ["node_id", "floor", "room", "board", "location", "sensors", "room_slug"]
+CSV_HEADER = ["node_id", "floor", "room", "board", "location", "profile", "room_slug"]
+DEFAULT_PROFILE = "buttons"  # what allocate_node.py seeds a fresh row with
 EXAMPLE_ROWS = [
     CSV_HEADER,
-    [100, 0, 7, 0, "Ground floor hallway", 0, ""],
-    [101, 0, 8, 0, "Ground floor living room", 0, ""],
+    [100, 0, 7, 0, "Ground floor hallway", "buttons", ""],
+    [101, 0, 8, 0, "Ground floor living room", "buttons", ""],
 ]
 
 CAN_SENSOR_ROUTES_PATH = Path("climate") / "packages" / "generated" / "can_sensor_routes.yaml"
@@ -252,13 +332,16 @@ def load_climate_zones(rooms_dir: Path = None) -> dict:
 def validate_room_slug(room_slug: str, floor: int, has_sensors: bool, zones: dict):
     """Return an error string (or None) for a row's climate-zone join (spec-map-json-contract).
 
-    - sensors=1 requires a room_slug: sensor measurements are consumed per climate zone.
+    `has_sensors` is the row's PROFILES[profile].sensors (ADR-0017), not a column.
+
+    - a sensor-bearing profile requires a room_slug: measurements are consumed per climate zone.
     - A non-empty room_slug must be a known climate zone — never a freehand string.
     - The row's numeric floor must convert (FLOOR_SLUGS) to the zone's climate floor.
     Blank room_slug on a sensor-less node is valid: non-zone spaces, not-yet-commissioned."""
     if not room_slug:
         if has_sensors:
-            return "sensors=1 requires a room_slug (sensor data joins to a climate zone)"
+            return ("a sensor-bearing profile requires a room_slug "
+                    "(sensor data joins to a climate zone)")
         return None
     if room_slug not in zones:
         return (f"unknown room_slug '{room_slug}' "
@@ -404,6 +487,11 @@ def build_map_export(export_nodes, manifest_hash: str) -> dict:
     changing them needs no Climate-side compatibility review. `floor`/`room` stay canbus
     map-seed metadata; a consumer derives a climate floor slug from `floor` via FLOOR_SLUGS.
     An empty `room_slug` means the node is not joined to a climate zone.
+
+    ADR-0017 replaced the registry's `sensors` column with `profile`, but `nodes[].sensors` is
+    inside the freeze — so it stays, DERIVED from the profile (1 iff the profile carries the
+    ADR-0006 kit). Climate consumers need no change. `profile` is added alongside as a new
+    frozen-additive field for consumers that want the finer distinction.
     """
     nodes = [
         {
@@ -412,7 +500,8 @@ def build_map_export(export_nodes, manifest_hash: str) -> dict:
             "room": n["room"],
             "board": n["board"],
             "location": n["location"],
-            "sensors": n["sensors"],
+            "sensors": 1 if PROFILES[n["profile"]].sensors else 0,
+            "profile": n["profile"],
             "room_slug": n["room_slug"],
         }
         for n in sorted(export_nodes, key=lambda n: n["node_id"])
@@ -684,7 +773,7 @@ def _is_esphome_id_prefix(value: str) -> bool:
 
 def _sensor_route_nodes(export_nodes):
     sensor_nodes = sorted(
-        (n for n in export_nodes if int(n.get("sensors", 0)) == 1),
+        (n for n in export_nodes if PROFILES[n["profile"]].sensors),
         key=lambda n: (str(n.get("room_slug", "")), int(n["node_id"])),
     )
     seen_rooms = {}
@@ -692,17 +781,17 @@ def _sensor_route_nodes(export_nodes):
         room_slug = node.get("room_slug", "")
         if not room_slug:
             raise ValueError(
-                f"sensors=1 requires a room_slug for node_id {node['node_id']} "
+                f"profile '{node['profile']}' requires a room_slug for node_id {node['node_id']} "
                 "before CAN sensor routes can be generated"
             )
         if not _is_esphome_id_prefix(room_slug):
             raise ValueError(
-                f"room_slug '{room_slug}' for sensors=1 node_id {node['node_id']} "
+                f"room_slug '{room_slug}' for sensor-bearing node_id {node['node_id']} "
                 "cannot be used as an ESPHome id prefix"
             )
         if room_slug in seen_rooms:
             raise ValueError(
-                f"duplicate sensors=1 room_slug '{room_slug}' for node_id {seen_rooms[room_slug]} "
+                f"duplicate sensor room_slug '{room_slug}' for node_id {seen_rooms[room_slug]} "
                 f"and node_id {node['node_id']}"
             )
         seen_rooms[room_slug] = node["node_id"]
@@ -726,20 +815,20 @@ def render_can_sensor_routes(export_nodes) -> str:
         "# can_sensor_routes.yaml — GENERATED from registry/nodes.csv by\n"
         "# canbus/tools/generate_nodes.py. DO NOT EDIT.\n"
         "# =============================================================================\n"
-        "# Climate CAN sensor routing artifact. Includes only sensors=1 registry rows whose\n"
+        "# Climate CAN sensor routing artifact. Includes only sensor-bearing registry rows whose\n"
         "# room_slug was validated against climate/rooms/** before this file was written.\n"
         "#\n"
         "# Temp/humidity targets (<room_slug>_temp_can / <room_slug>_humidity_can) are declared\n"
         "# statically in climate/room_sensors.yaml for every known Climate room (HVAC-1.4) — this\n"
         "# file only dispatches published values into them. All other measurements keep their\n"
-        "# entity declared here, scoped to sensors=1 rows only.\n"
+        "# entity declared here, scoped to sensor-bearing rows only.\n"
         "# =============================================================================\n\n"
     )
     if not sensor_nodes:
         return (
             header
             + "substitutions: {}\n\n"
-            + "# No sensors=1 registry rows; no CAN sensor route targets generated.\n\n"
+            + "# No sensor-bearing registry rows; no CAN sensor route targets generated.\n\n"
             + "script:\n"
             + "  - id: can_sensor_route_publish\n"
             + "    mode: queued\n"
@@ -978,14 +1067,15 @@ def main():
         for row in reader:
             location = row["location"]
 
-            # Optional sensors column (ADR-0006): blank/0 = none, 1 = SHT45+SEN66 kit.
-            # Strict on anything else so a registry typo can't silently drop a sensor kit.
-            sensors_raw = (row.get("sensors") or "0").strip()
-            if sensors_raw not in ("", "0", "1"):
-                print(f"ERROR: Invalid sensors value '{sensors_raw}' on CSV row {reader.line_num} "
-                      f"(valid: blank, 0, 1)", file=sys.stderr)
+            # Deployment profile (ADR-0017). Required and strictly one of PROFILES — blank is
+            # NOT a shorthand for anything, so a registry typo can never silently drop a
+            # sensor kit or turn a bridge into a plain node.
+            profile_name = (row.get("profile") or "").strip()
+            if profile_name not in PROFILES:
+                print(f"ERROR: Invalid profile '{profile_name}' on CSV row {reader.line_num} "
+                      f"(valid: {', '.join(sorted(PROFILES))})", file=sys.stderr)
                 sys.exit(1)
-            has_sensors = sensors_raw == "1"
+            has_sensors = PROFILES[profile_name].sensors
 
             try:
                 node_id = int(row["node_id"])
@@ -1012,7 +1102,7 @@ def main():
                 sys.exit(1)
 
             # Optional room_slug column (spec-map-json-contract): the climate-zone join key.
-            # Validated against the real climate zones — a sensors=1 node must join one.
+            # Validated against the real climate zones — a sensor-bearing node must join one.
             room_slug = (row.get("room_slug") or "").strip()
             if room_slug or has_sensors:
                 if climate_zones is None:
@@ -1026,7 +1116,7 @@ def main():
                 previous = seen_sensor_room_slugs.get(room_slug)
                 if previous:
                     prev_node_id, prev_row = previous
-                    print(f"ERROR: duplicate sensors=1 room_slug '{room_slug}' "
+                    print(f"ERROR: duplicate sensor room_slug '{room_slug}' "
                           f"(node_id {prev_node_id}, CSV row {prev_row}; "
                           f"node_id {node_id}, CSV row {reader.line_num})",
                           file=sys.stderr)
@@ -1043,31 +1133,20 @@ def main():
                     sys.exit(1)
                 seen_room_board[(room, board)] = location
 
-            name = f"node{node_id:03d}"
-            input_id = can_id(CAT_INPUT, node_id)
+            filename, yaml_content = render_node(node_id, profile_name)
             status_id = can_id(CAT_STATUS, node_id)
 
-            yaml_content = TEMPLATE.format(
-                name=name,
-                node_id=node_id,
-                input_id=input_id,
-                status_id=status_id,
-                sensor_comment=SENSOR_COMMENT if has_sensors else "",
-                sensor_pkg=SENSOR_PKG if has_sensors else "",
-                i="  ",
-            )
-
-            sensor_note = "  +sensors" if has_sensors else ""
-            floor_groups.setdefault(floor, []).append((node_id, room, board, location))
+            floor_groups.setdefault(floor, []).append((node_id, room, board, location, profile_name))
             map_entries.append((node_id, room, board, location))
             export_nodes.append({
                 "node_id": node_id, "floor": floor, "room": room, "board": board,
-                "location": location, "sensors": 1 if has_sensors else 0,
+                "location": location, "profile": profile_name,
                 "room_slug": room_slug,
             })
             node_files.append((
-                out_dir / f"{name}.yaml", yaml_content,
-                f"  ✓ {name}.yaml  Input=0x{input_id:08X}  node_id={node_id}  [{location}]{sensor_note}",
+                out_dir / filename, yaml_content,
+                f"  ✓ {filename}  Status=0x{status_id:08X}  node_id={node_id}  "
+                f"[{location}]  ({profile_name})",
             ))
             count += 1
 
@@ -1099,12 +1178,15 @@ def main():
     print(f"\nGenerated {count} node configs in {out_dir}/")
     print(f"Binding manifest hash: {manifest_hash}  "
           f"(HA echoes it automatically via canbus/home-assistant/ha_manifest_package.yaml)")
-    print("\n── CAN ID Map (Input id) ──")
+    # Status is the id every profile emits (a bridge has no CAT_INPUT), so it is the one
+    # that makes this a complete inventory.
+    print("\n── CAN ID Map (Status id) ──")
     for floor in sorted(floor_groups):
         label = FLOOR_LABELS.get(floor, f"Floor {floor}")
         print(f"\n  {label} floor:")
-        for nid, rm, bd, loc in sorted(floor_groups[floor]):
-            print(f"    node_id={nid:<5d}  0x{can_id(CAT_INPUT, nid):08X}  (map-seed R{rm}B{bd})  {loc}")
+        for nid, rm, bd, loc, prof in sorted(floor_groups[floor]):
+            print(f"    node_id={nid:<5d}  0x{can_id(CAT_STATUS, nid):08X}  (map-seed R{rm}B{bd})  "
+                  f"{loc}  [{prof}]")
 
 
 if __name__ == "__main__":

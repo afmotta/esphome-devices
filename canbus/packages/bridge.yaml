@@ -1,0 +1,136 @@
+# =============================================================================
+# bridge.yaml — CAN segment bridge behaviour (store-and-forward, ADR-0005)
+# =============================================================================
+# Profile package for the `bridge` registry profile (ADR-0017). Composes ONLY
+# with node_core.yaml — never with buttons_8.yaml or sensor_kit.yaml. ADR-0005
+# requires single-purpose bridge firmware, and the single-valued `profile`
+# column makes any other combination unrepresentable rather than merely
+# forbidden.
+#
+# Hardware: CANBed RP2040 with a second MCP2515 on the SPI header
+# (boards/canbed-rp2040-can1.yaml), replacing the LilyGO T-2CAN — the original
+# firmware this was ported from is parked at canbus/archive/bridge-t2can.yaml.
+#
+# --- Ports ---
+# can0 = BACKBONE (controller-facing; node_core.yaml's invariant, and the port
+#        it heartbeats on). It is the onboard MCP2515: integrated SN65HVD230 and
+#        screw terminal, so the mechanically better port carries the aggregate
+#        traffic of every downstream zone.
+# can1 = ZONE (the single secondary segment).
+#
+# Forward-all both ways (ADR-0005 open item 3): the controller must hear every
+# node, and management/commissioning frames must reach every secondary. The
+# protocol is Extended-ID-only (ADR-0007), so can_id/can_id_mask 0 matching every
+# extended frame is the whole rule. Neither controller receives its own
+# transmissions, so forwarding cannot echo; the loop-free tree (ADR-0005:
+# strictly no loops) rules out a multi-bridge cycle.
+#
+# --- ADR-0005 mandatory reliability requirements, mapped ---
+#   - Single-purpose firmware: this package only forwards. The profile column
+#     enforces it; do not add node/actuator roles here.
+#   - Radios off: structural — the RP2040 has no radio at all. Nothing to
+#     disable, nothing to re-enable by accident.
+#   - Watchdog: boards/canbed-rp2040.yaml carries the rp2 platform; set
+#     `watchdog_timeout` there or per-entry-point. A wedged loop reboots; a
+#     rebooting bridge stops forwarding, i.e. degrades to "silent" (both
+#     controllers stop TX without firmware service) and never holds a segment
+#     dominant.
+#   - Conservative forwarding: store-and-forward queues with paced drain
+#     (bridge_forwarding.h); drops are counted and folded into the heartbeat
+#     error flags (ERR_BRIDGE_QUEUE_OVERFLOW).
+#
+# Required substitutions: ${node_id}
+# =============================================================================
+
+esphome:
+  includes:
+    - ../protocol/bridge_forwarding.h
+  on_boot:
+    # Priority below node_core's 200 so its "online" banner logs first.
+    priority: 190
+    then:
+      - lambda: |-
+          // ESPHome's mcp2515 has no interrupt support: it drains RX from loop().
+          // Application::loop() normally gates the component phase on
+          // loop_interval_ (16 ms; ~20 ms once the 10 ms drain tick is waking the
+          // scheduler), and the MCP2515 holds only 2 RX buffers — so a ~20 ms
+          // window can see ~18 frames at 125 kbps and keep two. Those drops happen
+          // BEFORE bridge_enqueue(), so they never latch ERR_BRIDGE_QUEUE_OVERFLOW;
+          // ESPHome's own overrun check is compiled out at logger level INFO; and
+          // the protocol has no sequence numbers, so a receiver cannot infer a gap.
+          // Invisible loss is the worst kind, so a pure forwarder spins: the request
+          // below removes the gate and the poll period becomes the SPI transaction
+          // cost (tens of microseconds), well under the ~1.1 ms minimum frame
+          // arrival interval. 100% duty is free here — this device does nothing else.
+          //
+          // ESPHome-INTERNAL API (esphome/core/helpers.h), not a YAML option:
+          // re-check it on every ESPHome upgrade. ADR-0017 §6.
+          static esphome::HighFrequencyLoopRequester bridge_hf_loop;
+          bridge_hf_loop.start();
+
+packages:
+  can1_board: !include ../../boards/canbed-rp2040-can1.yaml
+
+canbus:
+  # Backbone side is node_core's can0 — attach the handler the way health.yaml and
+  # lighting/packages/buttons.yaml attach theirs (ADR-0015 §2).
+  - id: !extend can0
+    on_frame:
+      - can_id: 0
+        can_id_mask: 0
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (!bridge_enqueue(bridge_queue_to_zone(), bridge_stats_to_zone(),
+                                  can_id, true, x)) {
+                ESP_LOGW("bridge", "to-zone queue full; dropped frame 0x%08X", can_id);
+              }
+
+  - id: !extend can1
+    on_frame:
+      - can_id: 0
+        can_id_mask: 0
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (!bridge_enqueue(bridge_queue_to_backbone(), bridge_stats_to_backbone(),
+                                  can_id, true, x)) {
+                ESP_LOGW("bridge", "to-backbone queue full; dropped frame 0x%08X", can_id);
+              }
+
+interval:
+  # Paced drain: at most BRIDGE_DRAIN_MAX frames per direction per tick (200
+  # frames/s/direction at 10 ms) — see bridge_forwarding.h for the TX-buffer
+  # arithmetic behind the cap.
+  #
+  # The same tick folds any drop into error_flags, which node_core.yaml's single
+  # heartbeat transmits. The bridge deliberately has NO heartbeat of its own:
+  # one node_id, one CAT_STATUS frame (node_core.yaml invariant 2). Stats are
+  # cumulative, so the flag is sticky by construction — a bridge that ever
+  # dropped a frame stays visibly degraded until it is power-cycled.
+  - interval: 10ms
+    then:
+      - lambda: |-
+          for (const auto &f : bridge_drain(bridge_queue_to_backbone(), bridge_stats_to_backbone()))
+            id(can0).send_data(f.can_id, f.extended,
+                               std::vector<uint8_t>(f.data, f.data + f.len));
+          for (const auto &f : bridge_drain(bridge_queue_to_zone(), bridge_stats_to_zone()))
+            id(can1).send_data(f.can_id, f.extended,
+                               std::vector<uint8_t>(f.data, f.data + f.len));
+          id(error_flags) |= bridge_error_flags(bridge_stats_to_backbone(),
+                                                bridge_stats_to_zone());
+
+  # Forwarding counters once a minute at INFO: the soak-test observable
+  # (ADR-0005 open item 5, ADR-0017 open item 2) and the only place drops are
+  # quantified.
+  - interval: 60s
+    then:
+      - lambda: |-
+          const BridgeStats &tb = bridge_stats_to_backbone();
+          const BridgeStats &tz = bridge_stats_to_zone();
+          ESP_LOGI("bridge",
+                   "to-backbone fwd=%u q=%u drop(of=%u,sz=%u) | to-zone fwd=%u q=%u drop(of=%u,sz=%u)",
+                   (unsigned) tb.forwarded, (unsigned) bridge_queue_to_backbone().size(),
+                   (unsigned) tb.dropped_overflow, (unsigned) tb.dropped_oversize,
+                   (unsigned) tz.forwarded, (unsigned) bridge_queue_to_zone().size(),
+                   (unsigned) tz.dropped_overflow, (unsigned) tz.dropped_oversize);

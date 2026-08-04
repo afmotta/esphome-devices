@@ -41,7 +41,7 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 REQUIRED_KEYS = ("node_id", "button", "relay", "op")
-# Buttons are the gesture index into the standard 8-button set (0-7, packages/base_node.yaml).
+# Buttons are the gesture index into the standard 8-button set (0-7, packages/buttons_8.yaml).
 BUTTON_MAX = 7
 # One Waveshare Modbus RTU Relay 32CH bank on the gateway (ADR-0014), ids 0-31
 # (lighting/packages/relay_bank.yaml numbers its channels 0-based natively,

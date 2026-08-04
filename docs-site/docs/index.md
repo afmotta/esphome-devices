@@ -53,7 +53,7 @@ This house deliberately reuses the same handful of hardware models across both t
 | Relay board | Waveshare Modbus RTU Relay 32CH (address `0x2`) | Switching zone pumps/valves (climate) and light circuits (lighting) | 🔵 The address is deliberately mirrored on both systems' RS485 wiring, so a spare relay board works in either system, unmodified. |
 | Analog output board | Waveshare Modbus RTU Analog Output 8CH (B) (address `0x1`) | Fancoil fan speed and mixing-valve modulation (0–10V outputs) | 🔵 Climate system only — no lighting counterpart. |
 | CAN bus health monitor | Waveshare ESP32-S3-RS485-CAN (WiFi-only) | Watches the CAN bus and reports which devices have gone quiet | ⚠️ **Known gap**: this is currently the one device in the house with no "identical spare on the shelf" plan by default — see the [Confidence Ledger](reference/confidence-ledger.md). Its logic can, if needed, be moved onto a spare T-Connect Pro instead, since the two boards share compatible wiring. |
-| CAN bus segment bridge | LilyGO T-2CAN | Joins separate sections of the CAN bus wiring together | 🔵 Deliberately has no WiFi and no over-the-air update capability — it can only be reprogrammed over a USB cable, by design, for reliability. |
+| CAN bus segment bridge | CANBed RP2040 + add-on MCP2515 | Joins separate sections of the CAN bus wiring together | 🔵 Deliberately has no WiFi and no over-the-air update capability — it can only be reprogrammed over a USB cable, by design, for reliability. |
 | Room sensor (advanced) | S1-Pro Multi-Sense | Room temperature/humidity/air-quality plus radar-based presence sensing | 🔵 |
 | Room sensor (simple) | Wall-mounted sensor board | Room temperature/humidity/air-quality only, no radar | 🔵 |
 

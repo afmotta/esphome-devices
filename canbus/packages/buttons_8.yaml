@@ -1,0 +1,26 @@
+# =============================================================================
+# buttons_8.yaml — the standard 8-button wall set (btn0–btn7)
+# =============================================================================
+# Split out of base_node.yaml by ADR-0017 so a profile can opt out: the `bridge`
+# profile has no switch plate, and 8 gpio binary_sensors on floating pins would
+# emit phantom presses.
+#
+# Selected by the `buttons` and `buttons+sensors` registry profiles
+# (generate_nodes.py PROFILES). Pin assignment is fleet-fixed by the CANBed
+# RP2040 main header and is unchanged from base_node.yaml — GP8 is deliberately
+# NOT used here, it is reserved fleet-wide as the bridge's can1 chip select
+# (boards/canbed-rp2040-can1.yaml).
+#
+# Required substitutions:
+#   ${node_id}, ${debounce_ms}
+# =============================================================================
+
+packages:
+  btn0: !include { file: button.yaml, vars: { button_index: "0", button_gpio: "24" } }
+  btn1: !include { file: button.yaml, vars: { button_index: "1", button_gpio: "23" } }
+  btn2: !include { file: button.yaml, vars: { button_index: "2", button_gpio: "22" } }
+  btn3: !include { file: button.yaml, vars: { button_index: "3", button_gpio: "21" } }
+  btn4: !include { file: button.yaml, vars: { button_index: "4", button_gpio: "25" } }
+  btn5: !include { file: button.yaml, vars: { button_index: "5", button_gpio: "20" } }
+  btn6: !include { file: button.yaml, vars: { button_index: "6", button_gpio: "19" } }
+  btn7: !include { file: button.yaml, vars: { button_index: "7", button_gpio: "10" } }

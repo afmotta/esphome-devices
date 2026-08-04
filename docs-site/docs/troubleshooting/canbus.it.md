@@ -202,7 +202,7 @@ un'indagine software/configurazione, non hardware.
 ## Un segmento del bridge CAN sembra fuori servizio
 
 **Contesto:** Il bus CAN della casa è diviso in segmenti collegati da
-piccoli dispositivi bridge (`devices/bridge.yaml`), invece di un unico
+piccoli dispositivi bridge (profilo di registro `bridge`), invece di un unico
 cavo continuo. Un bridge si limita a inoltrare il traffico tra il segmento
 su cui si trova e il resto del bus.
 

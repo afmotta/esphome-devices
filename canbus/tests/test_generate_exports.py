@@ -26,9 +26,9 @@ import generate_nodes as g  # noqa: E402
 
 NODES = [
     {"node_id": 101, "floor": 0, "room": 8, "board": 0, "location": "Living room",
-     "sensors": 0, "room_slug": ""},
+     "profile": "buttons", "room_slug": ""},
     {"node_id": 100, "floor": 0, "room": 7, "board": 0, "location": "Hallway",
-     "sensors": 1, "room_slug": "anticamera"},
+     "profile": "buttons+sensors", "room_slug": "anticamera"},
 ]
 HASH = "d66767448ba37b2f"
 PROTOCOL_PATH = Path(__file__).resolve().parents[1] / "protocol" / "canbus_protocol.h"
@@ -111,9 +111,12 @@ def test_map_export_shape_and_node_sort():
     # Nodes are sorted by node_id regardless of input order, and carry the full §7 field set
     # incl. the frozen-contract room_slug join key (empty = no climate zone).
     assert [n["node_id"] for n in m["nodes"]] == [100, 101]
+    # ADR-0017: `sensors` is inside the frozen contract, so it survives the profile
+    # migration as a DERIVED field; `profile` is added alongside (frozen-additive).
     assert m["nodes"][0] == {
         "node_id": 100, "floor": 0, "room": 7, "board": 0,
-        "location": "Hallway", "sensors": 1, "room_slug": "anticamera",
+        "location": "Hallway", "sensors": 1, "profile": "buttons+sensors",
+        "room_slug": "anticamera",
     }
     assert m["nodes"][1]["room_slug"] == ""
     # Serializable as the committed map.json.
@@ -193,7 +196,7 @@ def test_node_map_emits_version_constant():
 def test_generator_node_map_version_matches_map_json():
     # ADR-0009 §6 drift correlation: the gateway-compiled NODE_MAP_VERSION must equal the
     # map_version published in registry/map.json, or a dashboard comparison is meaningless.
-    nodes_csv = "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
+    nodes_csv = "node_id,floor,room,board,location,profile,room_slug\n100,0,7,0,Hall,buttons,\n"
     with tempfile.TemporaryDirectory() as d:
         repo_root = Path(d)
         root = _prepare_temp_generator_repo(repo_root, nodes_csv)
@@ -204,19 +207,20 @@ def test_generator_node_map_version_matches_map_json():
         assert f'NODE_MAP_VERSION[] = "{map_version}";' in header
 
 
-def test_generator_node_config_uses_base_node_for_board_and_behavior():
-    nodes_csv = "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
+def test_generator_node_config_uses_node_core_for_board_and_behavior():
+    nodes_csv = "node_id,floor,room,board,location,profile,room_slug\n100,0,7,0,Hall,buttons,\n"
     with tempfile.TemporaryDirectory() as d:
         repo_root = Path(d)
         root = _prepare_temp_generator_repo(repo_root, nodes_csv)
         code, _stdout, stderr = _run_temp_generator(repo_root, root)
         assert code == 0, stderr
         node_yaml = (root / "nodes" / "node100.yaml").read_text()
-        assert "Hardware: CANBed RP2040 board pulled in by packages/base_node.yaml" in node_yaml
+        assert "Hardware: CANBed RP2040 board pulled in by packages/node_core.yaml" in node_yaml
         assert "name: node_100" in node_yaml
         assert "friendly_name: \"Node 100\"" in node_yaml
         assert "board: !include ../../boards/canbed-rp2040.yaml" not in node_yaml
-        assert "base: !include ../packages/base_node.yaml" in node_yaml
+        assert "core: !include ../packages/node_core.yaml" in node_yaml
+        assert "buttons: !include ../packages/buttons_8.yaml" in node_yaml
 
 
 def test_generator_aborts_before_writing_node_files():
@@ -233,7 +237,7 @@ def test_generator_aborts_before_writing_node_files():
             (root / sub).mkdir(parents=True)
         (repo_root / "registry").mkdir()
         (repo_root / "registry" / "nodes.csv").write_text(
-            "node_id,floor,room,board,location,sensors,room_slug\n100,0,7,0,Hall,0,\n"
+            "node_id,floor,room,board,location,profile,room_slug\n100,0,7,0,Hall,buttons,\n"
         )
         # node_id 999 is not in nodes.csv -> manifest invalid -> generator aborts.
         (repo_root / "registry" / "bindings.yaml").write_text(
@@ -273,7 +277,7 @@ def test_load_climate_zones_reads_real_room_packages():
 def test_validate_room_slug_branches():
     zones = {"soggiorno": "ground_floor", "camera_nord": "first_floor"}
     ok = g.validate_room_slug
-    # Blank slug: fine without sensors (non-zone space), rejected with sensors=1.
+    # Blank slug: fine without sensors (non-zone space), rejected for a sensor-bearing profile.
     assert ok("", 0, False, zones) is None
     assert "requires a room_slug" in ok("", 0, True, zones)
     # Freehand / unknown slugs are rejected.
@@ -300,7 +304,7 @@ def test_generator_rejects_stale_csv_header():
         (root / "protocol").mkdir(parents=True)
         (repo_root / "registry").mkdir()
         (repo_root / "registry" / "nodes.csv").write_text(
-            "node_id,floor,room,board,location,sensors\n100,0,7,0,Hall,0\n"
+            "node_id,floor,room,board,location,profile\n100,0,7,0,Hall,buttons\n"
         )
         g.ROOT, g.REPO_ROOT = root, repo_root
         try:
@@ -354,10 +358,10 @@ def test_ha_node_health_deterministic():
 
 
 def test_can_sensor_routes_empty_registry():
-    p = g.render_can_sensor_routes([dict(n, sensors=0, room_slug="") for n in NODES])
+    p = g.render_can_sensor_routes([dict(n, profile="buttons", room_slug="") for n in NODES])
     assert "can_sensor_routes.yaml" in p
     assert "DO NOT EDIT" in p
-    assert "No sensors=1 registry rows" in p
+    assert "No sensor-bearing registry rows" in p
     assert "substitutions: {}" in p
     assert "id: can_sensor_route_publish" in p
     assert "id: can_sensor_route_publish_nan" in p
@@ -366,7 +370,7 @@ def test_can_sensor_routes_empty_registry():
 
 
 def test_can_sensor_routes_empty_registry_has_noop_scripts():
-    p = g.render_can_sensor_routes([dict(n, sensors=0, room_slug="") for n in NODES])
+    p = g.render_can_sensor_routes([dict(n, profile="buttons", room_slug="") for n in NODES])
     assert "script:" in p
     assert "id: can_sensor_route_publish" in p
     assert "id: can_sensor_route_publish_nan" in p
@@ -407,7 +411,7 @@ def test_can_sensor_routes_deterministic_output():
 
 
 def test_can_sensor_routes_header_empty_registry():
-    h = g.render_can_sensor_routes_header([dict(n, sensors=0, room_slug="") for n in NODES])
+    h = g.render_can_sensor_routes_header([dict(n, profile="buttons", room_slug="") for n in NODES])
     assert "generated_can_sensor_routes.h" in h
     assert "DO NOT EDIT" in h
     assert "HvacCanSensorRoute" in h
@@ -446,41 +450,41 @@ def test_can_sensor_routes_room_move_retargets_cleanly():
 
 def test_generator_rejects_blank_sensor_room_before_route_write():
     _assert_temp_generator_rejects(
-        "node_id,floor,room,board,location,sensors,room_slug\n"
-        "100,0,7,0,Hall,1,\n",
-        "sensors=1 requires a room_slug",
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,buttons+sensors,\n",
+        "a sensor-bearing profile requires a room_slug",
     )
 
 
 def test_generator_rejects_unknown_sensor_room_before_route_write():
     _assert_temp_generator_rejects(
-        "node_id,floor,room,board,location,sensors,room_slug\n"
-        "100,0,7,0,Hall,1,unknown_room\n",
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,buttons+sensors,unknown_room\n",
         "unknown room_slug 'unknown_room'",
     )
 
 
 def test_generator_rejects_floor_mismatched_sensor_room_before_route_write():
     _assert_temp_generator_rejects(
-        "node_id,floor,room,board,location,sensors,room_slug\n"
-        "100,1,7,0,Hall,1,anticamera\n",
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,1,7,0,Hall,buttons+sensors,anticamera\n",
         "does not match room_slug 'anticamera'",
     )
 
 
 def test_generator_rejects_duplicate_sensor_room_before_route_write():
     _assert_temp_generator_rejects(
-        "node_id,floor,room,board,location,sensors,room_slug\n"
-        "100,0,7,0,Hall,1,anticamera\n"
-        "101,0,8,0,Living room,1,anticamera\n",
-        "duplicate sensors=1 room_slug 'anticamera'",
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,buttons+sensors,anticamera\n"
+        "101,0,8,0,Living room,buttons+sensors,anticamera\n",
+        "duplicate sensor room_slug 'anticamera'",
     )
 
 
 def test_generator_rejects_sensor_room_slug_that_cannot_form_esphome_ids():
     _assert_temp_generator_rejects(
-        "node_id,floor,room,board,location,sensors,room_slug\n"
-        "100,0,7,0,Hall,1,123room\n",
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,buttons+sensors,123room\n",
         "cannot be used as an ESPHome id prefix",
         extra_rooms={"ground_floor": ["123room"]},
     )
@@ -488,9 +492,9 @@ def test_generator_rejects_sensor_room_slug_that_cannot_form_esphome_ids():
 
 def test_generator_writes_can_sensor_routes_idempotently():
     nodes_csv = (
-        "node_id,floor,room,board,location,sensors,room_slug\n"
-        "100,0,7,0,Hall,1,anticamera\n"
-        "101,0,8,0,Living room,0,\n"
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,buttons+sensors,anticamera\n"
+        "101,0,8,0,Living room,buttons,\n"
     )
     with tempfile.TemporaryDirectory() as d:
         repo_root = Path(d)
@@ -505,6 +509,110 @@ def test_generator_writes_can_sensor_routes_idempotently():
         assert second_code == 0, second_stderr
         assert route_path.read_text() == first
         assert "id: anticamera_temp_can" in first
+
+
+# --------------------------------------------------------------------------------------
+# Deployment profiles (ADR-0017)
+# --------------------------------------------------------------------------------------
+
+def test_profiles_reference_real_package_files():
+    # A typo in PROFILES would produce a generated config that only fails at `esphome
+    # config` time, long after the generator reported success. Catch it here instead.
+    packages_dir = Path(__file__).resolve().parents[1] / "packages"
+    for name, profile in g.PROFILES.items():
+        for _key, filename in profile.packages:
+            assert (packages_dir / filename).is_file(), \
+                f"profile {name!r} references missing package {filename}"
+            assert filename in g.PACKAGE_COMMENTS, \
+                f"profile {name!r} package {filename} has no PACKAGE_COMMENTS entry"
+
+
+def test_no_profile_carries_both_bridge_and_sensors():
+    # The ADR-0005 single-purpose-forwarder rule, asserted against the table rather than
+    # trusted to review. If a future profile legitimately mixes them, this test is the
+    # place that must be argued with.
+    for name, profile in g.PROFILES.items():
+        bridges = any(f == "bridge.yaml" for _key, f in profile.packages)
+        assert not (bridges and profile.sensors), \
+            f"profile {name!r} combines a bridge with the sensor kit (ADR-0005)"
+
+
+def test_generator_rejects_unknown_profile():
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,buttons+bridge,\n",
+        "Invalid profile 'buttons+bridge'",
+    )
+
+
+def test_generator_rejects_blank_profile():
+    # Blank is NOT a shorthand for the default: a dropped cell must fail loudly rather
+    # than silently downgrade a sensor node or a bridge to a plain wall plate.
+    _assert_temp_generator_rejects(
+        "node_id,floor,room,board,location,profile,room_slug\n"
+        "100,0,7,0,Hall,,\n",
+        "Invalid profile ''",
+    )
+
+
+def test_generator_renders_bridge_profile():
+    nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
+                 "200,0,7,0,Junction box,bridge,\n")
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        # Named by profile prefix, so `ls nodes/` reads as an inventory.
+        bridge_yaml = (root / "nodes" / "bridge200.yaml").read_text()
+        assert "core: !include ../packages/node_core.yaml" in bridge_yaml
+        assert "bridge: !include ../packages/bridge.yaml" in bridge_yaml
+        assert "name: bridge_200" in bridge_yaml
+        assert 'friendly_name: "Bridge 200"' in bridge_yaml
+        # No buttons: no debounce, no CAT_INPUT id, no button package.
+        assert "debounce_ms" not in bridge_yaml
+        assert "CAT_INPUT" not in bridge_yaml
+        assert "buttons_8.yaml" not in bridge_yaml
+        assert "sensor_kit.yaml" not in bridge_yaml
+        # Bridges are ordinary registry rows, so they reach the central map and the
+        # health monitor for free (ADR-0017 §4).
+        assert '{200, 7, 0, "Junction box"},' in (root / "protocol" / "node_map.h").read_text()
+
+
+def test_generator_renders_sensors_only_profile():
+    nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
+                 "102,0,7,0,Ceiling puck,sensors,anticamera\n")
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        node_yaml = (root / "nodes" / "node102.yaml").read_text()
+        assert "sensor_kit: !include ../packages/sensor_kit.yaml" in node_yaml
+        assert "buttons_8.yaml" not in node_yaml
+        assert "debounce_ms" not in node_yaml
+        # Still a sensor producer: the Climate route artifacts must pick it up.
+        routes = (repo_root / g.CAN_SENSOR_ROUTES_PATH).read_text()
+        assert "anticamera" in routes
+
+
+def test_map_export_derives_frozen_sensors_field_from_profile():
+    # `nodes[].sensors` is inside the frozen Climate-consumer contract, so it must keep
+    # its exact meaning after the ADR-0017 migration — derived, never dropped.
+    nodes = [
+        {"node_id": 1, "floor": 0, "room": 1, "board": 0, "location": "a",
+         "profile": "buttons", "room_slug": ""},
+        {"node_id": 2, "floor": 0, "room": 2, "board": 0, "location": "b",
+         "profile": "buttons+sensors", "room_slug": "anticamera"},
+        {"node_id": 3, "floor": 0, "room": 3, "board": 0, "location": "c",
+         "profile": "sensors", "room_slug": "soggiorno"},
+        {"node_id": 4, "floor": 0, "room": 4, "board": 0, "location": "d",
+         "profile": "bridge", "room_slug": ""},
+    ]
+    exported = g.build_map_export(nodes, HASH)["nodes"]
+    assert [n["sensors"] for n in exported] == [0, 1, 1, 0]
+    assert [n["profile"] for n in exported] == [
+        "buttons", "buttons+sensors", "sensors", "bridge"]
 
 
 def main():

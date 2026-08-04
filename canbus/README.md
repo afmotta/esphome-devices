@@ -52,8 +52,11 @@ connected to MCP2515 OSC1/OSC2) has `value="16MHz"`.
 ## Complete MCP2515 SPI Pin Reference (CANBed RP2040 V1.1)
 
 All values confirmed from V1.1 Eagle schematic. The fixed board mapping lives in
-`boards/canbed-rp2040.yaml`, which is included by `canbus/packages/base_node.yaml`.
-Generated node configs include `base_node.yaml`, not the board package directly.
+`boards/canbed-rp2040.yaml`, which is included by `canbus/packages/node_core.yaml`.
+Generated configs include `node_core.yaml`, not the board package directly. The `bridge`
+profile adds a second MCP2515 on the same SPI0 bus via `boards/canbed-rp2040-can1.yaml`
+(CS `GPIO8`, the SPI header's spare pin — the only free pin left once the 8-button set and
+the sensor-kit I2C are placed, so it is fleet-fixed).
 
 | Signal      | RP2040 GPIO | Net name | Template assumption | Correct?  |
 | ----------- | ----------- | -------- | ------------------- | --------- |
@@ -249,7 +252,9 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
     disambiguation) are explicitly **outside** the freeze: changing them needs no Climate-side
     compatibility review. `room_slug` joins a node to a climate zone — validated by the
     generator against the climate room packages (`climate/rooms/**`, never freehand),
-    required when `sensors=1`, empty = no climate zone. Numeric `floor` stays canbus
+    required for any sensor-bearing profile, empty = no climate zone. (ADR-0017 replaced the
+    registry's `sensors` column with `profile`; `nodes[].sensors` is inside the freeze, so it
+    is still exported — derived from the profile — and `profile` was added alongside.) Numeric `floor` stays canbus
     map-seed metadata; consumers derive the climate floor slug via the fixed table
     0→`ground_floor`, 1→`first_floor`, 2→`second_floor` (`FLOOR_SLUGS` in
     `generate_nodes.py`).
@@ -278,30 +283,41 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
 
 The bus is segmented (ADR-0005, accepted 2026-06-10): a backbone segment plus per-zone
 secondaries in a strict loop-free tree, joined by store-and-forward **software bridges**.
-`devices/bridge.yaml` is the bridge firmware, targeting the **LilyGO T-2CAN** (ESP32-S3).
-The board's two CAN ports are asymmetric: one is the S3's built-in TWAI controller
-(backbone side — interrupt-driven RX with a deep driver queue, suiting the aggregate
-backbone traffic), the other an MCP2515 on SPI (zone side) with a hardware reset line on
-GPIO9 pulsed at boot. Forward-all in both directions, plus its own node-style heartbeat on
-the backbone side so the gateway sees a dead bridge as a missing heartbeat.
+Bridges are generated from the registry like any other node: give the row the `bridge`
+profile (ADR-0017) and `generate_nodes.py` emits `nodes/bridgeNNN.yaml` composing
+`packages/node_core.yaml` + `packages/bridge.yaml`.
 
-ADR-0005's mandatory reliability requirements are mapped directly in the config:
-single-purpose firmware, **no radios** (no `wifi:`/`api:`/`ota:` — logs and flashing are
-USB-serial), esp-idf watchdogs + brownout detector with panic-reboot, and conservative
-paced forwarding (queues buffer bursts; the drain cap meters TX to what the MCP2515 — the
-weaker TX side, 3 buffers — sustains at 125 kbps). A drop anywhere latches
-`ERR_BRIDGE_QUEUE_OVERFLOW` into the heartbeat until reboot.
+Hardware is the fleet node board — a **CANBed RP2040 with a second MCP2515** on the
+broken-out SPI header (CS `GPIO8`, 16 MHz, 3.3 V module required — the RP2040 is not 5 V
+tolerant). `can0` is the backbone side (the onboard controller, with the integrated
+SN65HVD230 and screw terminal) and `can1` the zone side. Forward-all in both directions;
+the node-style heartbeat comes from `node_core.yaml` on `can0`, so the health monitor sees
+a dead bridge as a missing heartbeat exactly like a node.
+
+ADR-0005's mandatory reliability requirements map directly onto the config: single-purpose
+firmware (enforced by the single-valued `profile` column, not by convention), **no radios**
+(structural — the RP2040 has none), the `rp2` platform's hardware `watchdog_timeout`, and
+conservative paced forwarding (queues buffer bursts; the drain cap meters TX to what an
+MCP2515's 3 TX buffers sustain at 125 kbps). A drop anywhere latches
+`ERR_BRIDGE_QUEUE_OVERFLOW` into `error_flags`, which the shared heartbeat carries until
+reboot.
+
+The forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot. ESPHome's `mcp2515`
+polls RX from `loop()` and the component phase is normally gated to ~16-20 ms, while the
+controller holds only 2 RX buffers — at 125 kbps that window can see ~18 frames arrive.
+Those drops happen before `bridge_enqueue()`, so they would never latch the overflow flag,
+and the protocol has no sequence numbers for a receiver to spot the gap. See ADR-0017 §6.
 
 - Identity: bridges share the flat `node_id` space (ADR-0007). Allocate an id with
-  `tools/allocate_node.py`, set it as the `node_id` substitution, and commission it like a
-  node so the gateway names it. (`generate_nodes.py` will also emit an unused
-  `nodes/nodeNNN.yaml` for a bridge id — ignore it; `devices/bridge.yaml` is the config.)
-- Board, pins, MCP2515 clock (16 MHz), and the GPIO9 reset sequence come from LilyGO's
-  reference firmware:
-  <https://github.com/Xinyuan-LilyGO/T-2Can/blob/main/esphome/can.yaml>
+  `tools/allocate_node.py`, set the row's `profile` to `bridge`, and commission it like a
+  node so the gateway names it.
+- The retired **LilyGO T-2CAN** firmware — the original this was ported from, with its own
+  TWAI+MCP2515 port asymmetry and esp-idf watchdog/brownout notes — is parked at
+  `canbus/archive/bridge-t2can.yaml` (not built, not generated). See that directory's
+  README for the revival path.
 - Pure forwarding logic lives in `protocol/bridge_forwarding.h`; native test:
   `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge`
 - Before wall installation, the ADR-0005 open item 5 soak test must observe on hardware:
-  zone-side RX behavior under bursts (ESPHome polls the MCP2515 from `loop()`; 2 RX
+  both sides' RX behavior under bursts (ESPHome polls each MCP2515 from `loop()`; 2 RX
   buffers), and watchdog/brownout recovery degrading to *silent* — never holding a segment
   dominant.

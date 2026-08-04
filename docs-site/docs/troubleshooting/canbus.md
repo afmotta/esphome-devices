@@ -179,7 +179,7 @@ not a hardware one.
 ## A CAN bridge segment appears down
 
 **Background:** The house's CAN bus is split into segments joined by small
-bridge devices (`devices/bridge.yaml`) rather than one single wire run. A
+bridge devices (the `bridge` registry profile) rather than one single wire run. A
 bridge just forwards traffic between the segment it sits on and the rest of
 the bus.
 

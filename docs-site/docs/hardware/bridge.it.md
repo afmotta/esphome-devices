@@ -1,10 +1,15 @@
 # Bridge CAN Guasto
 
-Il bridge è una piccola scheda (LilyGO T-2CAN) che unisce due sezioni del bus CAN —
-un segmento "backbone" e un segmento "di zona" — così un guasto o molto traffico su
-una sezione non si propaga necessariamente all'altra. È volutamente semplice: niente
-WiFi, nessuna connessione a Home Assistant, nessun aggiornamento via rete. Lo si
-flasha e se ne leggono i log solo collegando un cavo USB direttamente ad esso.
+Il bridge è una piccola scheda che unisce due sezioni del bus CAN — un segmento
+"backbone" e un segmento "di zona" — così un guasto o molto traffico su una sezione non
+si propaga necessariamente all'altra. È volutamente semplice: niente WiFi, nessuna
+connessione a Home Assistant, nessun aggiornamento via rete. Lo si flasha e se ne
+leggono i log solo collegando un cavo USB direttamente ad esso.
+
+È la **stessa scheda CANBed RP2040 di un nodo CAN normale**, con un secondo controller
+CAN (un modulo MCP2515) aggiunto sul connettore SPI della scheda. È voluto: una sola
+scatola di schede di scorta copre sia i nodi sia i bridge. 🔵 Il bridge non è ancora
+stato costruito né flashato su hardware reale.
 
 ## Come capire se è il bridge e non qualcos'altro
 
@@ -24,7 +29,10 @@ suo buffer interno si è riempito, blocca un flag di errore
 (`ERR_BRIDGE_QUEUE_OVERFLOW`) nel proprio heartbeat che resta impostato finché il
 bridge non viene spento e riacceso — quindi un bridge in difficoltà ma non
 completamente guasto dovrebbe essere visibile nella sua diagnostica invece di
-degradarsi silenziosamente.
+degradarsi silenziosamente. Poiché un bridge è una normale riga del registro, compare
+anche nelle entità di salute per-nodo di Home Assistant esattamente come un nodo: se
+smette di inviare l'heartbeat, ricevi lo stesso segnale "nodo offline" che riceveresti
+per un interruttore a muro.
 
 !!! danger "Fai il push prima di riflashare"
     Stessa regola di ogni dispositivo derivato dal registro — vedi
@@ -32,40 +40,39 @@ degradarsi silenziosamente.
 
 ## Percorso A — Riflash USB sul posto
 
-A differenza di un nodo normale, la configurazione del bridge (`devices/bridge.yaml`)
-è **scritta a mano**, non generata dal registro — salta il passaggio di rigenerazione
-del registro.
+La configurazione del bridge è **generata dal registro**, come quella di qualsiasi nodo
+— la sua riga del registro porta semplicemente il profilo `bridge` invece di `buttons`.
 
-1. Compilala direttamente: `esphome compile devices/bridge.yaml`.
-2. Flashala via USB-seriale (il bridge non ha OTA/WiFi per progetto — le radio sono
-   volutamente disattivate su questo dispositivo).
-3. Conferma che riprenda l'inoltro e l'heartbeat (verifica che il controller veda di
-   nuovo il suo heartbeat).
-
-!!! warning "Ignora il file esca"
-    Il generatore del registro (`canbus/tools/generate_nodes.py`) emette comunque un
-    file `canbus/nodes/node<id>.yaml` per la riga del registro del bridge, perché il
-    bridge condivide lo stesso spazio di numerazione `node_id` dei nodi normali.
-    **Non flashare mai quel file sul bridge** — è una configurazione generica di nodo,
-    non il vero firmware del bridge. Flasha sempre `devices/bridge.yaml` direttamente.
+1. Rigenera: `python3 canbus/tools/generate_nodes.py`.
+2. Compila la sua configurazione generata: `esphome compile canbus/nodes/bridge<id>.yaml`
+   (nota il prefisso `bridge` — è così che si riconoscono i bridge in `canbus/nodes/`).
+3. Flashala via USB-seriale (il bridge non ha OTA/WiFi per progetto — la scheda non ha
+   proprio alcuna radio).
+4. Conferma che riprenda l'inoltro e l'heartbeat (verifica che il monitor di salute veda
+   di nuovo il suo heartbeat).
 
 ## Percorso B — Sostituzione scheda (il bridge stesso è danneggiato)
 
 1. Al banco, assegna al bridge sostitutivo un nuovo `node_id` con
    `python3 canbus/tools/allocate_node.py` (i bridge condividono lo spazio piatto dei
-   node_id con i nodi CAN normali — dai alla riga del registro un nome identificabile,
-   es. "bridge - piano 1").
-2. In `devices/bridge.yaml`, imposta la sostituzione `node_id` al nuovo id assegnato
-   (il file viene fornito con un valore placeholder — controlla il file attuale, non
-   dovrebbe più dire `"200"` quando flashi un bridge reale con esso).
+   node_id con i nodi CAN normali).
+2. In `registry/nodes.csv`, imposta la colonna `profile` di quella nuova riga a `bridge`
+   e dai al suo `location` un nome identificabile, es. "bridge - piano 1". L'allocatore
+   crea le righe nuove come `buttons`, quindi è questo passaggio che ne fa un bridge.
 3. Ritira la vecchia riga del registro del bridge (stesso ragionamento dei nodi CAN —
    i `node_id` non vengono mai riutilizzati).
-4. Compila e flasha la sostituzione via USB, come nel Percorso A.
+4. Rigenera, compila e flasha la sostituzione via USB, come nel Percorso A.
 5. Installala fisicamente al posto di quella guasta e conferma che riprenda l'inoltro
    e l'heartbeat.
+
+!!! note "Il modulo di ricambio deve essere a 3,3 V"
+    Il secondo controller CAN è un modulo MCP2515 aggiuntivo. Deve essere un modello a
+    3,3 V (abbinato a un transceiver SN65HVD230, MCP2562FD o TJA1042T,3). Il diffusissimo
+    modulo rosso "MCP2515 + TJA1050" è a 5 V e **distruggerà** la scheda — l'RP2040 non
+    tollera i 5 V. Verificalo prima di comprare una scorta.
 
 ## Correlati
 
 - [Risoluzione problemi bus CAN](../troubleshooting/canbus.md)
 - [Nodo CAN](can-node.md) — il caso più comune; un guasto al bridge è più raro di un
-  guasto a un nodo normale.
+  guasto a un nodo normale. Stessa scheda, quindi la scorta è intercambiabile.

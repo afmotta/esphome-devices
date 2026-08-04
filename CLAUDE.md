@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.13 |
-| **Last Updated** | July 27, 2026 |
+| **Version** | 1.14 |
+| **Last Updated** | August 4, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -130,7 +130,8 @@ esphome-devices/
 ├── canbus/                    # CAN bus infrastructure system (see canbus/CLAUDE.md)
 │   ├── protocol/               # Wire protocol + arbitration headers, native tests' target
 │   ├── packages/               # Node-side and gateway-side ESPHome packages
-│   ├── nodes/                  # Generated node firmware (never hand-edited)
+│   ├── nodes/                  # Generated node/bridge firmware (never hand-edited; registry `profile`)
+│   ├── archive/                # Retired firmware, kept on disk (T-2CAN bridge; not built)
 │   ├── tools/                  # Registry/generator tooling (generate_nodes.py, etc.)
 │   ├── tests/                  # Python + native C++ tests
 │   ├── home-assistant/         # Arbitration automations, generated manifest package
@@ -162,6 +163,7 @@ esphome-devices/
 ├── boards/                    # Board hardware definitions (shared, no owning system)
 │   ├── t-connect-pro.yaml / t-connect-pro-ethernet.yaml / t-connect-pro-wifi.yaml # LilyGO T-Connect Pro (both controllers, ADR-0014)
 │   ├── canbed-rp2040.yaml   # Longan Labs CANBed RP2040 node board (CAN bus button/sensor nodes)
+│   ├── canbed-rp2040-can1.yaml # Second MCP2515 add-on for the CANBed (segment bridges, ADR-0017)
 │   ├── s1-pro-multi-sense.yaml # Sensor board
 │   ├── base.yaml               # Legacy common settings (Gen-1 a6/a16 era; no current consumer)
 │   └── wifi.yaml                # Legacy WiFi network config (Gen-1 a6/a16 era; no current consumer)
@@ -172,7 +174,6 @@ esphome-devices/
 │   ├── wall-sensor.yaml       # Wall-mounted sensor (SEN66)
 │   ├── light-controller.yaml  # Lighting controller firmware (button events + relay bank; ADR-0015)
 │   ├── health-monitor.yaml    # CAN bus health monitor firmware (transport health; ADR-0015)
-│   ├── bridge.yaml            # CAN bus segment bridge firmware
 │   ├── secrets.yaml.example   # Template for devices/secrets.yaml (device secrets)
 │   ├── locals/                # Local development/deployment configs
 │   └── remotes/               # Remote GitHub-based deployment configs
@@ -654,6 +655,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-08-04 | 1.14 | ADR-0017: node composition is now driven by a single-valued `profile` column in `registry/nodes.csv` (`buttons` / `buttons+sensors` / `sensors` / `bridge`), replacing the `sensors` boolean — making "bridge AND sensors" unrepresentable rather than merely rejected (ADR-0005 single-purpose forwarders). `base_node.yaml` split into `node_core.yaml` + `buttons_8.yaml` so a bridge instantiates no button GPIOs; new `canbus/packages/bridge.yaml` + `boards/canbed-rp2040-can1.yaml` run the segment bridge on the fleet node board (CANBed RP2040 + a second MCP2515, CS GPIO8). The LilyGO T-2CAN bridge firmware retired to `canbus/archive/`. `map.json` keeps its frozen `nodes[].sensors` field, now derived, and adds `profile` | AI Assistant |
 | 2026-07-27 | 1.13 | Lighting panel brought to the climate panel's shape, so the two screens on identical hardware read as one system: read-only "Home" glance tab in large type (was "Status", a stack of default-size labels), the Buttons tab rebuilt from a single last-event line into the last 8 presses as aligned four-column rows (node/btn/gesture/age) fed by a header-accessor ring in `lighting/packages/ui/touch_ui_format.h`, the 32 hand-written relay cells collapsed into `relay_cell.yaml`/`relay_refresh.yaml` fragments that carry on/off via LVGL `checked` (so the OFF fill comes from the shared theme), an always-visible status strip with alarm precedence (manifest mismatch outranks HA-down) and a liveness pulse, and the 2 s refresh skipped while LVGL is paused. ALL OFF now iterates `relay_store()` instead of 32 named ids. Strip fills added to the shared palette in `packages/ui/dark_theme.yaml`; stale "runs WiFi" header in `devices/light-controller-touch.yaml` corrected | AI Assistant |
 | 2026-07-26 | 1.12 | Climate touch UI reworked: shared LVGL dark theme extracted to `packages/ui/dark_theme.yaml` and adopted by both panels (a tabview covers the screen, so `lvgl: bg_color:` alone never made either panel dark — the tabview's own `tab_style`/`content_style` and a `theme:` block are what do it); zone rows rebuilt as four aligned columns (name/temp/target/state) from `climate/packages/ui/zone_row.yaml` + `zone_refresh.yaml` with semantic colour for heat/cool/idle and for degraded sensor tiers; tap-to-select zone rows; always-visible status strip on the LVGL top layer carrying alarms and a liveness pulse; two-column Home tab; 2 s refresh now skipped while LVGL is paused. Panel entry points consolidated: the four `t-connect-pro-debug*.yaml` bring-up builds deleted (their diagnosis preserved in ADR-0016 §Verification) and the fork's mandatory upgrade check repointed at `devices/locals/climate-control-touch.yaml`, whose new liveness dot makes it a better regression target; the WiFi touch variant committed rather than left as untracked WIP | AI Assistant |
 | 2026-07-26 | 1.11 | ADR-0016: W5500 Ethernet and the onboard display now share ONE SPI controller (`spi2`), arbitrated by their CS lines, via a local fork of the core `ethernet` component in `libs/esphome_overrides/` — the previous two-controller arrangement was electrically impossible and the panel never rendered. Both touch builds keep Ethernet (lighting's forced WiFi override removed); panels idle asleep via LVGL `on_idle`. Added the mandatory fork re-verification step to the ESPHome upgrade procedure | AI Assistant |

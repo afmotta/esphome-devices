@@ -1,4 +1,18 @@
 # =============================================================================
+# bridge-t2can.yaml — RETIRED (ADR-0017 §7). NOT BUILT, NOT GENERATED, NOT FLASHED.
+# =============================================================================
+# Was devices/bridge.yaml until 2026-08-04. Segment bridges now run on the fleet
+# node board (CANBed RP2040 + a second MCP2515 on the SPI header, CS GPIO8) and
+# are generated from registry/nodes.csv via the `bridge` profile — see
+# canbus/packages/bridge.yaml and boards/canbed-rp2040-can1.yaml.
+#
+# Kept because the one T-2CAN still exists and this firmware's reliability
+# reasoning (below) is the source the CANBed bridge was ported from. To revive
+# it, see canbus/archive/README.md. Frozen at its retirement state: re-verify
+# against the current ESPHome before trusting it.
+#
+# Everything below is the original file, unchanged.
+# =============================================================================
 # bridge.yaml — CAN segment bridge (store-and-forward, ADR-0005)
 # =============================================================================
 # Hardware: LilyGO T-2CAN (ESP32-S3). The board's two CAN ports are NOT two

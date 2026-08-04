@@ -43,13 +43,29 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   includes) — own struct state via a header accessor (see `pending_acks_store`
   in `lighting/packages/buttons.yaml`, `node_health_store` in
   `canbus/packages/health.yaml`).
-- **CAN node composition is generic board through base node.** Generated node configs
-  in `canbus/nodes/` compose `base_node.yaml` plus optional `sensor_kit.yaml` only;
-  `base_node.yaml` pulls in `boards/canbed-rp2040.yaml` (RP2040, logger, SPI,
-  MCP2515 `can0`) and owns protocol include, boot logging, standard buttons,
-  globals, and heartbeat.
-- **`canbus/packages/`** holds both node-side (`base_node.yaml`, `button.yaml`,
-  `sensor_kit.yaml`) and gateway-side (`health.yaml` — transport health) packages
+- **CAN node composition is driven by the registry `profile` column** (ADR-0017).
+  Generated configs in `canbus/nodes/` compose `node_core.yaml` plus exactly the
+  packages their profile selects — `buttons` / `buttons+sensors` / `sensors` /
+  `bridge`, defined in one place, `PROFILES` in `canbus/tools/generate_nodes.py`.
+  `node_core.yaml` pulls in `boards/canbed-rp2040.yaml` (RP2040, logger, SPI,
+  MCP2515 `can0`) and owns protocol include, boot logging, globals, and heartbeat.
+  The column is **single-valued on purpose**: ADR-0005 requires single-purpose
+  bridge firmware, so "bridge AND sensors" is unrepresentable rather than merely
+  rejected. Adding a profile = a new `PROFILES` row + its package file; never an
+  `if profile == ...` branch.
+- **Two invariants hold across every profile** (ADR-0017 §3), and they are what let
+  `node_core.yaml` contain no conditionals: **`can0` is always the controller-facing
+  port** (on a bridge that is the backbone side, `can1` the zone side), and
+  **`error_flags` is the shared contribution point with `node_core.yaml` as its sole
+  transmitter** — a profile package reports by OR-ing its `ERR_*` bit in, and never
+  adds a second `CAT_STATUS` interval. One node_id, one heartbeat.
+- **Bridges are ordinary registry rows.** A bridge carries a `node_id` from the same
+  allocation space, so it lands in `node_map.h`, `map.json`, and the generated HA
+  per-node health entities for free. The retired T-2CAN firmware is parked at
+  `canbus/archive/bridge-t2can.yaml` (not built, not generated — see that dir's README).
+- **`canbus/packages/`** holds both node-side (`node_core.yaml`, `buttons_8.yaml`,
+  `button.yaml`, `sensor_kit.yaml`, `bridge.yaml`) and gateway-side (`health.yaml` —
+  transport health) packages
   since Phase 6a merged them. Since the ADR-0015 split, `health.yaml` composes
   onto its own device, `devices/health-monitor.yaml` (Waveshare ESP32-S3-RS485-CAN),
   while `lighting/packages/buttons.yaml` composes onto `devices/light-controller.yaml`
@@ -79,8 +95,9 @@ g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bco
 # see lighting/protocol/binding_actuation.h's own header comment)
 g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp -o /tmp/act && /tmp/act
 
-# ESPHome compile check without touching generated nodes
-esphome compile canbus/tests/compile_sensor_node.yaml
+# ESPHome compile checks without touching generated nodes
+esphome compile canbus/tests/compile_sensor_node.yaml   # buttons+sensors profile
+esphome compile canbus/tests/compile_bridge.yaml        # bridge profile (2x MCP2515)
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte
@@ -98,8 +115,11 @@ controller (this repo) and dashboards. Its Climate-consumer contract is **frozen
 (ADR-0009 open item 5, closed by `spec-map-json-contract`): `schema_version`,
 `map_version`, `nodes[].node_id`, `nodes[].room_slug`, `nodes[].location`,
 `nodes[].sensors` are frozen-additive; `manifest_hash` and `board` are
-explicitly outside the freeze. `room_slug` is the climate-zone join key
-(validated against `climate/rooms/**`; required when `sensors=1`), and
+explicitly outside the freeze. ADR-0017 replaced the registry's `sensors` column
+with `profile`, but `nodes[].sensors` is inside the freeze — it is still exported,
+DERIVED from the profile, and `profile` was added alongside (frozen-additive), so
+Climate consumers needed no change. `room_slug` is the climate-zone join key
+(validated against `climate/rooms/**`; required for any sensor-bearing profile), and
 numeric `floor` converts to a climate floor slug via `FLOOR_SLUGS`
 (0→`ground_floor`, 1→`first_floor`, 2→`second_floor`) in
 `canbus/tools/generate_nodes.py`. Sensor-kit CAN frames (ADR-0006) feed the
