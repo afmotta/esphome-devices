@@ -43,6 +43,7 @@ jobs:
             devices/light-controller-touch.yaml \
             devices/health-monitor.yaml \
             canbus/tests/compile_bridge.yaml \
+            canbus/tests/compile_buttons_bridge.yaml \
             climate/tests/compile_can_sensor_receiver.yaml
           do
             echo "::group::esphome config $f"

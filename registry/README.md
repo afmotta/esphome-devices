@@ -27,13 +27,17 @@ the ESPHome packages the generated config composes:
 | `buttons+sensors` | wall plate + the ADR-0006 SHT45/SEN66 kit |
 | `sensors` | sensor puck, no switch plate |
 | `bridge` | ADR-0005 segment forwarder (CANBed + a second MCP2515) |
+| `buttons+bridge` | wall plate that is also a forwarder — where a segment splits at a button box |
 
 Single-valued on purpose: ADR-0005 requires single-purpose bridge firmware, so a
 one-of-N column makes "bridge AND sensors" impossible to write rather than something
-validation has to catch. Blank is **not** a shorthand for anything — the generator
-rejects it, so a dropped cell can never silently downgrade a sensor node or a bridge.
-The valid values live in `PROFILES` in `canbus/tools/generate_nodes.py`; a
-sensor-bearing profile also requires a `room_slug`.
+validation has to catch. Buttons are the one thing allowed to share a board with a
+bridge (they add no blocking I/O); the sensor kit is not, and never will be.
+
+Blank is **not** a shorthand for anything — the generator rejects it, so a dropped
+cell can never silently downgrade a sensor node or a bridge. The valid values live in
+`PROFILES` in `canbus/tools/generate_nodes.py`; a sensor-bearing profile also requires
+a `room_slug`.
 
 The compiled artifacts derived from this data (`canbus/protocol/node_map.h`,
 `canbus/protocol/bindings.h`) are canbus-owned and covered by the

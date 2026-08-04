@@ -285,7 +285,10 @@ The bus is segmented (ADR-0005, accepted 2026-06-10): a backbone segment plus pe
 secondaries in a strict loop-free tree, joined by store-and-forward **software bridges**.
 Bridges are generated from the registry like any other node: give the row the `bridge`
 profile (ADR-0017) and `generate_nodes.py` emits `nodes/bridgeNNN.yaml` composing
-`packages/node_core.yaml` + `packages/bridge.yaml`.
+`packages/node_core.yaml` + `packages/bridge.yaml`. Where a segment splits at a button box,
+use `buttons+bridge` instead — same file naming, with the 8-button set added. Buttons are
+the only package allowed to share a board with the forwarder (they add no blocking I/O);
+the sensor kit is not, and the single-valued column makes that combination unwritable.
 
 Hardware is the fleet node board — a **CANBed RP2040 with a second MCP2515** on the
 broken-out SPI header (CS `GPIO8`, 16 MHz, 3.3 V module required — the RP2040 is not 5 V

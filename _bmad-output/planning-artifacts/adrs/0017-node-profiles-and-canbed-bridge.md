@@ -31,6 +31,11 @@ relatedDocuments:
 `canbus/` composition, the `registry/` schema, and the `climate/`-facing `map.json` export; the
 frozen `canbus/_bmad-output/` tree is never edited, per AD-1). Implemented the same day.
 
+**Amended the same day** (2026-08-04) to add the `buttons+bridge` profile: the segment plan
+turned out to split at some button boxes, where a dedicated forwarder would mean two boards in
+one back-box. §2 and §7 below carry the reasoning; it is a bounded relaxation of ADR-0005's
+single-purpose rule for buttons only, and the sensor-kit exclusion is unchanged.
+
 **Not hardware-verified.** Every claim below about pins, config validity, and package
 composition was checked with `esphome config` against real repo packages; nothing has been
 compiled or flashed. The bring-up checks are open items 1-3.
@@ -103,22 +108,44 @@ The `sensors` boolean is replaced by `profile`, one value per row:
 | `buttons` | `buttons_8` | wall plate, no sensing (was `sensors=0`) |
 | `buttons+sensors` | `buttons_8` + `sensor_kit` | wall plate with the ADR-0006 kit (was `sensors=1`) |
 | `sensors` | `sensor_kit` | sensor puck, no switch plate (newly expressible) |
-| `bridge` | `bridge` | segment forwarder, ADR-0005 single-purpose |
+| `bridge` | `bridge` | segment forwarder only |
+| `buttons+bridge` | `buttons_8` + `bridge` | wall plate that is also a forwarder |
 
 **Mutual exclusion is structural, not validated.** A single-valued enum cannot express
 "bridge and sensors"; two boolean columns could, and would rely on the generator to reject it.
 This is the mechanism by which ADR-0005's single-purpose-firmware requirement stops being a
-rule someone has to remember.
+rule someone has to remember. `bridge+sensors` is not merely absent from the table — it is a
+string the registry rejects, and a test asserts no profile ever pairs those two packages.
+
+**`buttons+bridge` is a deliberate, bounded relaxation of that rule.** Some CAN segments
+split at a button box; insisting on a dedicated forwarder there would put two boards in one
+back-box for no reliability gain. Buttons are the only package that can ride along, because
+they are the only one that adds neither blocking I/O nor a new way to hang the forwarding
+loop — GPIO edges and timers, nothing more. The sensor kit stays excluded for exactly the
+reason it always was (see Alternatives): its unbounded I2C hang path turns a room fault into
+a dark segment. The pin budget closes with no conflict — buttons hold GP10 and GP19-25, the
+onboard MCP2515 holds GP2/3/4/9/11, and `can1`'s chip select takes the last free header pin,
+GP8 — and `canbus/tests/compile_buttons_bridge.yaml` is the gate that keeps it closing.
+
+A `buttons+bridge` row is filed under the `bridge` prefix and kind. Bridging is the
+high-consequence role: its failure darkens a segment, where a button failure darkens one
+switch. `ls canbus/nodes/` should surface the former.
+
+One cost is accepted here: ADR-0005 asks for "clean, adequate power" to each bridge, and a
+wall back-box is a worse power environment than a junction box. That is the trade for not
+running a separate forwarder to a place the cable already passes through.
 
 The column is named `profile` because ADR-0006 §5 already calls this a *"deployment profile"*.
-Adding a future combination (e.g. `bridge+buttons`, the one mixed profile that carries no
-blocking I/O) is a new enum value and a new package tuple — no schema change.
+Adding a combination is a new enum value and a new package tuple — no schema change. That is
+exactly how `buttons+bridge` arrived, one table row, hours after this ADR was accepted.
 
 ### 3. `base_node.yaml` splits into `node_core.yaml` + `buttons_8.yaml`
 
 `node_core.yaml` keeps identity, globals, the board include, and the heartbeat. `buttons_8.yaml`
 carries the 8-button set and the `debounce_ms` requirement. Generated nodes compose
-`node_core` plus their profile's packages, and nothing else.
+`node_core` plus their profile's packages, and nothing else. The split is what makes both a
+button-less bridge and a `buttons+bridge` wall plate expressible from the same parts — before
+it, every node got 8 GPIO binary sensors whether or not it had a switch plate.
 
 Two invariants make `node_core.yaml` completely profile-agnostic — it contains no conditional
 of any kind:

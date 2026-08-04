@@ -538,10 +538,13 @@ def test_no_profile_carries_both_bridge_and_sensors():
 
 
 def test_generator_rejects_unknown_profile():
+    # `bridge+sensors` is the specific string someone would reach for when trying to put a
+    # sensor kit on a forwarder. It is not in PROFILES and must never be added (ADR-0005),
+    # so the registry rejects it at the column — the enum is the enforcement point.
     _assert_temp_generator_rejects(
         "node_id,floor,room,board,location,profile,room_slug\n"
-        "100,0,7,0,Hall,buttons+bridge,\n",
-        "Invalid profile 'buttons+bridge'",
+        "100,0,7,0,Hall,bridge+sensors,\n",
+        "Invalid profile 'bridge+sensors'",
     )
 
 
@@ -579,6 +582,29 @@ def test_generator_renders_bridge_profile():
         assert '{200, 7, 0, "Junction box"},' in (root / "protocol" / "node_map.h").read_text()
 
 
+def test_generator_renders_buttons_bridge_profile():
+    # Some CAN segments split at a button box, so a forwarder that is also a wall plate is
+    # a real deployment (ADR-0017 §2). Buttons are the ONLY sanctioned co-tenant of the
+    # bridge; test_no_profile_carries_both_bridge_and_sensors guards the other direction.
+    nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
+                 "201,0,7,0,Hall switch box + segment split,buttons+bridge,\n")
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        # Filed under the bridge prefix: bridging is the high-consequence role, so that is
+        # what `ls canbus/nodes/` surfaces.
+        yaml = (root / "nodes" / "bridge201.yaml").read_text()
+        assert "core: !include ../packages/node_core.yaml" in yaml
+        assert "buttons: !include ../packages/buttons_8.yaml" in yaml
+        assert "bridge: !include ../packages/bridge.yaml" in yaml
+        assert "sensor_kit.yaml" not in yaml
+        # Has buttons, so it needs debounce and emits button events.
+        assert 'debounce_ms: "50"' in yaml
+        assert "CAT_INPUT" in yaml
+
+
 def test_generator_renders_sensors_only_profile():
     nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
                  "102,0,7,0,Ceiling puck,sensors,anticamera\n")
@@ -608,11 +634,13 @@ def test_map_export_derives_frozen_sensors_field_from_profile():
          "profile": "sensors", "room_slug": "soggiorno"},
         {"node_id": 4, "floor": 0, "room": 4, "board": 0, "location": "d",
          "profile": "bridge", "room_slug": ""},
+        {"node_id": 5, "floor": 0, "room": 5, "board": 0, "location": "e",
+         "profile": "buttons+bridge", "room_slug": ""},
     ]
     exported = g.build_map_export(nodes, HASH)["nodes"]
-    assert [n["sensors"] for n in exported] == [0, 1, 1, 0]
+    assert [n["sensors"] for n in exported] == [0, 1, 1, 0, 0]
     assert [n["profile"] for n in exported] == [
-        "buttons", "buttons+sensors", "sensors", "bridge"]
+        "buttons", "buttons+sensors", "sensors", "bridge", "buttons+bridge"]
 
 
 def main():

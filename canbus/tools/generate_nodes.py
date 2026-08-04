@@ -18,6 +18,8 @@ selects which packages the generated config composes on top of node_core.yaml:
     buttons+sensors  wall plate + the ADR-0006 SHT45/SEN66 kit
     sensors          sensor puck, no switch plate
     bridge           ADR-0005 segment forwarder (second MCP2515 on can1)
+    buttons+bridge   wall plate that is ALSO a segment forwarder — for the boxes where
+                     the CAN segments physically split at a button box
 
 It is deliberately single-valued: ADR-0005 requires single-purpose bridge firmware, and a
 one-of-N column makes "bridge AND sensors" unrepresentable rather than merely rejected.
@@ -93,9 +95,15 @@ packages:
 # catch. Every generator branch below is a lookup into this table — if you find yourself
 # adding an `if profile == ...`, add a Profile field instead.
 #
-# Adding a profile (e.g. reviving the archived T-2CAN bridge as `bridge-t2can`, or the one
-# safe mixed profile `bridge+buttons`) is a new row here plus its package file. No schema
-# change, no migration.
+# Adding a profile (e.g. reviving the archived T-2CAN bridge as `bridge-t2can`) is a new row
+# here plus its package file. No schema change, no migration — `buttons+bridge` was added
+# exactly that way, one row, after the segment plan turned out to split at some button boxes.
+#
+# What must NEVER appear here is a profile combining `bridge.yaml` with `sensor_kit.yaml`
+# (ADR-0005/ADR-0017): the sensor kit is the one package with blocking I/O and an unbounded
+# I2C hang path, which on a forwarder escalates a room fault into a dark segment. Buttons are
+# GPIO plus timers and carry neither. test_no_profile_carries_both_bridge_and_sensors asserts
+# it.
 #
 #   packages — (yaml key, file under canbus/packages/) pairs, in include order
 #   buttons  — emits debounce_ms and the CAT_INPUT id comment
@@ -121,6 +129,13 @@ PROFILES = {
         packages=(("bridge", "bridge.yaml"),),
         buttons=False, sensors=False, prefix="bridge", kind="Bridge",
     ),
+    # Filed under the `bridge` prefix/kind even though it has buttons: bridging is the
+    # high-consequence role (its failure darkens a whole segment, a button failure darkens
+    # one switch), so that is what `ls canbus/nodes/` should surface.
+    "buttons+bridge": Profile(
+        packages=(("buttons", "buttons_8.yaml"), ("bridge", "bridge.yaml")),
+        buttons=True, sensors=False, prefix="bridge", kind="Bridge",
+    ),
 }
 
 # Header comment contributed by each package, so a generated file explains itself.
@@ -130,7 +145,7 @@ PACKAGE_COMMENTS = {
                         "(CAT_SENSOR, host room = sensor room)\n"),
     "bridge.yaml": ("# Bridge:   store-and-forward, can0 (backbone) <-> can1 (zone), from\n"
                     "#           packages/bridge.yaml + boards/canbed-rp2040-can1.yaml.\n"
-                    "#           Single-purpose (ADR-0005): never carries buttons or sensors.\n"),
+                    "#           Never carries the sensor kit (ADR-0005/ADR-0017).\n"),
 }
 
 

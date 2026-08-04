@@ -11,6 +11,11 @@ controller (an MCP2515 module) added on the board's SPI header. That's on purpos
 box of spare boards covers nodes and bridges alike. 🔵 The bridge has not yet been built
 or flashed on real hardware.
 
+Some bridges are also wall switches. Where the CAN cabling splits at a button box, one
+board does both jobs — its registry profile is `buttons+bridge` rather than `bridge`.
+If the buttons on such a box stop working, check whether the whole downstream section
+went quiet too: that points at the board itself rather than at the switch.
+
 ## How to tell it's the bridge and not something else
 
 If an entire section of the house stops hearing CAN traffic while the rest of the bus
@@ -36,7 +41,8 @@ get the same "node offline" signal you'd get for a wall switch.
 ## Path A — In-place USB reflash
 
 The bridge's config is **generated from the registry**, same as any node — its registry
-row just carries the `bridge` profile instead of `buttons`.
+row just carries the `bridge` profile instead of `buttons` (or `buttons+bridge`, if this
+one is also a wall switch).
 
 1. Regenerate: `python3 canbus/tools/generate_nodes.py`.
 2. Compile its generated config: `esphome compile canbus/nodes/bridge<id>.yaml`
@@ -51,9 +57,11 @@ row just carries the `bridge` profile instead of `buttons`.
 1. On the bench, allocate the replacement bridge a fresh `node_id` with
    `python3 canbus/tools/allocate_node.py` (bridges share the flat node_id space with
    regular CAN nodes).
-2. In `registry/nodes.csv`, set that new row's `profile` column to `bridge` and give
-   its `location` something identifiable, e.g. "bridge - floor 1". The allocator seeds
-   new rows as `buttons`, so this step is what makes it a bridge.
+2. In `registry/nodes.csv`, set that new row's `profile` column to `bridge` — or
+   `buttons+bridge` if the box also has a wall switch on it — and give its `location`
+   something identifiable, e.g. "bridge - floor 1". The allocator seeds new rows as
+   `buttons`, so this step is what makes it a bridge. Copy the profile from the row
+   you're replacing so you don't accidentally drop its buttons.
 3. Retire the old bridge's registry row (same reasoning as CAN nodes — `node_id`s are
    never reused).
 4. Regenerate, compile and flash the replacement over USB, as in Path A.

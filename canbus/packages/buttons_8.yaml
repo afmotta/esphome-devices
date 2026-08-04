@@ -5,11 +5,13 @@
 # profile has no switch plate, and 8 gpio binary_sensors on floating pins would
 # emit phantom presses.
 #
-# Selected by the `buttons` and `buttons+sensors` registry profiles
-# (generate_nodes.py PROFILES). Pin assignment is fleet-fixed by the CANBed
-# RP2040 main header and is unchanged from base_node.yaml — GP8 is deliberately
-# NOT used here, it is reserved fleet-wide as the bridge's can1 chip select
-# (boards/canbed-rp2040-can1.yaml).
+# Selected by the `buttons`, `buttons+sensors` and `buttons+bridge` registry
+# profiles (generate_nodes.py PROFILES). Pin assignment is fleet-fixed by the
+# CANBed RP2040 main header and is unchanged from base_node.yaml — GP8 is
+# deliberately NOT used here, it is reserved fleet-wide as the bridge's can1
+# chip select (boards/canbed-rp2040-can1.yaml). That reservation is what lets
+# `buttons+bridge` exist at all: the 8 buttons and the second CAN controller
+# fit on one board with no pin conflict.
 #
 # Required substitutions:
 #   ${node_id}, ${debounce_ms}

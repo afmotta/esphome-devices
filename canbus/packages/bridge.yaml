@@ -1,11 +1,18 @@
 # =============================================================================
 # bridge.yaml — CAN segment bridge behaviour (store-and-forward, ADR-0005)
 # =============================================================================
-# Profile package for the `bridge` registry profile (ADR-0017). Composes ONLY
-# with node_core.yaml — never with buttons_8.yaml or sensor_kit.yaml. ADR-0005
-# requires single-purpose bridge firmware, and the single-valued `profile`
-# column makes any other combination unrepresentable rather than merely
-# forbidden.
+# Profile package for the `bridge` and `buttons+bridge` registry profiles
+# (ADR-0017). **Never composes with sensor_kit.yaml** — the single-valued
+# `profile` column makes that combination unrepresentable rather than merely
+# forbidden, and a test asserts no profile pairs them.
+#
+# `buttons+bridge` exists because some CAN segments split at a button box, where
+# insisting on a dedicated forwarder would mean two boards in one back-box. It
+# is a deliberate, bounded relaxation of ADR-0005's single-purpose rule: buttons
+# are GPIO plus timers, adding no blocking I/O and no new way to hang the
+# forwarding loop. The sensor kit is a different matter — it has an unbounded
+# I2C hang path, which on a forwarder turns a room fault into a dark segment.
+# That is the line, and it does not move.
 #
 # Hardware: CANBed RP2040 with a second MCP2515 on the SPI header
 # (boards/canbed-rp2040-can1.yaml), replacing the LilyGO T-2CAN — the original
@@ -26,8 +33,9 @@
 # strictly no loops) rules out a multi-bridge cycle.
 #
 # --- ADR-0005 mandatory reliability requirements, mapped ---
-#   - Single-purpose firmware: this package only forwards. The profile column
-#     enforces it; do not add node/actuator roles here.
+#   - Single-purpose firmware: this package only forwards, and never rides with
+#     the sensor kit. Buttons are the one sanctioned co-tenant (see above); do
+#     not add actuator roles or any other blocking I/O here.
 #   - Radios off: structural — the RP2040 has no radio at all. Nothing to
 #     disable, nothing to re-enable by accident.
 #   - Watchdog: boards/canbed-rp2040.yaml carries the rp2 platform; set

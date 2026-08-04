@@ -46,13 +46,18 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
 - **CAN node composition is driven by the registry `profile` column** (ADR-0017).
   Generated configs in `canbus/nodes/` compose `node_core.yaml` plus exactly the
   packages their profile selects — `buttons` / `buttons+sensors` / `sensors` /
-  `bridge`, defined in one place, `PROFILES` in `canbus/tools/generate_nodes.py`.
+  `bridge` / `buttons+bridge`, defined in one place, `PROFILES` in
+  `canbus/tools/generate_nodes.py`.
   `node_core.yaml` pulls in `boards/canbed-rp2040.yaml` (RP2040, logger, SPI,
   MCP2515 `can0`) and owns protocol include, boot logging, globals, and heartbeat.
   The column is **single-valued on purpose**: ADR-0005 requires single-purpose
   bridge firmware, so "bridge AND sensors" is unrepresentable rather than merely
-  rejected. Adding a profile = a new `PROFILES` row + its package file; never an
-  `if profile == ...` branch.
+  rejected — `bridge+sensors` is a string the generator refuses, and a test asserts
+  no profile ever pairs those two packages. **Buttons are the one sanctioned
+  co-tenant of a bridge** (`buttons+bridge`, for the boxes where a segment splits
+  at a button box): they add no blocking I/O and no new way to hang the forwarding
+  loop, which is precisely what the sensor kit does add. Adding a profile = a new
+  `PROFILES` row + its package file; never an `if profile == ...` branch.
 - **Two invariants hold across every profile** (ADR-0017 §3), and they are what let
   `node_core.yaml` contain no conditionals: **`can0` is always the controller-facing
   port** (on a bridge that is the backbone side, `can1` the zone side), and
@@ -98,6 +103,7 @@ g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/test
 # ESPHome compile checks without touching generated nodes
 esphome compile canbus/tests/compile_sensor_node.yaml   # buttons+sensors profile
 esphome compile canbus/tests/compile_bridge.yaml        # bridge profile (2x MCP2515)
+esphome compile canbus/tests/compile_buttons_bridge.yaml  # buttons+bridge (the pin-budget gate)
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte

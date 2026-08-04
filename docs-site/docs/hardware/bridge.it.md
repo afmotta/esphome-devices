@@ -11,6 +11,12 @@ CAN (un modulo MCP2515) aggiunto sul connettore SPI della scheda. È voluto: una
 scatola di schede di scorta copre sia i nodi sia i bridge. 🔵 Il bridge non è ancora
 stato costruito né flashato su hardware reale.
 
+Alcuni bridge sono anche interruttori a muro. Dove il cablaggio CAN si divide in una
+scatola dei pulsanti, una sola scheda svolge entrambi i compiti — il suo profilo nel
+registro è `buttons+bridge` invece di `bridge`. Se i pulsanti di una scatola del genere
+smettono di funzionare, controlla se anche tutta la sezione a valle è diventata
+silenziosa: questo indica la scheda stessa piuttosto che l'interruttore.
+
 ## Come capire se è il bridge e non qualcos'altro
 
 Se un'intera sezione della casa smette di ricevere traffico CAN mentre il resto del
@@ -41,7 +47,8 @@ per un interruttore a muro.
 ## Percorso A — Riflash USB sul posto
 
 La configurazione del bridge è **generata dal registro**, come quella di qualsiasi nodo
-— la sua riga del registro porta semplicemente il profilo `bridge` invece di `buttons`.
+— la sua riga del registro porta semplicemente il profilo `bridge` invece di `buttons`
+(oppure `buttons+bridge`, se questo è anche un interruttore a muro).
 
 1. Rigenera: `python3 canbus/tools/generate_nodes.py`.
 2. Compila la sua configurazione generata: `esphome compile canbus/nodes/bridge<id>.yaml`
@@ -57,8 +64,10 @@ La configurazione del bridge è **generata dal registro**, come quella di qualsi
    `python3 canbus/tools/allocate_node.py` (i bridge condividono lo spazio piatto dei
    node_id con i nodi CAN normali).
 2. In `registry/nodes.csv`, imposta la colonna `profile` di quella nuova riga a `bridge`
-   e dai al suo `location` un nome identificabile, es. "bridge - piano 1". L'allocatore
-   crea le righe nuove come `buttons`, quindi è questo passaggio che ne fa un bridge.
+   — oppure `buttons+bridge` se la scatola ha anche un interruttore a muro — e dai al suo
+   `location` un nome identificabile, es. "bridge - piano 1". L'allocatore crea le righe
+   nuove come `buttons`, quindi è questo passaggio che ne fa un bridge. Copia il profilo
+   dalla riga che stai sostituendo, così non perdi per sbaglio i suoi pulsanti.
 3. Ritira la vecchia riga del registro del bridge (stesso ragionamento dei nodi CAN —
    i `node_id` non vengono mai riutilizzati).
 4. Rigenera, compila e flasha la sostituzione via USB, come nel Percorso A.
