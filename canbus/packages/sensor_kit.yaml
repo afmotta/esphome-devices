@@ -1,13 +1,17 @@
 # =============================================================================
 # sensor_kit.yaml — per-room environment sensors (SHT45 + SEN66) over CAT_SENSOR
 # =============================================================================
-# Opt-in package (ADR-0006): include from a node via the `sensors` column in
-# registry/nodes.csv — never by hand-editing nodes/. Always included ALONGSIDE
-# base_node.yaml, which pulls in the board package (can0) and provides the protocol
-# header/node behavior; ${node_id} comes from the generated node config.
+# Opt-in package (ADR-0006): selected by the `sensors` and `buttons+sensors`
+# values of the `profile` column in registry/nodes.csv (ADR-0017) — never by
+# hand-editing nodes/. Always included ALONGSIDE node_core.yaml, which pulls in
+# the board package (can0) and provides the protocol header/node behavior;
+# ${node_id} comes from the generated node config.
 # "dedicated sensor node" vs "combined with buttons" is a deployment profile
-# (ADR-0006 §5), not a different include. The frames carry the host node's
-# node_id, so the host's central-map room MUST be the sensor's room.
+# (ADR-0006 §5) — since ADR-0017 the two are distinct profiles (`sensors` vs
+# `buttons+sensors`) rather than the same include, because buttons_8.yaml split
+# out of the base package. The frames carry the host node's node_id, so the
+# host's central-map room MUST be the sensor's room.
+# NEVER combined with the `bridge` profile — ADR-0005 single-purpose forwarder.
 #
 # One CAN frame per measurement every 30 s on can_id(CAT_SENSOR, node_id):
 #   [PROTO_V1, sensor_status, meas_lo, meas_hi, v0, v1, v2, v3]   (LE)

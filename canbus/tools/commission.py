@@ -39,10 +39,12 @@ def write_rows(rows):
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()
         for r in rows:
-            # Rows read from a pre-ADR-0006 CSV have no sensors key — default to 0.
-            # Explicit None check: values may be falsy-but-valid (int 0 from
+            # A missing `profile` key would silently become an invalid row the generator
+            # then rejects, so fill it with the same default allocate_node.py seeds
+            # (ADR-0017). Explicit None check: values may be falsy-but-valid (int 0 from
             # apply_assignment, "0" placeholders) and must round-trip untouched.
-            w.writerow({k: ("0" if k == "sensors" else "") if r.get(k) is None else r[k]
+            w.writerow({k: (generate_nodes.DEFAULT_PROFILE if k == "profile" else "")
+                        if r.get(k) is None else r[k]
                         for k in FIELDS})
 
 
@@ -79,7 +81,12 @@ def apply_assignment(rows, node_id, *, room=None, board=None, floor=None, locati
     # unknown slug / floor mismatch doesn't land in nodes.csv and wedge the generator
     # (spec-map-json-contract; same pre-write stance as the room/board range checks).
     final_slug = (match.get("room_slug") or "").strip()
-    final_sensors = (match.get("sensors") or "0").strip() == "1"
+    final_profile = (match.get("profile") or "").strip()
+    if final_profile not in generate_nodes.PROFILES:
+        raise SystemExit(
+            f"node_id {node_id} has invalid profile {final_profile!r} in nodes.csv "
+            f"(valid: {', '.join(sorted(generate_nodes.PROFILES))})")
+    final_sensors = generate_nodes.PROFILES[final_profile].sensors
     if final_slug or final_sensors:
         err = generate_nodes.validate_room_slug(
             final_slug, int(match["floor"]), final_sensors, generate_nodes.load_climate_zones())

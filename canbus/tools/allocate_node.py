@@ -17,6 +17,7 @@ import csv
 from pathlib import Path
 
 from generate_nodes import CSV_HEADER as HEADER  # single source of the registry schema
+from generate_nodes import DEFAULT_PROFILE
 
 HERE = Path(__file__).parent
 # HERE is canbus/tools/ — two levels below repo root (flattened out of
@@ -61,9 +62,10 @@ def main():
                                  f"{HEADER} — pre-live, update the CSV in place.")
             f.seek(0, 2)  # back to the end before appending
         # Identity-only: floor/room/board/location are placeholders until commissioning;
-        # sensors defaults to 0 (set it in nodes.csv when fitting the ADR-0006 kit);
+        # profile defaults to the plain wall plate (change it in nodes.csv when fitting the
+        # ADR-0006 kit or building an ADR-0005 bridge — see generate_nodes.PROFILES);
         # room_slug is assigned at commissioning (climate-zone join, spec-map-json-contract).
-        w.writerow([next_id, 0, 0, 0, f"node {next_id} (unassigned)", 0, ""])
+        w.writerow([next_id, 0, 0, 0, f"node {next_id} (unassigned)", DEFAULT_PROFILE, ""])
 
     HWM_PATH.write_text(f"{next_id}\n")
     print(f"Allocated node_id {next_id} (floor/room/board/location unassigned — set at commissioning).")

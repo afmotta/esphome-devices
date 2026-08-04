@@ -1,0 +1,27 @@
+# =============================================================================
+# compile_buttons_bridge.yaml — compile-check for the `buttons+bridge` profile
+# =============================================================================
+# Hand-maintained (NOT generated): the 8-button set and the second MCP2515 on one
+# board is the arrangement that has to fit in a single back-box where a CAN segment
+# splits at a button box (ADR-0017 §2). This gate is what proves the pin budget
+# still closes — buttons hold GP10/GP19-25, the onboard MCP2515 holds GP2/3/4/9/11,
+# and can1's chip select has only GP8 left. Any future pin grab breaks here.
+#
+# node_id 999 is a scratch value — nothing reserves it, so NEVER flash this to hardware.
+#
+#   esphome config  canbus/tests/compile_buttons_bridge.yaml
+#   esphome compile canbus/tests/compile_buttons_bridge.yaml
+# =============================================================================
+
+substitutions:
+  node_id: "999"
+  debounce_ms: "50"
+
+esphome:
+  name: bridge_999
+  friendly_name: "Bridge 999"
+
+packages:
+  core: !include ../packages/node_core.yaml
+  buttons: !include ../packages/buttons_8.yaml
+  bridge: !include ../packages/bridge.yaml

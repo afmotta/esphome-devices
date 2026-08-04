@@ -1,17 +1,37 @@
 # =============================================================================
-# base_node.yaml — shared CAN node behavior package
+# node_core.yaml — identity, globals, and heartbeat: common to EVERY profile
 # =============================================================================
+# Was base_node.yaml until ADR-0017. The 8-button set moved to buttons_8.yaml so
+# a profile with no switch plate (`bridge`) does not instantiate 8 gpio
+# binary_sensors on floating pins and emit phantom presses.
+#
+# Composed by every generated node in canbus/nodes/, alongside exactly the
+# packages its registry `profile` selects (generate_nodes.py PROFILES).
+#
 # Required substitutions:
 #   ${node_id}  (the node's only identity)
-#   ${debounce_ms}
-# Pulls in boards/canbed-rp2040.yaml directly, which provides the RP2040 platform,
-# logger, SPI bus, and MCP2515 `id: can0`.
+#
+# Pulls in boards/canbed-rp2040.yaml directly, which provides the RP2040
+# platform, logger, SPI bus, and MCP2515 `can0`.
 #
 # Flat node_id model (ADR-0007): the node's only identity is its node_id, carried in the
 # 29-bit Extended CAN ID. room/board/behaviour live in a central node_id->{...} map on the
 # controller/HA — never on the node. TX ids are computed at send time via can_id(CAT_*, node_id).
-# This node is transmit-only (button events + heartbeat); management/commissioning RX is a
-# later slice.
+#
+# --- Two invariants that keep this file profile-agnostic (ADR-0017 §3) ---
+#
+# 1. can0 is ALWAYS the controller-facing port. On a plain node it is the only
+#    port; on a bridge it is the backbone side (can1 being the zone side). So the
+#    heartbeat below says id(can0) with no conditional and is correct for every
+#    profile. This is forced, not merely chosen: an MCP2515 does not receive its
+#    own transmissions, so a heartbeat sent on a bridge's zone side would never be
+#    picked up by that bridge's own forwarding handler.
+#
+# 2. error_flags is the SHARED contribution point, and this file is its only
+#    transmitter. A profile package reports by OR-ing its own ERR_* bit into
+#    id(error_flags) — see bridge.yaml. The ERR_* bits in canbus_protocol.h are
+#    disjoint, so they compose in the single heartbeat byte. Never add a second
+#    CAT_STATUS interval in a profile package: one node_id, one heartbeat.
 # =============================================================================
 
 esphome:
@@ -27,14 +47,6 @@ esphome:
 
 packages:
   board: !include ../../boards/canbed-rp2040.yaml
-  btn0: !include { file: button.yaml, vars: { button_index: "0", button_gpio: "24" } }
-  btn1: !include { file: button.yaml, vars: { button_index: "1", button_gpio: "23" } }
-  btn2: !include { file: button.yaml, vars: { button_index: "2", button_gpio: "22" } }
-  btn3: !include { file: button.yaml, vars: { button_index: "3", button_gpio: "21" } }
-  btn4: !include { file: button.yaml, vars: { button_index: "4", button_gpio: "25" } }
-  btn5: !include { file: button.yaml, vars: { button_index: "5", button_gpio: "20" } }
-  btn6: !include { file: button.yaml, vars: { button_index: "6", button_gpio: "19" } }
-  btn7: !include { file: button.yaml, vars: { button_index: "7", button_gpio: "10" } }
 
 globals:
   - id: error_flags

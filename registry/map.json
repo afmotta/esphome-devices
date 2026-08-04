@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "map_version": "97bde5fdc0d7273d",
+  "map_version": "b2f613b32416fb5d",
   "manifest_hash": "d66767448ba37b2f",
   "nodes": [
     {
@@ -10,6 +10,7 @@
       "board": 0,
       "location": "Ground floor hallway",
       "sensors": 0,
+      "profile": "buttons",
       "room_slug": ""
     },
     {
@@ -19,6 +20,7 @@
       "board": 0,
       "location": "Ground floor living room",
       "sensors": 1,
+      "profile": "buttons+sensors",
       "room_slug": "soggiorno"
     }
   ]

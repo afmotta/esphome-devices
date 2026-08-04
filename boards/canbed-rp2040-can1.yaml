@@ -1,0 +1,44 @@
+# =============================================================================
+# canbed-rp2040-can1.yaml — second MCP2515 add-on for the CANBed RP2040
+# =============================================================================
+# Hardware only (behaviour lives in canbus/packages/bridge.yaml), mirroring the
+# split in canbed-rp2040.yaml. Composed ON TOP of canbed-rp2040.yaml, which owns
+# the RP2040 platform, logger, and the shared SPI0 bus this second controller
+# joins. Selected by the `bridge` registry profile (ADR-0017).
+#
+# --- Pin choice (ADR-0017 §1) ---
+# The CANBed RP2040 breaks out SPI0 on a dedicated 2x3 header — SCK GP2 / MOSI
+# GP3 / MISO GP4 / 3V3 / GND — plus a spare GP8 on the same header. GP8 is the
+# ONLY free pin that does not collide with the 8-button set (GP10, GP19-25) or
+# the sensor-kit I2C (GP6/GP7), so it is fleet-fixed as this chip select and
+# nothing else may claim it.
+#
+# The RP2040's second SPI peripheral is not an option: SPI1 needs CLK on GP10 and
+# MISO on GP24, both buttons. Sharing SPI0 is fine — MCP2515 transactions are
+# microseconds and the two devices are arbitrated by their CS lines.
+#
+# --- Module requirements ---
+# Must be a 3.3 V module (MCP2515 + SN65HVD230 / MCP2562FD / TJA1042T,3). The
+# RP2040 is NOT 5 V tolerant: a 5 V module's MISO would drive 5 V into GP4 and
+# destroy it. The ubiquitous red "MCP2515 + TJA1050" board is 5 V — do not use it.
+#
+# `clock:` below must match the module's crystal. No reset line is wired:
+# ESPHome's mcp2515 setup issues the SPI RESET instruction itself (unlike the
+# retired T-2CAN firmware, which pulsed a GPIO reset per LilyGO's reference).
+#
+# Termination: the zone segment needs its own 120 ohm at BOTH ends. Many modules
+# ship with a 120 ohm jumper fitted — remove it unless this bridge sits at a
+# segment end.
+# =============================================================================
+
+canbus:
+  - platform: mcp2515
+    id: can1
+    use_extended_id: true
+    # Component default TX id (CAT_STATUS base). Every send specifies an explicit can_id +
+    # use_extended_id, so this is only the component default and is never relied on.
+    # Same convention as can0 in canbed-rp2040.yaml.
+    can_id: 0x06000000
+    cs_pin: GPIO8
+    clock: 16MHZ
+    bit_rate: 125KBPS
