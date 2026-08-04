@@ -76,6 +76,15 @@ jobs:
           key: pio-${{ runner.os }}-esphome-2026.7.0
       - name: Compile sensor-node fixture
         run: esphome compile canbus/tests/compile_sensor_node.yaml
+      # The two bridge fixtures are the only compile coverage for the second MCP2515
+      # (boards/canbed-rp2040-can1.yaml), for two canbus instances sharing one SPI bus,
+      # and for the HighFrequencyLoopRequester call in packages/bridge.yaml — an
+      # ESPHome-internal API that config validation cannot exercise (ADR-0017 §6).
+      # They are RP2040 builds and reuse the toolchain already cached above.
+      - name: Compile bridge fixture
+        run: esphome compile canbus/tests/compile_bridge.yaml
+      - name: Compile buttons+bridge fixture
+        run: esphome compile canbus/tests/compile_buttons_bridge.yaml
       - name: Compile climate controller
         run: esphome compile devices/locals/climate-control.yaml
       - name: Climate failover e2e
