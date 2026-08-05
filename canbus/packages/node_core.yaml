@@ -11,8 +11,12 @@
 # Required substitutions:
 #   ${node_id}  (the node's only identity)
 #
-# Pulls in boards/canbed-rp2040.yaml directly, which provides the RP2040
-# platform, logger, SPI bus, and MCP2515 `can0`.
+# BOARD-AGNOSTIC (ADR-0017 amendment, 2026-08-04). This file deliberately does
+# NOT include a board package: the profile brings its own, because bridges may
+# run on the LilyGO T-2CAN (ESP32-S3) while every other profile runs on the
+# CANBed RP2040. All this file needs from a board is that it declare `can0`
+# (invariant 1 below). A board include here would collide with two platform
+# blocks the moment a non-CANBed profile exists.
 #
 # Flat node_id model (ADR-0007): the node's only identity is its node_id, carried in the
 # 29-bit Extended CAN ID. room/board/behaviour live in a central node_id->{...} map on the
@@ -20,11 +24,13 @@
 #
 # --- Two invariants that keep this file profile-agnostic (ADR-0017 §3) ---
 #
-# 1. can0 is ALWAYS the controller-facing port. On a plain node it is the only
-#    port; on a bridge it is the backbone side (can1 being the zone side). So the
-#    heartbeat below says id(can0) with no conditional and is correct for every
-#    profile. This is forced, not merely chosen: an MCP2515 does not receive its
-#    own transmissions, so a heartbeat sent on a bridge's zone side would never be
+# 1. can0 is ALWAYS the controller-facing port, on every board. On a plain node
+#    it is the only port; on a CANBed bridge it is the onboard MCP2515; on a
+#    T-2CAN bridge it is the built-in TWAI controller. can1, where present, is
+#    always the zone side. So the heartbeat below says id(can0) with no
+#    conditional and is correct for every profile on every board. This is
+#    forced, not merely chosen: neither controller receives its own
+#    transmissions, so a heartbeat sent on a bridge's zone side would never be
 #    picked up by that bridge's own forwarding handler.
 #
 # 2. error_flags is the SHARED contribution point, and this file is its only
@@ -44,9 +50,6 @@ esphome:
           ESP_LOGI("canbus", "Node ${node_id} online");
           ESP_LOGI("canbus", "  Input  CAN ID: 0x%08X", can_id(CAT_INPUT,  ${node_id}));
           ESP_LOGI("canbus", "  Status CAN ID: 0x%08X", can_id(CAT_STATUS, ${node_id}));
-
-packages:
-  board: !include ../../boards/canbed-rp2040.yaml
 
 globals:
   - id: error_flags

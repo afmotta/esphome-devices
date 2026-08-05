@@ -1,8 +1,10 @@
 # =============================================================================
 # compile_sensor_node.yaml — compile-check config for the ADR-0006 sensor kit
 # =============================================================================
-# Hand-maintained (NOT generated): validates that node_core's CANBed board dependency and
-# sensor_kit build together without touching the generated nodes/ output. Mirrors what
+# Hand-maintained (NOT generated): validates that node_core, the CANBed board, and
+# sensor_kit build together without touching the generated nodes/ output. node_core is
+# board-agnostic since the ADR-0017 amendment, so every fixture must name its own board
+# — exactly as a generated config does. Mirrors what
 # generate_nodes.py emits for a registry row with the `buttons+sensors` profile.
 # node_id 999 is just a scratch value — nothing reserves it, so NEVER flash this config
 # to hardware; it exists only for esphome config/compile.
@@ -21,5 +23,6 @@ esphome:
 
 packages:
   core: !include ../packages/node_core.yaml
+  board: !include ../../boards/canbed-rp2040.yaml
   buttons: !include ../packages/buttons_8.yaml
   sensor_kit: !include ../packages/sensor_kit.yaml

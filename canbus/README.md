@@ -52,9 +52,10 @@ connected to MCP2515 OSC1/OSC2) has `value="16MHz"`.
 ## Complete MCP2515 SPI Pin Reference (CANBed RP2040 V1.1)
 
 All values confirmed from V1.1 Eagle schematic. The fixed board mapping lives in
-`boards/canbed-rp2040.yaml`, which is included by `canbus/packages/node_core.yaml`.
-Generated configs include `node_core.yaml`, not the board package directly. The `bridge`
-profile adds a second MCP2515 on the same SPI0 bus via `boards/canbed-rp2040-can1.yaml`
+`boards/canbed-rp2040.yaml`. Since the ADR-0017 amendment `node_core.yaml` is board-agnostic
+and the generated config includes the board directly, selected by the profile. The `bridge`
+and `buttons+bridge` profiles add a second MCP2515 on the same SPI0 bus via
+`boards/canbed-rp2040-can1.yaml`
 (CS `GPIO8`, the SPI header's spare pin — the only free pin left once the 8-button set and
 the sensor-kit I2C are placed, so it is fleet-fixed).
 
@@ -283,41 +284,49 @@ system of record** (ADR-0009), so push registry changes promptly — bindings ar
 
 The bus is segmented (ADR-0005, accepted 2026-06-10): a backbone segment plus per-zone
 secondaries in a strict loop-free tree, joined by store-and-forward **software bridges**.
-Bridges are generated from the registry like any other node: give the row the `bridge`
-profile (ADR-0017) and `generate_nodes.py` emits `nodes/bridgeNNN.yaml` composing
-`packages/node_core.yaml` + `packages/bridge.yaml`. Where a segment splits at a button box,
-use `buttons+bridge` instead — same file naming, with the 8-button set added. Buttons are
-the only package allowed to share a board with the forwarder (they add no blocking I/O);
-the sensor kit is not, and the single-valued column makes that combination unwritable.
+Bridges are generated from the registry like any other node: give the row a bridge profile
+and `generate_nodes.py` emits `nodes/bridgeNNN.yaml` composing `packages/node_core.yaml`, the
+profile's board, and `packages/bridge.yaml`. Where a segment splits at a button box, use
+`buttons+bridge` — same file naming, with the 8-button set added. Buttons are the only
+package allowed to share a board with the forwarder (they add no blocking I/O); the sensor
+kit is not, and the single-valued column makes that combination unwritable.
 
-Hardware is the fleet node board — a **CANBed RP2040 with a second MCP2515** on the
-broken-out SPI header (CS `GPIO8`, 16 MHz, 3.3 V module required — the RP2040 is not 5 V
-tolerant). `can0` is the backbone side (the onboard controller, with the integrated
-SN65HVD230 and screw terminal) and `can1` the zone side. Forward-all in both directions;
-the node-style heartbeat comes from `node_core.yaml` on `can0`, so the health monitor sees
-a dead bridge as a missing heartbeat exactly like a node.
+**Two boards are supported** (ADR-0017 §1), chosen by the profile:
+
+- **`bridge-t2can` — LilyGO T-2CAN (preferred).** One integrated board with two CAN ports:
+  `can0` on the ESP32-S3's built-in TWAI controller, `can1` on an onboard MCP2515. The TWAI
+  side is interrupt-driven with a deep driver queue, which is why it takes the backbone.
+- **`bridge` / `buttons+bridge` — CANBed RP2040 + an add-on MCP2515** on the broken-out SPI
+  header (CS `GPIO8`, 3.3 V module required — the RP2040 is not 5 V tolerant; and `clock:`
+  must match the module's crystal). Second source, and the only board that can carry buttons
+  alongside the forwarder.
+
+Either way `can0` is the backbone side and `can1` the zone side. Forward-all in both
+directions; the node-style heartbeat comes from `node_core.yaml` on `can0`, so the health
+monitor sees a dead bridge as a missing heartbeat exactly like a node.
 
 ADR-0005's mandatory reliability requirements map directly onto the config: single-purpose
 firmware (enforced by the single-valued `profile` column, not by convention), **no radios**
-(structural — the RP2040 has none), the `rp2` platform's hardware `watchdog_timeout`, and
+(structural on the CANBed, which has none; a discipline on the T-2CAN — never add
+`wifi:`/`api:`/`ota:` to a bridge), a hardware watchdog from the board (`watchdog_timeout` on
+`rp2`, esp-idf's task/interrupt watchdogs with `CONFIG_ESP_TASK_WDT_PANIC` on the T-2CAN), and
 conservative paced forwarding (queues buffer bursts; the drain cap meters TX to what an
 MCP2515's 3 TX buffers sustain at 125 kbps). A drop anywhere latches
 `ERR_BRIDGE_QUEUE_OVERFLOW` into `error_flags`, which the shared heartbeat carries until
 reboot.
 
-The forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot. ESPHome's `mcp2515`
-polls RX from `loop()` and the component phase is normally gated to ~16-20 ms, while the
-controller holds only 2 RX buffers — at 125 kbps that window can see ~18 frames arrive.
-Those drops happen before `bridge_enqueue()`, so they would never latch the overflow flag,
-and the protocol has no sequence numbers for a receiver to spot the gap. See ADR-0017 §6.
+On the CANBed the forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot.
+ESPHome's `mcp2515` polls RX from `loop()` and the component phase is normally gated to
+~16-20 ms, while the controller holds only 2 RX buffers — at 125 kbps that window can see
+~18 frames arrive. Those drops happen before `bridge_enqueue()`, so they would never latch
+the overflow flag, and the protocol has no sequence numbers for a receiver to spot the gap.
+It is **off** on the T-2CAN, whose backbone side is interrupt-driven and whose esp-idf task
+watchdog would turn a non-yielding loop into a reboot loop. Gated per board via the
+`bridge_hf_loop` substitution — see ADR-0017 §6.
 
 - Identity: bridges share the flat `node_id` space (ADR-0007). Allocate an id with
   `tools/allocate_node.py`, set the row's `profile` to `bridge`, and commission it like a
   node so the gateway names it.
-- The retired **LilyGO T-2CAN** firmware — the original this was ported from, with its own
-  TWAI+MCP2515 port asymmetry and esp-idf watchdog/brownout notes — is parked at
-  `canbus/archive/bridge-t2can.yaml` (not built, not generated). See that directory's
-  README for the revival path.
 - Pure forwarding logic lives in `protocol/bridge_forwarding.h`; native test:
   `g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge`
 - Before wall installation, the ADR-0005 open item 5 soak test must observe on hardware:

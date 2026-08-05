@@ -163,6 +163,7 @@ if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "esphome compile canbus/tests/compile_sensor_node.yaml"      "--native-only"
   skip_step "esphome compile canbus/tests/compile_bridge.yaml"           "--native-only"
   skip_step "esphome compile canbus/tests/compile_buttons_bridge.yaml"   "--native-only"
+  skip_step "esphome compile canbus/tests/compile_bridge_t2can.yaml"    "--native-only"
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
   skip_step "pytest climate/tests/e2e/test_failover_sensor.py"              "--native-only"
@@ -175,6 +176,8 @@ else
     esphome compile canbus/tests/compile_bridge.yaml
   run_step "esphome compile canbus/tests/compile_buttons_bridge.yaml" \
     esphome compile canbus/tests/compile_buttons_bridge.yaml
+  run_step "esphome compile canbus/tests/compile_bridge_t2can.yaml" \
+    esphome compile canbus/tests/compile_bridge_t2can.yaml
   run_step "esphome config devices/locals/climate-control.yaml" \
     esphome config devices/locals/climate-control.yaml
   run_step "esphome compile devices/locals/climate-control.yaml" \

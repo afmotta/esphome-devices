@@ -8,6 +8,12 @@
 
 substitutions:
   logger_level: INFO
+  # The segment-bridge forwarder's high-frequency loop request (see
+  # canbus/packages/bridge.yaml) is ON for this board: both of its CAN ports
+  # are polled MCP2515s with 2 RX buffers each, so the loop gate is the binding
+  # constraint, and the RP2040 has no RTOS idle task to starve. Ignored by
+  # profiles that do not include bridge.yaml.
+  bridge_hf_loop: "true"
 
 # ESPHome 2026.7.0 renamed the platform key rp2040: -> rp2: (the old key is a
 # deprecated alias until 2027.7.0), making 2026.7.0 a hard floor for node

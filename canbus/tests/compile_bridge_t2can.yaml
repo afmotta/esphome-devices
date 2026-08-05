@@ -1,0 +1,32 @@
+# =============================================================================
+# compile_bridge_t2can.yaml — compile-check for the T-2CAN segment bridge
+# =============================================================================
+# Hand-maintained (NOT generated): the ONLY compile coverage for
+# boards/lilygo-t-2can.yaml and for bridge.yaml composed onto an ESP32-S3
+# rather than an RP2040. Mirrors a `bridge-t2can` profile row.
+#
+# What this gate specifically protects (ADR-0017 §1, revised):
+#   - node_core.yaml really is board-agnostic — it builds against a board that
+#     is neither the CANBed nor even the same MCU family.
+#   - bridge.yaml's can0/can1 !extend targets resolve against a TWAI + MCP2515
+#     pair, not just two MCP2515s.
+#   - the ${bridge_hf_loop} gate compiles in its OFF form (this board sets it
+#     false; the CANBed fixtures cover the ON form).
+#
+# node_id 999 is a scratch value — nothing reserves it, so NEVER flash this to hardware.
+#
+#   esphome config  canbus/tests/compile_bridge_t2can.yaml
+#   esphome compile canbus/tests/compile_bridge_t2can.yaml
+# =============================================================================
+
+substitutions:
+  node_id: "999"
+
+esphome:
+  name: bridge_999
+  friendly_name: "Bridge 999"
+
+packages:
+  core: !include ../packages/node_core.yaml
+  board: !include ../../boards/lilygo-t-2can.yaml
+  bridge: !include ../packages/bridge.yaml

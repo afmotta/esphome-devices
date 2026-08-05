@@ -1,0 +1,105 @@
+# =============================================================================
+# lilygo-t-2can.yaml — LilyGO T-2CAN dual-CAN board hardware
+# =============================================================================
+# ESP32-S3 with TWO CAN ports on one integrated board — the reason it is the
+# preferred segment-bridge hardware (ADR-0017 §1, revised 2026-08-04). The
+# ports are NOT two MCP2515s: one is the ESP32-S3's built-in TWAI controller,
+# the other an MCP2515 on SPI with a hardware reset line on GPIO9.
+# Board/pins/clock taken from LilyGO's reference firmware:
+#   https://github.com/Xinyuan-LilyGO/T-2Can/blob/main/esphome/can.yaml
+#
+# Hardware only — forwarding behaviour lives in canbus/packages/bridge.yaml,
+# mirroring the split used by the CANBed board files. Selected by the
+# `bridge-t2can` registry profile.
+#
+# --- Port assignment (node_core.yaml's invariant: can0 faces the controller) ---
+# can0 = BACKBONE, on the built-in TWAI controller. Its RX path is
+#        interrupt-driven with a deep driver queue, which suits the side
+#        carrying the aggregate traffic of every downstream zone. This is the
+#        T-2CAN's structural advantage over two polled MCP2515s.
+# can1 = ZONE, on the MCP2515 (polled from loop(), 2 RX buffers).
+#
+# --- ADR-0005 reliability posture, in hardware terms ---
+# esp-idf's interrupt/task watchdogs and brownout detector are pinned
+# explicitly below, with CONFIG_ESP_TASK_WDT_PANIC so a wedged loop reboots
+# rather than limps. NO wifi:/api:/ota:/bluetooth: anywhere — on this board
+# "radios off" is a discipline to maintain, not a structural guarantee the way
+# it is on the RP2040. Logs and (re)flash are USB-serial.
+# =============================================================================
+
+substitutions:
+  logger_level: INFO
+  # The forwarder's high-frequency loop request is OFF on this board — see
+  # canbus/packages/bridge.yaml for what it does and why. Two reasons:
+  #   1. Less needed here. The backbone side is TWAI (interrupt-driven, deep
+  #      queue), so only the zone side is polled, and it carries one segment.
+  #   2. Actively risky under esp-idf. Spinning the loop task without yielding
+  #      can starve the FreeRTOS idle task, and CONFIG_ESP_TASK_WDT_PANIC
+  #      above turns that into a reboot loop — the opposite of fail-safe.
+  bridge_hf_loop: "false"
+
+esphome:
+  # MCP2515 hardware reset pulse before its component initializes (the
+  # mcp2515 below carries setup_priority -100 so it sets up after this runs).
+  # Sequence and timing from LilyGO's reference firmware.
+  on_boot:
+    priority: 800.0
+    then:
+      - output.turn_on: mcp_rst_pin
+      - delay: 100ms
+      - output.turn_off: mcp_rst_pin
+      - delay: 100ms
+      - output.turn_on: mcp_rst_pin
+      - delay: 100ms
+
+esp32:
+  board: esp32-s3-devkitm-1
+  framework:
+    type: esp-idf
+    # Defaults already enable the interrupt watchdog, task watchdog, and
+    # brownout detector; these pin the ADR-0005 fail-safe posture explicitly
+    # and make a watchdog trip reboot (clean restart) rather than just log.
+    sdkconfig_options:
+      CONFIG_ESP_TASK_WDT_PANIC: y
+      CONFIG_ESP_INT_WDT: y
+      CONFIG_ESP_BROWNOUT_DET: y
+      CONFIG_BOOTLOADER_WDT_ENABLE: y
+
+logger:
+  level: ${logger_level}
+
+# --------------- MCP2515 reset line (T-2CAN: GPIO9) ---------------
+output:
+  - platform: gpio
+    pin: GPIO9
+    id: mcp_rst_pin
+
+# --------------- SPI bus for the MCP2515 (T-2CAN pinout) ---------------
+spi:
+  clk_pin: GPIO12
+  mosi_pin: GPIO11
+  miso_pin: GPIO13
+
+canbus:
+  # Backbone side — ESP32-S3 built-in TWAI (T-2CAN: TX=GPIO7, RX=GPIO6).
+  - platform: esp32_can
+    id: can0
+    use_extended_id: true
+    # Component default TX id (CAT_STATUS base). Every send specifies an
+    # explicit can_id + use_extended_id, so this is never relied on.
+    can_id: 0x06000000
+    tx_pin: GPIO7
+    rx_pin: GPIO6
+    bit_rate: 125KBPS
+
+  # Zone side — MCP2515 (T-2CAN: CS=GPIO10, 16 MHz crystal). setup_priority
+  # -100 keeps its init after the on_boot reset pulse (LilyGO reference).
+  - platform: mcp2515
+    setup_priority: -100.0
+    id: can1
+    use_extended_id: true
+    can_id: 0x06000000
+    cs_pin: GPIO10
+    clock: 16MHZ
+    mode: NORMAL
+    bit_rate: 125KBPS

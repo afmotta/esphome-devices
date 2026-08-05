@@ -44,6 +44,7 @@ jobs:
             devices/health-monitor.yaml \
             canbus/tests/compile_bridge.yaml \
             canbus/tests/compile_buttons_bridge.yaml \
+            canbus/tests/compile_bridge_t2can.yaml \
             climate/tests/compile_can_sensor_receiver.yaml
           do
             echo "::group::esphome config $f"
@@ -76,15 +77,19 @@ jobs:
           key: pio-${{ runner.os }}-esphome-2026.7.0
       - name: Compile sensor-node fixture
         run: esphome compile canbus/tests/compile_sensor_node.yaml
-      # The two bridge fixtures are the only compile coverage for the second MCP2515
+      # The three bridge fixtures are the only compile coverage for the second MCP2515
       # (boards/canbed-rp2040-can1.yaml), for two canbus instances sharing one SPI bus,
-      # and for the HighFrequencyLoopRequester call in packages/bridge.yaml — an
-      # ESPHome-internal API that config validation cannot exercise (ADR-0017 §6).
-      # They are RP2040 builds and reuse the toolchain already cached above.
+      # for boards/lilygo-t-2can.yaml, and for the HighFrequencyLoopRequester call in
+      # packages/bridge.yaml — an ESPHome-internal API that config validation cannot
+      # exercise (ADR-0017 §6), in both its ON (CANBed) and OFF (T-2CAN) forms.
+      # The two CANBed ones are RP2040 builds reusing the toolchain cached above; the
+      # T-2CAN one is an ESP32-S3 esp-idf build, sharing the climate controller's.
       - name: Compile bridge fixture
         run: esphome compile canbus/tests/compile_bridge.yaml
       - name: Compile buttons+bridge fixture
         run: esphome compile canbus/tests/compile_buttons_bridge.yaml
+      - name: Compile T-2CAN bridge fixture
+        run: esphome compile canbus/tests/compile_bridge_t2can.yaml
       - name: Compile climate controller
         run: esphome compile devices/locals/climate-control.yaml
       - name: Climate failover e2e
