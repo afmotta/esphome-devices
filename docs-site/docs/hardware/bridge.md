@@ -6,15 +6,19 @@ doesn't necessarily spread to the other. It's deliberately simple: no WiFi, no H
 Assistant connection, no over-the-air updates. You flash it and read its logs only by
 plugging a USB cable directly into it.
 
-It is the **same CANBed RP2040 board as a regular CAN node**, with a second CAN
-controller (an MCP2515 module) added on the board's SPI header. That's on purpose: one
-box of spare boards covers nodes and bridges alike. 🔵 The bridge has not yet been built
-or flashed on real hardware.
+There are **two kinds of bridge board**, and which one you have is recorded in the
+registry's `profile` column:
 
-Some bridges are also wall switches. Where the CAN cabling splits at a button box, one
-board does both jobs — its registry profile is `buttons+bridge` rather than `bridge`.
-If the buttons on such a box stop working, check whether the whole downstream section
-went quiet too: that points at the board itself rather than at the switch.
+| Profile | Board | Where it's used |
+| --- | --- | --- |
+| `bridge-t2can` | **LilyGO T-2CAN** — one board, two CAN ports | the normal case |
+| `bridge` | CANBed RP2040 + a small add-on CAN module | second source |
+| `buttons+bridge` | CANBed RP2040 + add-on, **plus wall buttons** | where the cabling splits at a button box |
+
+🔵 No bridge has been built or flashed on real hardware yet.
+
+If the buttons on a `buttons+bridge` box stop working, check whether the whole downstream
+section went quiet too: that points at the board itself rather than at the switch.
 
 ## How to tell it's the bridge and not something else
 
@@ -46,7 +50,8 @@ one is also a wall switch).
 
 1. Regenerate: `python3 canbus/tools/generate_nodes.py`.
 2. Compile its generated config: `esphome compile canbus/nodes/bridge<id>.yaml`
-   (note the `bridge` prefix — that's how you spot bridges in `canbus/nodes/`).
+   (note the `bridge` prefix — that's how you spot bridges in `canbus/nodes/`). The
+   profile in the registry decides which board it builds for; you don't choose here.
 3. Flash it over USB-serial (the bridge has no OTA/WiFi by design — the board has no
    radio at all).
 4. Confirm it resumes forwarding and heartbeating (check the health monitor sees its
@@ -68,11 +73,15 @@ one is also a wall switch).
 5. Physically install it in place of the dead one and confirm it resumes forwarding
    and heartbeating.
 
-!!! note "The replacement module must be a 3.3 V one"
-    The second CAN controller is an add-on MCP2515 module. It has to be a 3.3 V model
-    (paired with an SN65HVD230, MCP2562FD or TJA1042T,3 transceiver). The very common
-    red "MCP2515 + TJA1050" module is 5 V and will **destroy** the board — the RP2040
-    is not 5 V tolerant. Check before you buy a spare.
+!!! note "Only for the CANBed bridges: the add-on module is fussy"
+    A T-2CAN needs no add-on — both CAN ports are on the board, so a spare is just a
+    spare. The CANBed bridges are the fiddly ones. Their add-on MCP2515 module must be
+    a **3.3 V** model (paired with an SN65HVD230, MCP2562FD or TJA1042T,3 transceiver):
+    the very common red "MCP2515 + TJA1050" module is 5 V and will **destroy** the
+    board, because the RP2040 is not 5 V tolerant. Its crystal must also be 8, 12, 16
+    or 20 MHz, and the firmware's `clock:` setting must match it — a mismatch gives you
+    a board that looks fine and moves no traffic. This awkwardness is exactly why the
+    T-2CAN is preferred.
 
 ## Related
 

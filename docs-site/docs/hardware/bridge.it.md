@@ -6,16 +6,20 @@ si propaga necessariamente all'altra. È volutamente semplice: niente WiFi, ness
 connessione a Home Assistant, nessun aggiornamento via rete. Lo si flasha e se ne
 leggono i log solo collegando un cavo USB direttamente ad esso.
 
-È la **stessa scheda CANBed RP2040 di un nodo CAN normale**, con un secondo controller
-CAN (un modulo MCP2515) aggiunto sul connettore SPI della scheda. È voluto: una sola
-scatola di schede di scorta copre sia i nodi sia i bridge. 🔵 Il bridge non è ancora
-stato costruito né flashato su hardware reale.
+Esistono **due tipi di scheda bridge**, e quale hai è registrato nella colonna `profile`
+del registro:
 
-Alcuni bridge sono anche interruttori a muro. Dove il cablaggio CAN si divide in una
-scatola dei pulsanti, una sola scheda svolge entrambi i compiti — il suo profilo nel
-registro è `buttons+bridge` invece di `bridge`. Se i pulsanti di una scatola del genere
-smettono di funzionare, controlla se anche tutta la sezione a valle è diventata
-silenziosa: questo indica la scheda stessa piuttosto che l'interruttore.
+| Profilo | Scheda | Dove si usa |
+| --- | --- | --- |
+| `bridge-t2can` | **LilyGO T-2CAN** — una scheda, due porte CAN | il caso normale |
+| `bridge` | CANBed RP2040 + un piccolo modulo CAN aggiuntivo | seconda fonte |
+| `buttons+bridge` | CANBed RP2040 + modulo, **più i pulsanti a muro** | dove il cablaggio si divide in una scatola dei pulsanti |
+
+🔵 Nessun bridge è ancora stato costruito né flashato su hardware reale.
+
+Se i pulsanti di una scatola `buttons+bridge` smettono di funzionare, controlla se anche
+tutta la sezione a valle è diventata silenziosa: questo indica la scheda stessa piuttosto
+che l'interruttore.
 
 ## Come capire se è il bridge e non qualcos'altro
 
@@ -53,6 +57,7 @@ La configurazione del bridge è **generata dal registro**, come quella di qualsi
 1. Rigenera: `python3 canbus/tools/generate_nodes.py`.
 2. Compila la sua configurazione generata: `esphome compile canbus/nodes/bridge<id>.yaml`
    (nota il prefisso `bridge` — è così che si riconoscono i bridge in `canbus/nodes/`).
+   È il profilo nel registro a decidere per quale scheda viene costruito; qui non scegli.
 3. Flashala via USB-seriale (il bridge non ha OTA/WiFi per progetto — la scheda non ha
    proprio alcuna radio).
 4. Conferma che riprenda l'inoltro e l'heartbeat (verifica che il monitor di salute veda
@@ -74,11 +79,16 @@ La configurazione del bridge è **generata dal registro**, come quella di qualsi
 5. Installala fisicamente al posto di quella guasta e conferma che riprenda l'inoltro
    e l'heartbeat.
 
-!!! note "Il modulo di ricambio deve essere a 3,3 V"
-    Il secondo controller CAN è un modulo MCP2515 aggiuntivo. Deve essere un modello a
-    3,3 V (abbinato a un transceiver SN65HVD230, MCP2562FD o TJA1042T,3). Il diffusissimo
-    modulo rosso "MCP2515 + TJA1050" è a 5 V e **distruggerà** la scheda — l'RP2040 non
-    tollera i 5 V. Verificalo prima di comprare una scorta.
+!!! note "Solo per i bridge su CANBed: il modulo aggiuntivo è delicato"
+    Un T-2CAN non richiede alcun modulo aggiuntivo — entrambe le porte CAN sono sulla
+    scheda, quindi una scorta è semplicemente una scorta. I bridge su CANBed sono quelli
+    complicati. Il loro modulo MCP2515 aggiuntivo deve essere un modello a **3,3 V**
+    (abbinato a un transceiver SN65HVD230, MCP2562FD o TJA1042T,3): il diffusissimo
+    modulo rosso "MCP2515 + TJA1050" è a 5 V e **distruggerà** la scheda, perché l'RP2040
+    non tollera i 5 V. Anche il suo quarzo deve essere da 8, 12, 16 o 20 MHz, e
+    l'impostazione `clock:` del firmware deve corrispondere — se non corrisponde ottieni
+    una scheda che sembra a posto e non fa passare nulla. È proprio questa scomodità il
+    motivo per cui si preferisce il T-2CAN.
 
 ## Correlati
 

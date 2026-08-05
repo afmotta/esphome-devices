@@ -11,7 +11,7 @@ dependsOn:
   - 'ADR-0007: Flat node_id with central meaning map (bridges carry node_ids like any node)'
   - 'ADR-0014: Standardized controller & Modbus I/O hardware (the one-spare-per-role doctrine this ADR extends to bridges)'
 amends:
-  - 'ADR-0005: the bridge hardware moves from the LilyGO T-2CAN to the fleet node board (CANBed RP2040 + a second MCP2515). The topology decision, the store-and-forward coupling method, the 125 kbps bit rate, and every mandatory reliability requirement are unchanged — only the board is replaced. ADR-0005 already named "ESP32 + 2x MCP2515" as an accepted DIY form of the same choice.'
+  - 'ADR-0005: the bridge may run on either the LilyGO T-2CAN (preferred) or the fleet node board (CANBed RP2040 + a second MCP2515). The topology decision, the store-and-forward coupling method, the 125 kbps bit rate, and every mandatory reliability requirement are unchanged — only the board set is widened. ADR-0005 already named both "LilyGO T-2CAN" and "ESP32 + 2x MCP2515" as accepted forms of the same choice.'
 relatedDocuments:
   - canbus/_bmad-output/planning-artifacts/adrs/0005-can-bus-topology-segmented-multi-bus.md
   - canbus/_bmad-output/planning-artifacts/adrs/0006-sensor-data-transport-over-can.md
@@ -20,7 +20,7 @@ relatedDocuments:
   - canbus/packages/node_core.yaml
   - canbus/packages/bridge.yaml
   - boards/canbed-rp2040-can1.yaml
-  - canbus/archive/bridge-t2can.yaml
+  - boards/lilygo-t-2can.yaml
 ---
 
 # ADR-0017: Node deployment profiles, and the segment bridge on the fleet node board
@@ -35,6 +35,13 @@ frozen `canbus/_bmad-output/` tree is never edited, per AD-1). Implemented the s
 turned out to split at some button boxes, where a dedicated forwarder would mean two boards in
 one back-box. §2 and §7 below carry the reasoning; it is a bounded relaxation of ADR-0005's
 single-purpose rule for buttons only, and the sensor-kit exclusion is unchanged.
+
+**Amended again** (2026-08-04, same day) after surveying what 3.3 V MCP2515 modules are
+actually purchasable: the **T-2CAN is restored as the preferred bridge board**, and the
+CANBed + add-on path is kept as a viable second source. §1 and §7 carry the reasoning. This
+reverses the *hardware preference* only; the profile mechanism, both invariants, and the
+registry integration are unchanged — the T-2CAN came back as one more `PROFILES` row, which
+is the mechanism working as intended.
 
 **Not hardware-verified.** Every claim below about pins, config validity, and package
 composition was checked with `esphome config` against real repo packages; nothing has been
@@ -77,27 +84,59 @@ column is a boolean bolted onto a schema that has no concept of what a node *is*
 
 ## Decision
 
-### 1. The bridge runs on the fleet node board
+### 1. Two bridge boards, with the LilyGO T-2CAN preferred
 
-A segment bridge is a **CANBed RP2040 with a second MCP2515** on the SPI header, CS `GP8`,
-16 MHz, 125 kbps. The add-on module must be a 3.3 V one (MCP2515 + SN65HVD230 / MCP2562FD /
-TJA1042T,3): the RP2040 is not 5 V tolerant, and a 5 V module's MISO would drive 5 V into GP4.
-No reset line is wired — ESPHome's `mcp2515` component issues the SPI RESET instruction in
-`setup()`.
+| Board | Profile | Ports |
+|---|---|---|
+| **LilyGO T-2CAN** (preferred) | `bridge-t2can` | `can0` = built-in TWAI (backbone), `can1` = onboard MCP2515 (zone) |
+| **CANBed RP2040 + add-on MCP2515** | `bridge`, `buttons+bridge` | both ports MCP2515; add-on CS `GP8`, 3.3 V module required |
 
-This buys what ADR-0014 bought for the controllers: **one spare board type covers nodes and
-bridges**, one toolchain, one board file, one USB/UF2 flashing procedure. It also strengthens
-two of ADR-0005's mandatory reliability requirements rather than weakening them:
+**This reverses the original decision, which was CANBed-only.** The reversal is worth
+recording in full, because the original argument was reasonable and still failed.
 
-- **"Radios off"** becomes structural. The RP2040 has no radio at all, so it cannot be
-  re-enabled by a careless YAML edit. On the T-2CAN it was a comment you had to keep honoring.
-- **"Hardware watchdog"** gets a first-class knob: ESPHome's `rp2` platform exposes
-  `watchdog_timeout` (default 8388 ms, the RP2040 maximum) plus a crash handler.
+**The original case.** Putting bridges on the fleet node board buys what ADR-0014 bought for
+the controllers: one spare board type covers nodes and bridges, one toolchain, one board file,
+one USB/UF2 flashing procedure. It also strengthens two ADR-0005 requirements — "radios off"
+becomes structural (the RP2040 has no radio at all, so it cannot be re-enabled by a careless
+YAML edit) and the `rp2` platform exposes a first-class `watchdog_timeout`.
 
-One requirement is genuinely weaker: **brownout**. The T-2CAN's firmware pinned
-`CONFIG_ESP_BROWNOUT_DET`; the RP2040's brown-out detector is fixed-function and not observable
-from ESPHome. Accepted — the failure it guards against still degrades to "silent", which is the
-required direction.
+**What broke it: the add-on module is not a commodity.** It must satisfy three independent
+conditions — raw SPI (no MCU in front of the MCP2515), a 3.3 V transceiver (the RP2040 is not
+5 V tolerant, and a 5 V part's RXD would drive 5 V into GP4), and a crystal ESPHome supports
+(8/12/16/20 MHz only). A survey of what is actually purchasable:
+
+| Candidate | Fails on |
+|---|---|
+| MikroE CAN SPI Click 3.3V | **10 MHz crystal** — electrically ideal, unsupported by ESPHome |
+| Adafruit CAN Bus BFF (MCP25625) | needs **VDDA 4.5–5.5 V**; the CANBed exposes only 3V3 and raw VIN (verified against the V1.1 schematic — J1 and J4 both end in 3V3) |
+| Longan 1030001 / 1030017 | MCP2515 sits **behind an ATmega168PA** (UART / I2C AT-command interface) — unreachable by an SPI driver |
+| Longan 1030016 | raw SPI, but **5 V MCP2551** in an Arduino UNO shield footprint |
+| **Seeed 105100001** | **passes** — MCP2515 + SN65HVD230, 8 MHz, unfitted 120 Ω pad |
+
+Exactly one clean fit, and it is a XIAO/QT Py carrier that mounts by soldering to socket pads.
+
+**So the economics inverted.** The Seeed module is ~$10 on top of a CANBed; a whole T-2CAN is
+~$30. The saving is nominal, and it buys a *worse* physical result: two boards and flying
+leads in a back-box instead of one integrated board with two terminals.
+
+**And the T-2CAN is technically better on the axis that matters most here.** Its backbone side
+is the ESP32-S3's built-in TWAI controller — interrupt-driven with a deep driver queue —
+where the CANBed must poll a 2-buffer MCP2515 on *both* sides. That is precisely the weakness
+§6 exists to work around, and the T-2CAN simply does not have it on the aggregate-traffic side.
+
+**Costs accepted in the reversal**, stated plainly:
+
+- **A fifth board type in the fleet.** The one-spare-per-role property is genuinely weakened;
+  it was the original argument and it loses to cost parity plus physical cleanliness.
+- **"Radios off" reverts to a discipline** on the T-2CAN rather than a structural guarantee.
+  Never add `wifi:`/`api:`/`ota:`/`bluetooth:` to a bridge entry point.
+- **Brownout is the mirror image of before:** the T-2CAN pins `CONFIG_ESP_BROWNOUT_DET`
+  explicitly, where the RP2040's detector is fixed-function and not observable from ESPHome.
+  This one favours the T-2CAN.
+
+**The CANBed path is kept, not deleted**, for two reasons: it is a second source if T-2CANs
+become unobtainable, and it is the **only** board that can carry `buttons+bridge` — the
+T-2CAN has no 8-button set. Both paths are CI-compile-gated.
 
 ### 2. `registry/nodes.csv` gains a single-valued `profile` column
 
@@ -108,8 +147,9 @@ The `sensors` boolean is replaced by `profile`, one value per row:
 | `buttons` | `buttons_8` | wall plate, no sensing (was `sensors=0`) |
 | `buttons+sensors` | `buttons_8` + `sensor_kit` | wall plate with the ADR-0006 kit (was `sensors=1`) |
 | `sensors` | `sensor_kit` | sensor puck, no switch plate (newly expressible) |
-| `bridge` | `bridge` | segment forwarder only |
-| `buttons+bridge` | `buttons_8` + `bridge` | wall plate that is also a forwarder |
+| `bridge-t2can` | `bridge` on the T-2CAN board | segment forwarder only — **preferred** |
+| `bridge` | `bridge` on CANBed + add-on | segment forwarder only, second source |
+| `buttons+bridge` | `buttons_8` + `bridge` on CANBed + add-on | wall plate that is also a forwarder (CANBed only) |
 
 **Mutual exclusion is structural, not validated.** A single-valued enum cannot express
 "bridge and sensors"; two boolean columns could, and would rely on the generator to reject it.
@@ -141,7 +181,10 @@ exactly how `buttons+bridge` arrived, one table row, hours after this ADR was ac
 
 ### 3. `base_node.yaml` splits into `node_core.yaml` + `buttons_8.yaml`
 
-`node_core.yaml` keeps identity, globals, the board include, and the heartbeat. `buttons_8.yaml`
+`node_core.yaml` keeps identity, globals, and the heartbeat — and, since the second
+amendment, **no board include at all**: the profile supplies the board, because a bridge may
+target an ESP32-S3 while every other profile targets the RP2040. All `node_core.yaml` asks of
+a board is that it declare `can0`. `buttons_8.yaml`
 carries the 8-button set and the `debounce_ms` requirement. Generated nodes compose
 `node_core` plus their profile's packages, and nothing else. The split is what makes both a
 button-less bridge and a `buttons+bridge` wall plate expressible from the same parts — before
@@ -189,22 +232,42 @@ arrival interval. A pure forwarder has nothing else to spend CPU on, so the 100 
 free. This uses an ESPHome-internal C++ API, not a YAML option: it is called out here and in the
 package comment so an ESPHome upgrade re-checks it.
 
+**Gated per board** via the `bridge_hf_loop` substitution, which each board file sets:
+
+- **CANBed: on.** Both ports are polled MCP2515s, so the loop gate is the binding constraint,
+  and there is no RTOS idle task to starve.
+- **T-2CAN: off.** Less needed (the backbone side is interrupt-driven TWAI, so only the
+  single-segment zone side is polled) and actively risky: spinning the loop task without
+  yielding can starve the FreeRTOS idle task, and `CONFIG_ESP_TASK_WDT_PANIC` would turn that
+  into a reboot loop — the exact opposite of the fail-safe posture. Revisit only with evidence
+  from the open-item-2 soak test, and only alongside the idle-task watchdog settings.
+
 The drops this guards against would otherwise be **invisible**: they occur at the MCP2515
 before `bridge_enqueue()`, so `ERR_BRIDGE_QUEUE_OVERFLOW` never latches; ESPHome's own overrun
 detection is compiled out at `logger: level: INFO`; and the protocol carries no sequence
 numbers, so a receiver cannot infer a gap.
 
-### 7. The T-2CAN firmware is archived, not deleted
+### 7. The T-2CAN firmware is restored as a first-class board package
 
-One T-2CAN is owned. Maintaining a second bridge profile for a single board is not worth the
-code, so `devices/bridge.yaml` moves to `canbus/archive/bridge-t2can.yaml`, out of the build
-and out of the generator, with a header describing how to revive it. Reviving it means adding
-one `PROFILES` entry — the table was designed to absorb exactly that.
+The first version of this ADR archived `devices/bridge.yaml` to `canbus/archive/`, on the
+reasoning that maintaining a second bridge profile for a single owned board was not worth the
+code. §1 explains why that was reversed within the day.
+
+It came back split the way every other board is: hardware in **`boards/lilygo-t-2can.yaml`**
+(ESP32-S3 platform and sdkconfig, SPI, the GPIO9 reset pulse, `can0` TWAI + `can1` MCP2515),
+behaviour staying in the shared, now board-agnostic `canbus/packages/bridge.yaml`. The archive
+directory is gone — nothing is parked there any more.
+
+Reviving it cost exactly what the table was designed to cost: **one `PROFILES` row**, plus
+lifting the board include out of `node_core.yaml` so a profile can choose its own MCU. That
+second part is a genuine structural improvement the reversal forced, and it is why a future
+third bridge board would be cheaper still.
 
 ## Consequences
 
 ### Positive
-- One spare board type for nodes and bridges; no one-off hardware in the fleet.
+- Two independently-sourceable bridge boards, so a supply failure in either does not block the
+  build-out.
 - "Bridge and sensors on one board" becomes unrepresentable rather than merely forbidden.
 - Bridges inherit node health monitoring, the central map, and the HA entity generation.
 - `sensors`-without-buttons becomes expressible — a real deployment the old schema could not describe.
@@ -212,17 +275,23 @@ one `PROFILES` entry — the table was designed to absorb exactly that.
 - Radios-off and the watchdog get stronger; one fewer MCU family in the bridge role.
 
 ### Negative / costs
-- Brownout protection is weaker than the ESP32's (accepted; failure direction is still "silent").
-- Both bridge ports are now polled 2-buffer MCP2515s, where the T-2CAN had one TWAI side. Mitigated by §6, but §6 leans on an ESPHome-internal API.
-- The add-on module on flying leads is mechanically the weakest part of a device that lives behind a wall for years. A small carrier PCB would close this, and is not in scope here.
-- Neither CAN port is galvanically isolated, so a bridge ties two segments' grounds together.
+- **A fifth board type in the fleet.** The one-spare-per-role property that motivated the
+  original CANBed-only decision is weakened; see §1 for why that trade was accepted.
+- Two bridge paths to keep working, hence three bridge compile fixtures rather than one.
+- On the CANBed path both ports are polled 2-buffer MCP2515s. Mitigated by §6, but §6 leans on
+  an ESPHome-internal API. The T-2CAN path does not have this problem on the backbone side.
+- On the CANBed path the add-on module on flying leads is mechanically the weakest part of a
+  device that lives behind a wall for years. A small carrier PCB would close this; not in scope.
+- Neither board isolates its CAN ports, so a bridge ties two segments' grounds together.
 - `nodes.csv` changes shape; pre-live doctrine means editing the header and the committed CSV in place, with no migration shim.
 
 ## Alternatives considered
 
-- **Keep the T-2CAN as the bridge board.** Better integrated (two ports, no flying leads) and
-  keeps an interrupt-driven backbone RX path. Rejected on fleet economics: one board, one spare
-  line, one more firmware shape, for a role the existing node board can fill.
+- **CANBed-only (no T-2CAN).** The first version of this ADR. Rejected on the second
+  amendment: the add-on module turned out not to be a commodity, cost parity killed the
+  saving, and the physical result was worse. See §1.
+- **T-2CAN-only (delete the CANBed path).** Rejected: it would leave a single supply source
+  for a load-bearing device, and `buttons+bridge` would become inexpressible.
 - **A board that is both a bridge and a sensor node.** Evaluated in detail and rejected. It
   fits on the pins (GP8 is still free with the full 8 buttons and the sensor kit), and the
   config validates — but it escalates a sensor fault's blast radius from "one room degraded"
@@ -246,8 +315,17 @@ one `PROFILES` entry — the table was designed to absorb exactly that.
    nodes on one segment, which is the burst profile `sensor_kit.yaml`'s own 25 ms inter-frame
    spacing says is marginal against a polled 2-buffer RX. Confirm the high-frequency loop
    closes it, and that a wedged/hung bridge goes silent rather than babbling.
-3. **Verify the 3.3 V add-on module** end to end, including that its 120 Ω termination jumper
-   matches the bridge's position on the segment (fitted only at a segment end).
+3. **On the CANBed path only:** verify the 3.3 V add-on module end to end, including that its
+   120 Ω termination jumper matches the bridge's position on the segment (fitted only at a
+   segment end), and set `clock:` in `boards/canbed-rp2040-can1.yaml` to the module's actual
+   crystal — it currently says 16 MHz, and the one candidate that passes the survey (Seeed
+   105100001) is **8 MHz**. Getting this wrong yields correct-looking config, no frames, and a
+   fault that presents as bad wiring.
+3b. **Identify the CANBed's own transceiver.** The pinned V1.1 Eagle schematic shows
+   `U3 = MCP2551` with VDD on the 3V3 net, while the Zephyr board port documents an
+   SN65HVD230. The parts are pin-identical SOIC-8, so the symbol may simply be stale — but an
+   actual MCP2551 at 3.3 V is out of spec (4.5–5.5 V) with a weak dominant differential. Read
+   the chip marking on a board in hand and correct the docs to match.
 4. **Segment count and bridge count** — still ADR-0005 open item 1. This ADR makes bridges
    cheap to build; it does not decide how many the house needs.
 5. **`i2c: timeout:` on `sensor_kit.yaml`.** Out of scope here (it affects sensor nodes, not

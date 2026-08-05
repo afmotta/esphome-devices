@@ -17,9 +17,10 @@ selects which packages the generated config composes on top of node_core.yaml:
     buttons          wall plate, no sensing
     buttons+sensors  wall plate + the ADR-0006 SHT45/SEN66 kit
     sensors          sensor puck, no switch plate
-    bridge           ADR-0005 segment forwarder (second MCP2515 on can1)
+    bridge-t2can     ADR-0005 segment forwarder on the LilyGO T-2CAN (preferred)
+    bridge           segment forwarder on the CANBed + an add-on MCP2515
     buttons+bridge   wall plate that is ALSO a segment forwarder — for the boxes where
-                     the CAN segments physically split at a button box
+                     the CAN segments physically split at a button box (CANBed only)
 
 It is deliberately single-valued: ADR-0005 requires single-purpose bridge firmware, and a
 one-of-N column makes "bridge AND sensors" unrepresentable rather than merely rejected.
@@ -43,10 +44,11 @@ Extended CAN ID. It is the ONLY thing flashed into the node. floor/room/board/lo
 map-seed metadata for the central node_id -> {...} map on the controller/HA — they are NOT
 flashed into the node config (kept here as the registry / map seed).
 
-Every node composes canbus/packages/node_core.yaml, which itself pulls in the generic
-CANBed RP2040 board package. Generated files stay thin: concrete device identity, node_id
-(plus debounce_ms where the profile has buttons), the node_core include, and the profile's
-packages.
+Every node composes canbus/packages/node_core.yaml, which is board-agnostic — the profile
+supplies the board package too (bridges may run on an ESP32-S3 T-2CAN, everything else on
+the CANBed RP2040). Generated files stay thin: concrete device identity, node_id (plus
+debounce_ms where the profile has buttons), the node_core include, and the profile's boards
+and packages.
 """
 
 import csv
@@ -71,8 +73,7 @@ TEMPLATE = """\
 # flash time (the node is flashed at allocation, positioned/commissioned later) — they live in
 # the registry and the gateway's node_map.h, never here (ADR-0007).
 # Profile:  {profile} (ADR-0017)
-# Hardware: CANBed RP2040 board pulled in by packages/node_core.yaml
-{profile_comment}# CAN IDs (29-bit Extended, computed at runtime from node_id):
+{board_comment}{profile_comment}# CAN IDs (29-bit Extended, computed at runtime from node_id):
 {can_id_comment}# =============================================================================
 
 substitutions:
@@ -84,7 +85,7 @@ esphome:
 
 packages:
   core: !include ../packages/node_core.yaml
-{profile_pkgs}"""
+{profile_boards}{profile_pkgs}"""
 
 # --------------------------------------------------------------------------------------
 # Deployment profiles (ADR-0017)
@@ -105,37 +106,65 @@ packages:
 # GPIO plus timers and carry neither. test_no_profile_carries_both_bridge_and_sensors asserts
 # it.
 #
+#   boards   — (yaml key, file under boards/) pairs. node_core.yaml is deliberately
+#              board-agnostic, so the profile supplies the board; all node_core asks
+#              is that it declare `can0`. This is what lets bridges run on an
+#              ESP32-S3 T-2CAN while every other profile runs on the CANBed RP2040.
 #   packages — (yaml key, file under canbus/packages/) pairs, in include order
 #   buttons  — emits debounce_ms and the CAT_INPUT id comment
 #   sensors  — requires a room_slug, feeds the Climate route artifacts and map.json `sensors`
 #   prefix   — generated filename and ESPHome device name stem
 #   kind     — human label in the file header and friendly_name
-Profile = namedtuple("Profile", "packages buttons sensors prefix kind")
+Profile = namedtuple("Profile", "boards packages buttons sensors prefix kind")
+
+CANBED = (("board", "canbed-rp2040.yaml"),)
+CANBED_DUAL_CAN = CANBED + (("can1_board", "canbed-rp2040-can1.yaml"),)
+T2CAN = (("board", "lilygo-t-2can.yaml"),)
 
 PROFILES = {
     "buttons": Profile(
-        packages=(("buttons", "buttons_8.yaml"),),
+        boards=CANBED, packages=(("buttons", "buttons_8.yaml"),),
         buttons=True, sensors=False, prefix="node", kind="Node",
     ),
     "buttons+sensors": Profile(
+        boards=CANBED,
         packages=(("buttons", "buttons_8.yaml"), ("sensor_kit", "sensor_kit.yaml")),
         buttons=True, sensors=True, prefix="node", kind="Node",
     ),
     "sensors": Profile(
-        packages=(("sensor_kit", "sensor_kit.yaml"),),
+        boards=CANBED, packages=(("sensor_kit", "sensor_kit.yaml"),),
         buttons=False, sensors=True, prefix="node", kind="Node",
     ),
-    "bridge": Profile(
-        packages=(("bridge", "bridge.yaml"),),
+    # PREFERRED bridge (ADR-0017 §1, revised): one integrated dual-CAN board, with
+    # the backbone side on the interrupt-driven TWAI controller.
+    "bridge-t2can": Profile(
+        boards=T2CAN, packages=(("bridge", "bridge.yaml"),),
         buttons=False, sensors=False, prefix="bridge", kind="Bridge",
     ),
-    # Filed under the `bridge` prefix/kind even though it has buttons: bridging is the
-    # high-consequence role (its failure darkens a whole segment, a button failure darkens
-    # one switch), so that is what `ls canbus/nodes/` should surface.
+    # Fleet node board + a 3.3 V add-on MCP2515. Kept viable as the second source
+    # and as the only board that can carry buttons alongside the forwarder.
+    "bridge": Profile(
+        boards=CANBED_DUAL_CAN, packages=(("bridge", "bridge.yaml"),),
+        buttons=False, sensors=False, prefix="bridge", kind="Bridge",
+    ),
+    # CANBED-ONLY: the T-2CAN has no 8-button set. Filed under the `bridge`
+    # prefix/kind even though it has buttons — bridging is the high-consequence
+    # role (its failure darkens a whole segment, a button failure darkens one
+    # switch), so that is what `ls canbus/nodes/` should surface.
     "buttons+bridge": Profile(
+        boards=CANBED_DUAL_CAN,
         packages=(("buttons", "buttons_8.yaml"), ("bridge", "bridge.yaml")),
         buttons=True, sensors=False, prefix="bridge", kind="Bridge",
     ),
+}
+
+# Header comment contributed by each board, so a generated file names its hardware.
+BOARD_COMMENTS = {
+    "canbed-rp2040.yaml": "# Hardware: CANBed RP2040 (boards/canbed-rp2040.yaml)\n",
+    "canbed-rp2040-can1.yaml": ("#           + add-on 3.3 V MCP2515 on the SPI header, CS GPIO8\n"
+                                "#           (boards/canbed-rp2040-can1.yaml)\n"),
+    "lilygo-t-2can.yaml": ("# Hardware: LilyGO T-2CAN (boards/lilygo-t-2can.yaml) — one board, two\n"
+                           "#           CAN ports: TWAI backbone (can0) + MCP2515 zone (can1)\n"),
 }
 
 # Header comment contributed by each package, so a generated file explains itself.
@@ -143,9 +172,11 @@ PACKAGE_COMMENTS = {
     "buttons_8.yaml": "# Buttons:  standard 8-button set (btn0–btn7) from packages/buttons_8.yaml\n",
     "sensor_kit.yaml": ("# Sensors:  SHT45 + SEN66 kit from packages/sensor_kit.yaml "
                         "(CAT_SENSOR, host room = sensor room)\n"),
+    # Board-neutral: the board comment above already names the hardware supplying
+    # can0/can1, and this package is the same on either board.
     "bridge.yaml": ("# Bridge:   store-and-forward, can0 (backbone) <-> can1 (zone), from\n"
-                    "#           packages/bridge.yaml + boards/canbed-rp2040-can1.yaml.\n"
-                    "#           Never carries the sensor kit (ADR-0005/ADR-0017).\n"),
+                    "#           packages/bridge.yaml. Never carries the sensor kit\n"
+                    "#           (ADR-0005/ADR-0017).\n"),
 }
 
 
@@ -166,11 +197,14 @@ def render_node(node_id: int, profile_name: str) -> tuple:
         name=name,
         node_id=node_id,
         profile=profile_name,
+        board_comment="".join(BOARD_COMMENTS[f] for _, f in profile.boards),
         profile_comment="".join(PACKAGE_COMMENTS[f] for _, f in profile.packages),
         can_id_comment=can_id_comment,
         # Only buttons need debouncing; a bridge or a sensor puck has none.
         debounce='  debounce_ms: "50"\n' if profile.buttons else "",
         esphome_name=f"{profile.prefix}_{node_id}",
+        profile_boards="".join(f"  {key}: !include ../../boards/{f}\n"
+                               for key, f in profile.boards),
         profile_pkgs="".join(f"  {key}: !include ../packages/{f}\n"
                              for key, f in profile.packages),
         i="  ",

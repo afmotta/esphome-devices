@@ -45,11 +45,13 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   `canbus/packages/health.yaml`).
 - **CAN node composition is driven by the registry `profile` column** (ADR-0017).
   Generated configs in `canbus/nodes/` compose `node_core.yaml` plus exactly the
-  packages their profile selects — `buttons` / `buttons+sensors` / `sensors` /
-  `bridge` / `buttons+bridge`, defined in one place, `PROFILES` in
-  `canbus/tools/generate_nodes.py`.
-  `node_core.yaml` pulls in `boards/canbed-rp2040.yaml` (RP2040, logger, SPI,
-  MCP2515 `can0`) and owns protocol include, boot logging, globals, and heartbeat.
+  packages **and its board** — `buttons` / `buttons+sensors` / `sensors` /
+  `bridge-t2can` / `bridge` / `buttons+bridge`, defined in one place, `PROFILES`
+  in `canbus/tools/generate_nodes.py`.
+  `node_core.yaml` is **board-agnostic**: it owns protocol include, boot logging,
+  globals and heartbeat, and asks only that the board declare `can0`. That is what
+  lets bridges run on an ESP32-S3 (`boards/lilygo-t-2can.yaml`) while everything
+  else runs on the CANBed RP2040. Never add a board include to `node_core.yaml`.
   The column is **single-valued on purpose**: ADR-0005 requires single-purpose
   bridge firmware, so "bridge AND sensors" is unrepresentable rather than merely
   rejected — `bridge+sensors` is a string the generator refuses, and a test asserts
@@ -66,8 +68,13 @@ new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
   adds a second `CAT_STATUS` interval. One node_id, one heartbeat.
 - **Bridges are ordinary registry rows.** A bridge carries a `node_id` from the same
   allocation space, so it lands in `node_map.h`, `map.json`, and the generated HA
-  per-node health entities for free. The retired T-2CAN firmware is parked at
-  `canbus/archive/bridge-t2can.yaml` (not built, not generated — see that dir's README).
+  per-node health entities for free.
+- **Two bridge boards** (ADR-0017 §1). `bridge-t2can` on the LilyGO T-2CAN is
+  **preferred** — one integrated board, backbone on the interrupt-driven TWAI
+  controller. `bridge` / `buttons+bridge` on the CANBed + a 3.3 V add-on MCP2515
+  are the second source, and CANBed is the only board that can carry
+  `buttons+bridge`. If you touch the add-on board file, `clock:` must match the
+  module's actual crystal (ESPHome supports 8/12/16/20 MHz only).
 - **`canbus/packages/`** holds both node-side (`node_core.yaml`, `buttons_8.yaml`,
   `button.yaml`, `sensor_kit.yaml`, `bridge.yaml`) and gateway-side (`health.yaml` —
   transport health) packages
@@ -102,8 +109,9 @@ g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Ilighting/protocol lighting/test
 
 # ESPHome compile checks without touching generated nodes
 esphome compile canbus/tests/compile_sensor_node.yaml   # buttons+sensors profile
-esphome compile canbus/tests/compile_bridge.yaml        # bridge profile (2x MCP2515)
+esphome compile canbus/tests/compile_bridge.yaml        # bridge profile (CANBed, 2x MCP2515)
 esphome compile canbus/tests/compile_buttons_bridge.yaml  # buttons+bridge (the pin-budget gate)
+esphome compile canbus/tests/compile_bridge_t2can.yaml    # bridge-t2can (ESP32-S3, TWAI+MCP2515)
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte

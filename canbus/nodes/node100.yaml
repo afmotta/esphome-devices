@@ -6,7 +6,7 @@
 # flash time (the node is flashed at allocation, positioned/commissioned later) — they live in
 # the registry and the gateway's node_map.h, never here (ADR-0007).
 # Profile:  buttons (ADR-0017)
-# Hardware: CANBed RP2040 board pulled in by packages/node_core.yaml
+# Hardware: CANBed RP2040 (boards/canbed-rp2040.yaml)
 # Buttons:  standard 8-button set (btn0–btn7) from packages/buttons_8.yaml
 # CAN IDs (29-bit Extended, computed at runtime from node_id):
 #   Input  = 0x02064000  (CAT_INPUT,  node -> controller, button events)
@@ -23,4 +23,5 @@ esphome:
 
 packages:
   core: !include ../packages/node_core.yaml
+  board: !include ../../boards/canbed-rp2040.yaml
   buttons: !include ../packages/buttons_8.yaml

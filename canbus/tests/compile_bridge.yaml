@@ -1,9 +1,9 @@
 # =============================================================================
-# compile_bridge.yaml — compile-check config for the ADR-0005/0017 segment bridge
+# compile_bridge.yaml — compile-check for the CANBed segment bridge
 # =============================================================================
-# Hand-maintained (NOT generated): validates that node_core, the second-MCP2515 board
-# add-on, and the forwarding package build together without touching the generated
-# nodes/ output. Mirrors what generate_nodes.py emits for a `bridge` profile row.
+# Hand-maintained (NOT generated): validates that node_core, the CANBed board, the
+# second-MCP2515 add-on, and the forwarding package build together without touching
+# the generated nodes/ output. Mirrors a `bridge` profile row.
 #
 # This is the ONLY compile gate covering boards/canbed-rp2040-can1.yaml and the
 # two-MCP2515-on-one-SPI-bus arrangement, so keep it in the verification battery even
@@ -24,4 +24,6 @@ esphome:
 
 packages:
   core: !include ../packages/node_core.yaml
+  board: !include ../../boards/canbed-rp2040.yaml
+  can1_board: !include ../../boards/canbed-rp2040-can1.yaml
   bridge: !include ../packages/bridge.yaml

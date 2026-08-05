@@ -23,5 +23,7 @@ esphome:
 
 packages:
   core: !include ../packages/node_core.yaml
+  board: !include ../../boards/canbed-rp2040.yaml
+  can1_board: !include ../../boards/canbed-rp2040-can1.yaml
   buttons: !include ../packages/buttons_8.yaml
   bridge: !include ../packages/bridge.yaml

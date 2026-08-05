@@ -215,12 +215,14 @@ def test_generator_node_config_uses_node_core_for_board_and_behavior():
         code, _stdout, stderr = _run_temp_generator(repo_root, root)
         assert code == 0, stderr
         node_yaml = (root / "nodes" / "node100.yaml").read_text()
-        assert "Hardware: CANBed RP2040 board pulled in by packages/node_core.yaml" in node_yaml
+        assert "Hardware: CANBed RP2040 (boards/canbed-rp2040.yaml)" in node_yaml
         assert "name: node_100" in node_yaml
         assert "friendly_name: \"Node 100\"" in node_yaml
-        assert "board: !include ../../boards/canbed-rp2040.yaml" not in node_yaml
         assert "core: !include ../packages/node_core.yaml" in node_yaml
         assert "buttons: !include ../packages/buttons_8.yaml" in node_yaml
+        # Since the ADR-0017 amendment the BOARD comes from the profile, not node_core
+        # — that is what lets a bridge profile target a different MCU entirely.
+        assert "board: !include ../../boards/canbed-rp2040.yaml" in node_yaml
 
 
 def test_generator_aborts_before_writing_node_files():
@@ -519,12 +521,41 @@ def test_profiles_reference_real_package_files():
     # A typo in PROFILES would produce a generated config that only fails at `esphome
     # config` time, long after the generator reported success. Catch it here instead.
     packages_dir = Path(__file__).resolve().parents[1] / "packages"
+    boards_dir = Path(__file__).resolve().parents[2] / "boards"
     for name, profile in g.PROFILES.items():
         for _key, filename in profile.packages:
             assert (packages_dir / filename).is_file(), \
                 f"profile {name!r} references missing package {filename}"
             assert filename in g.PACKAGE_COMMENTS, \
                 f"profile {name!r} package {filename} has no PACKAGE_COMMENTS entry"
+        for _key, filename in profile.boards:
+            assert (boards_dir / filename).is_file(), \
+                f"profile {name!r} references missing board {filename}"
+            assert filename in g.BOARD_COMMENTS, \
+                f"profile {name!r} board {filename} has no BOARD_COMMENTS entry"
+
+
+def test_every_profile_supplies_exactly_one_platform_board():
+    # node_core.yaml is board-agnostic, so the profile MUST bring a board — and exactly
+    # one that declares an MCU platform, or ESPHome sees two platform blocks and fails.
+    # canbed-rp2040-can1.yaml is a pure add-on (no platform), so it does not count.
+    ADD_ONS = {"canbed-rp2040-can1.yaml"}
+    for name, profile in g.PROFILES.items():
+        platform_boards = [f for _k, f in profile.boards if f not in ADD_ONS]
+        assert len(platform_boards) == 1, \
+            f"profile {name!r} supplies {len(platform_boards)} platform boards: {platform_boards}"
+
+
+def test_bridge_profiles_supply_a_second_can_port():
+    # A forwarder needs can0 AND can1. On the T-2CAN both come from the one board file;
+    # on the CANBed can1 comes from the add-on. Either way, a bridge profile that forgot
+    # its second port would only fail at `esphome config` on an unresolved !extend can1.
+    for name, profile in g.PROFILES.items():
+        if not any(f == "bridge.yaml" for _k, f in profile.packages):
+            continue
+        boards = [f for _k, f in profile.boards]
+        assert "canbed-rp2040-can1.yaml" in boards or "lilygo-t-2can.yaml" in boards, \
+            f"bridge profile {name!r} has no board providing can1: {boards}"
 
 
 def test_no_profile_carries_both_bridge_and_sensors():
@@ -569,6 +600,8 @@ def test_generator_renders_bridge_profile():
         # Named by profile prefix, so `ls nodes/` reads as an inventory.
         bridge_yaml = (root / "nodes" / "bridge200.yaml").read_text()
         assert "core: !include ../packages/node_core.yaml" in bridge_yaml
+        assert "board: !include ../../boards/canbed-rp2040.yaml" in bridge_yaml
+        assert "can1_board: !include ../../boards/canbed-rp2040-can1.yaml" in bridge_yaml
         assert "bridge: !include ../packages/bridge.yaml" in bridge_yaml
         assert "name: bridge_200" in bridge_yaml
         assert 'friendly_name: "Bridge 200"' in bridge_yaml
@@ -580,6 +613,41 @@ def test_generator_renders_bridge_profile():
         # Bridges are ordinary registry rows, so they reach the central map and the
         # health monitor for free (ADR-0017 §4).
         assert '{200, 7, 0, "Junction box"},' in (root / "protocol" / "node_map.h").read_text()
+
+
+def test_buttons_bridge_is_canbed_only():
+    # The T-2CAN has no 8-button set, so buttons may only ride with the CANBed bridge.
+    # If a future board grows buttons this is the assertion to argue with.
+    for name, profile in g.PROFILES.items():
+        files = {f for _k, f in profile.packages}
+        if {"buttons_8.yaml", "bridge.yaml"} <= files:
+            boards = [f for _k, f in profile.boards]
+            assert "canbed-rp2040.yaml" in boards, \
+                f"profile {name!r} pairs buttons with a bridge on a non-CANBed board: {boards}"
+
+
+def test_generator_renders_bridge_t2can_profile():
+    # The preferred bridge: one integrated dual-CAN board, so no add-on board include,
+    # and no buttons. Its board file is what supplies both can0 (TWAI) and can1.
+    nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
+                 "200,0,7,0,First floor junction box,bridge-t2can,\n")
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        yaml = (root / "nodes" / "bridge200.yaml").read_text()
+        assert "core: !include ../packages/node_core.yaml" in yaml
+        assert "board: !include ../../boards/lilygo-t-2can.yaml" in yaml
+        assert "bridge: !include ../packages/bridge.yaml" in yaml
+        # No CANBed anything, no buttons, no sensors.
+        assert "canbed" not in yaml
+        assert "buttons_8.yaml" not in yaml
+        assert "sensor_kit.yaml" not in yaml
+        assert "debounce_ms" not in yaml
+        # Still an ordinary registry row: reaches the central map like any node.
+        assert '{200, 7, 0, "First floor junction box"},' in (
+            root / "protocol" / "node_map.h").read_text()
 
 
 def test_generator_renders_buttons_bridge_profile():
@@ -636,11 +704,14 @@ def test_map_export_derives_frozen_sensors_field_from_profile():
          "profile": "bridge", "room_slug": ""},
         {"node_id": 5, "floor": 0, "room": 5, "board": 0, "location": "e",
          "profile": "buttons+bridge", "room_slug": ""},
+        {"node_id": 6, "floor": 0, "room": 6, "board": 0, "location": "f",
+         "profile": "bridge-t2can", "room_slug": ""},
     ]
     exported = g.build_map_export(nodes, HASH)["nodes"]
-    assert [n["sensors"] for n in exported] == [0, 1, 1, 0, 0]
+    assert [n["sensors"] for n in exported] == [0, 1, 1, 0, 0, 0]
     assert [n["profile"] for n in exported] == [
-        "buttons", "buttons+sensors", "sensors", "bridge", "buttons+bridge"]
+        "buttons", "buttons+sensors", "sensors", "bridge", "buttons+bridge",
+        "bridge-t2can"]
 
 
 def main():
