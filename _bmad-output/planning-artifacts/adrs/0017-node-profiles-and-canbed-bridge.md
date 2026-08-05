@@ -1,6 +1,6 @@
 ---
 adr: 0017
-title: 'Node deployment profiles, and the segment bridge on the fleet node board'
+title: 'Node deployment profiles, and the two segment bridge boards'
 status: 'Accepted'
 date: '2026-08-04'
 deciders: ['Alberto']
@@ -23,7 +23,7 @@ relatedDocuments:
   - boards/lilygo-t-2can.yaml
 ---
 
-# ADR-0017: Node deployment profiles, and the segment bridge on the fleet node board
+# ADR-0017: Node deployment profiles, and the two segment bridge boards
 
 ## Status
 

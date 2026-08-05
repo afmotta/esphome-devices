@@ -51,8 +51,9 @@ per un interruttore a muro.
 ## Percorso A — Riflash USB sul posto
 
 La configurazione del bridge è **generata dal registro**, come quella di qualsiasi nodo
-— la sua riga del registro porta semplicemente il profilo `bridge` invece di `buttons`
-(oppure `buttons+bridge`, se questo è anche un interruttore a muro).
+— la sua riga del registro porta semplicemente uno dei profili bridge invece di
+`buttons`: `bridge-t2can` per un T-2CAN, `bridge` per un CANBed + modulo aggiuntivo,
+oppure `buttons+bridge` se quel CANBed è anche un interruttore a muro.
 
 1. Rigenera: `python3 canbus/tools/generate_nodes.py`.
 2. Compila la sua configurazione generata: `esphome compile canbus/nodes/bridge<id>.yaml`
@@ -94,4 +95,6 @@ La configurazione del bridge è **generata dal registro**, come quella di qualsi
 
 - [Risoluzione problemi bus CAN](../troubleshooting/canbus.md)
 - [Nodo CAN](can-node.md) — il caso più comune; un guasto al bridge è più raro di un
-  guasto a un nodo normale. Stessa scheda, quindi la scorta è intercambiabile.
+  guasto a un nodo normale. Un bridge su CANBed è la stessa scheda di un nodo, quindi
+  una scorta di nodi lo copre (più il suo modulo aggiuntivo); un bridge T-2CAN richiede
+  una scorta di T-2CAN.

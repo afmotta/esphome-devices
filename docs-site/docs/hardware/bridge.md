@@ -45,8 +45,9 @@ get the same "node offline" signal you'd get for a wall switch.
 ## Path A — In-place USB reflash
 
 The bridge's config is **generated from the registry**, same as any node — its registry
-row just carries the `bridge` profile instead of `buttons` (or `buttons+bridge`, if this
-one is also a wall switch).
+row just carries one of the bridge profiles instead of `buttons`: `bridge-t2can` for a
+T-2CAN, `bridge` for a CANBed + add-on, or `buttons+bridge` if that CANBed is also a
+wall switch.
 
 1. Regenerate: `python3 canbus/tools/generate_nodes.py`.
 2. Compile its generated config: `esphome compile canbus/nodes/bridge<id>.yaml`
@@ -87,4 +88,5 @@ one is also a wall switch).
 
 - [CAN bus troubleshooting](../troubleshooting/canbus.md)
 - [CAN Node](can-node.md) — the more common case; a bridge failure is rarer than a
-  regular node failure. Same board, so the spare is interchangeable.
+  regular node failure. A CANBed bridge is the same board as a node, so a node spare
+  covers it (plus its add-on module); a T-2CAN bridge needs a T-2CAN spare.
