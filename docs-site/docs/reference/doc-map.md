@@ -27,9 +27,8 @@ different purposes:
    file is a map of the whole repository; each subsystem's own file is the actual
    rulebook for that subsystem.
 
-3. **ADRs (Architecture Decision Records), under
-   `_bmad-output/planning-artifacts/adrs/` and
-   `canbus/_bmad-output/planning-artifacts/adrs/`) — the record of *why*.**
+3. **ADRs (Architecture Decision Records), under `docs/adr/` (the unified ADR-0001…0017
+   set) — the record of *why*.**
    Each ADR documents one significant decision (e.g. "which controller hardware to
    standardize on"), the alternatives that were considered, and the trade-offs
    accepted. Read an ADR when you want to understand *why* something was built the way

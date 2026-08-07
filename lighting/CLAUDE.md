@@ -1,7 +1,7 @@
 # Lighting Subsystem — AI Assistant Guide
 
 This is the lighting application system (layered-restructure spine,
-`_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`).
+`docs/architecture/ARCHITECTURE-SPINE.md`).
 Relay actuation is real (ADR-0014 P4/P5): the lighting controller drives a
 Waveshare Modbus RTU Relay 32CH bank (`relay_0..relay_31`, HA-switchable), and
 the ADR-0013 fallback branches actuate bindings when HA is down. ADR-0014 first
@@ -78,7 +78,7 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
 
 ## Conventions
 
-- Epic prefix: **LIGHT-**. New BMAD artifacts go to the root `_bmad-output/`.
+- Epic prefix: **LIGHT-** (commit messages). Record significant decisions as new ADRs under `docs/adr/`.
 - Entity-ID/automation-naming conventions are lighting's own to set — still
   undecided now that the fallback code exists (ADR-0014 P5); expected to firm
   up with binding authoring (see Deferred in the architecture spine).

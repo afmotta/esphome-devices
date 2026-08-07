@@ -28,8 +28,7 @@ Nel repository ci sono tre tipi diversi di documenti, scritti per tre scopi dive
    sottosistema è il vero regolamento di quel sottosistema.
 
 3. **ADR (Architecture Decision Record)**, sotto
-   `_bmad-output/planning-artifacts/adrs/` e
-   `canbus/_bmad-output/planning-artifacts/adrs/` — **la registrazione del *perché*.**
+   `docs/adr/` (l'insieme unificato ADR-0001…0017) — **la registrazione del *perché*.**
    Ogni ADR documenta una decisione significativa (es. "su quale hardware controller
    standardizzare"), le alternative considerate, e i compromessi accettati. Leggi un
    ADR quando vuoi capire *perché* qualcosa è stato costruito in un certo modo, non

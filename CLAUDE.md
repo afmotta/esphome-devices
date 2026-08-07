@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.14 |
-| **Last Updated** | August 4, 2026 |
+| **Version** | 1.15 |
+| **Last Updated** | August 7, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -31,7 +31,7 @@
 ### What This Is
 
 This repo hosts the ESPHome systems for Alberto's three-floor residence, organized as a
-**layered systems monorepo** (see `_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`):
+**layered systems monorepo** (see `docs/architecture/ARCHITECTURE-SPINE.md`):
 
 1. **`canbus/`** (infrastructure) — a pre-live CAN bus transport system (RP2040 nodes +
    ESP32-S3 health monitor): frames, heartbeats, node discovery/health, the bus definition. See
@@ -49,9 +49,10 @@ This repo hosts the ESPHome systems for Alberto's three-floor residence, organiz
   single application system, currently the Modbus I/O hardware drivers used by
   both Climate and lighting.
 
-BMAD epics are namespaced: **CAN-Epic N** (canbus), **LIGHT-Epic N** (lighting),
-**CLIMATE-Epic N** (climate). Historical canbus BMAD artifacts stay under
-`canbus/_bmad-output/`; new artifacts for all systems go to the root `_bmad-output/`.
+Epics are namespaced by system in commit messages: **CAN-Epic N** (canbus),
+**LIGHT-Epic N** (lighting), **CLIMATE-Epic N** (climate). The durable design knowledge
+these epics produced — architecture, ADRs, contracts, design notes — lives under `docs/`
+(see [Important Files Reference](#important-files-reference)).
 
 ### System Capabilities
 
@@ -114,7 +115,7 @@ Standardized per ADR-0014 — the same three devices serve both the Climate and 
 
 ## Repository Structure
 
-This is a **layered systems monorepo** (see `ARCHITECTURE-SPINE.md`, AD-1/AD-10): one
+This is a **layered systems monorepo** (see `docs/architecture/ARCHITECTURE-SPINE.md`, AD-1/AD-10): one
 shared infrastructure layer (`canbus/`), two application systems on top (`lighting/`,
 `climate/`), a small shared package layer (`packages/`), and a `devices/` composition layer where
 deployable entry points assemble packages across systems. **Each in-repo system directory
@@ -134,8 +135,7 @@ esphome-devices/
 │   ├── tools/                  # Registry/generator tooling (generate_nodes.py, etc.)
 │   ├── tests/                  # Python + native C++ tests
 │   ├── home-assistant/         # Arbitration automations, generated manifest package
-│   ├── docs/                   # Protocol reference, runbooks
-│   └── _bmad-output/           # Historical CAN-epic artifacts (frozen)
+│   └── docs/                   # Protocol reference, runbooks
 │
 ├── lighting/                  # Lighting application system (see lighting/CLAUDE.md)
 │   ├── packages/               # Button-decode/HA-event + fallback packages
@@ -184,10 +184,15 @@ esphome-devices/
 │       └── ethernet/          # W5500 sharing one SPI controller with the onboard display (ADR-0016)
 │                              #   ⚠ pinned to ESPHome 2026.7.1 — re-verify on every upgrade
 │
-├── docs/                      # Project documentation and guides
+├── docs/                      # Project knowledge base and guides
+│   ├── adr/                    # Architecture Decision Records (ADR-0001…0017, the "why")
+│   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
+│   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
+│   ├── design-notes/          # Entity-naming convention, canbus implementation rules
+│   ├── epics.md               # Master epic index (feature history)
+│   └── (runbooks, wiring guides, HA config assets)
 │
-├── _bmad/                     # BMAD framework (agents, workflows, tasks)
-├── _bmad-output/              # BMAD artifacts (epics, stories, analysis)
+├── docs-site/                 # Maintenance & support site (MkDocs, EN + IT; GitHub Pages)
 │
 ├── scripts/                   # Repo-level helper scripts (currently empty)
 ├── secrets.yaml               # (gitignored) Credentials and secrets
@@ -327,13 +332,16 @@ details, and polling intervals):
 
 ### Epic-Based Development Process
 
-This project follows an **epic-driven development methodology** documented in `.bmad-core/`:
+Work has historically been organized into **epics** — coherent slices of feature work.
+That history is captured in two durable forms and nothing else needs to be produced per
+epic anymore:
 
-1. **Epic Brief** (`docs/epic-N-brief.md`): Defines user stories, technical specs, acceptance criteria
-2. **Implementation**: Work through stories in priority order
-3. **Testing**: Follow epic testing checklist
-4. **Completion Report** (`docs/epic-N-completion-report.md`): Documents what was delivered
-5. **Git Commit**: Pattern is "Epic N" (e.g., "Epic 16", "Epic 15")
+1. **Epic index** (`docs/epics.md`): the master list of features delivered (Epics 1–20).
+2. **ADRs** (`docs/adr/`): the significant decisions, with alternatives and trade-offs.
+
+New work continues the lightweight convention below: land the change, record any
+significant decision as a new ADR, and use an epic-prefixed commit message. There is no
+required brief/checklist/completion-report ceremony.
 
 ### Git Workflow
 
@@ -528,11 +536,13 @@ external_components:
 
 | File | Purpose |
 |------|---------|
-| `_bmad-output/planning-artifacts/architecture-diagram.md` | Mermaid diagrams of system architecture |
-| `_bmad-output/planning-artifacts/prd.md` | Product Requirements Document |
-| `_bmad-output/planning-artifacts/epics.md` | Master epic index (Epics 1-20) |
-| `_bmad-output/analysis/brainstorming-session-2026-02-24.md` | Entity ID naming convention |
-| `_bmad-output/analysis/brainstorming-session-2026-02-05.md` | Historical Vesta open-source strategy (superseded by 2026-07 fold-back) |
+| `docs/architecture/ARCHITECTURE-SPINE.md` | Architectural invariants (AD-1…AD-10) — the current authority |
+| `docs/architecture/architecture-diagram.md` | Mermaid diagrams of system topology and data flows |
+| `docs/adr/` | Architecture Decision Records (ADR-0001…0017) — the reasoning behind decisions |
+| `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
+| `docs/design-notes/entity-naming.md` | Entity ID naming convention |
+| `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
+| `docs/epics.md` | Master epic index (Epics 1-20) |
 | `TODO.md` | Feature backlog (in Italian) |
 
 ### Configuration Entry Points
@@ -618,12 +628,11 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 ## Getting Help
 
-### Documentation Resources
-
-1. **Architecture**: `_bmad-output/planning-artifacts/architecture-diagram.md` - System topology and data flows
-2. **PRD**: `_bmad-output/planning-artifacts/prd.md` - Original project requirements
-3. **Epics**: `_bmad-output/implementation-artifacts/epic-*.md` - Feature development history
-4. **BMAD Guide**: `.bmad-core/user-guide.md` - Development framework
+1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
+   `docs/architecture/architecture-diagram.md` (topology and data flows)
+2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0017)
+3. **Epics**: `docs/epics.md` - feature development history
+4. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
 5. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 
 ### Troubleshooting
@@ -655,6 +664,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-08-07 | 1.15 | Removed the BMAD framework and all its tooling (`_bmad/`, the `bmad-*` skills, the OpenCode `.opencode/` and Copilot `.github/agents/`+`.github/chatmodes/` integrations) and consolidated the generated artifacts into a leaner knowledge base under `docs/`: unified ADRs 0001–0017 into `docs/adr/`, the architecture spine + diagram into `docs/architecture/`, the two frozen contracts into `docs/contracts/`, and the entity-naming + canbus implementation rules into `docs/design-notes/`; kept the master epic index and deferred-work backlog, dropped the process history (completion reports, testing checklists, sprint/workflow status, retros, review passes, per-story files, phase specs, migration metas) and the superseded Oct-2025 PRD/architecture docs. Both `_bmad-output/` trees are gone. Repointed all cross-references (this file, the three system `CLAUDE.md`s, `docs-site` doc-map/confidence-ledger, canbus README/runbooks, dashboards) | AI Assistant |
 | 2026-08-04 | 1.14 | ADR-0017: node composition is now driven by a single-valued `profile` column in `registry/nodes.csv` (`buttons` / `buttons+sensors` / `sensors` / `bridge` / `buttons+bridge`), replacing the `sensors` boolean — making "bridge AND sensors" unrepresentable rather than merely rejected (ADR-0005 single-purpose forwarders). `base_node.yaml` split into `node_core.yaml` + `buttons_8.yaml` so a bridge instantiates no button GPIOs; new `canbus/packages/bridge.yaml` + `boards/canbed-rp2040-can1.yaml` run the segment bridge on the fleet node board (CANBed RP2040 + a second MCP2515, CS GPIO8); `buttons+bridge` covers the boxes where a segment splits at a button box — buttons are the one sanctioned co-tenant of a forwarder, the sensor kit stays excluded. `map.json` keeps its frozen `nodes[].sensors` field, now derived, and adds `profile`. Amended same-day after a sourcing survey: the **LilyGO T-2CAN is restored as the preferred bridge board** (`boards/lilygo-t-2can.yaml`, profile `bridge-t2can`) with the CANBed + add-on kept as second source — 3.3 V raw-SPI MCP2515 modules turn out to be near-unobtainable at a supported crystal, making the cost saving nominal; `node_core.yaml` became board-agnostic so a profile selects its own MCU, and `canbus/archive/` is gone | AI Assistant |
 | 2026-07-27 | 1.13 | Lighting panel brought to the climate panel's shape, so the two screens on identical hardware read as one system: read-only "Home" glance tab in large type (was "Status", a stack of default-size labels), the Buttons tab rebuilt from a single last-event line into the last 8 presses as aligned four-column rows (node/btn/gesture/age) fed by a header-accessor ring in `lighting/packages/ui/touch_ui_format.h`, the 32 hand-written relay cells collapsed into `relay_cell.yaml`/`relay_refresh.yaml` fragments that carry on/off via LVGL `checked` (so the OFF fill comes from the shared theme), an always-visible status strip with alarm precedence (manifest mismatch outranks HA-down) and a liveness pulse, and the 2 s refresh skipped while LVGL is paused. ALL OFF now iterates `relay_store()` instead of 32 named ids. Strip fills added to the shared palette in `packages/ui/dark_theme.yaml`; stale "runs WiFi" header in `devices/light-controller-touch.yaml` corrected | AI Assistant |
 | 2026-07-26 | 1.12 | Climate touch UI reworked: shared LVGL dark theme extracted to `packages/ui/dark_theme.yaml` and adopted by both panels (a tabview covers the screen, so `lvgl: bg_color:` alone never made either panel dark — the tabview's own `tab_style`/`content_style` and a `theme:` block are what do it); zone rows rebuilt as four aligned columns (name/temp/target/state) from `climate/packages/ui/zone_row.yaml` + `zone_refresh.yaml` with semantic colour for heat/cool/idle and for degraded sensor tiers; tap-to-select zone rows; always-visible status strip on the LVGL top layer carrying alarms and a liveness pulse; two-column Home tab; 2 s refresh now skipped while LVGL is paused. Panel entry points consolidated: the four `t-connect-pro-debug*.yaml` bring-up builds deleted (their diagnosis preserved in ADR-0016 §Verification) and the fork's mandatory upgrade check repointed at `devices/locals/climate-control-touch.yaml`, whose new liveness dot makes it a better regression target; the WiFi touch variant committed rather than left as untracked WIP | AI Assistant |
@@ -675,4 +685,4 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 **End of Document**
 
-For questions or clarifications, refer to the documentation in `docs/` or the BMAD framework in `.bmad-core/`.
+For questions or clarifications, refer to the documentation in `docs/` and each system's `CLAUDE.md`.

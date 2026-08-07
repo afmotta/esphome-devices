@@ -795,7 +795,7 @@ Add custom actions to buttons:
 For more information on the ESPHome climate control system:
 
 - **Main Documentation**: `/docs/` directory in repository
-- **Architecture Diagram**: `/docs/architecture-diagram.md`
+- **Architecture Diagram**: `/docs/architecture/architecture-diagram.md`
 - **Product Requirements**: `/docs/prd.md`
 - **CLAUDE.md**: Project overview and AI assistant guide
 - **ESPHome Configs**: `/components/` and `/devices/` directories

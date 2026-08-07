@@ -1,7 +1,7 @@
 # Climate Subsystem — AI Assistant Guide
 
 This is the Climate application system (layered-restructure spine,
-`_bmad-output/planning-artifacts/architecture/architecture-esphome-devices-2026-07-05/ARCHITECTURE-SPINE.md`).
+`docs/architecture/ARCHITECTURE-SPINE.md`).
 It is **pre-live**: the controller hardware decision is finalized (ADR-0014 — LilyGO
 T-Connect Pro + Modbus RTU I/O boards, implemented) but not yet physically deployed.
 Everything below is scoped to `climate/`; entry
@@ -353,7 +353,7 @@ boundary).
 
 ## Conventions
 
-- Epic prefix: **CLIMATE-** for future work. Existing `HVAC-*` story IDs remain historical. New BMAD artifacts go to the root `_bmad-output/`.
+- Epic prefix: **CLIMATE-** for future work (commit messages). Existing `HVAC-*` story IDs remain historical. Record significant decisions as new ADRs under `docs/adr/`.
 - File naming follows root `CLAUDE.md`'s general conventions (kebab-case device
   configs, `[component_type]_[variant].yaml` for component configs); this file
   is the sole owner of Climate-specific rules — entity-ID convention, PID
