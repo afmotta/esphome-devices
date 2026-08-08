@@ -522,7 +522,7 @@ Across all dashboards, the following unique entities are referenced:
 - **QUICK_START.md**: 5-minute setup instructions
 - **../../../CLAUDE.md**: Project overview and conventions
 - **../../../docs/prd.md**: Product requirements
-- **../../../docs/architecture-diagram.md**: System architecture
+- **../../../docs/architecture/architecture-diagram.md**: System architecture
 
 ---
 

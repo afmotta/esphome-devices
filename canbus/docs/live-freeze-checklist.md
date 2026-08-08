@@ -6,8 +6,8 @@
 
 ## Why this gate exists
 
-Declaring the project **LIVE** is Alberto's explicit call (see `project-context.md`
-versioning policy). After LIVE, ADR-0008 makes node/bridge firmware changes deliberately
+Declaring the project **LIVE** is Alberto's explicit call (see
+`docs/design-notes/canbus-implementation-rules.md` versioning policy). After LIVE, ADR-0008 makes node/bridge firmware changes deliberately
 expensive: there is no CAN bootloader and no OTA on nodes/bridges, so a fielded change is a
 **physical reflash campaign** (see `docs/reflash-campaign-runbook.md`). Because the cost of
 being wrong rises sharply at LIVE, the frozen surface must have *soaked end-to-end* first.

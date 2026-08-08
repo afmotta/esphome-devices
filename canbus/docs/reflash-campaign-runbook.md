@@ -13,8 +13,8 @@ compatibility layer: **exhaust controller-side translation first** (new HA event
 re-mapping, new derived semantics, decoding a new payload version). If the change is
 expressible centrally, it is **not** a node change and this runbook does not apply.
 
-A breaking payload change after LIVE also requires bumping `PROTO_V1` (see `project-context.md`
-versioning policy).
+A breaking payload change after LIVE also requires bumping `PROTO_V1` (see
+`docs/design-notes/canbus-implementation-rules.md` versioning policy).
 
 ## Before any path
 

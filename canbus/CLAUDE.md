@@ -23,8 +23,9 @@ control system (see root `CLAUDE.md`).
 
 Full protocol and architecture: `docs/canbus-smart-home-reference.md`.
 Operational detail (pins, arbitration, health, manifest): `README.md`.
-ADR specs live in `_bmad-output/implementation-artifacts/` (historical record —
-new BMAD artifacts go to the root `_bmad-output/`, prefixed **CAN-Epic N**).
+The CAN decisions are recorded as ADR-0001…0013 in `docs/adr/` (the "why"); the CAN
+firmware implementation rules are in `docs/design-notes/canbus-implementation-rules.md`.
+Record new decisions as ADRs under `docs/adr/`; prefix commits touching this system with `canbus:`.
 
 ## Hard rules
 

@@ -1,5 +1,4 @@
 # MEV Modbus Component - Mechanical Extract Ventilation via Modbus
-# Epic 18: MEV Modbus Migration
 #
 # Complete Modbus-based control for Cappellotto Air Fresh I MEV.
 # Replaces relay-based control (4 relays freed) while retaining

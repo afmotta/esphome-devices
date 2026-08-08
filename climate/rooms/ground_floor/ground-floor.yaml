@@ -130,7 +130,7 @@ sensor:
       - source: anticamera_humidity_abstracted
 
   # Time since last mode change (shows most recent room transition)
-  # Epic 14: Tracks per-room timing independently
+  # Tracks per-room timing independently
   - platform: template
     id: ground_floor_time_in_current_mode
     name: "Ground Floor Time In Current Mode"
@@ -172,7 +172,7 @@ sensor:
       return min_elapsed / 60000.0;
     update_interval: 60s
 
-# On-controller tuning numbers (CLIMATE C2, Epic 12 revival): these replace the
+# On-controller tuning numbers (CLIMATE C2): these replace the
 # former HA input_number imports + "effective sensor with fallback" pattern.
 # The values live on the controller (restore_value: persisted in flash across
 # reboots) and are exposed to HA for tuning — but the dew-point protection and

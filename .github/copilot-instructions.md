@@ -46,14 +46,14 @@ Examples from the repo:
 - `devices/climate-control.yaml` is the main Climate entry point composing board, room, and coordinator packages.
 - `climate/packages/components/pid.yaml` uses `defaults:` and expects `mode` and `mode_mapping` variables to generate PIDs with ids `pid_${circuit_slug}_${mode}`.
 
-**Epic 2 Update (October 2025, historical):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. See `_bmad-output/implementation-artifacts/epic-2-migration-guide.md` for migration details; the `components/deprecated/` directory referenced at the time no longer exists.
+**Epic 2 Update (October 2025, historical):** The PID architecture was simplified. Previously, `dual_pid.yaml` and `mixing_valve.yaml` created separate heat/cool entities. Now, devices use direct `climate: platform: pid` configurations with both `heat_output` and `cool_output` specified. This reduces entity count by 50% and simplifies mode coordination. The `components/deprecated/` directory referenced at the time no longer exists.
 
 **Epic 5 Update (October 2025, historical — superseded by Epic 8's unified state machine and later package restructuring):** The sensor architecture was simplified to eliminate Modbus temperature sensors in favor of a 2-tier HA-only architecture with automatic emergency shutdown. The current equivalent of the room-sensor + emergency-shutdown pattern described below is `climate/packages/components/failover_sensor.yaml` (3-tier failover) composed via `climate/room_sensors.yaml` — consult those files and `climate/CLAUDE.md` rather than the file names below, which no longer exist:
 
 - **State Machine (historical shape):** Normal → Emergency (180s timeout) → Recovering (60s stability) → Normal
 - **Control Hierarchy:** Emergency shutdown only controls PID; cascade to slow_pwm→relay is automatic
 
-For details, see `_bmad-output/implementation-artifacts/epic-5-migration-guide.md`, `_bmad-output/implementation-artifacts/epic-5-ha-only-sensors.md`, and `_bmad-output/implementation-artifacts/epic-5-completion-report.md`.
+For the current implementation, see `climate/packages/components/failover_sensor.yaml`, `climate/room_sensors.yaml`, and `climate/CLAUDE.md`.
 
 **Epic 7 Update (October 2025, historical):** Window detection for fancoil-equipped rooms enables energy-efficient climate control by shutting down heating/cooling when windows are open. The `components/room_window_detection.yaml` file named below no longer exists as a standalone component — check `climate/rooms/**` and `climate/CLAUDE.md` for the current implementation. Key patterns as originally documented:
 
@@ -62,7 +62,7 @@ For details, see `_bmad-output/implementation-artifacts/epic-5-migration-guide.m
 - **Equipment Decision:** Only add to rooms with fancoils+PID (NOT radiant-only or fancoil-only without PID)
 - **State Machine:** Normal → Window Open (180s timeout) → Recovering (60s) → Normal
 
-For details, see `_bmad-output/implementation-artifacts/epic-7-window-detection-guide.md`, `docs/window-sensors-map.md`, and `_bmad-output/implementation-artifacts/epic-7-completion-report.md`.
+For details, see `docs/window-sensors-map.md` and the current implementation under `climate/rooms/**` (per `climate/CLAUDE.md`).
 
 **Epic 10 Update (November 2025):** UDP-based zone activity tracking enables demand-based relay control for energy optimization. Distribution boards broadcast zone demand (any PID active per floor/zone type), and the mixing group receives broadcasts to control circulation pump relays only when needed. Key patterns:
 
@@ -125,7 +125,7 @@ binary_sensor:
               - switch.turn_off: relay_1
 ```
 
-For details, see `_bmad-output/implementation-artifacts/epic-10-completion-report.md` and `_bmad-output/implementation-artifacts/epic-10-brief.md` (the `epic-10-udp-sensor-guide.md`/`epic-10-migration-guide.md` files named in the original note were never found under any path and appear to have been planned but not created).
+The epic history is summarized in `docs/epics.md`; consult `climate/CLAUDE.md` for the current implementation.
 
 If unsure, prefer conservative edits and ask for clarification. After changing component contracts (vars or ids), update all device callers accordingly.
 

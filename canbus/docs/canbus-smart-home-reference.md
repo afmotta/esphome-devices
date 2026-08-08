@@ -247,7 +247,7 @@ Unknown event types are logged, never fired. Events are only forwarded while `ha
 
 **`ha_ack_event`** — HA's generated automation ACKs each forwarded button event by `event_id` (int); an ACK not arriving within `ack_timeout_ms` triggers the local fallback for that event.
 
-OUTPUT-command services (controller → node commands/config over CAT_OUTPUT) are defined in the protocol header but not yet wired; they land with the commissioning slice (CAN-Epic 5 track).
+OUTPUT-command services (controller → node commands/config over CAT_OUTPUT) are defined in the protocol header but not yet wired; they land with the commissioning slice.
 
 ### Example HA automation
 
@@ -273,6 +273,6 @@ Hold-gesture reference automations (hold-to-dim, hold-to-move covers, derived lo
 
 - **No OTA for nodes.** RP2040 boards without WiFi must be flashed via USB. ADR-0008 §4 considered and deliberately rejected a CAN bootloader (no category is allocated to it); the reflash story is the USB campaign runbook (`reflash-campaign-runbook.md`, still a bench-timing stub).
 - **Click/hold timing is compile-time.** ESPHome's `on_multi_click` timing values (including `hold_ms`) are baked into firmware. `MSG_CONFIG_WRITE`/`MSG_CONFIG_ACK` are defined in the protocol header but the CAT_OUTPUT path is not wired, so thresholds cannot yet be changed at runtime.
-- **No node actuation over CAN.** The transport currently carries button events, heartbeats, and sensor frames inbound only; all actuation is the lighting controller's local Modbus relay bank. Wiring CAT_OUTPUT (plus command retry/fault surfacing, Epic 5) is the planned next transport slice.
+- **No node actuation over CAN.** The transport currently carries button events, heartbeats, and sensor frames inbound only; all actuation is the lighting controller's local Modbus relay bank. Wiring CAT_OUTPUT (plus command retry/fault surfacing) is the planned next transport slice.
 - **Single backbone consumer pair.** The lighting controller and health monitor tap one backbone segment (a store-and-forward bridge exists for a second segment, ADR-0005). For very long bus runs, per-floor gateways could use the category mask filtering to partition traffic.
 - **Node health surfacing is aggregate-only.** The health monitor exposes fleet aggregates and fires per-node edge events (lost/recovered/error/unknown), but the generated per-node HA status entities, alerting automations, and "degraded last night" report are still deferred (ADR-0011 open item 2).

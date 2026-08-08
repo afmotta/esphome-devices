@@ -2,7 +2,7 @@
 
 Maps each room to its Home Assistant window/door sensor entity for the window
 guard (`climate/packages/components/window_guard.yaml`, CLIMATE C4 — restores
-the Epic 7 capability dropped in the layered restructure).
+the window-aware climate-shutdown capability dropped in the layered restructure).
 
 ## Purpose
 
