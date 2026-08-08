@@ -1,0 +1,98 @@
+# =============================================================================
+# Component: mev_ventilation_air_quality.yaml
+# Purpose:   MEV controller for an air-quality-only unit (no humidity cascade).
+#            Variant of mev_ventilation.yaml with the fan path only — the fan
+#            path is already humidity-independent. Used by the ground-floor
+#            Innova HRP DOMO 60 H, a passive HRV that renews air on air-quality
+#            demand; humidity there is handled by the fancoils, so there is no
+#            Dehumidifying/Integration cascade and no dehumidifier/integration
+#            outputs.
+#
+# Required vars:
+#   component_id                   - Prefix for entity IDs (e.g., "ground_floor_mev")
+#   component_name                 - Friendly name prefix (e.g., "MEV Piano Terra")
+#   demand_sensor                  - Aggregated demand sensor ID (0-100%)
+#   alarm_sensor                   - Binary sensor ID for alarm monitoring
+#   fan_speed_number               - Number entity ID for fan speed output
+#   min_fan_speed_entity           - HA entity for minimum fan speed (%)
+#
+# Exposes:
+#   sensor.{component_id}_final_fan_speed       - Calculated fan speed (0-100%)
+#   text_sensor.{component_id}_automation_state - Current status
+#   switch.{component_id}_enabled               - Commissioning gate (default OFF)
+#
+# Commissioning gate:
+#   {component_id}_enabled defaults OFF, so a freshly flashed controller leaves
+#   the unit still. Switching the gate off forces fan speed to 0 (same hard-off
+#   path as the alarm).
+# =============================================================================
+
+sensor:
+  # Import minimum fan speed from HA
+  - platform: homeassistant
+    entity_id: ${min_fan_speed_entity}
+    id: ${component_id}_min_fan_speed
+    internal: true
+
+  # Final Fan Speed (%) - applies min floor and alarm safety
+  - platform: template
+    name: "${component_name} Final Fan Speed"
+    id: ${component_id}_final_fan_speed
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-3
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      // Commissioning gate: unit not yet cleared to run (see header).
+      if (!id(${component_id}_enabled).state) {
+        return 0.0f;
+      }
+
+      // Alarm => demand 0, DELIBERATELY hard-off: the alarm sensor aggregates
+      // the unit's fault state with no severity mapping, so a minimum-purge
+      // floor could force demand onto a unit reporting a fault. 0 is the only
+      // demand safe for every fault; the alarm is surfaced on the dashboards
+      // and the touch UI health line. Revisit only with a per-alarm severity
+      // map from the Innova register set (climate/mev_innova_modbus.yaml).
+      if (id(${alarm_sensor}).state) {
+        return 0.0f;
+      }
+
+      float demand = id(${demand_sensor}).state;
+      float min_fan = id(${component_id}_min_fan_speed).state;
+
+      if (isnan(min_fan)) min_fan = 20.0f;
+      if (isnan(demand)) demand = min_fan;
+
+      return std::min(100.0f, std::max(demand, min_fan));
+    on_value:
+      then:
+        - number.set:
+            id: ${fan_speed_number}
+            value: !lambda "return x;"
+        - text_sensor.template.publish:
+            id: ${component_id}_automation_state
+            state: !lambda |-
+              if (!id(${component_id}_enabled).state) return std::string("Disabled");
+              if (id(${alarm_sensor}).state) return std::string("Alarm");
+              float min_fan = id(${component_id}_min_fan_speed).state;
+              if (isnan(min_fan)) min_fan = 20.0f;
+              return x > min_fan ? std::string("Ventilating") : std::string("Idle");
+
+# Commissioning gate: OFF until ventilation is cleared to run (see header).
+switch:
+  - platform: template
+    name: "${component_name} Enabled"
+    id: ${component_id}_enabled
+    icon: mdi:fan
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+# Diagnostic Sensors
+text_sensor:
+  - platform: template
+    name: "${component_name} Automation State"
+    id: ${component_id}_automation_state
+    icon: mdi:state-machine
+    entity_category: diagnostic

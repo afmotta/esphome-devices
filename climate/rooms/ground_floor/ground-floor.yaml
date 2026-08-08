@@ -43,6 +43,94 @@ packages:
   anticamera: !include anticamera.yaml
   locale_tecnico: !include locale_tecnico.yaml
 
+  # MEV Modbus Control (ground floor) — Innova HRP DOMO 60 H (ADR-0018).
+  # A different model from the first-floor unit: passive HRV, air-quality-only
+  # (no humidity cascade — humidity here is handled by the fancoils). Fan speed
+  # is 0-10V on analog_output_8; monitoring/control is Modbus at address 0x11.
+  ground_floor_mev: !include
+    file: ../../mev_innova_modbus.yaml
+    vars:
+      mev_slug: "ground_floor_mev"
+      mev_name: "MEV Piano Terra"
+      modbus_bus_id: rs485_bus
+      modbus_address: "0x11"
+      fan_speed_output: analog_output_8
+      co2_sensor: ground_floor_max_co2
+      voc_sensor: ground_floor_max_voc_index
+      nox_sensor: ground_floor_max_nox_index
+      pm1_0_sensor: ground_floor_max_pm1_0
+      pm2_5_sensor: ground_floor_max_pm2_5
+      pm4_0_sensor: ground_floor_max_pm4_0
+      pm10_sensor: ground_floor_max_pm10
+
+  # Floor-level air-quality MAX aggregates that feed the MEV demand (no humidity
+  # aggregate — this unit does not manage humidity). Sources are the per-room CAN
+  # pollutant stubs, which read NaN until an air-quality CAN kit is fitted and
+  # registered for the room (demand then NaN-degrades to the min-fan floor).
+  max_co2: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: co2
+      sensor_label: "CO₂"
+      source_suffix: co2
+      accuracy_decimals: "0"
+      unit_of_measurement: ppm
+      device_class: carbon_dioxide
+  max_voc_index: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: voc_index
+      sensor_label: "VOC Index"
+      source_suffix: voc_index
+      accuracy_decimals: "0"
+      unit_of_measurement: ""
+      device_class: ""
+  max_nox_index: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: nox_index
+      sensor_label: "NOx Index"
+      source_suffix: nox_index
+      accuracy_decimals: "0"
+      unit_of_measurement: ""
+      device_class: ""
+  max_pm1_0: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: pm1_0
+      sensor_label: "PM1.0"
+      source_suffix: pm1_0
+      accuracy_decimals: "1"
+      unit_of_measurement: ug/m3
+      device_class: ""
+  max_pm2_5: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: pm2_5
+      sensor_label: "PM2.5"
+      source_suffix: pm2_5
+      accuracy_decimals: "1"
+      unit_of_measurement: ug/m3
+      device_class: ""
+  max_pm4_0: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: pm4_0
+      sensor_label: "PM4.0"
+      source_suffix: pm4_0
+      accuracy_decimals: "1"
+      unit_of_measurement: ug/m3
+      device_class: ""
+  max_pm10: !include
+    file: ../../packages/ground_floor_air_quality_max_sensor.yaml
+    vars:
+      sensor_id_suffix: pm10
+      sensor_label: "PM10"
+      source_suffix: pm10
+      accuracy_decimals: "1"
+      unit_of_measurement: ug/m3
+      device_class: ""
+
 binary_sensor:
   - platform: template
     id: ground_floor_radiant_any_zone_open

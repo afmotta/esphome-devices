@@ -41,7 +41,8 @@ the same relay-board address by design (see the note below).
 | T-Connect Pro (climate controller) | — (bus master) | — | The sole Modbus master on this bus; no other device may write to the bus. |
 | Analog Outputs Board 8CH (B) | `0x1` | `analog_output_1`–`analog_output_8` | 0–10V outputs, holding registers `0x0000`–`0x0007`. |
 | Relay Board 32CH | `0x2` | `relay_1`–`relay_32` | Coils `0x0000`–`0x001F`. |
-| MEV (Cappellotto Air Fresh I, ventilation unit) | `0x10` | — | Its own device-specific register set; see `climate/mev_modbus.yaml` in the repo, not reproduced here. |
+| MEV first floor (Cappellotto Air Fresh I, ventilation + dehumidification) | `0x10` | `analog_output_7` (fan) | Its own device-specific register set; see `climate/mev_modbus.yaml` in the repo, not reproduced here. |
+| MEV ground floor (Innova HRP DOMO 60 H, air-quality-only ventilation) | `0x11` | `analog_output_8` (fan) | Passive heat-recovery unit; no humidity handling. See `climate/mev_innova_modbus.yaml` (ADR-0018). |
 
 Room temperature/humidity/air-quality data does **not** travel over this bus at all —
 it arrives over the CAN bus, with a Home Assistant fallback. See the
@@ -58,8 +59,8 @@ it arrives over the CAN bus, with a Home Assistant fallback. See the
     ADR-0014 §4 deliberately mirrors the relay board's address (`0x2`) across both the
     climate and lighting buses, so a single spare Relay 32CH board can be dropped into
     *either* system without reconfiguring its address first. The analog output board
-    (`0x1`) and the MEV unit (`0x10`) are climate-only addresses — there is no
-    lighting-side device at those addresses to mirror against, so a spare for those two
+    (`0x1`) and the two MEV units (`0x10`, `0x11`) are climate-only addresses — there is
+    no lighting-side device at those addresses to mirror against, so a spare for those
     only ever goes back into the climate system. 🔵 DESIGNED
 
 Bus parameters (38400 baud, 8 data bits, even parity, 1 stop bit — "38400 8E1") are
@@ -116,7 +117,7 @@ table in the same change.
 | `analog_output_5` | Locale Tecnico fancoil |
 | `analog_output_6` | Sottotetto fancoil |
 | `analog_output_7` | First floor MEV fan speed |
-| `analog_output_8` | Unallocated |
+| `analog_output_8` | Ground floor MEV fan speed (Innova HRP DOMO 60 H) |
 
 ## Related
 

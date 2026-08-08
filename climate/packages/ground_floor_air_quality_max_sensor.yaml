@@ -1,0 +1,33 @@
+# ============================================================================
+# Ground Floor Air Quality Max Sensor
+#
+# One floor-level max aggregate over ground-floor room CAN pollutant targets.
+# Include once per pollutant with the target suffix and minimal metadata vars.
+# Mirror of first_floor_air_quality_max_sensor.yaml with the ground-floor room
+# list. The five rooms' ${room}_${source_suffix}_can stubs are declared by
+# climate/room_sensors.yaml and read NaN until an air-quality CAN kit is fitted
+# and registered for that room (the demand math NaN-degrades to min fan).
+# ============================================================================
+defaults:
+  sensor_id_suffix: co2
+  sensor_label: CO₂
+  source_suffix: co2
+  accuracy_decimals: "0"
+  unit_of_measurement:
+  device_class:
+
+sensor:
+  - platform: combination
+    id: ground_floor_max_${sensor_id_suffix}
+    name: "Max ${sensor_label} Piano Terra"
+    type: max
+    unit_of_measurement: ${unit_of_measurement}
+    device_class: ${device_class}
+    state_class: measurement
+    accuracy_decimals: ${accuracy_decimals}
+    sources:
+      - source: soggiorno_${source_suffix}_can
+      - source: cucina_${source_suffix}_can
+      - source: bagno_terra_${source_suffix}_can
+      - source: anticamera_${source_suffix}_can
+      - source: locale_tecnico_${source_suffix}_can

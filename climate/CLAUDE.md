@@ -130,13 +130,14 @@ climate:
 |---|---|---|
 | Analog Outputs Board (Waveshare Modbus RTU Analog Output 8CH (B)) | `0x1` | 0-10V fancoil/valve modulation, channels → `analog_output_1..8` |
 | Relay Board (Waveshare Modbus RTU Relay 32CH) | `0x2` | Radiant/fancoil/pump switching, channels → `relay_1..32` |
-| MEV (Cappellotto Air Fresh I) | `0x10` | Ventilation control, see `climate/mev_modbus.yaml` for its register set |
+| MEV first floor (Cappellotto Air Fresh I) | `0x10` | Ventilation + humidity cascade, see `climate/mev_modbus.yaml` for its register set |
+| MEV ground floor (Innova HRP DOMO 60 H) | `0x11` | Air-quality-only ventilation (passive HRV, no humidity), see `climate/mev_innova_modbus.yaml` (ADR-0018) |
 
-Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per first-floor room in `climate/rooms/first_floor/first-floor.yaml` and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5).
+Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per room in the floor files (`climate/rooms/first_floor/first-floor.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`) and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5). Ground-floor rooms have no air-quality CAN kit registered yet, so their MEV floors at minimum fan until the kits arrive (ADR-0018).
 
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
-- MEV polling: 30 seconds (`climate/mev_modbus.yaml` default)
+- MEV polling: 30 seconds (`climate/mev_modbus.yaml` / `climate/mev_innova_modbus.yaml` default)
 
 ## Commissioning gates (progressive deployment)
 
@@ -152,6 +153,7 @@ controller comes up idle:
 | `hp_mode_manual_hold` | **ON** | Calendar + demand tiers suspended; the operator owns `hp_mode` |
 | `{zone}_boost_enabled` | **OFF** | No hybrid radiant+fancoil boost; an active boost drops to "Radiant Only" |
 | `first_floor_mev_enabled` | **OFF** | Fan forced to 0; humidity cascade released to "Fan Only" |
+| `ground_floor_mev_enabled` | **OFF** | Fan forced to 0 (air-quality-only unit; no cascade) |
 
 Two constraints drive the phase order and are easy to get wrong:
 
@@ -267,7 +269,9 @@ Common issues:
 
 **Analog Outputs Board (address `0x1`, 8 channels)** — holding registers `0x0000`-`0x0007` (channel N = register N-1); value in mV, `0`-`10000` = `0`-`10.00V`; FC `0x03`/`0x06`/`0x10`. See `packages/devices/modbus-io/modbus_analog_outputs_board.yaml`.
 
-**MEV (address `0x10`)** — device-specific register set (mode/on-off/dehumidify writes, 5 temperature sensors, component-state and 39-alarm-type reads, filter-hours tracking); see `climate/mev_modbus.yaml` for the full mapping, not duplicated here.
+**MEV first floor (address `0x10`, Cappellotto Air Fresh I)** — device-specific register set (mode/on-off/dehumidify writes, 5 temperature sensors, component-state and 39-alarm-type reads, filter-hours tracking); see `climate/mev_modbus.yaml` for the full mapping, not duplicated here.
+
+**MEV ground floor (address `0x11`, Innova HRP DOMO 60 H)** — a passive HRV, air-quality-only (no dehumidifier/integration registers); fan speed is 0-10V on `analog_output_8`, everything else is Modbus. Register bindings are transcribed in `climate/mev_innova_modbus.yaml` (marked `TODO(innova-register)` until the Innova manual is available; ADR-0018).
 
 ### B. Relay Assignment Reference
 
@@ -304,11 +308,12 @@ Fancoil units have no dedicated relay of their own — each floor's fancoil circ
 | T-Connect Pro (master) | — | `rs485_bus` (38400 8E1 target) | The sole Modbus master; see `boards/t-connect-pro.yaml` |
 | Analog Outputs Board 8CH (B) | `0x1` | `rs485_bus` | Channels → `analog_output_1..8`; room assignments below |
 | Relay Board 32CH | `0x2` | `rs485_bus` | Channels → `relay_1..32`; see Appendix B |
-| MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor only; `climate/mev_modbus.yaml` |
+| MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor; `climate/mev_modbus.yaml` |
+| MEV (Innova HRP DOMO 60 H) | `0x11` | `rs485_bus` | Ground floor; air-quality-only; `climate/mev_innova_modbus.yaml` (ADR-0018) |
 
-Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `climate/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and MEV (`0x10`) are climate-only addresses with no gateway-side counterpart to mirror against.
+Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `climate/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and the two MEVs (`0x10`, `0x11`) are climate-only addresses with no gateway-side counterpart to mirror against.
 
-**Analog output channel assignments** (from `climate/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — unallocated.
+**Analog output channel assignments** (from `climate/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — ground floor MEV fan speed (Innova HRP DOMO 60 H, ADR-0018).
 
 ### D. PID Tuning Guidelines
 

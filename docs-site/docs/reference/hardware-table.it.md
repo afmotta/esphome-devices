@@ -42,7 +42,8 @@ progetto usano lo stesso indirizzo per la scheda relè (vedi nota sotto).
 | T-Connect Pro (controller climatizzazione) | — (master del bus) | — | L'unico master Modbus su questo bus; nessun altro dispositivo può scrivere sul bus. |
 | Scheda uscite analogiche 8CH (B) | `0x1` | `analog_output_1`–`analog_output_8` | Uscite 0–10V, registri di holding `0x0000`–`0x0007`. |
 | Scheda relè 32CH | `0x2` | `relay_1`–`relay_32` | Coil `0x0000`–`0x001F`. |
-| VMC (Cappellotto Air Fresh I, unità di ventilazione) | `0x10` | — | Ha un proprio set di registri specifico del dispositivo; vedi `climate/mev_modbus.yaml` nel repository, non riprodotto qui. |
+| VMC primo piano (Cappellotto Air Fresh I, ventilazione + deumidificazione) | `0x10` | `analog_output_7` (ventilatore) | Ha un proprio set di registri specifico del dispositivo; vedi `climate/mev_modbus.yaml` nel repository, non riprodotto qui. |
+| VMC piano terra (Innova HRP DOMO 60 H, ventilazione solo qualità dell'aria) | `0x11` | `analog_output_8` (ventilatore) | Unità passiva a recupero di calore; nessuna gestione dell'umidità. Vedi `climate/mev_innova_modbus.yaml` (ADR-0018). |
 
 I dati di temperatura/umidità/qualità dell'aria delle stanze **non** viaggiano affatto
 su questo bus — arrivano tramite il bus CAN, con un ripiego (fallback) su Home
@@ -61,7 +62,7 @@ concetto non è familiare.
     entrambi i bus, climatizzazione e illuminazione, in modo che una singola scheda
     Relay 32CH di riserva possa essere inserita in **entrambi** i sistemi senza
     doverne prima riconfigurare l'indirizzo. La scheda uscite analogiche (`0x1`) e
-    l'unità VMC (`0x10`) sono indirizzi esclusivi della climatizzazione — non esiste
+    le due unità VMC (`0x10`, `0x11`) sono indirizzi esclusivi della climatizzazione — non esiste
     un dispositivo lato illuminazione a quegli indirizzi con cui rispecchiarli, quindi
     una scorta per questi due torna sempre e solo nel sistema di climatizzazione. 🔵 PROGETTATO
 
@@ -122,7 +123,7 @@ questa tabella nella stessa modifica.
 | `analog_output_5` | Fancoil Locale Tecnico |
 | `analog_output_6` | Fancoil Sottotetto |
 | `analog_output_7` | Velocità ventilatore VMC primo piano |
-| `analog_output_8` | Non allocato |
+| `analog_output_8` | Velocità ventilatore VMC piano terra (Innova HRP DOMO 60 H) |
 
 ## Correlati
 

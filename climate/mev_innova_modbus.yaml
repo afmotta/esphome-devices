@@ -1,0 +1,131 @@
+# =============================================================================
+# MEV — Innova HRP DOMO 60 H (ground floor)
+#
+# Top-level assembly for the GROUND-FLOOR MEV. This is a DIFFERENT model from
+# the first-floor unit: the Innova HRP DOMO 60 H is a passive heat-recovery
+# ventilation unit that renews air on air-quality demand and does NOT manage
+# humidity (humidity on the ground floor is handled by the fancoils). So this
+# assembly composes the air-quality-only demand + coordinator variants — there
+# is no humidity cascade and no dehumidifier/integration outputs.
+#
+# Do NOT reuse climate/mev_modbus.yaml here: that file is the Cappellotto Air
+# Fresh I register map (dehumidifier/compressor/water-valve/reversing/39-alarm
+# registers) and does not apply to this unit.
+#
+# Control split (ADR-0018):
+#   - Fan speed: 0-10V DAC on ${fan_speed_output} (analog_output_8), same as
+#     the first-floor MEV's speed output.
+#   - Everything else (power, mode, temperatures, filter, faults): Modbus RTU on
+#     ${modbus_bus_id} at ${modbus_address} (0x11).
+#
+# Required vars:
+#   mev_slug          - Device slug for entity IDs (e.g., "ground_floor_mev")
+#   mev_name          - Friendly name prefix (e.g., "MEV Piano Terra")
+#   modbus_bus_id     - Modbus hub ID (e.g., rs485_bus)
+#   fan_speed_output  - DAC output ID for 0-10V fan speed (e.g., analog_output_8)
+#   co2_sensor, voc_sensor, nox_sensor,
+#   pm1_0_sensor, pm2_5_sensor, pm4_0_sensor, pm10_sensor
+#                     - Floor-level MAX air-quality source sensors
+#
+# Optional vars:
+#   modbus_address    - Modbus slave address (default 0x11)
+#   update_interval   - Modbus poll interval (default 30s)
+#
+# ⚠ REGISTER MAP PENDING (ADR-0018): the Innova HRP DOMO 60 H Modbus register
+# map is not yet transcribed here. The bus member, the 0-10V fan-speed path, the
+# demand aggregation and the coordinator are complete and functional; the Modbus
+# register reads/writes below are marked TODO(innova-register) and must be filled
+# from the Innova manual before the Modbus monitoring/control is live. The unit's
+# serial port must also be configured to match rs485_bus (target 38400 8E1) and
+# set to slave address ${modbus_address}.
+# =============================================================================
+
+defaults:
+  modbus_address: "0x11"
+  update_interval: 30s
+
+packages:
+  demand: !include
+    file: mev_demand_air_quality.yaml
+    vars:
+      mev_slug: ${mev_slug}
+      mev_name: ${mev_name}
+      co2_sensor: ${co2_sensor}
+      voc_sensor: ${voc_sensor}
+      nox_sensor: ${nox_sensor}
+      pm1_0_sensor: ${pm1_0_sensor}
+      pm2_5_sensor: ${pm2_5_sensor}
+      pm4_0_sensor: ${pm4_0_sensor}
+      pm10_sensor: ${pm10_sensor}
+
+  controller: !include
+    file: packages/coordinators/mev_ventilation_air_quality.yaml
+    vars:
+      component_id: ${mev_slug}
+      component_name: ${mev_name}
+      demand_sensor: ${mev_slug}_max_demand
+      alarm_sensor: ${mev_slug}_alarm_active
+      fan_speed_number: ${mev_slug}_fan_speed
+      min_fan_speed_entity: "input_number.ground_floor_mev_minimum_fan_speed"
+
+# Modbus bus member for the Innova unit (reads/writes bound below).
+modbus_controller:
+  - id: ${mev_slug}_controller
+    address: ${modbus_address}
+    modbus_id: ${modbus_bus_id}
+    update_interval: ${update_interval}
+    setup_priority: -10
+    command_throttle: 100ms
+
+# Fan speed: 0-10V DAC (NOT Modbus). The coordinator's final_fan_speed writes
+# this number, whose set_action drives the analog output (0-100% -> 0-10V).
+number:
+  - platform: template
+    name: "${mev_name} Fan Speed"
+    id: ${mev_slug}_fan_speed
+    unit_of_measurement: "%"
+    icon: mdi:fan
+    min_value: 0
+    max_value: 100
+    step: 1
+    mode: slider
+    optimistic: true
+    restore_value: true
+    set_action:
+      - output.set_level:
+          id: ${fan_speed_output}
+          level: !lambda "return x / 100.0;"
+
+binary_sensor:
+  # TODO(innova-register): replace this placeholder with the real Innova HRP DOMO
+  # 60 H fault/alarm read — either a modbus_controller binary_sensor bound to the
+  # unit's fault register/bit, or a template ORing the fault registers. Until the
+  # register map is transcribed this returns false so the coordinator never
+  # hard-offs the fan on a phantom alarm.
+  - platform: template
+    name: "${mev_name} Alarm Active"
+    id: ${mev_slug}_alarm_active
+    device_class: problem
+    entity_category: diagnostic
+    lambda: "return false;"
+
+# =============================================================================
+# TODO(innova-register): Modbus reads/writes — fill from the Innova HRP DOMO
+# 60 H Modbus manual, then bind to modbus_controller: ${mev_slug}_controller.
+# Intended entities (mirror the Cappellotto driver's shape where the Innova has
+# the equivalent function; the Innova is a passive HRV so many Cappellotto
+# registers have no counterpart):
+#
+#   switch:       - platform: modbus_controller  # Power on/off (holding reg)
+#   number/select:                                # Speed step / operating mode,
+#                                                 #   IF settable over Modbus (fan
+#                                                 #   speed itself is 0-10V above)
+#   binary_sensor:                                # Bypass / free-cooling state
+#   sensor (S_WORD, x0.1):                        # Outdoor / supply / extract /
+#                                                 #   exchanger temperature probes
+#                                                 #   (whichever the unit exposes)
+#   sensor (U_DWORD) + template:                  # Filter hours current/limit ->
+#                                                 #   filter hours remaining
+#   binary_sensor:                                # Filter-maintenance-due / faults
+#                                                 #   -> feed ${mev_slug}_alarm_active
+# =============================================================================

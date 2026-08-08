@@ -15,8 +15,21 @@
 
 input_number:
   # --------------- Ventilation cascade tuning (mev_ventilation.yaml) --------
+  # First-floor MEV (Cappellotto Air Fresh I). The ground-floor MEV shares the
+  # air-quality bounds below (house-wide air-quality standards) but has its own
+  # minimum fan speed further down — the two units are different models.
   mev_minimum_fan_speed:
     name: MEV Minimum Fan Speed
+    min: 0
+    max: 100
+    step: 5
+    initial: 20
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-1
+  # Ground-floor MEV (Innova HRP DOMO 60 H) minimum fan speed — independent of
+  # the first-floor unit (mev_ventilation_air_quality.yaml / ADR-0018).
+  ground_floor_mev_minimum_fan_speed:
+    name: MEV Piano Terra Minimum Fan Speed
     min: 0
     max: 100
     step: 5
