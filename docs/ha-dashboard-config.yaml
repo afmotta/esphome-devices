@@ -316,7 +316,7 @@ views:
         refresh_interval: 60
 
   # ==============================================================================
-  # SEASONAL MODE AUTOMATION (EPIC 17)
+  # SEASONAL MODE AUTOMATION
   # ==============================================================================
   - title: Seasonal Mode
     path: seasonal-mode

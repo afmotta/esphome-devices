@@ -1,5 +1,5 @@
-# Epic 17 Story 17.6: Weather Forecast Integration
-# Phase 2 - Home Assistant Configuration
+# Seasonal mode: Weather Forecast Integration (Home Assistant configuration)
+# Phase 2 of the three-tier seasonal mode selection
 #
 # PURPOSE: Adds weather intelligence to seasonal mode selection during shoulder seasons
 # TIER 2: Provides forecast guidance that can be overridden by PID demand (Tier 3)
@@ -143,6 +143,5 @@ template:
 # - During Summer Lock (Jun 1-Aug 31): Mode forced to COOL by calendar gate
 #
 # Related Documentation:
-# - docs/epic-17-brief.md: Full specification
 # - docs/ha-dashboard-config.yaml: Dashboard configuration
-# - components/seasonal_mode.yaml: ESPHome implementation
+# - climate/packages/coordinators/seasonal_mode.yaml: ESPHome implementation

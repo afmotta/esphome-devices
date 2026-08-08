@@ -25,7 +25,7 @@ Full protocol and architecture: `docs/canbus-smart-home-reference.md`.
 Operational detail (pins, arbitration, health, manifest): `README.md`.
 The CAN decisions are recorded as ADR-0001…0013 in `docs/adr/` (the "why"); the CAN
 firmware implementation rules are in `docs/design-notes/canbus-implementation-rules.md`.
-Record new decisions as ADRs under `docs/adr/`; use the **CAN-Epic N** commit prefix.
+Record new decisions as ADRs under `docs/adr/`; prefix commits touching this system with `canbus:`.
 
 ## Hard rules
 

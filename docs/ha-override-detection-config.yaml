@@ -1,5 +1,5 @@
-# Epic 17 Story 17.7: Override Detection & Logging
-# Phase 2 - Home Assistant Configuration
+# Seasonal mode: Override Detection & Logging (Home Assistant configuration)
+# Phase 2 of the three-tier seasonal mode selection
 #
 # PURPOSE: Diagnostic sensor to detect when PID demand overrides forecast guidance
 # This is purely for monitoring and debugging - the system works correctly without it
@@ -172,7 +172,6 @@ template:
 # - Use for forecast threshold tuning
 #
 # Related Documentation:
-# - docs/epic-17-brief.md: Full specification
-# - docs/epic-17-ha-weather-config.yaml: Weather forecast configuration
+# - docs/ha-weather-config.yaml: Weather forecast configuration
 # - docs/ha-dashboard-config.yaml: Dashboard configuration
 # - components/seasonal_mode.yaml: ESPHome implementation

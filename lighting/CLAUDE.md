@@ -78,7 +78,7 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
 
 ## Conventions
 
-- Epic prefix: **LIGHT-** (commit messages). Record significant decisions as new ADRs under `docs/adr/`.
+- Prefix commits touching this system with `lighting:`. Record significant decisions as new ADRs under `docs/adr/`.
 - Entity-ID/automation-naming conventions are lighting's own to set — still
   undecided now that the fallback code exists (ADR-0014 P5); expected to firm
   up with binding authoring (see Deferred in the architecture spine).

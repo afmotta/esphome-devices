@@ -17,7 +17,7 @@ AD-6 (architecture spine) rules that a cross-system boundary is not a contract u
 
 ## Ownership
 
-Mirrors `spec-map-json-contract` symmetrically: **canbus owns the emission mechanism** (the generator, canonicalization, the hash algorithm); **lighting owns this consumer contract** (what the compiled surface means and when it may change). A change to the frozen surface below is led by lighting, updating this spec + the drift test + the generator in one commit (AD-9), acked under the **LIGHT-** epic prefix.
+Mirrors `spec-map-json-contract` symmetrically: **canbus owns the emission mechanism** (the generator, canonicalization, the hash algorithm); **lighting owns this consumer contract** (what the compiled surface means and when it may change). A change to the frozen surface below is led by lighting, updating this spec + the drift test + the generator in one commit (AD-9), acked under the `lighting:` commit prefix.
 
 ## The frozen surface
 

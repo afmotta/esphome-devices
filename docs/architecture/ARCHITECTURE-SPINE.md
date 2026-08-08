@@ -54,7 +54,7 @@ graph TD
 
 - **Binds:** registry/, canbus tooling, lighting, climate
 - **Prevents:** split push gates and duplicated hash surfaces; registry files with no owner; application schema edits treated as infra changes (or vice versa).
-- **Rule:** `registry/` is a top-level directory — the single house system-of-record (git-versioned, unrebuildable data). The *mechanism* (generator, push gate, canonicalization, manifest hash) is owned by canbus. Each data file has exactly one owning system: `nodes.csv` + `node_id_hwm` → canbus; `bindings.yaml` → lighting; `map.json` → generated output whose consumer contract is owned by climate (frozen per `spec-map-json-contract`). A schema change requires its file's owner; a mechanism change requires canbus. A schema change that needs generator/mechanism support is one commit wearing two hats: the file's owner defines the semantics, canbus owns the mechanism edit, and the commit carries the initiating system's epic prefix. One push gate covers the whole registry.
+- **Rule:** `registry/` is a top-level directory — the single house system-of-record (git-versioned, unrebuildable data). The *mechanism* (generator, push gate, canonicalization, manifest hash) is owned by canbus. Each data file has exactly one owning system: `nodes.csv` + `node_id_hwm` → canbus; `bindings.yaml` → lighting; `map.json` → generated output whose consumer contract is owned by climate (frozen per `spec-map-json-contract`). A schema change requires its file's owner; a mechanism change requires canbus. A schema change that needs generator/mechanism support is one commit wearing two hats: the file's owner defines the semantics, canbus owns the mechanism edit, and the commit carries the initiating system's commit prefix. One push gate covers the whole registry.
 
 ### AD-4 — Systems own packages; devices own composition
 
@@ -72,7 +72,7 @@ graph TD
 
 - **Binds:** every boundary crossed by two systems
 - **Prevents:** implicit contracts drifting silently across the new seams (the exact risk the repo merge was meant to kill).
-- **Rule:** A cross-system boundary is not a contract until it has (a) a frozen spec naming the fields and (b) a test that fails when either side drifts — the `spec-map-json-contract` pattern generalized. Frozen is additive-by-default; changing a frozen field is done by the contract's owner, updating spec + test + all consumers in one commit (AD-9), with the owner's epic prefix as the ack. Current instances: map.json → climate (spec + tests exist); the compiled `bindings.h` surface → lighting's gate instance (spec + drift test exist: `spec-bindings-arbitration-contract`, `test_bindings_contract.cpp`, Phase 5b-1); the `node_map.h` frozen-additive export → its firmware consumers (same treatment); ADR-0006 sensor frames → climate controller (test due when the consumer code is born).
+- **Rule:** A cross-system boundary is not a contract until it has (a) a frozen spec naming the fields and (b) a test that fails when either side drifts — the `spec-map-json-contract` pattern generalized. Frozen is additive-by-default; changing a frozen field is done by the contract's owner, updating spec + test + all consumers in one commit (AD-9), with the owner's commit prefix as the ack. Current instances: map.json → climate (spec + tests exist); the compiled `bindings.h` surface → lighting's gate instance (spec + drift test exist: `spec-bindings-arbitration-contract`, `test_bindings_contract.cpp`, Phase 5b-1); the `node_map.h` frozen-additive export → its firmware consumers (same treatment); ADR-0006 sensor frames → climate controller (test due when the consumer code is born).
 
 ### AD-7 — Arbitration mechanism is infra-owned; each system owns its gate instance `[AMENDED 2026-07-06]`
 
@@ -97,7 +97,7 @@ graph TD
 
 - **Binds:** entity IDs, AI context files, design artifacts
 - **Prevents:** a forced unification of two working convention sets; ambiguity about which rules govern a file.
-- **Rule:** Entity-ID conventions stay per-system (climate keeps `{scope}_{component}[_{mode}][_{aspect}]`; canbus/lighting keep theirs). Each system directory carries its own `CLAUDE.md`; the root `CLAUDE.md` is the map, not the rules. Epic prefixes: **CAN-**, **LIGHT-**, **CLIMATE-**. New ADRs and design notes go under `docs/` and carry those prefixes in their initiating commits.
+- **Rule:** Entity-ID conventions stay per-system (climate keeps `{scope}_{component}[_{mode}][_{aspect}]`; canbus/lighting keep theirs). Each system directory carries its own `CLAUDE.md`; the root `CLAUDE.md` is the map, not the rules. Commits are prefixed with the system they touch (`canbus:`, `lighting:`, `climate:`). New ADRs and design notes go under `docs/`.
 
 ## Consistency Conventions
 
@@ -106,7 +106,7 @@ graph TD
 | System directory names | lowercase, singular, the system's own name: `canbus/`, `lighting/`, `climate/`, `vesta/` |
 | HA import surface | `<system>/home-assistant/` — nothing else is imported by HA |
 | Registry file ownership | one file per system, owner named in `registry/README.md`; mechanism = canbus |
-| Epic / commit prefixes | `CAN-Epic N`, `LIGHT-Epic N`, `CLIMATE-Epic N` |
+| Commit prefixes | system touched: `canbus:`, `lighting:`, `climate:` |
 | Contract specs | `docs/contracts/spec-*` + drift-breaking test, per AD-6 |
 | `boards/` ownership | house-shared, no owning system; an edit must leave every `devices/` entry point that includes the board compiling |
 | Verification battery | python registry tests, native C++ protocol tests, `esphome compile` of affected entry points, push gate, regeneration idempotence — run per slice (AD-9) |
@@ -145,7 +145,7 @@ esphome-devices/
                            #   bridge, room sensors; locals/, remotes/
   libs/                    # custom external components (s1_pro)
   docs/                    # knowledge base: adr/, architecture/, contracts/,
-                           #   design-notes/, epics.md, runbooks
+                           #   design-notes/, runbooks
   docs-site/               # maintenance & support site (MkDocs, EN + IT)
 ```
 
@@ -157,7 +157,7 @@ Deployment envelope (unchanged by this spine): node firmware flashed via USB pre
 | --- | --- |
 | Wiring contract tests into the push gate itself | Spec + test battery (AD-6) suffices pre-live; revisit at live-freeze or after the first drift that escapes the battery |
 | Master-controller swap (Lilygo T-Connect PRO) | **Resolved** — ADR-0014 (2026-07-10), implemented P3 (climate controller) and P4 (lighting gateway). AD-4's bet held: the swap was a board-file + entry-point change, not a restructure |
-| climate-on-CAN consumer code placement | No consumer code exists; decided when CLIMATE-Epic work lands it (contract already frozen) |
+| climate-on-CAN consumer code placement | No consumer code exists; decided when the climate-on-CAN work lands it (contract already frozen) |
 | Physical gateway split (dedicated lighting-gateway device vs today's single board composing canbus + lighting packages) | **Re-resolved — ADR-0015 (2026-07-13): split after all.** ADR-0014 (2026-07-10) first resolved this as "no further split," but ADR-0015 moved canbus transport health onto its own device (`devices/health-monitor.yaml`, Waveshare ESP32-S3-RS485-CAN) and reduced/renamed the T-Connect Pro entry point to the lighting controller (`devices/light-controller.yaml`). The split is lighting ↔ canbus-health (each infra/app role its own failure domain), not lighting ↔ hvac (hvac was already separate) |
 | boards/ package unification (gateway vs climate master, both Waveshare family) | **Resolved as a byproduct** — exactly as this row prescribed ("let it fall out, don't force it"): ADR-0014's hardware standardization made both entry points compose the same `boards/t-connect-pro.yaml`; unification fell out of the hardware decision rather than being pursued |
 | Vesta extraction to its own repo | Orthogonal to this restructure; AD-2 already isolates it |

@@ -292,7 +292,7 @@ Live channel mapping (single 32-channel Relay Board, address `0x2`, `id_offset: 
 | `relay_15` | Camera Padronale | Radiant |
 | `relay_16` | Camera Sud | Radiant |
 | `relay_17` | Lavanderia | Radiant |
-| `relay_18`-`relay_21` | — | Reserved (freed by the Epic 18 MEV Modbus migration; no ESPHome zone binding) |
+| `relay_18`-`relay_21` | — | Reserved (freed when MEV moved to Modbus control; no ESPHome zone binding) |
 | `relay_22`-`relay_32` | — | Unallocated spare capacity |
 
 Fancoil units have no dedicated relay of their own — each floor's fancoil circulation runs off that floor's shared direct/mixing pump relay (`relay_2`, `relay_4`); the fan itself is 0-10V modulated via the Analog Outputs Board (Appendix C).
@@ -353,7 +353,7 @@ boundary).
 
 ## Conventions
 
-- Epic prefix: **CLIMATE-** for future work (commit messages). Existing `HVAC-*` story IDs remain historical. Record significant decisions as new ADRs under `docs/adr/`.
+- Prefix commits touching this system with `climate:`. Record significant decisions as new ADRs under `docs/adr/`.
 - File naming follows root `CLAUDE.md`'s general conventions (kebab-case device
   configs, `[component_type]_[variant].yaml` for component configs); this file
   is the sole owner of Climate-specific rules — entity-ID convention, PID

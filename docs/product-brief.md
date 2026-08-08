@@ -415,31 +415,12 @@ Once the autonomous Modbus foundation is proven stable:
 - **ESPHome Documentation**: https://esphome.io/components/modbus_controller.html
 - **Kincony KC868-A6**: https://devices.esphome.io/devices/KinCony-KC868-A6
 - **Kincony KC868-A16**: https://devices.esphome.io/devices/KinCony-KC868-A16
-- **Existing PRD**: `docs/prd.md` (ESPHome Multi-Floor Climate Control - Brownfield Enhancement PRD v1.0)
 - **Project Repository**: GitHub repository with existing `boards/`, `components/`, `devices/` configurations
 
-## Next Steps
+---
 
-### Immediate Actions
-
-1. **Run `*document-project` task** to create comprehensive brownfield architecture documentation capturing current system state, technical constraints, and implementation patterns
-
-2. **Procure hardware**: Order one KC868-A16 board for first floor, 0-10V Modbus adapter, RS485 cabling and termination resistors, plan room sensor procurement after technology selection
-
-3. **Review PRD with PM agent** to create detailed implementation stories, epics, and acceptance criteria based on this project brief
-
-4. **Set up development environment**: Prepare `locals/` test configurations with Modbus components for iterative testing in non-production environment
-
-5. **Research sensor technology options**: Evaluate Modbus temperature/humidity sensors vs. 1-Wire + I2C alternatives (cost, wiring complexity, polling performance)
-
-6. **Validate RS485 wiring paths**: Physically confirm cable routing from master to both slave locations is feasible within <50m constraint
-
-### PM Handoff
-
-This Project Brief provides the full context for **ESPHome Multi-Floor Climate Control - Brownfield Enhancement**. The comprehensive PRD (`docs/prd.md`) already exists with detailed functional requirements, epics, and stories.
-
-**Next Phase**: Architecture creation and epic/story refinement. The PM should:
-- Review this brief alongside the existing PRD
-- Work with Architect to create detailed architecture documentation (via `*document-project` task)
-- Refine epic and story acceptance criteria based on architectural decisions
-- Coordinate with QA for risk profiling on high-risk stories (Modbus implementation, PID preservation, failover logic)
+> **Note (historical):** This brief is the original February 2025 vision for the
+> brownfield enhancement, written for the since-retired Kincony KC868-A6/A16 hardware
+> generation. It is kept as a record of the project's founding goals and user context.
+> For the current system, see the root `CLAUDE.md`, the ADRs under `docs/adr/`, and the
+> architecture spine under `docs/architecture/`.

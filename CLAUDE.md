@@ -49,17 +49,20 @@ This repo hosts the ESPHome systems for Alberto's three-floor residence, organiz
   single application system, currently the Modbus I/O hardware drivers used by
   both Climate and lighting.
 
-Epics are namespaced by system in commit messages: **CAN-Epic N** (canbus),
-**LIGHT-Epic N** (lighting), **CLIMATE-Epic N** (climate). The durable design knowledge
-these epics produced — architecture, ADRs, contracts, design notes — lives under `docs/`
+Commits are prefixed with the system they touch (`canbus:`, `lighting:`, `climate:`). The
+durable design knowledge — architecture, ADRs, contracts, design notes — lives under `docs/`
 (see [Important Files Reference](#important-files-reference)).
 
 ### System Capabilities
 
 - **Multi-zone climate control**: 13 independently controlled temperature zones across 3 floors
 - **Dual-mode operation**: Radiant floor heating/cooling + fancoil units
+- **Hybrid radiant + fancoil cooling ("base + boost")**: radiant floor/ceiling provides efficient baseline comfort; fancoils activate as a responsive boost layer when radiant cannot meet demand — evaluated independently per room (`climate/packages/coordinators/fancoil_boost.yaml`)
 - **Advanced PID control**: Precise temperature management with auto-tuning
-- **Mechanical Extract Ventilation (MEV)**: Air quality monitoring and control
+- **Autonomous dew-point protection**: ESPHome-native dew-point calculation enforces a safety minimum on radiant-cooling supply water (dew point + 2 °C) even when Home Assistant is offline
+- **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
+- **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
+- **Mechanical Extract Ventilation (MEV)**: Modbus-controlled ventilation with air-quality- and humidity-driven demand, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`)
 - **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant; room-sensor *data* specifically depends on the CAN→HA failover chain (`climate/room_sensors.yaml`)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
 - **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency shutdown)
@@ -189,7 +192,6 @@ esphome-devices/
 │   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
 │   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
 │   ├── design-notes/          # Entity-naming convention, canbus implementation rules
-│   ├── epics.md               # Master epic index (feature history)
 │   └── (runbooks, wiring guides, HA config assets)
 │
 ├── docs-site/                 # Maintenance & support site (MkDocs, EN + IT; GitHub Pages)
@@ -330,18 +332,11 @@ details, and polling intervals):
 
 ## Development Workflow
 
-### Epic-Based Development Process
+### Development Process
 
-Work has historically been organized into **epics** — coherent slices of feature work.
-That history is captured in two durable forms and nothing else needs to be produced per
-epic anymore:
-
-1. **Epic index** (`docs/epics.md`): the master list of features delivered (Epics 1–20).
-2. **ADRs** (`docs/adr/`): the significant decisions, with alternatives and trade-offs.
-
-New work continues the lightweight convention below: land the change, record any
-significant decision as a new ADR, and use an epic-prefixed commit message. There is no
-required brief/checklist/completion-report ceremony.
+Keep it lightweight: land the change, and record any significant decision as a new ADR
+under `docs/adr/` (with the alternatives and trade-offs considered). There is no
+brief/checklist/completion-report ceremony.
 
 ### Git Workflow
 
@@ -349,12 +344,12 @@ required brief/checklist/completion-report ceremony.
 # Typical workflow
 git status                      # Check current state
 git add [specific files]        # Stage specific files (avoid git add -A)
-git commit -m "Epic N: [description]"
+git commit -m "climate: [description]"   # prefix with the system touched
 git push origin [branch]
 ```
 
 **Git Conventions**:
-- Commit messages: "Epic N: [description]" or "Epic N" for epic completion
+- Commit messages: clear and descriptive, prefixed with the system touched (`canbus:`, `lighting:`, `climate:`) when it applies
 - Never use `git add -A` or `git add .` (risks committing secrets)
 - Add specific files by name
 - Never force push to main/master
@@ -453,22 +448,10 @@ rebuild a throwaway harness from the board file.
 ### Testing Levels
 
 1. **Component Testing**: Test individual component packages in isolation
-2. **Integration Testing**: Test full device config compilation
+2. **Integration Testing**: Test full device config compilation (`esphome config`)
 3. **Hardware Testing**: Deploy to test board, verify outputs
-4. **Production Testing**: Follow epic testing checklist
-
-### Epic Testing Checklist Pattern
-
-Each epic includes a detailed testing checklist (see `docs/epic-*-testing-checklist.md`):
-
-```markdown
-### Story X.Y: [Feature Name]
-- [ ] Test condition 1
-- [ ] Test condition 2
-- [ ] Verify sensor readings
-- [ ] Check Home Assistant integration
-- [ ] Test failover scenario
-```
+4. **Verification battery**: `scripts/verification-battery.sh` — the native/Python test
+   suite plus `esphome config`/`compile` gates that CI (`.github/workflows/verify.yml`) runs
 
 ### Validation Before Commit
 
@@ -542,7 +525,6 @@ external_components:
 | `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
 | `docs/design-notes/entity-naming.md` | Entity ID naming convention |
 | `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
-| `docs/epics.md` | Master epic index (Epics 1-20) |
 | `TODO.md` | Feature backlog (in Italian) |
 
 ### Configuration Entry Points
@@ -564,7 +546,7 @@ external_components:
 3. **Test Locally**: Compile and test on development board before production
 4. **Follow Patterns**: Match existing naming conventions and structure
 5. **Document**: Update relevant docs and add comments for complex logic
-6. **Epic-Driven**: Work within epic framework, follow testing checklists
+6. **Record Decisions**: Capture any significant decision as a new ADR under `docs/adr/`
 
 ### Code Quality
 
@@ -631,9 +613,8 @@ The system was developed for an Italian residence, so many entity names use Ital
 1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
    `docs/architecture/architecture-diagram.md` (topology and data flows)
 2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0017)
-3. **Epics**: `docs/epics.md` - feature development history
-4. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
-5. **ESPHome Docs**: https://esphome.io/ - Platform documentation
+3. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
+4. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 
 ### Troubleshooting
 
@@ -664,7 +645,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
-| 2026-08-07 | 1.15 | Removed the BMAD framework and all its tooling (`_bmad/`, the `bmad-*` skills, the OpenCode `.opencode/` and Copilot `.github/agents/`+`.github/chatmodes/` integrations) and consolidated the generated artifacts into a leaner knowledge base under `docs/`: unified ADRs 0001–0017 into `docs/adr/`, the architecture spine + diagram into `docs/architecture/`, the two frozen contracts into `docs/contracts/`, and the entity-naming + canbus implementation rules into `docs/design-notes/`; kept the master epic index and deferred-work backlog, dropped the process history (completion reports, testing checklists, sprint/workflow status, retros, review passes, per-story files, phase specs, migration metas) and the superseded Oct-2025 PRD/architecture docs. Both `_bmad-output/` trees are gone. Repointed all cross-references (this file, the three system `CLAUDE.md`s, `docs-site` doc-map/confidence-ledger, canbus README/runbooks, dashboards) | AI Assistant |
+| 2026-08-07 | 1.15 | Removed the BMAD framework and all its tooling (`_bmad/`, the `bmad-*` skills, the OpenCode `.opencode/` and Copilot `.github/agents/`+`.github/chatmodes/` integrations) and consolidated the generated artifacts into a leaner knowledge base under `docs/`: unified ADRs 0001–0017 into `docs/adr/`, the architecture spine + diagram into `docs/architecture/`, the two frozen contracts into `docs/contracts/`, and the entity-naming + canbus implementation rules into `docs/design-notes/`; dropped the process history (completion reports, testing checklists, sprint/workflow status, retros, review passes, per-story files, phase specs, migration metas) and the superseded Oct-2025 PRD/architecture docs. Both `_bmad-output/` trees are gone. Also retired the **epic** organizing concept: the epics index/file is gone, its durable feature knowledge folded into System Capabilities, and the forward-going epic-prefixed commit convention replaced with plain system-prefixed commits (`canbus:`/`lighting:`/`climate:`); historical "Epic N" mentions in git history and ADR prose are left as-is. Repointed all cross-references (this file, the three system `CLAUDE.md`s, `docs-site` doc-map/confidence-ledger, canbus README/runbooks, dashboards) | AI Assistant |
 | 2026-08-04 | 1.14 | ADR-0017: node composition is now driven by a single-valued `profile` column in `registry/nodes.csv` (`buttons` / `buttons+sensors` / `sensors` / `bridge` / `buttons+bridge`), replacing the `sensors` boolean — making "bridge AND sensors" unrepresentable rather than merely rejected (ADR-0005 single-purpose forwarders). `base_node.yaml` split into `node_core.yaml` + `buttons_8.yaml` so a bridge instantiates no button GPIOs; new `canbus/packages/bridge.yaml` + `boards/canbed-rp2040-can1.yaml` run the segment bridge on the fleet node board (CANBed RP2040 + a second MCP2515, CS GPIO8); `buttons+bridge` covers the boxes where a segment splits at a button box — buttons are the one sanctioned co-tenant of a forwarder, the sensor kit stays excluded. `map.json` keeps its frozen `nodes[].sensors` field, now derived, and adds `profile`. Amended same-day after a sourcing survey: the **LilyGO T-2CAN is restored as the preferred bridge board** (`boards/lilygo-t-2can.yaml`, profile `bridge-t2can`) with the CANBed + add-on kept as second source — 3.3 V raw-SPI MCP2515 modules turn out to be near-unobtainable at a supported crystal, making the cost saving nominal; `node_core.yaml` became board-agnostic so a profile selects its own MCU, and `canbus/archive/` is gone | AI Assistant |
 | 2026-07-27 | 1.13 | Lighting panel brought to the climate panel's shape, so the two screens on identical hardware read as one system: read-only "Home" glance tab in large type (was "Status", a stack of default-size labels), the Buttons tab rebuilt from a single last-event line into the last 8 presses as aligned four-column rows (node/btn/gesture/age) fed by a header-accessor ring in `lighting/packages/ui/touch_ui_format.h`, the 32 hand-written relay cells collapsed into `relay_cell.yaml`/`relay_refresh.yaml` fragments that carry on/off via LVGL `checked` (so the OFF fill comes from the shared theme), an always-visible status strip with alarm precedence (manifest mismatch outranks HA-down) and a liveness pulse, and the 2 s refresh skipped while LVGL is paused. ALL OFF now iterates `relay_store()` instead of 32 named ids. Strip fills added to the shared palette in `packages/ui/dark_theme.yaml`; stale "runs WiFi" header in `devices/light-controller-touch.yaml` corrected | AI Assistant |
 | 2026-07-26 | 1.12 | Climate touch UI reworked: shared LVGL dark theme extracted to `packages/ui/dark_theme.yaml` and adopted by both panels (a tabview covers the screen, so `lvgl: bg_color:` alone never made either panel dark — the tabview's own `tab_style`/`content_style` and a `theme:` block are what do it); zone rows rebuilt as four aligned columns (name/temp/target/state) from `climate/packages/ui/zone_row.yaml` + `zone_refresh.yaml` with semantic colour for heat/cool/idle and for degraded sensor tiers; tap-to-select zone rows; always-visible status strip on the LVGL top layer carrying alarms and a liveness pulse; two-column Home tab; 2 s refresh now skipped while LVGL is paused. Panel entry points consolidated: the four `t-connect-pro-debug*.yaml` bring-up builds deleted (their diagnosis preserved in ADR-0016 §Verification) and the fork's mandatory upgrade check repointed at `devices/locals/climate-control-touch.yaml`, whose new liveness dot makes it a better regression target; the WiFi touch variant committed rather than left as untracked WIP | AI Assistant |

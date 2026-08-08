@@ -1,9 +1,9 @@
 # =============================================================================
 # Component: window_guard.yaml
 # Purpose:   Shut a room's fancoil down while a window is open (CLIMATE C4 —
-#            restores the Epic 7 capability dropped in the layered restructure,
-#            distilled from the historical room_window_condition.yaml without
-#            the retired Epic 8 coordinator layer).
+#            restores the window-aware climate-shutdown capability dropped in the
+#            layered restructure, distilled from the historical
+#            room_window_condition.yaml without the retired coordinator layer).
 #
 # HA-tier by design: the window sensors are Home Assistant binary sensors
 # (Zigbee contacts). This is a comfort/energy feature, not safety — when HA or

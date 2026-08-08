@@ -30,7 +30,7 @@ packages:
       supply_min_default: "23.0"
       supply_max_default: "33.0"
       supply_max_limit: "34.0"
-  # MEV Modbus Control - Epic 18
+  # MEV Modbus Control
   # Replaces relay-based mev.yaml with Modbus-based mev_modbus.yaml
   # Frees relays 18-21 for future use
   first_floor_mev: !include
@@ -202,7 +202,7 @@ sensor:
                   format: "[First Floor Radiant] Dew point protection: supply temp min = %.1f°C"
                   args: ["id(first_floor_supply_temp_minimum).state"]
 
-# On-controller safe margin (CLIMATE C2, Epic 12 revival): replaces the former
+# On-controller safe margin (CLIMATE C2): replaces the former
 # HA input_number import + fallback pattern. Persisted in flash, HA-tunable,
 # and feeds first_floor_supply_temp_minimum (dew point + margin) — the
 # condensation-safety floor that must not degrade when HA is down.

@@ -31,7 +31,7 @@ Two dry-contact inputs on the WPM give four operating states:
 
 This maps perfectly onto the existing architecture: the climate controller is
 already the Modbus master of a 32-channel relay bank with **relay_18–21 freed**
-by the Epic 18 MEV migration (see `climate/CLAUDE.md` Appendix B). Two relays
+when MEV moved to Modbus control (see `climate/CLAUDE.md` Appendix B). Two relays
 wired to SG1/SG2 give the controller **fully autonomous, protocol-free,
 warranty-neutral demand steering** — no HA, no gateway, no CAN tap in the
 loop. It is also the natural actuator for the future energy items (C6
