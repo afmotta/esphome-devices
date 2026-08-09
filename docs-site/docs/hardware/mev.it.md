@@ -19,10 +19,13 @@ Ci sono **due** unità VMC, di **modelli diversi**, una per ciascun piano ventil
   resto del bus, più delle schede relè o analogica. La sua mappa registri completa —
   controlli modalità/on-off/deumidifica, cinque sensori di temperatura, 39 tipi di allarme
   distinti, tracciamento ore filtro — si trova in `climate/mev_modbus.yaml`.
-- **Piano terra — Innova HRP DOMO 60 H**, indirizzo Modbus `0x11`. Un'unità passiva a
-  recupero di calore che rinnova solo l'aria e risponde alla **qualità dell'aria** — **non**
-  gestisce l'umidità (al piano terra l'umidità è gestita dai fancoil). Il suo driver si trova
-  in `climate/mev_innova_modbus.yaml`.
+- **Piano terra — Innova HRP DOMO 60 HX**, indirizzo Modbus `0x11`. Un'unità passiva a
+  recupero di calore con nucleo **entalpico**: rinnova l'aria in risposta a **qualità dell'aria
+  e umidità** (aumentando la ventilazione quando l'umidità è alta; il nucleo entalpico gestisce
+  passivamente l'umidità). **Non** ha un deumidificatore attivo — il suo unico attuatore è la
+  velocità del ventilatore. Al piano terra anche i fancoil deumidificano, ma solo in estate,
+  quindi quest'unità copre l'umidità tutto l'anno tramite la ventilazione. Il suo driver si
+  trova in `climate/mev_innova_modbus.yaml`.
 
 Entrambe pilotano la velocità del ventilatore tramite un'uscita analogica 0-10V (primo piano
 `analog_output_7`, piano terra `analog_output_8`) e usano Modbus per tutto il resto. Quei due

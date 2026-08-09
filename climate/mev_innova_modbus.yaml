@@ -1,12 +1,19 @@
 # =============================================================================
-# MEV — Innova HRP DOMO 60 H (ground floor)
+# MEV — Innova HRP DOMO 60 HX (ground floor)
 #
 # Top-level assembly for the GROUND-FLOOR MEV. This is a DIFFERENT model from
-# the first-floor unit: the Innova HRP DOMO 60 H is a passive heat-recovery
-# ventilation unit that renews air on air-quality demand and does NOT manage
-# humidity (humidity on the ground floor is handled by the fancoils). So this
-# assembly composes the air-quality-only demand + coordinator variants — there
-# is no humidity cascade and no dehumidifier/integration outputs.
+# the first-floor unit: the Innova HRP DOMO 60 HX is a passive heat-recovery
+# ventilation unit with an ENTHALPIC core (transfers moisture as well as heat).
+# It renews air on the full CO2/Air-Quality/Humidity demand — high humidity
+# raises ventilation, and the enthalpic core passively manages moisture. Its
+# only actuator is fan speed, so it uses the fan-only coordinator: there is no
+# active Dehumidifying/Integration cascade and no dehumidifier/integration
+# outputs (unlike the first-floor Cappellotto).
+#
+# Why humidity is on this MEV (ADR-0018): the ground-floor fancoils dehumidify
+# only in summer (cooling season). In winter they heat and cannot, so the MEV is
+# the humidity path; the channel is left active year-round (in summer it simply
+# complements the fancoils).
 #
 # Do NOT reuse climate/mev_modbus.yaml here: that file is the Cappellotto Air
 # Fresh I register map (dehumidifier/compressor/water-valve/reversing/39-alarm
@@ -23,6 +30,7 @@
 #   mev_name          - Friendly name prefix (e.g., "MEV Piano Terra")
 #   modbus_bus_id     - Modbus hub ID (e.g., rs485_bus)
 #   fan_speed_output  - DAC output ID for 0-10V fan speed (e.g., analog_output_8)
+#   humidity_sensor   - Floor-level MAX humidity source sensor
 #   co2_sensor, voc_sensor, nox_sensor,
 #   pm1_0_sensor, pm2_5_sensor, pm4_0_sensor, pm10_sensor
 #                     - Floor-level MAX air-quality source sensors
@@ -31,7 +39,7 @@
 #   modbus_address    - Modbus slave address (default 0x11)
 #   update_interval   - Modbus poll interval (default 30s)
 #
-# ⚠ REGISTER MAP PENDING (ADR-0018): the Innova HRP DOMO 60 H Modbus register
+# ⚠ REGISTER MAP PENDING (ADR-0018): the Innova HRP DOMO 60 HX Modbus register
 # map is not yet transcribed here. The bus member, the 0-10V fan-speed path, the
 # demand aggregation and the coordinator are complete and functional; the Modbus
 # register reads/writes below are marked TODO(innova-register) and must be filled
@@ -46,7 +54,7 @@ defaults:
 
 packages:
   demand: !include
-    file: mev_demand_air_quality.yaml
+    file: mev_demand.yaml
     vars:
       mev_slug: ${mev_slug}
       mev_name: ${mev_name}
@@ -57,9 +65,10 @@ packages:
       pm2_5_sensor: ${pm2_5_sensor}
       pm4_0_sensor: ${pm4_0_sensor}
       pm10_sensor: ${pm10_sensor}
+      humidity_sensor: ${humidity_sensor}
 
   controller: !include
-    file: packages/coordinators/mev_ventilation_air_quality.yaml
+    file: packages/coordinators/mev_ventilation_fan_only.yaml
     vars:
       component_id: ${mev_slug}
       component_name: ${mev_name}
@@ -98,7 +107,7 @@ number:
 
 binary_sensor:
   # TODO(innova-register): replace this placeholder with the real Innova HRP DOMO
-  # 60 H fault/alarm read — either a modbus_controller binary_sensor bound to the
+  # 60 HX fault/alarm read — either a modbus_controller binary_sensor bound to the
   # unit's fault register/bit, or a template ORing the fault registers. Until the
   # register map is transcribed this returns false so the coordinator never
   # hard-offs the fan on a phantom alarm.
@@ -111,7 +120,7 @@ binary_sensor:
 
 # =============================================================================
 # TODO(innova-register): Modbus reads/writes — fill from the Innova HRP DOMO
-# 60 H Modbus manual, then bind to modbus_controller: ${mev_slug}_controller.
+# 60 HX Modbus manual, then bind to modbus_controller: ${mev_slug}_controller.
 # Intended entities (mirror the Cappellotto driver's shape where the Innova has
 # the equivalent function; the Innova is a passive HRV so many Cappellotto
 # registers have no counterpart):

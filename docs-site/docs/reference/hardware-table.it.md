@@ -43,7 +43,7 @@ progetto usano lo stesso indirizzo per la scheda relè (vedi nota sotto).
 | Scheda uscite analogiche 8CH (B) | `0x1` | `analog_output_1`–`analog_output_8` | Uscite 0–10V, registri di holding `0x0000`–`0x0007`. |
 | Scheda relè 32CH | `0x2` | `relay_1`–`relay_32` | Coil `0x0000`–`0x001F`. |
 | VMC primo piano (Cappellotto Air Fresh I, ventilazione + deumidificazione) | `0x10` | `analog_output_7` (ventilatore) | Ha un proprio set di registri specifico del dispositivo; vedi `climate/mev_modbus.yaml` nel repository, non riprodotto qui. |
-| VMC piano terra (Innova HRP DOMO 60 H, ventilazione solo qualità dell'aria) | `0x11` | `analog_output_8` (ventilatore) | Unità passiva a recupero di calore; nessuna gestione dell'umidità. Vedi `climate/mev_innova_modbus.yaml` (ADR-0018). |
+| VMC piano terra (Innova HRP DOMO 60 HX, VMC entalpica) | `0x11` | `analog_output_8` (ventilatore) | Unità passiva; domanda di ventilazione per qualità dell'aria + umidità, nessuna deumidificazione attiva. Vedi `climate/mev_innova_modbus.yaml` (ADR-0018). |
 
 I dati di temperatura/umidità/qualità dell'aria delle stanze **non** viaggiano affatto
 su questo bus — arrivano tramite il bus CAN, con un ripiego (fallback) su Home
@@ -123,7 +123,7 @@ questa tabella nella stessa modifica.
 | `analog_output_5` | Fancoil Locale Tecnico |
 | `analog_output_6` | Fancoil Sottotetto |
 | `analog_output_7` | Velocità ventilatore VMC primo piano |
-| `analog_output_8` | Velocità ventilatore VMC piano terra (Innova HRP DOMO 60 H) |
+| `analog_output_8` | Velocità ventilatore VMC piano terra (Innova HRP DOMO 60 HX) |
 
 ## Correlati
 

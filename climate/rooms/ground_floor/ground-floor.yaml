@@ -43,10 +43,12 @@ packages:
   anticamera: !include anticamera.yaml
   locale_tecnico: !include locale_tecnico.yaml
 
-  # MEV Modbus Control (ground floor) — Innova HRP DOMO 60 H (ADR-0018).
-  # A different model from the first-floor unit: passive HRV, air-quality-only
-  # (no humidity cascade — humidity here is handled by the fancoils). Fan speed
-  # is 0-10V on analog_output_8; monitoring/control is Modbus at address 0x11.
+  # MEV Modbus Control (ground floor) — Innova HRP DOMO 60 HX (ADR-0018).
+  # A different model from the first-floor unit: a passive enthalpic HRV driven
+  # by the full CO2/Air-Quality/Humidity demand (high humidity raises ventilation;
+  # the enthalpic core passively manages moisture). Its only actuator is fan
+  # speed, so there is no active dehumidification cascade. Fan speed is 0-10V on
+  # analog_output_8; monitoring/control is Modbus at address 0x11.
   ground_floor_mev: !include
     file: ../../mev_innova_modbus.yaml
     vars:
@@ -62,6 +64,7 @@ packages:
       pm2_5_sensor: ground_floor_max_pm2_5
       pm4_0_sensor: ground_floor_max_pm4_0
       pm10_sensor: ground_floor_max_pm10
+      humidity_sensor: ground_floor_mev_max_humidity
 
   # Floor-level air-quality MAX aggregates that feed the MEV demand (no humidity
   # aggregate — this unit does not manage humidity). Sources are the per-room CAN
@@ -216,6 +219,26 @@ sensor:
       - source: soggiorno_humidity_abstracted
       - source: cucina_humidity_abstracted
       - source: anticamera_humidity_abstracted
+
+  # Humidity source for the ground-floor MEV demand (ADR-0018). Distinct from
+  # ground_floor_max_humidity above, which excludes Bagno for radiant-cooling
+  # dew-point/boost decisions (shower spikes): for ventilation, bathroom humidity
+  # is exactly what should raise the fan, so this aggregate includes ALL rooms.
+  - platform: combination
+    id: ground_floor_mev_max_humidity
+    name: "MEV Piano Terra Max Humidity"
+    type: max
+    unit_of_measurement: "%"
+    device_class: "humidity"
+    state_class: "measurement"
+    accuracy_decimals: 0
+    icon: "mdi:water-percent"
+    sources:
+      - source: soggiorno_humidity_abstracted
+      - source: cucina_humidity_abstracted
+      - source: bagno_terra_humidity_abstracted
+      - source: anticamera_humidity_abstracted
+      - source: locale_tecnico_humidity_abstracted
 
   # Time since last mode change (shows most recent room transition)
   # Tracks per-room timing independently

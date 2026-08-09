@@ -42,7 +42,7 @@ the same relay-board address by design (see the note below).
 | Analog Outputs Board 8CH (B) | `0x1` | `analog_output_1`–`analog_output_8` | 0–10V outputs, holding registers `0x0000`–`0x0007`. |
 | Relay Board 32CH | `0x2` | `relay_1`–`relay_32` | Coils `0x0000`–`0x001F`. |
 | MEV first floor (Cappellotto Air Fresh I, ventilation + dehumidification) | `0x10` | `analog_output_7` (fan) | Its own device-specific register set; see `climate/mev_modbus.yaml` in the repo, not reproduced here. |
-| MEV ground floor (Innova HRP DOMO 60 H, air-quality-only ventilation) | `0x11` | `analog_output_8` (fan) | Passive heat-recovery unit; no humidity handling. See `climate/mev_innova_modbus.yaml` (ADR-0018). |
+| MEV ground floor (Innova HRP DOMO 60 HX, enthalpic HRV) | `0x11` | `analog_output_8` (fan) | Passive unit; air-quality + humidity ventilation demand, no active dehumidification. See `climate/mev_innova_modbus.yaml` (ADR-0018). |
 
 Room temperature/humidity/air-quality data does **not** travel over this bus at all —
 it arrives over the CAN bus, with a Home Assistant fallback. See the
@@ -117,7 +117,7 @@ table in the same change.
 | `analog_output_5` | Locale Tecnico fancoil |
 | `analog_output_6` | Sottotetto fancoil |
 | `analog_output_7` | First floor MEV fan speed |
-| `analog_output_8` | Ground floor MEV fan speed (Innova HRP DOMO 60 H) |
+| `analog_output_8` | Ground floor MEV fan speed (Innova HRP DOMO 60 HX) |
 
 ## Related
 

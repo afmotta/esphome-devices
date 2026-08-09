@@ -1,10 +1,13 @@
 # =============================================================================
-# Component: mev_ventilation_air_quality.yaml
-# Purpose:   MEV controller for an air-quality-only unit (no humidity cascade).
-#            Variant of mev_ventilation.yaml with the fan path only — the fan
-#            path is already humidity-independent. Used by the ground-floor
-#            Innova HRP DOMO 60 H, a passive HRV that renews air on air-quality
-#            demand; humidity there is handled by the fancoils, so there is no
+# Component: mev_ventilation_fan_only.yaml
+# Purpose:   MEV controller for a unit whose only actuator is fan speed — no
+#            dehumidification cascade. Variant of mev_ventilation.yaml with the
+#            fan path only (that path is demand-source-agnostic: it just applies
+#            the min floor and alarm/gate safety to whatever aggregated demand it
+#            is given). Used by the ground-floor Innova HRP DOMO 60 HX, a passive
+#            enthalpic HRV driven by the full CO2/Air-Quality/Humidity demand
+#            (climate/mev_demand.yaml): high humidity raises ventilation, and the
+#            enthalpic core passively manages moisture, so there is no active
 #            Dehumidifying/Integration cascade and no dehumidifier/integration
 #            outputs.
 #

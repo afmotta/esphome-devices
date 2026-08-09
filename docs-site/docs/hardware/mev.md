@@ -19,10 +19,12 @@ There are **two** MEV units, of **different models**, one per floor with ventila
   boards. Its full register map — mode/on-off/dehumidify controls, five temperature
   sensors, 39 distinct alarm types, filter-hours tracking — lives in
   `climate/mev_modbus.yaml`.
-- **Ground floor — Innova HRP DOMO 60 H**, Modbus address `0x11`. A passive heat-recovery
-  unit that only renews air and responds to **air quality** — it does **not** manage
-  humidity (on the ground floor, humidity is handled by the fancoils). Its driver lives in
-  `climate/mev_innova_modbus.yaml`.
+- **Ground floor — Innova HRP DOMO 60 HX**, Modbus address `0x11`. A passive **enthalpic**
+  heat-recovery unit: it renews air in response to **air quality and humidity** (raising
+  ventilation when humidity is high; the enthalpic core passively manages moisture). It has
+  **no active dehumidifier** — its only actuator is fan speed. On the ground floor the fancoils
+  also dehumidify, but only in summer, so this unit covers humidity year-round through
+  ventilation. Its driver lives in `climate/mev_innova_modbus.yaml`.
 
 Both drive fan speed via a 0-10V analog output (first floor `analog_output_7`, ground floor
 `analog_output_8`) and use Modbus for everything else. Those two files are the source of
