@@ -62,7 +62,7 @@ durable design knowledge — architecture, ADRs, contracts, design notes — liv
 - **Autonomous dew-point protection**: ESPHome-native dew-point calculation enforces a safety minimum on radiant-cooling supply water (dew point + 2 °C) even when Home Assistant is offline
 - **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
 - **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
-- **Mechanical Extract Ventilation (MEV)**: Modbus-controlled ventilation with air-quality- and humidity-driven demand, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`)
+- **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
 - **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant; room-sensor *data* specifically depends on the CAN→HA failover chain (`climate/room_sensors.yaml`)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
 - **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency shutdown)
@@ -146,8 +146,9 @@ esphome-devices/
 │
 ├── climate/                       # Climate control application system (see climate/CLAUDE.md)
 │   ├── room_sensors.yaml      # Room sensor failover wiring
-│   ├── mev_modbus.yaml        # MEV Modbus device driver
-│   ├── mev_demand.yaml        # MEV demand signal aggregation
+│   ├── mev_modbus.yaml        # MEV Modbus driver — first floor (Cappellotto, w/ humidity cascade)
+│   ├── mev_innova_modbus.yaml # MEV Modbus driver — ground floor (Innova HRP DOMO 60 HX enthalpic, fan-only; ADR-0018)
+│   ├── mev_demand.yaml        # MEV demand signal aggregation (CO2/air-quality/humidity; both MEVs)
 │   ├── packages/              # Climate-owned reusable components/coordinators and generated routes
 │   │   ├── components/        # PID, radiant/fancoil, failover, demand, pump packages
 │   │   ├── coordinators/      # Seasonal mode, fancoil boost, MEV ventilation
