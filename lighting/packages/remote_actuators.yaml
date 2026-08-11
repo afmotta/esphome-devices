@@ -1,0 +1,70 @@
+# =============================================================================
+# remote_actuators.yaml — gateway-side HTTP fallback transport (ADR-0019)
+# =============================================================================
+# The remote half of the ADR-0013 fallback path. When HA is down and a bound
+# single-click targets an output id in the REMOTE range (>= REMOTE_ID_BASE, 32+),
+# fire_binding_fallback() (relay_store.h) ENQUEUES an (output_id, op) command
+# rather than driving a local relay Switch*. This package drains that queue and
+# issues the actual authenticated POST to the target device's web_server REST API
+# (e.g. an-penta-1's LED strips) — HA-drives-when-up / gateway-drives-when-down,
+# extended across the LAN (ADR-0003 model, ADR-0013 §1 transport-agnostic id).
+#
+# WHY A QUEUE + DRAIN LOOP (not a POST inside the fallback): fire_binding_fallback
+# runs on the CAN on_frame handler and the 250ms ACK sweep — hot paths that must
+# not block on the network. They only enqueue; the blocking http_request.post
+# happens here, in a standalone interval, with a short timeout so an unreachable
+# target caps the main-loop stall (and only in the already-degraded HA-down path).
+#
+# Requires from the composing entry point (devices/light-controller.yaml):
+#   substitutions:
+#     an_penta_host        target address — a static/DHCP-reserved IP, NOT mDNS
+#                          (*.local resolution is slower/less certain mid-outage)
+#     an_penta_basic_auth  precomputed base64("admin:<web password>") for the
+#                          An-Penta web_server (so the gateway holds no raw
+#                          password and does no runtime base64)
+#   esphome.includes: remote_store.h (+ binding_actuation.h, already present) —
+#     provides remote_cmd_pending()/remote_cmd_front_url()/remote_cmd_pop()
+#   network (Ethernet) from the board — http_request needs LAN connectivity
+# =============================================================================
+
+# LAN HTTP client. Short timeout: on a healthy LAN a POST completes in well under
+# this; only an unreachable target waits it out, bounding the main-loop stall.
+http_request:
+  id: remote_http
+  timeout: 1s
+  useragent: light-controller/fallback
+
+globals:
+  # Holds the URL built from the queue front for one drain tick, so the URL is
+  # computed once (peek is idempotent) and the empty/unmapped case is guarded
+  # before issuing the POST. Not restored (transient; a std::string can't be).
+  - id: remote_front_url
+    type: std::string
+    restore_value: false
+
+interval:
+  # Drain one queued remote command per tick. 100ms keeps fallback latency low
+  # without busy-spinning; when the queue is empty the condition is the only cost.
+  # The queue front is always popped — even on an empty/unmapped URL — so a bad
+  # entry can never wedge the queue, and a failed POST is fire-and-forget (no
+  # retry: re-issuing a toggle could double-actuate).
+  - interval: 100ms
+    then:
+      - if:
+          condition:
+            lambda: "return remote_cmd_pending();"
+          then:
+            - lambda: 'id(remote_front_url) = remote_cmd_front_url("${an_penta_host}");'
+            - if:
+                condition:
+                  lambda: "return !id(remote_front_url).empty();"
+                then:
+                  - http_request.post:
+                      url: !lambda "return id(remote_front_url);"
+                      request_headers:
+                        Authorization: "Basic ${an_penta_basic_auth}"
+                      capture_response: false
+                else:
+                  - lambda: >-
+                      ESP_LOGW("arb", "FALLBACK remote: unmapped output id/op at queue front; dropping");
+            - lambda: "remote_cmd_pop();"

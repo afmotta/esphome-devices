@@ -1,0 +1,33 @@
+# Ethernet configuration - mutually exclusive with WiFi!
+#
+# Onboard LAN8720 RMII PHY on the QuinLED-An-Penta-Plus. The RMII data pins are
+# fixed by the ESP32 EMAC and are not configurable here; only the SMI/management
+# pins, the reference-clock mode, and the PHY address are declared.
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  # 50 MHz RMII reference clock driven out on GPIO17 (was clk_mode: GPIO17_OUT,
+  # deprecated in 2026.7 / removed 2026.9).
+  clk:
+    mode: CLK_OUT
+    pin: 17
+  phy_addr: 0
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: "${device_name} - IP Address"
+      address_0:
+        name: "${device_name} - IP Address 0"
+      address_1:
+        name: "${device_name} - IP Address 1"
+      address_2:
+        name: "${device_name} - IP Address 2"
+      address_3:
+        name: "${device_name} - IP Address 3"
+      address_4:
+        name: "${device_name} - IP Address 4"
+    dns_address:
+      name: "${device_name} - DNS Address"
+    mac_address:
+      name: "${device_name} - MAC Address"

@@ -1,0 +1,136 @@
+# =============================================================================
+# an-penta-plus.yaml — QuinLED-An-Penta-Plus board hardware
+# =============================================================================
+# Generic board package for the QuinLED-An-Penta-Plus: a classic-ESP32
+# (LAN8720 Ethernet) 5-channel LED controller. This file owns only fixed board
+# hardware and the esp32/api/ota/network scaffolding. How the five output
+# channels are grouped into light entities (monochrome / CCT / RGB / RGBW),
+# what the three onboard buttons do, and whether/how the addressable-LED strip
+# on the digital header is driven are application composition and belong in the
+# entry point, not here (AD-4: entry-point composition, not board concerns).
+#
+# Hardware reference (quinled.info An-Penta-Plus pinout + ESPHome example):
+#   LED ch1  GPIO33   LED ch2  GPIO32   LED ch3  GPIO12*   LED ch4  GPIO4
+#   LED ch5  GPIO2*   Digital-LED data  GPIO5   Digital-LED power relay  GPIO13
+#   Buttons  GPIO36 / GPIO39 / GPIO34 (input-only, hardware pull-up + debounce)
+#   I2C      SDA GPIO15 / SCL GPIO16       Ethernet LAN8720 (see -ethernet.yaml)
+#   * GPIO12 (flash-voltage select) and GPIO2 (boot mode) are ESP32 strapping
+#     pins; the board is designed around them, so their LEDC outputs set
+#     ignore_strapping_warning below.
+# =============================================================================
+
+substitutions:
+  # Placeholder default only. Every entry point overrides device_name and that
+  # override wins for the resolved esphome.name; it exists so ESPHome's
+  # substitution engine can eagerly evaluate the ${device_name} references
+  # inside the wifi/ethernet !include values below. friendly_name is
+  # deliberately NOT defaulted here — the network packages don't reference it,
+  # and a board-level default would override the entry point's value.
+  device_name: an-penta-plus
+  wifi_package: !include an-penta-plus-wifi.yaml
+  ethernet_package: !include an-penta-plus-ethernet.yaml
+  enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
+  logger_level: INFO
+
+  # Fixed board GPIOs exposed so entry points/packages can compose devices on
+  # them without hardcoding pins. The five LED channels are declared as raw
+  # LEDC outputs below; the digital-LED and button pins are left for the entry
+  # point (their behaviour is application policy).
+  led_pwm_frequency: "19531Hz" # quinled.info default; low-flicker 8-bit LEDC
+  digital_led_data_pin: GPIO5
+  digital_led_power_pin: GPIO13
+  button_1_pin: GPIO36
+  button_2_pin: GPIO39
+  button_3_pin: GPIO34
+
+packages:
+  network_package: ${ethernet_package if enable_ethernet else wifi_package}
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  # Repo toolchain floor (not an An-Penta hardware requirement); keeps every
+  # entry point on one ESPHome baseline.
+  min_version: 2026.7.0
+  comment: "QuinLED-An-Penta-Plus"
+
+# Classic ESP32 (ESP32-WROOM) — required for the LAN8720 RMII Ethernet PHY.
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: ${logger_level}
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${encryption_key}
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+# I2C bus — SDA=GPIO15/SCL=GPIO16 (An-Penta-Plus expansion header). Bus only;
+# no devices declared here — I2C peripherals are entry-point composition (AD-4).
+# GPIO15 is an ESP32 strapping pin, so a config-time strapping warning is
+# expected here and is harmless (the i2c platform has no ignore-warning option).
+i2c:
+  - id: i2cbus
+    sda: GPIO15
+    scl: GPIO16
+    scan: false
+    frequency: 100kHz
+
+# Five LEDC PWM channels — the board's fixed, defining hardware, given stable
+# ids (led_ch1..led_ch5). Entry points build light entities on top of these
+# raw outputs, which by themselves impose no colour-mode policy.
+output:
+  - platform: ledc
+    id: led_ch1
+    pin: GPIO33
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch2
+    pin: GPIO32
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch3
+    pin:
+      number: GPIO12 # strapping pin (flash voltage); board is designed for it
+      ignore_strapping_warning: true
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch4
+    pin: GPIO4
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch5
+    pin:
+      number: GPIO2 # strapping pin (boot mode); board is designed for it
+      ignore_strapping_warning: true
+    frequency: ${led_pwm_frequency}
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+# Virtual buttons (no GPIO) — standard board maintenance controls.
+button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config

@@ -15,6 +15,16 @@
 # — no Modbus addresses live here; the gateway resolves id -> physical output by position.
 # The relays themselves are defined in the gateway config, not in this registry.
 #
+# OUTPUT ID RANGES (transport-agnostic, ADR-0013 §1 — the registry stays opaque; only the
+# gateway config knows which transport an id resolves to):
+#   0-31   local relay bank        — Waveshare Relay 32CH on the gateway (ADR-0014)
+#   32-33  remote HTTP actuators   — an-penta-1's LED strips, driven over the LAN when HA is
+#          down (ADR-0019): id 32 -> tunable_white_1, id 33 -> tunable_white_2. The
+#          id -> {host, object_id} map lives in the gateway (lighting/protocol/remote_store.h
+#          + devices/light-controller.yaml), NOT here. A single-click still degrades to on/off/
+#          toggle; prefer op: on/off over toggle for remote strips (the ADR-0003 double-action
+#          window can bounce a toggle).
+#
 # Hand-edited and reviewed by git diff. Run tools/generate_nodes.py after any change: it
 # validates every binding against nodes.csv and stamps the new hash into protocol/bindings.h.
 # BACK UP BY PUSHING: bindings are unrebuildable — an unpushed change is an unbacked-up house.

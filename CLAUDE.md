@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.15 |
-| **Last Updated** | August 7, 2026 |
+| **Version** | 1.16 |
+| **Last Updated** | August 11, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -522,7 +522,7 @@ external_components:
 |------|---------|
 | `docs/architecture/ARCHITECTURE-SPINE.md` | Architectural invariants (AD-1…AD-10) — the current authority |
 | `docs/architecture/architecture-diagram.md` | Mermaid diagrams of system topology and data flows |
-| `docs/adr/` | Architecture Decision Records (ADR-0001…0017) — the reasoning behind decisions |
+| `docs/adr/` | Architecture Decision Records (ADR-0001…0019) — the reasoning behind decisions |
 | `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
 | `docs/design-notes/entity-naming.md` | Entity ID naming convention |
 | `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
@@ -613,7 +613,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
    `docs/architecture/architecture-diagram.md` (topology and data flows)
-2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0017)
+2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0019)
 3. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
 4. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 
@@ -646,6 +646,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-08-11 | 1.16 | Added the QuinLED-An-Penta-Plus as a lighting LED-strip controller: new board scaffolding (`boards/an-penta-plus.yaml` + `-ethernet`/`-wifi` network includes; classic ESP32 + LAN8720, five raw LEDC channels, I2C bus, status/maintenance buttons) and a lighting entry point (`devices/an-penta-1.yaml`) composing two `cwww` tunable-white strips over the raw channels. The entry point exposes a **local control path for when Home Assistant is down**: `api: reboot_timeout: 0s` (no auto-reboot without an API client) + an authenticated `web_server` REST API. Then ADR-0019: the lighting **gateway** (`devices/light-controller.yaml`) now actuates those strips itself when HA is down — a bound single-click on a **remote output id (32+)** is dispatched by `fire_binding_fallback()` (`relay_store.h`) into an HTTP command queue (`remote_store.h`) drained by a non-blocking 100 ms loop (`lighting/packages/remote_actuators.yaml`) that POSTs to the An-Penta's `web_server`. Realizes ADR-0013 §1's transport-agnostic output id with a remote transport — **no** registry-schema, canonical-hash (`d66767448ba37b2f` unchanged), or `BindingEntry`-contract change; only `canbus/tools/bindings.py`'s `MAX_RELAY_ID` widened 31→33 (validation-only, canbus-coordinated). Pure dispatch logic natively tested; light-controller firmware compiles | AI Assistant |
 | 2026-08-07 | 1.15 | Removed the BMAD framework and all its tooling (`_bmad/`, the `bmad-*` skills, the OpenCode `.opencode/` and Copilot `.github/agents/`+`.github/chatmodes/` integrations) and consolidated the generated artifacts into a leaner knowledge base under `docs/`: unified ADRs 0001–0017 into `docs/adr/`, the architecture spine + diagram into `docs/architecture/`, the two frozen contracts into `docs/contracts/`, and the entity-naming + canbus implementation rules into `docs/design-notes/`; dropped the process history (completion reports, testing checklists, sprint/workflow status, retros, review passes, per-story files, phase specs, migration metas) and the superseded Oct-2025 PRD/architecture docs. Both `_bmad-output/` trees are gone. Also retired the **epic** organizing concept: the epics index/file is gone, its durable feature knowledge folded into System Capabilities, and the forward-going epic-prefixed commit convention replaced with plain system-prefixed commits (`canbus:`/`lighting:`/`climate:`); historical "Epic N" mentions in git history and ADR prose are left as-is. Repointed all cross-references (this file, the three system `CLAUDE.md`s, `docs-site` doc-map/confidence-ledger, canbus README/runbooks, dashboards) | AI Assistant |
 | 2026-08-04 | 1.14 | ADR-0017: node composition is now driven by a single-valued `profile` column in `registry/nodes.csv` (`buttons` / `buttons+sensors` / `sensors` / `bridge` / `buttons+bridge`), replacing the `sensors` boolean — making "bridge AND sensors" unrepresentable rather than merely rejected (ADR-0005 single-purpose forwarders). `base_node.yaml` split into `node_core.yaml` + `buttons_8.yaml` so a bridge instantiates no button GPIOs; new `canbus/packages/bridge.yaml` + `boards/canbed-rp2040-can1.yaml` run the segment bridge on the fleet node board (CANBed RP2040 + a second MCP2515, CS GPIO8); `buttons+bridge` covers the boxes where a segment splits at a button box — buttons are the one sanctioned co-tenant of a forwarder, the sensor kit stays excluded. `map.json` keeps its frozen `nodes[].sensors` field, now derived, and adds `profile`. Amended same-day after a sourcing survey: the **LilyGO T-2CAN is restored as the preferred bridge board** (`boards/lilygo-t-2can.yaml`, profile `bridge-t2can`) with the CANBed + add-on kept as second source — 3.3 V raw-SPI MCP2515 modules turn out to be near-unobtainable at a supported crystal, making the cost saving nominal; `node_core.yaml` became board-agnostic so a profile selects its own MCU, and `canbus/archive/` is gone | AI Assistant |
 | 2026-07-27 | 1.13 | Lighting panel brought to the climate panel's shape, so the two screens on identical hardware read as one system: read-only "Home" glance tab in large type (was "Status", a stack of default-size labels), the Buttons tab rebuilt from a single last-event line into the last 8 presses as aligned four-column rows (node/btn/gesture/age) fed by a header-accessor ring in `lighting/packages/ui/touch_ui_format.h`, the 32 hand-written relay cells collapsed into `relay_cell.yaml`/`relay_refresh.yaml` fragments that carry on/off via LVGL `checked` (so the OFF fill comes from the shared theme), an always-visible status strip with alarm precedence (manifest mismatch outranks HA-down) and a liveness pulse, and the 2 s refresh skipped while LVGL is paused. ALL OFF now iterates `relay_store()` instead of 32 named ids. Strip fills added to the shared palette in `packages/ui/dark_theme.yaml`; stale "runs WiFi" header in `devices/light-controller-touch.yaml` corrected | AI Assistant |

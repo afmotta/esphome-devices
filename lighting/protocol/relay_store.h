@@ -1,5 +1,6 @@
 #pragma once
 #include "binding_actuation.h"
+#include "remote_store.h"
 #include "esphome/components/switch/switch.h"
 #include "esphome/core/log.h"
 #include <cstring>
@@ -56,26 +57,42 @@ inline void relay_apply_op(esphome::switch_::Switch *sw, const char *op)
     ESP_LOGE("arb", "FALLBACK actuation: unrecognized op '%s' (manifest/firmware drift)", op);
 }
 
-// The one fallback-actuation entry point (ADR-0013 §1-2). Callers gate this
-// call on is_fallback_gesture(event_type) themselves, keeping the existing
+// The one fallback-actuation entry point (ADR-0013 §1-2, ADR-0019). Callers gate
+// this call on is_fallback_gesture(event_type) themselves, keeping the existing
 // unconditional fallback_events++/ESP_LOGW visible at the call site (only the
 // actuation is click-gated, not the counter/log). Looks up the binding, checks
-// bounds, and applies op to every listed relay; a nullptr binding (the common
-// case while registry/bindings.yaml is empty) or an out-of-bounds relay id are
-// both handled without ever touching hardware for a bad match — the latter
-// logs loudly since it means a stale/hand-edited bindings.h slipped past the
-// Python validator.
+// bounds, and dispatches each listed output id by transport: a LOCAL id drives
+// the relay bank's Switch* directly; a REMOTE id (ADR-0019) is enqueued for the
+// HTTP drain loop (remote_actuators.yaml) — enqueue only, so this stays
+// non-blocking on the CAN/ACK hot paths. A nullptr binding (the common case
+// while registry/bindings.yaml is empty) or an out-of-bounds output id are both
+// handled without ever touching hardware for a bad match — the latter logs
+// loudly since it means a stale/hand-edited bindings.h slipped past the Python
+// validator.
 inline void fire_binding_fallback(uint16_t node_id, uint8_t button)
 {
   const BindingEntry *b = binding_find(node_id, button);
   if (b == nullptr)
     return;
-  if (!binding_relays_in_bounds(*b, MAX_RELAYS)) {
+  if (!binding_outputs_in_bounds(*b)) {
     ESP_LOGE("arb", "FALLBACK actuation: binding for node=%u btn=%u has an "
-                     "out-of-bounds relay id (manifest/firmware drift)",
+                     "out-of-bounds output id (manifest/firmware drift)",
              (unsigned) node_id, (unsigned) button);
     return;
   }
-  for (uint8_t i = 0; i < b->relay_count; i++)
-    relay_apply_op(relay_store(b->relays[i]), b->op);
+  for (uint8_t i = 0; i < b->relay_count; i++) {
+    const uint8_t id = b->relays[i];
+    switch (output_id_kind(id)) {
+      case OUTPUT_LOCAL:
+        relay_apply_op(relay_store(id), b->op);
+        break;
+      case OUTPUT_REMOTE:
+        // Enqueue only; remote_actuators.yaml's drain loop issues the POST.
+        remote_cmd_push(id, b->op);
+        break;
+      case OUTPUT_OUT_OF_RANGE:
+        // Unreachable: binding_outputs_in_bounds above already rejected it.
+        break;
+    }
+  }
 }

@@ -65,12 +65,27 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
   panels on identical hardware read by the same person; keep changes to one
   side in step with the other rather than letting the idioms diverge.
 - `protocol/binding_actuation.h` — fallback pure logic (click-only gesture
-  gate, relay-bounds check); natively tested, no ESPHome includes.
+  gate; output-id classification `output_id_kind()` and bounds
+  `binding_outputs_in_bounds()` spanning local relays 0–31 and remote HTTP ids
+  32+, ADR-0019); natively tested, no ESPHome includes.
 - `protocol/relay_store.h` — ESPHome glue: relay-id → `Switch*` store and
   `fire_binding_fallback()`, the single actuation entry point both fallback
-  branches call.
-- `tests/test_binding_actuation.cpp` — native test for the pure logic (see
-  Test & verify below for the required `-I` flags).
+  branches call. Dispatches each bound output id by transport — LOCAL drives the
+  `Switch*`; REMOTE enqueues onto `remote_store.h` (ADR-0019).
+- `protocol/remote_store.h` — ESPHome glue for the remote (HTTP) transport
+  (ADR-0019): the remote-command queue (header-accessor ring), the id→object_id
+  table, the op→REST-verb map, and the URL builder. Drained by
+  `packages/remote_actuators.yaml`. Not natively tested (same split as
+  `relay_store.h`).
+- `packages/remote_actuators.yaml` — gateway-side HTTP fallback transport
+  (ADR-0019): the `http_request` client + a 100 ms drain loop that POSTs queued
+  remote commands to a target device's `web_server` (an-penta-1's strips) when
+  HA is down. Composed by `devices/light-controller.yaml`, which supplies the
+  `an_penta_host`/`an_penta_basic_auth` substitutions. Enqueue-only on the hot
+  paths keeps the CAN handler / ACK sweep non-blocking.
+- `tests/test_binding_actuation.cpp` — native test for the pure logic, incl. the
+  ADR-0019 output-id classification/bounds (see Test & verify below for the
+  required `-I` flags).
 - `home-assistant/ha_hold_automations.yaml` — hand-maintained HA reference
   automations for hold/hold_release gestures (ADR-0012). Copy or `!include`
   into Home Assistant; replace the EXAMPLE node_id/button/entity_id values

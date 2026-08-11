@@ -50,6 +50,39 @@ int main()
     assert(!binding_relays_in_bounds(e, MAX_RELAYS));
   }
 
+  // --- output_id_kind: local bank, remote range, and beyond (ADR-0019) ---
+  assert(output_id_kind(0) == OUTPUT_LOCAL);
+  assert(output_id_kind(MAX_RELAYS - 1) == OUTPUT_LOCAL);   // 31, last local
+  assert(output_id_kind(REMOTE_ID_BASE) == OUTPUT_REMOTE);  // 32, first remote
+  assert(output_id_kind(MAX_OUTPUT_ID - 1) == OUTPUT_REMOTE); // last remote
+  assert(output_id_kind(MAX_OUTPUT_ID) == OUTPUT_OUT_OF_RANGE); // first past the end
+  // REMOTE_ID_BASE is exactly the local-bank size — no gap, no overlap.
+  assert(REMOTE_ID_BASE == MAX_RELAYS);
+
+  // --- binding_outputs_in_bounds: accepts local, remote, and mixed fan-out ---
+  {
+    const uint8_t local_only[] = {0, 31};
+    BindingEntry e{100, 0, 2, local_only, "toggle"};
+    assert(binding_outputs_in_bounds(e));
+  }
+  {
+    const uint8_t remote_only[] = {(uint8_t) REMOTE_ID_BASE, (uint8_t) (MAX_OUTPUT_ID - 1)};
+    BindingEntry e{100, 1, 2, remote_only, "on"};
+    assert(binding_outputs_in_bounds(e));
+    // ...and the local-only primitive correctly rejects those same remote ids.
+    assert(!binding_relays_in_bounds(e, MAX_RELAYS));
+  }
+  {
+    const uint8_t mixed[] = {0, (uint8_t) REMOTE_ID_BASE};  // one local + one remote
+    BindingEntry e{100, 2, 2, mixed, "toggle"};
+    assert(binding_outputs_in_bounds(e));
+  }
+  {
+    const uint8_t out_of_range[] = {0, (uint8_t) MAX_OUTPUT_ID};  // one past the remote range
+    BindingEntry e{100, 3, 2, out_of_range, "toggle"};
+    assert(!binding_outputs_in_bounds(e));
+  }
+
   printf("test_binding_actuation: all assertions passed\n");
   return 0;
 }

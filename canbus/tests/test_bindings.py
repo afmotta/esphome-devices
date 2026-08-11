@@ -167,16 +167,20 @@ def test_multi_relay_hash_representation_independent():
 
 
 def test_validation_relay_out_of_bounds():
-    # relay is a 0-based id into the single 32-channel Waveshare Relay 32CH bank
-    # (ADR-0014). Outside 0-31 is a silently dead binding (no such relay exists),
-    # so reject it at validation.
-    too_high = bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 32")), NODE_IDS)
-    assert any("relay" in e and "32" in e for e in too_high), too_high
-    # The top of the valid range stays valid.
+    # relay is a 0-based, transport-agnostic output id (ADR-0013 §1): ids 0-31 are
+    # the Waveshare Relay 32CH bank (ADR-0014), 32-33 are remote HTTP actuators
+    # (ADR-0019, an-penta-1's strips). Outside 0-MAX_RELAY_ID is a silently dead
+    # binding (no such output exists), so reject it at validation.
+    too_high = bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 34")), NODE_IDS)
+    assert any("relay" in e and "34" in e for e in too_high), too_high
+    # The top of the valid range (the last remote actuator id) stays valid.
+    assert bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 33")), NODE_IDS) == []
+    # The local/remote boundary ids (31 = last relay, 32 = first remote) are valid.
     assert bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 31")), NODE_IDS) == []
+    assert bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 32")), NODE_IDS) == []
     # A fan-out with one out-of-range channel is rejected for that channel.
-    fan_out = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: "0,32"')), NODE_IDS)
-    assert any("relay" in e and "32" in e for e in fan_out), fan_out
+    fan_out = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: "0,34"')), NODE_IDS)
+    assert any("relay" in e and "34" in e for e in fan_out), fan_out
 
 
 def test_multi_relay_bad_channel_rejected():

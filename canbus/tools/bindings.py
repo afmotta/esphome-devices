@@ -43,13 +43,17 @@ SCHEMA_VERSION = 1
 REQUIRED_KEYS = ("node_id", "button", "relay", "op")
 # Buttons are the gesture index into the standard 8-button set (0-7, packages/buttons_8.yaml).
 BUTTON_MAX = 7
-# One Waveshare Modbus RTU Relay 32CH bank on the gateway (ADR-0014), ids 0-31
-# (lighting/packages/relay_bank.yaml numbers its channels 0-based natively,
-# per ADR-0013's progressive-id convention: relay id N <-> coil N). Keep in
-# sync with that bank's channel list and lighting/protocol/binding_actuation.h's
-# MAX_RELAYS — a second bank (ADR-0014 open item 2) bumps all three in one
-# commit, not silently.
-MAX_RELAY_ID = 31
+# Highest valid binding output id. The id space is transport-agnostic (ADR-0013
+# §1): ids 0-31 are the Waveshare Modbus RTU Relay 32CH bank on the gateway
+# (ADR-0014; lighting/packages/relay_bank.yaml, 0-based, relay id N <-> coil N),
+# and ids 32-33 are remote HTTP actuators the gateway drives over the LAN
+# (ADR-0019; an-penta-1's two LED strips). The registry stays opaque — it never
+# knows which transport an id resolves to; the gateway config does. Keep this in
+# sync with lighting/protocol/binding_actuation.h's MAX_OUTPUT_ID (this is
+# MAX_OUTPUT_ID - 1) and its MAX_RELAYS/MAX_REMOTE_ACTUATORS split — a second
+# relay bank (ADR-0014 open item 2) or another remote actuator bumps them
+# together in one commit, not silently.
+MAX_RELAY_ID = 33
 # Minimal action vocabulary (ADR-0009 open item 1): a relay id (or comma-list for fan-out)
 # plus one op. relay ids are progressive (relay_0, relay_1, ...) gateway outputs — no Modbus
 # addresses in the registry; the gateway resolves id -> output by position.
