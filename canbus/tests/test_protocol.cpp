@@ -84,6 +84,28 @@ int main()
   assert(payload_button_index(hp) == 2 && payload_event_type(hp) == EVT_HOLD);
   assert(payload_event_type(button_payload(2, EVT_HOLD_RELEASE)) == EVT_HOLD_RELEASE);
 
+  // --- OUTPUT command payload (CAT_OUTPUT, controller -> node, ADR-0020) ---
+  // Addressed by node_id in the ID; the node RX-filters on CAN_MASK_ADDR (category + node).
+  {
+    uint32_t oid = can_id(CAT_OUTPUT, 100);
+    assert(can_id_category(oid) == CAT_OUTPUT && can_id_node(oid) == 100);
+    // The node's acceptance filter matches its own OUTPUT frames and rejects other nodes'.
+    assert((oid & CAN_MASK_ADDR) == can_id(CAT_OUTPUT, 100));
+    assert((can_id(CAT_OUTPUT, 101) & CAN_MASK_ADDR) != can_id(CAT_OUTPUT, 100));
+
+    auto op = output_payload(1 /* channel */, OUT_OP_TOGGLE);
+    assert(op.size() >= OUTPUT_PAYLOAD_MIN);
+    assert(payload_version(op) == PROTO_V1 && payload_type(op) == MSG_OUT_SET_CHANNEL);
+    assert(payload_output_channel(op) == 1 && payload_output_op(op) == OUT_OP_TOGGLE);
+    // op vocabulary round-trips
+    assert(payload_output_op(output_payload(0, OUT_OP_OFF)) == OUT_OP_OFF);
+    assert(payload_output_op(output_payload(4, OUT_OP_ON)) == OUT_OP_ON);
+    assert(payload_output_channel(output_payload(4, OUT_OP_ON)) == 4);
+    // short-frame guards: channel 0, op OFF (the safe default), never crash
+    assert(payload_output_channel(empty) == 0 && payload_output_op(empty) == OUT_OP_OFF);
+    assert(OUT_OP_OFF == 0 && OUT_OP_ON == 1 && OUT_OP_TOGGLE == 2 && MSG_OUT_SET_CHANNEL == 0x10);
+  }
+
   std::printf("ALL PROTOCOL SELF-CHECKS PASSED\n");
   return 0;
 }

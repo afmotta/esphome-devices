@@ -10,7 +10,7 @@
 // NODE_MAP_VERSION mirrors registry/map.json's map_version for drift visibility (§6).
 // =============================================================================
 
-inline constexpr char NODE_MAP_VERSION[] = "b2f613b32416fb5d";
+inline constexpr char NODE_MAP_VERSION[] = "26f9aa208da5cbff";
 
 struct NodeMapEntry { uint16_t node_id; uint8_t room; uint8_t board; const char *name; };
 
@@ -19,6 +19,7 @@ inline constexpr uint8_t NODE_MAP_UNKNOWN = 0xFF;
 inline constexpr NodeMapEntry NODE_MAP[] = {
     {100, 7, 0, "Ground floor hallway"},
     {101, 8, 0, "Ground floor living room"},
+    {102, 9, 0, "First floor An-Penta LED controller 1"},
 };
 inline constexpr std::size_t NODE_MAP_SIZE = sizeof(NODE_MAP) / sizeof(NODE_MAP[0]);
 

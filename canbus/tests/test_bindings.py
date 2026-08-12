@@ -116,14 +116,38 @@ def test_validation_bad_op_and_missing_key():
     bad_op = _parse(FORM_A.replace("op: toggle", "op: explode"))
     assert any("explode" in e for e in bindings.validate(bad_op, NODE_IDS))
 
+    # A truly missing REQUIRED key (op) is reported as missing (the binding still has a target).
     missing = """\
+schema_version: 1
+bindings:
+  - node_id: 100
+    button: 0
+    relay: 0
+"""
+    assert any("missing" in e for e in bindings.validate(_parse(missing), NODE_IDS))
+
+
+def test_validation_target_cardinality():
+    # A binding must carry EXACTLY ONE target — a gateway relay XOR a CAN output (ADR-0020).
+    no_target = """\
 schema_version: 1
 bindings:
   - node_id: 100
     button: 0
     op: toggle
 """
-    assert any("missing" in e for e in bindings.validate(_parse(missing), NODE_IDS))
+    assert any("exactly one" in e for e in bindings.validate(_parse(no_target), NODE_IDS))
+
+    both = """\
+schema_version: 1
+bindings:
+  - node_id: 100
+    button: 0
+    relay: 0
+    output: "102/0"
+    op: toggle
+"""
+    assert any("exactly one" in e for e in bindings.validate(_parse(both), NODE_IDS | {102}, {102}))
 
 
 def test_valid_ops_frozen_subset():
@@ -167,20 +191,48 @@ def test_multi_relay_hash_representation_independent():
 
 
 def test_validation_relay_out_of_bounds():
-    # relay is a 0-based, transport-agnostic output id (ADR-0013 §1): ids 0-31 are
-    # the Waveshare Relay 32CH bank (ADR-0014), 32-33 are remote HTTP actuators
-    # (ADR-0019, an-penta-1's strips). Outside 0-MAX_RELAY_ID is a silently dead
-    # binding (no such output exists), so reject it at validation.
-    too_high = bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 34")), NODE_IDS)
-    assert any("relay" in e and "34" in e for e in too_high), too_high
-    # The top of the valid range (the last remote actuator id) stays valid.
-    assert bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 33")), NODE_IDS) == []
-    # The local/remote boundary ids (31 = last relay, 32 = first remote) are valid.
+    # relay is a 0-based id into the single 32-channel Waveshare Relay 32CH bank (ADR-0014).
+    # Outside 0-31 is a silently dead binding (no such relay exists), so reject it at validation.
+    too_high = bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 32")), NODE_IDS)
+    assert any("relay" in e and "32" in e for e in too_high), too_high
+    # The top of the valid range (31) stays valid.
     assert bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 31")), NODE_IDS) == []
-    assert bindings.validate(_parse(FORM_A.replace("relay: 0", "relay: 32")), NODE_IDS) == []
     # A fan-out with one out-of-range channel is rejected for that channel.
-    fan_out = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: "0,34"')), NODE_IDS)
-    assert any("relay" in e and "34" in e for e in fan_out), fan_out
+    fan_out = bindings.validate(_parse(FORM_A.replace("relay: 0", 'relay: "0,32"')), NODE_IDS)
+    assert any("relay" in e and "32" in e for e in fan_out), fan_out
+
+
+def test_validation_output_target():
+    # A CAN OUTPUT target (ADR-0020) is 'node/channel'. The destination must exist AND be a CAN
+    # actuator (external-actuator profile), and the channel must be in range.
+    valid_ids = NODE_IDS | {102}
+    actuators = {102}
+    ok = FORM_A.replace("relay: 0", 'output: "102/0"')
+    assert bindings.validate(_parse(ok), valid_ids, actuators) == []
+    # Unknown destination node.
+    unknown = FORM_A.replace("relay: 0", 'output: "777/0"')
+    assert any("777" in e and "registry" in e
+               for e in bindings.validate(_parse(unknown), valid_ids, actuators))
+    # Destination exists but is not an actuator (100/101 are button nodes).
+    not_act = FORM_A.replace("relay: 0", 'output: "100/0"')
+    assert any("actuator" in e for e in bindings.validate(_parse(not_act), valid_ids, actuators))
+    # Channel out of range.
+    bad_ch = FORM_A.replace("relay: 0", 'output: "102/99"')
+    assert any("channel" in e for e in bindings.validate(_parse(bad_ch), valid_ids, actuators))
+    # Malformed scalar (not node/channel).
+    malformed = FORM_A.replace("relay: 0", 'output: "102"')
+    assert any("output" in e for e in bindings.validate(_parse(malformed), valid_ids, actuators))
+
+
+def test_output_hash_representation_independent():
+    # 'node/channel' hashes by meaning: whitespace variants agree; a different target flips it,
+    # and a relay target and an output target are distinct bindings.
+    a = _parse(FORM_A.replace("relay: 0", 'output: "102/0"'))
+    b = _parse(FORM_A.replace("relay: 0", 'output: " 102 / 0 "'))
+    assert bindings.canonical_hash(a) == bindings.canonical_hash(b)
+    c = _parse(FORM_A.replace("relay: 0", 'output: "102/1"'))
+    assert bindings.canonical_hash(a) != bindings.canonical_hash(c)
+    assert bindings.canonical_hash(a) != bindings.canonical_hash(_parse(FORM_A))
 
 
 def test_multi_relay_bad_channel_rejected():

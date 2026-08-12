@@ -64,28 +64,25 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
   aligned-column rows, same pinned status strip with a liveness pulse. Two
   panels on identical hardware read by the same person; keep changes to one
   side in step with the other rather than letting the idioms diverge.
-- `protocol/binding_actuation.h` — fallback pure logic (click-only gesture
-  gate; output-id classification `output_id_kind()` and bounds
-  `binding_outputs_in_bounds()` spanning local relays 0–31 and remote HTTP ids
-  32+, ADR-0019); natively tested, no ESPHome includes.
-- `protocol/relay_store.h` — ESPHome glue: relay-id → `Switch*` store and
-  `fire_binding_fallback()`, the single actuation entry point both fallback
-  branches call. Dispatches each bound output id by transport — LOCAL drives the
-  `Switch*`; REMOTE enqueues onto `remote_store.h` (ADR-0019).
-- `protocol/remote_store.h` — ESPHome glue for the remote (HTTP) transport
-  (ADR-0019): the remote-command queue (header-accessor ring), the id→object_id
-  table, the op→REST-verb map, and the URL builder. Drained by
-  `packages/remote_actuators.yaml`. Not natively tested (same split as
-  `relay_store.h`).
-- `packages/remote_actuators.yaml` — gateway-side HTTP fallback transport
-  (ADR-0019): the `http_request` client + a 100 ms drain loop that POSTs queued
-  remote commands to a target device's `web_server` (an-penta-1's strips) when
-  HA is down. Composed by `devices/light-controller.yaml`, which supplies the
-  `an_penta_host`/`an_penta_basic_auth` substitutions. Enqueue-only on the hot
-  paths keeps the CAN handler / ACK sweep non-blocking.
+- `protocol/binding_actuation.h` — fallback pure logic (click-only gesture gate;
+  relay-bounds check; `binding_is_output()` target-kind discriminator and the
+  `out_op_from_str()` op-string → `OUT_OP_*` mapping for CAN outputs, ADR-0020);
+  natively tested, no ESPHome includes.
+- `protocol/relay_store.h` — ESPHome glue: the relay-id → `Switch*` store, the
+  gateway CAN-bus handle (`can_output_sender()`), and `fire_binding_fallback()` —
+  the single actuation entry point both fallback branches call. Dispatches each
+  binding by `target_kind`: a `relay` target drives the local `Switch*`; an
+  `output` target (ADR-0020) sends a `CAT_OUTPUT` command over `can0` to a remote
+  actuator node (an An-Penta strip). CAN TX is non-blocking, so it fires inline
+  (no queue). Not natively tested (needs real esphome objects).
+- `packages/an_penta_can.yaml` — the An-Penta's CAN-actuator behaviour (ADR-0020):
+  `can0` (esp32_can on the QWIIC-header transceiver) with an `on_frame` that
+  applies `CAT_OUTPUT` `MSG_OUT_SET_CHANNEL` commands addressed to its node_id to
+  `tw1`/`tw2`, plus a `CAT_STATUS` heartbeat. Composed by `devices/an-penta-1.yaml`
+  (not the gateway — this is the *receiving* actuator side).
 - `tests/test_binding_actuation.cpp` — native test for the pure logic, incl. the
-  ADR-0019 output-id classification/bounds (see Test & verify below for the
-  required `-I` flags).
+  ADR-0020 `binding_is_output`/`out_op_from_str` helpers (see Test & verify below
+  for the required `-I` flags).
 - `home-assistant/ha_hold_automations.yaml` — hand-maintained HA reference
   automations for hold/hold_release gestures (ADR-0012). Copy or `!include`
   into Home Assistant; replace the EXAMPLE node_id/button/entity_id values

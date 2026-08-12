@@ -44,14 +44,6 @@ substitutions:
   # design). Forwarded rather than hardcoded so devices/light-controller-touch.yaml
   # can override it to "false" (WiFi) via its own top-level substitutions:.
   enable_ethernet: true
-  # ADR-0019 remote HTTP fallback: when HA is down, a bound single-click on a
-  # REMOTE output id (32+) is actuated by POSTing to the An-Penta's web_server.
-  # an_penta_host MUST be the An-Penta's static/DHCP-reserved IP (not *.local —
-  # mDNS is slower/less certain mid-outage). Replace the TEST-NET placeholder
-  # below once the An-Penta is sited. an_penta_basic_auth is a precomputed
-  # base64("admin:<web password>") so the gateway holds no raw password.
-  an_penta_host: "192.0.2.10" # PLACEHOLDER (RFC 5737 TEST-NET) — set to an-penta-1's reserved LAN IP
-  an_penta_basic_auth: !secret an_penta_basic_auth
 
 packages:
   # Board first: provides modbus_uart (consumed by the relays package below)
@@ -73,20 +65,21 @@ packages:
       modbus_address: 0x2
       modbus_bus_id: rs485_bus
       update_interval: 2s
-  # Remote HTTP fallback transport (ADR-0019): drains the remote-command queue
-  # that relay_store.h's fire_binding_fallback() fills for REMOTE output ids and
-  # POSTs to the An-Penta web_server. Uses an_penta_host/an_penta_basic_auth above.
-  remote_actuators: !include ../lighting/packages/remote_actuators.yaml
 
 esphome:
   includes:
     - ../canbus/protocol/canbus_protocol.h
     - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
     - ../canbus/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
-    - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
-    - ../lighting/protocol/binding_actuation.h   # fallback gesture/bounds pure logic (ADR-0013 §1-2, ADR-0019)
-    - ../lighting/protocol/remote_store.h   # remote-output-id -> HTTP command queue glue (ADR-0019)
-    - ../lighting/protocol/relay_store.h   # output-id dispatch: local Switch* or remote enqueue (ADR-0013 §1-2, ADR-0019)
+    - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash + fallback table (ADR-0009 §3)
+    - ../lighting/protocol/binding_actuation.h   # fallback pure logic: gesture gate, relay bounds, target kind (ADR-0013, ADR-0020)
+    - ../lighting/protocol/relay_store.h   # fallback dispatch: local relay Switch* or CAT_OUTPUT CAN send (ADR-0013, ADR-0020)
+  on_boot:
+    # Register can0 as the OUTPUT-command sender for the ADR-0020 fallback path (mirrors
+    # relay_store()'s per-switch registration). fire_binding_fallback() reads it when a bound
+    # single-click targets a CAN actuator (e.g. an An-Penta strip) while HA is down.
+    - then:
+        - lambda: "can_output_sender() = id(can0);"
 
 # --------------- CAN Bus (native ESP32 TWAI) ---------------
 # The bus DEFINITION lives here in the entry point (ADR-0015 §2), not in a

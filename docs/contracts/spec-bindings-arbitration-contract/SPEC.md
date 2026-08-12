@@ -24,14 +24,17 @@ Mirrors `spec-map-json-contract` symmetrically: **canbus owns the emission mecha
 All items frozen-additive: new fields, new ops, and new symbols may be *added*; nothing listed here may be renamed, retyped, removed, or reinterpreted without a new spec revision.
 
 - **`BINDINGS_MANIFEST_HASH`** — `inline constexpr char[]`, the 16-hex canonical hash of `registry/bindings.yaml` (ADR-0009 §3, `bindings.py` `canonical_hash`). Home Assistant echoes it in the readiness heartbeat; the gate instance compares. An empty manifest still has a stable, real hash.
-- **`struct BindingEntry`** — exactly these five fields with these types (order not frozen; additions allowed):
+- **`struct BindingEntry`** — these fields with these types (order not frozen; additions allowed):
   | Field | Type | Meaning |
   | --- | --- | --- |
   | `node_id` | `uint16_t` | source node (flat id, ADR-0007) |
   | `button` | `uint8_t` | button index 0–7 |
-  | `relay_count` | `uint8_t` | number of entries in `relays` |
-  | `relays` | `const uint8_t *` | gateway relay ids, fan-out per ADR-0009 open item 1 |
-  | `op` | `const char *` | one op applied to every listed relay |
+  | `relay_count` | `uint8_t` | number of entries in `relays` (0 for an output target) |
+  | `relays` | `const uint8_t *` | gateway relay ids, fan-out per ADR-0009 open item 1 (`nullptr` for an output target) |
+  | `op` | `const char *` | one op applied to the target |
+  | `target_kind` | `const char *` | discriminator: `"relay"` (drive `relays`) or `"output"` (CAN OUTPUT, ADR-0020). Added frozen-additive; pre-existing readers ignoring it saw only relay targets |
+  | `target_node_id` | `uint16_t` | output target: destination CAN actuator node (`0` for a relay target) |
+  | `channel` | `uint8_t` | output target: destination channel on that node (`0` for a relay target) |
 - **`BINDINGS` / `BINDINGS_SIZE`** — the compiled table and its size. Empty manifest ⇒ `BINDINGS == nullptr` and `BINDINGS_SIZE == 0`; consumers must handle this without special-casing beyond the size check.
 - **`binding_find(uint16_t node_id, uint8_t button)`** — keyed lookup on exactly `(node_id, button)`; returns a pointer into `BINDINGS` on match, `nullptr` on miss. First match wins (the generator emits sorted, duplicate-free rows — `bindings.py` validation rejects duplicate keys).
 - **Op vocabulary** — `on` | `off` | `toggle` (validated by canbus's `bindings.py` reader; *meaning* is lighting's, AD-7). Frozen-additive: new ops may be added; existing ops keep their meaning.

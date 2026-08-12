@@ -15,15 +15,14 @@
 # — no Modbus addresses live here; the gateway resolves id -> physical output by position.
 # The relays themselves are defined in the gateway config, not in this registry.
 #
-# OUTPUT ID RANGES (transport-agnostic, ADR-0013 §1 — the registry stays opaque; only the
-# gateway config knows which transport an id resolves to):
-#   0-31   local relay bank        — Waveshare Relay 32CH on the gateway (ADR-0014)
-#   32-33  remote HTTP actuators   — an-penta-1's LED strips, driven over the LAN when HA is
-#          down (ADR-0019): id 32 -> tunable_white_1, id 33 -> tunable_white_2. The
-#          id -> {host, object_id} map lives in the gateway (lighting/protocol/remote_store.h
-#          + devices/light-controller.yaml), NOT here. A single-click still degrades to on/off/
-#          toggle; prefer op: on/off over toggle for remote strips (the ADR-0003 double-action
-#          window can bounce a toggle).
+# TWO TARGET KINDS (a binding carries EXACTLY ONE):
+#   relay: N     a gateway-local Waveshare Relay 32CH output, ids 0-31 (ADR-0014), or a comma-list
+#                scalar for fan-out. The relays are defined in the gateway config, not here.
+#   output: N/C  a CAT_OUTPUT command to CAN actuator node N, channel C (ADR-0020) — e.g. an
+#                An-Penta LED strip driven over the bus when HA is down. The target must be an
+#                external-actuator node in nodes.csv (profile led-penta).
+# Either way a single click degrades to on/off/toggle only; prefer op: on/off over toggle (the
+# ADR-0003 double-action window can bounce a toggle).
 #
 # Hand-edited and reviewed by git diff. Run tools/generate_nodes.py after any change: it
 # validates every binding against nodes.csv and stamps the new hash into protocol/bindings.h.
@@ -32,10 +31,14 @@
 # Schema (strict subset — scalars only, no nesting; see tools/bindings.py):
 #   schema_version: 1
 #   bindings:
-#     - node_id: 100        # must exist in registry/nodes.csv
+#     - node_id: 100        # SOURCE button node — must exist in registry/nodes.csv
 #       button: 0           # 0–7 (standard 8-button set); the single click is implied
-#       relay: 0            # one gateway relay id, OR a comma-list scalar for fan-out
-#       op: toggle          # on | off | toggle — one op applied to every listed relay
+#       relay: 0            # ONE target: a gateway relay id (or comma-list for fan-out) ...
+#       op: toggle          # on | off | toggle — one op applied to the target
+#     - node_id: 100
+#       button: 1
+#       output: "102/0"     # ... OR a CAN output 'node/channel' (ADR-0020): node 102, channel 0
+#       op: toggle
 #
 # Multi-relay (one click → several relays, ADR-0009 open item 1): `relay` may be a comma-list
 # scalar — the fan-out stays in ONE scalar so the strict no-nesting reader is unchanged. Order

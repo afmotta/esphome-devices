@@ -40,23 +40,23 @@ import re
 from pathlib import Path
 
 SCHEMA_VERSION = 1
-REQUIRED_KEYS = ("node_id", "button", "relay", "op")
+# node_id, button, op are always required. A binding also carries EXACTLY ONE target: a
+# gateway-local `relay` (the fan-out list) OR a remote CAN `output` (node/channel, ADR-0020).
+REQUIRED_KEYS = ("node_id", "button", "op")
+TARGET_KEYS = ("relay", "output")
 # Buttons are the gesture index into the standard 8-button set (0-7, packages/buttons_8.yaml).
 BUTTON_MAX = 7
-# Highest valid binding output id. The id space is transport-agnostic (ADR-0013
-# §1): ids 0-31 are the Waveshare Modbus RTU Relay 32CH bank on the gateway
-# (ADR-0014; lighting/packages/relay_bank.yaml, 0-based, relay id N <-> coil N),
-# and ids 32-33 are remote HTTP actuators the gateway drives over the LAN
-# (ADR-0019; an-penta-1's two LED strips). The registry stays opaque — it never
-# knows which transport an id resolves to; the gateway config does. Keep this in
-# sync with lighting/protocol/binding_actuation.h's MAX_OUTPUT_ID (this is
-# MAX_OUTPUT_ID - 1) and its MAX_RELAYS/MAX_REMOTE_ACTUATORS split — a second
-# relay bank (ADR-0014 open item 2) or another remote actuator bumps them
-# together in one commit, not silently.
-MAX_RELAY_ID = 33
-# Minimal action vocabulary (ADR-0009 open item 1): a relay id (or comma-list for fan-out)
-# plus one op. relay ids are progressive (relay_0, relay_1, ...) gateway outputs — no Modbus
-# addresses in the registry; the gateway resolves id -> output by position.
+# One Waveshare Modbus RTU Relay 32CH bank on the gateway (ADR-0014), ids 0-31
+# (lighting/packages/relay_bank.yaml numbers its channels 0-based natively, per ADR-0013's
+# progressive-id convention: relay id N <-> coil N). Keep in sync with that bank's channel list
+# and lighting/protocol/binding_actuation.h's MAX_RELAYS — a second bank bumps both, not silently.
+MAX_RELAY_ID = 31
+# A CAN-output target's channel indexes the destination actuator node's outputs (e.g. an
+# An-Penta strip, 0-based). Coarse upper bound only — per-actuator channel counts are not in the
+# registry, so a binding to a channel the target lacks is caught at the actuator, not here (ADR-0020).
+MAX_CHANNEL = 7
+# Minimal action vocabulary (ADR-0009 open item 1): one op applied to the target. For a relay
+# target it applies to every listed relay; for a CAN output the gateway maps it to OUT_OP_*.
 VALID_OPS = ("on", "off", "toggle")
 
 
@@ -114,6 +114,20 @@ def parse_relays(raw) -> list:
             raise BindingError(f"relay channel {p!r} is not an integer (in {raw!r})")
         out.append(int(p))
     return sorted(set(out))
+
+
+def parse_output(raw) -> tuple:
+    """Parse a CAN-output target scalar 'node_id/channel' into (node_id, channel) ints (ADR-0020).
+
+    The output target is a single strict scalar (no nesting), like `relay`: 'NODE/CHANNEL', e.g.
+    '102/0'. Raises BindingError on anything that is not exactly two integers separated by '/'.
+    """
+    if not isinstance(raw, str):
+        raise BindingError(f"output must be a 'node_id/channel' scalar, got {raw!r}")
+    parts = raw.split("/")
+    if len(parts) != 2 or not all(re.fullmatch(r"-?\d+", p.strip()) for p in parts):
+        raise BindingError(f"output must be 'node_id/channel' (two integers), got {raw!r}")
+    return int(parts[0].strip()), int(parts[1].strip())
 
 
 def load_bindings(path: Path) -> dict:
@@ -174,8 +188,14 @@ def read_node_ids(csv_path: Path) -> set:
         return {int(row["node_id"]) for row in csv.DictReader(f)}
 
 
-def validate(parsed: dict, valid_node_ids: set) -> list:
-    """Return a list of human-readable errors; empty means the manifest is valid."""
+def validate(parsed: dict, valid_node_ids: set, actuator_node_ids: set = None) -> list:
+    """Return a list of human-readable errors; empty means the manifest is valid.
+
+    `valid_node_ids` is every node_id in nodes.csv (used for the source node and an `output`
+    target's existence check). `actuator_node_ids`, when provided, is the subset that can receive
+    CAN OUTPUT commands (external-actuator profiles, ADR-0020); an `output` target outside it is a
+    silently-dead binding and is rejected. When None, that specific check is skipped.
+    """
     errors = []
     if parsed.get("schema_version") != SCHEMA_VERSION:
         errors.append(
@@ -189,21 +209,42 @@ def validate(parsed: dict, valid_node_ids: set) -> list:
         if missing:
             errors.append(f"{where}: missing key(s) {', '.join(missing)}")
             continue
+        # A binding carries EXACTLY ONE target: a gateway-local `relay` or a remote CAN `output`.
+        present = [k for k in TARGET_KEYS if k in b]
+        if len(present) != 1:
+            errors.append(f"{where}: exactly one of {TARGET_KEYS} required, found {present or 'none'}")
+            continue
         for k in ("node_id", "button"):
             if not isinstance(b[k], int):
                 errors.append(f"{where}: '{k}' must be an integer, got {b[k]!r}")
-        # `relay` is one channel int or a comma-list scalar of them (fan-out, ADR-0009 open
-        # item 1); parse_relays normalizes and rejects malformed lists.
-        try:
-            relays = parse_relays(b["relay"])
-            if any(r < 0 for r in relays):
-                errors.append(f"{where}: relay channels must be >= 0, got {b['relay']!r}")
-            if any(r > MAX_RELAY_ID for r in relays):
-                errors.append(
-                    f"{where}: relay channel out of range (valid: 0-{MAX_RELAY_ID}), got {b['relay']!r}"
-                )
-        except BindingError as e:
-            errors.append(f"{where}: {e}")
+        if "relay" in b:
+            # `relay` is one channel int or a comma-list scalar of them (fan-out, ADR-0009 open
+            # item 1); parse_relays normalizes and rejects malformed lists.
+            try:
+                relays = parse_relays(b["relay"])
+                if any(r < 0 for r in relays):
+                    errors.append(f"{where}: relay channels must be >= 0, got {b['relay']!r}")
+                if any(r > MAX_RELAY_ID for r in relays):
+                    errors.append(
+                        f"{where}: relay channel out of range (valid: 0-{MAX_RELAY_ID}), got {b['relay']!r}"
+                    )
+            except BindingError as e:
+                errors.append(f"{where}: {e}")
+        else:
+            # `output` is a 'node/channel' CAN OUTPUT target (ADR-0020): the destination node must
+            # exist and be a CAN actuator, and the channel must be in range.
+            try:
+                tgt_node, channel = parse_output(b["output"])
+                if tgt_node not in valid_node_ids:
+                    errors.append(f"{where}: output target node {tgt_node} is not in the registry (nodes.csv)")
+                elif actuator_node_ids is not None and tgt_node not in actuator_node_ids:
+                    errors.append(
+                        f"{where}: output target node {tgt_node} is not a CAN actuator (an external-actuator profile)"
+                    )
+                if not (0 <= channel <= MAX_CHANNEL):
+                    errors.append(f"{where}: output channel {channel} out of range (valid: 0-{MAX_CHANNEL})")
+            except BindingError as e:
+                errors.append(f"{where}: {e}")
         # A button outside the standard 8-button set (0-7) is a silently dead binding —
         # no such gesture is ever emitted. Guard only when button parsed as an int.
         if isinstance(b["button"], int) and not (0 <= b["button"] <= BUTTON_MAX):
@@ -230,7 +271,14 @@ def canonical_hash(parsed: dict) -> str:
     """
     def _canonical(b: dict) -> dict:
         cb = dict(b)
-        cb["relay"] = parse_relays(b["relay"])
+        # Normalize whichever target the binding carries to a representation-independent form so
+        # the hash is by meaning: a relay fan-out to its sorted int list, a CAN output to
+        # [node, channel]. Exactly one is present (validate enforces it); guard both defensively.
+        if "relay" in b:
+            cb["relay"] = parse_relays(b["relay"])
+        if "output" in b:
+            node, channel = parse_output(b["output"])
+            cb["output"] = [node, channel]
         return cb
 
     sorted_bindings = sorted(

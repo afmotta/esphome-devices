@@ -42,6 +42,13 @@ substitutions:
   button_1_pin: GPIO36
   button_2_pin: GPIO39
   button_3_pin: GPIO34
+  # QWIIC/STEMMA-QT expansion header (GPIO15 SDA, GPIO16 SCL, +3V3, GND). Left UNCLAIMED by the
+  # board so an entry point decides its use (I2C, or — in the CAN-actuator deployment, ADR-0020 —
+  # an external SN65HVD230 CAN transceiver: SCL->CTX as TWAI tx, SDA->CRX as TWAI rx). GPIO15 is a
+  # strapping pin, and CRX idles high (recessive) = its required boot level, so SDA=rx is the safe
+  # assignment.
+  qwiic_scl_pin: GPIO16 # SCL — CAN tx (to transceiver CTX) in the actuator deployment
+  qwiic_sda_pin: GPIO15 # SDA — CAN rx (from transceiver CRX) in the actuator deployment
 
 packages:
   network_package: ${ethernet_package if enable_ethernet else wifi_package}
@@ -74,16 +81,10 @@ ota:
   - platform: esphome
     password: ${ota_password}
 
-# I2C bus — SDA=GPIO15/SCL=GPIO16 (An-Penta-Plus expansion header). Bus only;
-# no devices declared here — I2C peripherals are entry-point composition (AD-4).
-# GPIO15 is an ESP32 strapping pin, so a config-time strapping warning is
-# expected here and is harmless (the i2c platform has no ignore-warning option).
-i2c:
-  - id: i2cbus
-    sda: GPIO15
-    scl: GPIO16
-    scan: false
-    frequency: 100kHz
+# The QWIIC/expansion header (GPIO15/GPIO16) is intentionally NOT claimed here — it is exposed
+# as qwiic_sda_pin/qwiic_scl_pin substitutions above and an entry point decides its use (AD-4).
+# In this repo the An-Penta is a CAN LED actuator (ADR-0020), so the entry point composes a CAN
+# transceiver on those pins rather than an I2C bus.
 
 # Five LEDC PWM channels — the board's fixed, defining hardware, given stable
 # ids (led_ch1..led_ch5). Entry points build light entities on top of these
