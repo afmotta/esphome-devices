@@ -42,6 +42,20 @@ template:
         device_class: connectivity
         state: >-
           {{ trigger.event.event_type == 'esphome.canbus_node_recovered' }}
+  # node 102 — First floor An-Penta LED controller 1
+  - triggers:
+      - trigger: event
+        event_type: esphome.canbus_node_lost
+        event_data: {node_id: "102"}
+      - trigger: event
+        event_type: esphome.canbus_node_recovered
+        event_data: {node_id: "102"}
+    binary_sensor:
+      - name: "CAN Node 102 (First floor An-Penta LED controller 1) Online"
+        unique_id: canbus_node_102_online
+        device_class: connectivity
+        state: >-
+          {{ trigger.event.event_type == 'esphome.canbus_node_recovered' }}
 
 automation:
   # --- Security class (ADR-0011 §4 / ADR-0010 §6): immediate ---
@@ -145,6 +159,10 @@ automation:
         for: "01:00:00"
       - trigger: state
         entity_id: binary_sensor.can_node_101_ground_floor_living_room_online
+        to: "off"
+        for: "01:00:00"
+      - trigger: state
+        entity_id: binary_sensor.can_node_102_first_floor_an_penta_led_controller_1_online
         to: "off"
         for: "01:00:00"
     actions:

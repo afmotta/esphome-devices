@@ -71,9 +71,15 @@ esphome:
     - ../canbus/protocol/canbus_protocol.h
     - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
     - ../canbus/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
-    - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash (ADR-0009 §3)
-    - ../lighting/protocol/binding_actuation.h   # fallback gesture/bounds pure logic (ADR-0013 §1-2)
-    - ../lighting/protocol/relay_store.h   # relay-id -> Switch* glue (ADR-0013 §1-2)
+    - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash + fallback table (ADR-0009 §3)
+    - ../lighting/protocol/binding_actuation.h   # fallback pure logic: gesture gate, relay bounds, target kind (ADR-0013, ADR-0020)
+    - ../lighting/protocol/relay_store.h   # fallback dispatch: local relay Switch* or CAT_OUTPUT CAN send (ADR-0013, ADR-0020)
+  on_boot:
+    # Register can0 as the OUTPUT-command sender for the ADR-0020 fallback path (mirrors
+    # relay_store()'s per-switch registration). fire_binding_fallback() reads it when a bound
+    # single-click targets a CAN actuator (e.g. an An-Penta strip) while HA is down.
+    - then:
+        - lambda: "can_output_sender() = id(can0);"
 
 # --------------- CAN Bus (native ESP32 TWAI) ---------------
 # The bus DEFINITION lives here in the entry point (ADR-0015 §2), not in a

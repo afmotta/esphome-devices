@@ -1,0 +1,118 @@
+# =============================================================================
+# an-penta-1.yaml — QuinLED-An-Penta-Plus LED controller (composition entry point)
+# =============================================================================
+# Hardware: QuinLED-An-Penta-Plus (boards/an-penta-plus.yaml)
+# System:   lighting (application). Drives dimmable LED strips over the board's LEDC PWM
+#           channels, and is a CAN actuator node (ADR-0020): it receives CAT_OUTPUT commands
+#           addressed to its node_id (registry/nodes.csv) and applies them to the strips — the
+#           HA-down path by which the lighting gateway drives these strips, independent of
+#           WiFi/HA. Normal (HA-up) control is unchanged: HA drives them over the WiFi native API.
+#
+# Channel map (THIS deployment): two tunable-white (CCT) strips.
+#   Strip 1  cold-white led_ch1 (GPIO33)   warm-white led_ch2 (GPIO32)
+#   Strip 2  cold-white led_ch3 (GPIO12)   warm-white led_ch4 (GPIO4)
+#   led_ch5 (GPIO2) — spare, no strip wired (declared by the board, unused here).
+#
+# This file owns identity/network-mode substitutions, api encryption + OTA
+# passwords, and the light-entity composition over the board's raw LEDC outputs.
+# The board file owns the esp32/api/ota scaffolding and the physical network
+# implementation (Ethernet vs WiFi).
+# =============================================================================
+
+substitutions:
+  logger_level: INFO
+  # `defaults:` only resolves for a file loaded via `!include`; this controller
+  # is compiled directly (no locals/remotes wrapper, mirroring
+  # devices/light-controller.yaml), so identity goes in `substitutions:` — that
+  # is the scope where the board file's ${device_name}/${friendly_name} resolve.
+  device_name: an-penta-1
+  friendly_name: "An-Penta LED Controller 1"
+  # Per-device HA API encryption key (health-monitor precedent), NOT the shared
+  # api_encryption_key. Add an_penta_1_encryption_key: to devices/secrets.yaml
+  # (openssl rand -base64 32). The template documents it too.
+  encryption_key: !secret an_penta_1_encryption_key
+  # ADR-0010 §5: authenticate OTA. Shared ota_password, as light-controller uses.
+  ota_password: !secret ota_password
+  # Onboard LAN8720 Ethernet by default; set "false" to fall back to WiFi.
+  enable_ethernet: true
+  # Tunable-white CCT endpoints — set these to your strips' rated temperatures.
+  cold_white_temp: "6500 K"
+  warm_white_temp: "2700 K"
+  # CAN actuator node (ADR-0020). node_id addresses this board on the house CAN bus and is a
+  # registry row (registry/nodes.csv, profile led-penta). The QWIIC header carries the external
+  # SN65HVD230 transceiver (boards/an-penta-plus.yaml): SCL=tx->CTX, SDA=rx<-CRX.
+  node_id: "102"
+  can_tx_pin: ${qwiic_scl_pin}
+  can_rx_pin: ${qwiic_sda_pin}
+
+packages:
+  board: !include
+    file: ../boards/an-penta-plus.yaml
+    vars:
+      enable_ethernet: ${enable_ethernet}
+  # CAN actuator behaviour (ADR-0020): can0 + CAT_OUTPUT receive -> strip dispatch + heartbeat.
+  can: !include ../lighting/packages/an_penta_can.yaml
+
+# Protocol header for the CAN actuator lambdas (an_penta_can.yaml). Flattened into src/ by
+# ESPHome; the package references it by flat filename.
+esphome:
+  includes:
+    - ../canbus/protocol/canbus_protocol.h
+
+# --- Autonomy when Home Assistant is down -----------------------------------
+# The board file's api: block sets the encryption key; these keys merge onto it
+# (package api: blocks merge, as light-controller.yaml relies on). By default a
+# device with no API client for 15 min reboots — pointless churn for a light
+# controller that must keep running without HA, so disable it.
+api:
+  reboot_timeout: 0s
+
+# Local control path independent of Home Assistant. web_server serves a REST API
+# plus a small dashboard straight from the device. Because this is a privileged
+# actuator (it drives mains-adjacent LED PSUs), the interface is authenticated,
+# mirroring the OTA posture in ADR-0010 §5.
+#
+# Example (REST works with no internet at all):
+#   curl -u admin:$PW -X POST http://an-penta-1.local/light/tunable_white_1/turn_on
+#   curl -u admin:$PW -X POST 'http://an-penta-1.local/light/tunable_white_1/turn_on?brightness=128&color_temperature=300'
+#   curl -u admin:$PW -X POST http://an-penta-1.local/light/tunable_white_2/turn_off
+# The REST endpoints use each light's object_id (slug of its name, e.g.
+# "Tunable White 1" -> tunable_white_1); renaming a light changes its path.
+# Only the v3 dashboard's JS/CSS load from a CDN — if you need the UI itself to
+# render with no internet, switch to `version: 2` + `local: true` (REST is
+# unaffected either way).
+web_server:
+  port: 80
+  version: 3
+  auth:
+    username: admin
+    password: !secret an_penta_1_web_password
+
+# Two tunable-white strips over the board's raw LEDC channels (led_ch1..led_ch4).
+# The `cwww` platform gives each strip a single brightness + colour-temperature
+# control derived from its cold-/warm-white pair. constant_brightness keeps the
+# combined output at one channel's worth, so mid-CCT is not twice as bright and
+# the PSU load stays flat across the colour-temperature range.
+#
+# Names/ids below are placeholders — rename them to the actual rooms/locations
+# once the strips are sited (the repo uses Italian room names, e.g. soggiorno).
+light:
+  - platform: cwww
+    name: "Tunable White 1"
+    id: tw1
+    cold_white: led_ch1
+    warm_white: led_ch2
+    cold_white_color_temperature: ${cold_white_temp}
+    warm_white_color_temperature: ${warm_white_temp}
+    constant_brightness: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: cwww
+    name: "Tunable White 2"
+    id: tw2
+    cold_white: led_ch3
+    warm_white: led_ch4
+    cold_white_color_temperature: ${cold_white_temp}
+    warm_white_color_temperature: ${warm_white_temp}
+    constant_brightness: true
+    restore_mode: RESTORE_DEFAULT_OFF

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "map_version": "b2f613b32416fb5d",
+  "map_version": "26f9aa208da5cbff",
   "manifest_hash": "d66767448ba37b2f",
   "nodes": [
     {
@@ -22,6 +22,16 @@
       "sensors": 1,
       "profile": "buttons+sensors",
       "room_slug": "soggiorno"
+    },
+    {
+      "node_id": 102,
+      "floor": 1,
+      "room": 9,
+      "board": 0,
+      "location": "First floor An-Penta LED controller 1",
+      "sensors": 0,
+      "profile": "led-penta",
+      "room_slug": ""
     }
   ]
 }

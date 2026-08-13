@@ -21,7 +21,7 @@
 #include <cstring>
 #include <type_traits>
 
-// ---- BindingEntry: the five frozen fields, exact types (frozen-additive:
+// ---- BindingEntry: the frozen fields, exact types (frozen-additive:
 //      additions tolerated, rename/retype/removal breaks the build here). ----
 static_assert(std::is_same<decltype(BindingEntry::node_id), uint16_t>::value,
               "contract drift: BindingEntry::node_id must be uint16_t");
@@ -33,6 +33,13 @@ static_assert(std::is_same<decltype(BindingEntry::relays), const uint8_t *>::val
               "contract drift: BindingEntry::relays must be const uint8_t*");
 static_assert(std::is_same<decltype(BindingEntry::op), const char *>::value,
               "contract drift: BindingEntry::op must be const char*");
+// CAN OUTPUT target (ADR-0020), added frozen-additive alongside the relay fields.
+static_assert(std::is_same<decltype(BindingEntry::target_kind), const char *>::value,
+              "contract drift: BindingEntry::target_kind must be const char*");
+static_assert(std::is_same<decltype(BindingEntry::target_node_id), uint16_t>::value,
+              "contract drift: BindingEntry::target_node_id must be uint16_t");
+static_assert(std::is_same<decltype(BindingEntry::channel), uint8_t>::value,
+              "contract drift: BindingEntry::channel must be uint8_t");
 
 // ---- binding_find: keyed (node_id, button), returns const BindingEntry*. ----
 static_assert(std::is_same<decltype(binding_find(uint16_t{0}, uint8_t{0})),
@@ -74,10 +81,13 @@ int main() {
   // global BINDINGS, so its loop is covered above via the miss probe; the keyed
   // comparison it uses is pinned here structurally.
   static constexpr uint8_t kRelays[] = {0, 2};
-  const BindingEntry local{100, 3, 2, kRelays, "toggle"};
+  const BindingEntry local{100, 3, 2, kRelays, "toggle", "relay", 0, 0};
   assert(local.node_id == 100 && local.button == 3);
   assert(local.relay_count == 2 && local.relays[1] == 2);
   assert(std::strcmp(local.op, "toggle") == 0);
+  // CAN OUTPUT target fields (ADR-0020) are present and settable through the same struct.
+  const BindingEntry out{101, 1, 0, nullptr, "toggle", "output", 102, 1};
+  assert(std::strcmp(out.target_kind, "output") == 0 && out.target_node_id == 102 && out.channel == 1);
 
   std::printf("bindings-contract: all surface pins hold\n");
   return 0;

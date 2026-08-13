@@ -29,11 +29,13 @@
 //     STATUS (heartbeat): [ver, MSG_HEARTBEAT, error_flags, uptime_lo, uptime_hi]  (uint16 LE)
 //
 // Controller -> node (OUTPUT) payloads carry command/config params: [ver, subtype, ...];
-// the node_id in the ID addresses the target (defined by the controller in a later slice).
+// the node_id in the ID addresses the target, which RX-filters on CAN_MASK_ADDR. The first
+// realized OUTPUT command is MSG_OUT_SET_CHANNEL — an actuator channel on/off/toggle (ADR-0020,
+// e.g. the gateway commanding an An-Penta LED strip when Home Assistant is down).
 //
-// Scope of this header (PR-A): the ID framework + the node TX path (button + heartbeat).
-// Sensors (CAT_SENSOR, ADR-0006) and the OUTPUT command set land in later slices; the
-// reserved low 12 bits stay 0 until a consumer needs to hardware-filter on them.
+// Scope of this header: the ID framework, the node TX path (button + heartbeat + sensor), and
+// the OUTPUT actuator command (MSG_OUT_SET_CHANNEL). The reserved low 12 bits stay 0 until a
+// consumer needs to hardware-filter on them.
 // =============================================================================
 
 // --------------- Protocol version ---------------
@@ -51,6 +53,7 @@ inline constexpr std::size_t HEADER_MIN = 2;            // [ver, type]
 inline constexpr std::size_t BUTTON_PAYLOAD_MIN = 4;    // [ver, type, button, event]
 inline constexpr std::size_t HEARTBEAT_PAYLOAD_MIN = 5; // [ver, type, errors, up_lo, up_hi]
 inline constexpr std::size_t SENSOR_PAYLOAD_MIN = 8;    // [ver, status, meas_lo, meas_hi, v0..v3]
+inline constexpr std::size_t OUTPUT_PAYLOAD_MIN = 4;   // [ver, subtype, channel, op] (CAT_OUTPUT, ADR-0020)
 
 // --------------- Categories (ID bits 28:25, 4 bits) ---------------
 // Lower value = higher CAN arbitration priority. 0-3 retained from v1.
@@ -81,6 +84,16 @@ inline constexpr uint8_t MSG_BUTTON_EVENT = 0x01;
 inline constexpr uint8_t MSG_HEARTBEAT = 0x01;
 inline constexpr uint8_t MSG_CONFIG_WRITE = 0x02;
 inline constexpr uint8_t MSG_CONFIG_ACK = 0x03;
+// OUTPUT command subtype (CAT_OUTPUT, controller -> node, ADR-0020). 0x10 starts the
+// actuator-command family, distinct from the 0x02/0x03 config-management subtypes above.
+inline constexpr uint8_t MSG_OUT_SET_CHANNEL = 0x10;
+
+// --------------- OUTPUT op codes (MSG_OUT_SET_CHANNEL payload byte 3) ---------------
+// Mirrors the relay on|off|toggle vocabulary (ADR-0013 single-click semantics); numeric on
+// the wire. A dimming/level op is a future addition (frozen-additive), not defined here.
+inline constexpr uint8_t OUT_OP_OFF = 0x00;
+inline constexpr uint8_t OUT_OP_ON = 0x01;
+inline constexpr uint8_t OUT_OP_TOGGLE = 0x02;
 
 // --------------- Button event types (payload) ---------------
 inline constexpr uint8_t EVT_CLICK = 0x01;
@@ -170,6 +183,15 @@ inline std::vector<uint8_t> sensor_payload(uint16_t measurement_type, int32_t va
           (uint8_t)((v >> 16) & 0xFF), (uint8_t)((v >> 24) & 0xFF)};
 }
 
+// OUTPUT command (CAT_OUTPUT, controller -> node, ADR-0020): [ver, MSG_OUT_SET_CHANNEL, channel, op].
+// The target node is addressed by node_id in the CAN ID (can_id(CAT_OUTPUT, node)); the node
+// RX-filters on CAN_MASK_ADDR. `channel` selects the node's output (e.g. an An-Penta light
+// index); `op` is OUT_OP_OFF/ON/TOGGLE.
+inline std::vector<uint8_t> output_payload(uint8_t channel, uint8_t op)
+{
+  return {PROTO_V1, MSG_OUT_SET_CHANNEL, channel, op};
+}
+
 // =============================================================================
 // Payload decoders — for controller/gateway use
 // =============================================================================
@@ -205,6 +227,10 @@ inline int32_t payload_sensor_value32(const std::vector<uint8_t> &d)
   return (int32_t)((uint32_t)d[4] | ((uint32_t)d[5] << 8) |
                    ((uint32_t)d[6] << 16) | ((uint32_t)d[7] << 24));
 }
+
+// OUTPUT command content (after the [ver, subtype] header) — channel at byte 2, op at byte 3.
+inline uint8_t payload_output_channel(const std::vector<uint8_t> &d) { return d.size() > 2 ? d[2] : 0; }
+inline uint8_t payload_output_op(const std::vector<uint8_t> &d) { return d.size() > 3 ? d[3] : OUT_OP_OFF; }
 
 // Event type to string (for HA events)
 inline std::string event_type_str(uint8_t event_type)

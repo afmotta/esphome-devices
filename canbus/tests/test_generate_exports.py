@@ -158,8 +158,8 @@ def test_bindings_header_populated_and_sorted():
     assert "sizeof(BINDINGS)" in h
     # Keyed by (node_id, button) — no event (fallback is single-click only). Each entry carries
     # a {relay_count, relays-array} list (ADR-0009 open item 1). Sorted: node 100 precedes 101.
-    i100 = h.index('{100, 0, 1, BINDING_RELAYS_0, "toggle"}')
-    i101 = h.index('{101, 3, 1, BINDING_RELAYS_1, "on"}')
+    i100 = h.index('{100, 0, 1, BINDING_RELAYS_0, "toggle", "relay", 0, 0}')
+    i101 = h.index('{101, 3, 1, BINDING_RELAYS_1, "on", "relay", 0, 0}')
     assert i100 < i101
     assert "inline constexpr uint8_t BINDING_RELAYS_0[] = {0};" in h
     assert "inline constexpr uint8_t BINDING_RELAYS_1[] = {2};" in h
@@ -172,7 +172,19 @@ def test_bindings_header_multi_relay_fanout():
         HASH, [{"node_id": 100, "button": 1, "relay": "2,0,1", "op": "toggle"}]
     )
     assert "inline constexpr uint8_t BINDING_RELAYS_0[] = {0, 1, 2};" in h
-    assert '{100, 1, 3, BINDING_RELAYS_0, "toggle"}' in h
+    assert '{100, 1, 3, BINDING_RELAYS_0, "toggle", "relay", 0, 0}' in h
+
+
+def test_bindings_header_output_target():
+    # A CAN OUTPUT binding (ADR-0020) renders with no relay list (0, nullptr) and its target
+    # node/channel inline, discriminated by target_kind "output".
+    h = g.render_bindings_header(
+        HASH, [{"node_id": 100, "button": 2, "output": "102/1", "op": "toggle"}]
+    )
+    assert '{100, 2, 0, nullptr, "toggle", "output", 102, 1}' in h
+    assert "BINDING_RELAYS_0" not in h  # no relay array for an output-only manifest
+    # The struct carries the frozen-additive output fields.
+    assert "target_kind" in h and "target_node_id" in h and "channel" in h
 
 
 def test_node_map_emits_version_constant():
@@ -541,9 +553,40 @@ def test_every_profile_supplies_exactly_one_platform_board():
     # canbed-rp2040-can1.yaml is a pure add-on (no platform), so it does not count.
     ADD_ONS = {"canbed-rp2040-can1.yaml"}
     for name, profile in g.PROFILES.items():
+        if profile.external:
+            continue  # external actuators (ADR-0020) generate no node YAML — they bring no board
         platform_boards = [f for _k, f in profile.boards if f not in ADD_ONS]
         assert len(platform_boards) == 1, \
             f"profile {name!r} supplies {len(platform_boards)} platform boards: {platform_boards}"
+
+
+def test_external_profile_reserves_node_without_generating_yaml():
+    # An external actuator profile (ADR-0020, led-penta) is a first-class registry node — it
+    # reserves a node_id and lands in node_map.h + map.json (so it is addressable and health-
+    # tracked) — but generates NO node YAML: its firmware is a hand-composed entry point
+    # (devices/an-penta-1.yaml), not a CANBed node config.
+    import json
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        nodes_csv = (
+            "node_id,floor,room,board,location,profile,room_slug\n"
+            "100,0,7,0,Hall,buttons,\n"
+            "102,1,9,0,An-Penta LED,led-penta,\n"
+        )
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _out, err = _run_temp_generator(repo_root, root)
+        assert code == 0, err
+        # The CANBed node still generates a YAML; the external node does not.
+        yamls = {p.name for p in (root / "nodes").glob("*.yaml")}
+        assert "node100.yaml" in yamls
+        assert not any("102" in n for n in yamls), f"external node generated a YAML: {yamls}"
+        # It IS in node_map.h (name resolution + health) ...
+        node_map = (root / "protocol" / "node_map.h").read_text()
+        assert "102" in node_map and "An-Penta LED" in node_map
+        # ... and in map.json as a non-sensor node.
+        m = json.loads((repo_root / "registry" / "map.json").read_text())
+        row = next(n for n in m["nodes"] if n["node_id"] == 102)
+        assert row["sensors"] == 0 and row["profile"] == "led-penta"
 
 
 def test_bridge_profiles_supply_a_second_can_port():

@@ -115,7 +115,11 @@ packages:
 #   sensors  — requires a room_slug, feeds the Climate route artifacts and map.json `sensors`
 #   prefix   — generated filename and ESPHome device name stem
 #   kind     — human label in the file header and friendly_name
-Profile = namedtuple("Profile", "boards packages buttons sensors prefix kind")
+# `external`: a registry-addressed node whose firmware is NOT generated here — a hand-composed
+# entry point on a non-CANBed board (e.g. the An-Penta LED actuator, ADR-0020). It still reserves
+# a node_id and lands in node_map.h / map.json / HA health, but produces no canbus/nodes/*.yaml.
+Profile = namedtuple("Profile", "boards packages buttons sensors prefix kind external")
+Profile.__new__.__defaults__ = (False,)  # `external` defaults False; existing profiles omit it
 
 CANBED = (("board", "canbed-rp2040.yaml"),)
 CANBED_DUAL_CAN = CANBED + (("can1_board", "canbed-rp2040-can1.yaml"),)
@@ -155,6 +159,15 @@ PROFILES = {
         boards=CANBED_DUAL_CAN,
         packages=(("buttons", "buttons_8.yaml"), ("bridge", "bridge.yaml")),
         buttons=True, sensors=False, prefix="bridge", kind="Bridge",
+    ),
+    # External CAN actuator (ADR-0020): a non-CANBed board (the An-Penta LED controller) that
+    # RECEIVES CAT_OUTPUT commands rather than sending button/sensor frames. Its firmware is the
+    # hand-composed devices/an-penta-1.yaml entry point, so no node YAML is generated — but it is
+    # a first-class registry node (node_id + node_map + map.json + HA health, and it heartbeats
+    # like any node). No boards/packages: the generator emits only the registry-derived exports.
+    "led-penta": Profile(
+        boards=(), packages=(), buttons=False, sensors=False,
+        prefix="node", kind="Actuator", external=True,
     ),
 }
 
@@ -470,21 +483,32 @@ def render_bindings_header(manifest_hash: str, bindings_list) -> str:
     """
     ordered = sorted(bindings_list, key=lambda b: (b["node_id"], b["button"]))
     if ordered:
-        # Each binding's relay list is a named static array the table points at; the list is
-        # normalized (sorted, de-duplicated) by the same parser the hash uses.
-        relay_lists = [bindings.parse_relays(b["relay"]) for b in ordered]
-        decls = "\n".join(
-            f"inline constexpr uint8_t BINDING_RELAYS_{i}[] = {{{', '.join(map(str, relays))}}};"
-            for i, relays in enumerate(relay_lists)
-        )
-        rows = "\n".join(
-            f'    {{{b["node_id"]}, {b["button"]}, '
-            f'{len(relays)}, BINDING_RELAYS_{i}, "{_c_str(str(b["op"]))}"}},'
-            for i, (b, relays) in enumerate(zip(ordered, relay_lists))
-        )
+        # Each RELAY binding's fan-out list is a named static array the table points at (normalized
+        # by the same parser the hash uses); an OUTPUT binding (ADR-0020) carries no relay list —
+        # its target is {target_node_id, channel} inline. target_kind ("relay"/"output") tells the
+        # gateway which fields to read.
+        decls = []
+        rows = []
+        for i, b in enumerate(ordered):
+            if "relay" in b:
+                relays = bindings.parse_relays(b["relay"])
+                decls.append(
+                    f"inline constexpr uint8_t BINDING_RELAYS_{i}[] = {{{', '.join(map(str, relays))}}};"
+                )
+                rows.append(
+                    f'    {{{b["node_id"]}, {b["button"]}, {len(relays)}, BINDING_RELAYS_{i}, '
+                    f'"{_c_str(str(b["op"]))}", "relay", 0, 0}},'
+                )
+            else:
+                tgt_node, channel = bindings.parse_output(b["output"])
+                rows.append(
+                    f'    {{{b["node_id"]}, {b["button"]}, 0, nullptr, '
+                    f'"{_c_str(str(b["op"]))}", "output", {tgt_node}, {channel}}},'
+                )
+        decls_block = ("\n".join(decls) + "\n") if decls else ""
         table = (
-            f"{decls}\n"
-            f"inline constexpr BindingEntry BINDINGS[] = {{\n{rows}\n}};\n"
+            f"{decls_block}"
+            f"inline constexpr BindingEntry BINDINGS[] = {{\n" + "\n".join(rows) + "\n};\n"
             "inline constexpr std::size_t BINDINGS_SIZE = sizeof(BINDINGS) / sizeof(BINDINGS[0]);\n"
         )
     else:
@@ -505,13 +529,15 @@ def render_bindings_header(manifest_hash: str, bindings_list) -> str:
         "// which the gateway compares against the hash Home Assistant echoes in its readiness\n"
         "// heartbeat (ADR-0003); a mismatch keeps ha_ready off. BINDINGS[] is the controller's\n"
         "// fallback action table — frozen-additive, currently log-only (ADR-0003 open item 7).\n"
-        "// Keyed by (node_id, button): fallback fires on the single click only. relays/relay_count\n"
-        "// carry one-or-more gateway relay ids so one click can fan out to several relays\n"
-        "// (ADR-0009 open item 1); the single `op` applies to every relay.\n"
+        "// Keyed by (node_id, button): fallback fires on the single click only. target_kind is\n"
+        "// \"relay\" (drive gateway relays[0..relay_count) — fan-out, ADR-0009 open item 1) or\n"
+        "// \"output\" (send a CAT_OUTPUT command to target_node_id/channel — a CAN actuator like an\n"
+        "// An-Penta LED strip, ADR-0020); the single `op` applies to the target.\n"
         "// =============================================================================\n\n"
         f'inline constexpr char BINDINGS_MANIFEST_HASH[] = "{manifest_hash}";\n\n'
         "struct BindingEntry { uint16_t node_id; uint8_t button; "
-        "uint8_t relay_count; const uint8_t *relays; const char *op; };\n\n"
+        "uint8_t relay_count; const uint8_t *relays; const char *op; "
+        "const char *target_kind; uint16_t target_node_id; uint8_t channel; };\n\n"
         f"{table}\n"
         "inline const BindingEntry *binding_find(uint16_t node_id, uint8_t button) {\n"
         "  for (std::size_t i = 0; i < BINDINGS_SIZE; i++)\n"
@@ -1047,7 +1073,10 @@ def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):
         bindings_path.write_text("schema_version: 1\nbindings: []\n")
 
     manifest = bindings.load_bindings(bindings_path)
-    errors = bindings.validate(manifest, set(seen_node_ids))
+    # CAN OUTPUT targets (ADR-0020) may only address external-actuator nodes (led-penta); pass
+    # that subset so a binding to a button/sensor node's "output" is rejected, not silently dead.
+    actuator_node_ids = {n["node_id"] for n in export_nodes if PROFILES[n["profile"]].external}
+    errors = bindings.validate(manifest, set(seen_node_ids), actuator_node_ids)
     if errors:
         print("ERROR: invalid binding manifest (registry/bindings.yaml):", file=sys.stderr)
         for e in errors:
@@ -1182,9 +1211,6 @@ def main():
                     sys.exit(1)
                 seen_room_board[(room, board)] = location
 
-            filename, yaml_content = render_node(node_id, profile_name)
-            status_id = can_id(CAT_STATUS, node_id)
-
             floor_groups.setdefault(floor, []).append((node_id, room, board, location, profile_name))
             map_entries.append((node_id, room, board, location))
             export_nodes.append({
@@ -1192,12 +1218,18 @@ def main():
                 "location": location, "profile": profile_name,
                 "room_slug": room_slug,
             })
-            node_files.append((
-                out_dir / filename, yaml_content,
-                f"  ✓ {filename}  Status=0x{status_id:08X}  node_id={node_id}  "
-                f"[{location}]  ({profile_name})",
-            ))
-            count += 1
+            # External actuators (ADR-0020) reserve a node_id and land in node_map / map.json /
+            # HA health above, but generate no node YAML — their firmware is a hand-composed entry
+            # point (devices/an-penta-1.yaml), not a CANBed node config.
+            if not PROFILES[profile_name].external:
+                filename, yaml_content = render_node(node_id, profile_name)
+                status_id = can_id(CAT_STATUS, node_id)
+                node_files.append((
+                    out_dir / filename, yaml_content,
+                    f"  ✓ {filename}  Status=0x{status_id:08X}  node_id={node_id}  "
+                    f"[{location}]  ({profile_name})",
+                ))
+                count += 1
 
     # Binding-derived exports (ADR-0009 §4/§7): validate the manifest against the registry,
     # then emit bindings.h (hash + fallback table), map.json, and the generated HA package.
