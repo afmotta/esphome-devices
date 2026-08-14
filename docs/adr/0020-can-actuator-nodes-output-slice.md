@@ -21,7 +21,7 @@ relatedDocuments:
   - canbus/tools/generate_nodes.py
   - canbus/tools/bindings.py
   - registry/nodes.csv
-  - lighting/packages/an_penta_can.yaml
+  - lighting/packages/led_can_actuator.yaml
   - lighting/protocol/binding_actuation.h
   - lighting/protocol/relay_store.h
   - devices/an-penta-1.yaml
@@ -81,7 +81,8 @@ any future CAN actuator reuses it.
 
 ### 2. The An-Penta as a CAN actuator node
 
-`lighting/packages/an_penta_can.yaml` declares `can0` (esp32_can on the QWIIC pins, 125 kbps) with
+`lighting/packages/led_can_actuator.yaml` (named `an_penta_can.yaml` at the time of this ADR;
+generalized to serve both boards in ADR-0021) declares `can0` (esp32_can on the QWIIC pins, 125 kbps) with
 an `on_frame` that decodes CAT_OUTPUT commands addressed to its node_id (channel → `tw1`/`tw2`,
 op → turn_on/off/toggle), plus a CAT_STATUS heartbeat so the health monitor tracks it like any
 node. Composed by `devices/an-penta-1.yaml`, which keeps its WiFi + HA API (the normal path).

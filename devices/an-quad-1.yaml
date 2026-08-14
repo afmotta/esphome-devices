@@ -1,57 +1,51 @@
 # =============================================================================
-# an-penta-1.yaml — QuinLED-An-Penta-Plus LED controller (composition entry point)
+# an-quad-1.yaml — QuinLED-An-Quad LED controller (composition entry point)
 # =============================================================================
-# Hardware: QuinLED-An-Penta-Plus (boards/an-penta-plus.yaml)
+# Hardware: QuinLED-An-Quad (boards/an-quad.yaml) — WiFi-only, 4-channel analog LED board.
 # System:   lighting (application). Drives dimmable LED strips over the board's LEDC PWM
 #           channels, and is a CAN actuator node (ADR-0020): it receives CAT_OUTPUT commands
 #           addressed to its node_id (registry/nodes.csv) and applies them to the strips — the
 #           HA-down path by which the lighting gateway drives these strips, independent of
 #           WiFi/HA. Normal (HA-up) control is unchanged: HA drives them over the WiFi native API.
 #
-# Channel map (THIS deployment): two tunable-white (CCT) strips.
-#   Strip 1  cold-white led_ch1 (GPIO33)   warm-white led_ch2 (GPIO32)
-#   Strip 2  cold-white led_ch3 (GPIO12)   warm-white led_ch4 (GPIO4)
-#   led_ch5 (GPIO2) — spare, no strip wired (declared by the board, unused here).
+# Channel map (THIS deployment): two tunable-white (CCT) strips over the four channels.
+#   Strip 1  cold-white led_ch1 (GPIO16)   warm-white led_ch2 (GPIO17)
+#   Strip 2  cold-white led_ch3 (GPIO5)    warm-white led_ch4 (GPIO19)
 #
-# This file owns identity/network-mode substitutions, api encryption + OTA
-# passwords, and the light-entity composition over the board's raw LEDC outputs.
-# The board file owns the esp32/api/ota scaffolding and the physical network
-# implementation (Ethernet vs WiFi).
+# This file owns identity/network substitutions, api encryption + OTA passwords, and the
+# light-entity composition over the board's raw LEDC outputs. The board file owns the
+# esp32/api/ota scaffolding and the WiFi network implementation.
 # =============================================================================
 
 substitutions:
   logger_level: INFO
   # `defaults:` only resolves for a file loaded via `!include`; this controller
   # is compiled directly (no locals/remotes wrapper, mirroring
-  # devices/light-controller.yaml), so identity goes in `substitutions:` — that
-  # is the scope where the board file's ${device_name}/${friendly_name} resolve.
-  device_name: an-penta-1
-  friendly_name: "An-Penta LED Controller 1"
-  # Per-device HA API encryption key (health-monitor precedent), NOT the shared
-  # api_encryption_key. Add an_penta_1_encryption_key: to devices/secrets.yaml
+  # devices/an-penta-1.yaml), so identity goes in `substitutions:` — that is the
+  # scope where the board file's ${device_name}/${friendly_name} resolve.
+  device_name: an-quad-1
+  friendly_name: "An-Quad LED Controller 1"
+  # Per-device HA API encryption key (health-monitor / An-Penta precedent), NOT the shared
+  # api_encryption_key. Add an_quad_1_encryption_key: to devices/secrets.yaml
   # (openssl rand -base64 32). The template documents it too.
-  encryption_key: !secret an_penta_1_encryption_key
+  encryption_key: !secret an_quad_1_encryption_key
   # ADR-0010 §5: authenticate OTA. Shared ota_password, as light-controller uses.
   ota_password: !secret ota_password
-  # Onboard LAN8720 Ethernet by default; set "false" to fall back to WiFi.
-  enable_ethernet: true
   # Tunable-white CCT endpoints — set these to your strips' rated temperatures.
   cold_white_temp: "6500 K"
   warm_white_temp: "2700 K"
-  # CAN actuator node (ADR-0020). node_id addresses this board on the house CAN bus and is a
-  # registry row (registry/nodes.csv, profile led-penta). The QWIIC header carries the external
-  # SN65HVD230 transceiver (boards/an-penta-plus.yaml): SCL=tx->CTX, SDA=rx<-CRX.
-  node_id: "102"
-  can_tx_pin: ${qwiic_scl_pin}
-  can_rx_pin: ${qwiic_sda_pin}
+  # CAN actuator node (ADR-0020/ADR-0021). node_id addresses this board on the house CAN bus and
+  # is a registry row (registry/nodes.csv, profile led-quad). The external SN65HVD230 transceiver
+  # rides the An-Quad's spare expansion-header GPIOs (boards/an-quad.yaml): aux_gpio_1=GPIO22=tx->CTX,
+  # aux_gpio_2=GPIO23=rx<-CRX (confirmed from the schematic; flip if wired the other way).
+  node_id: "103"
+  can_tx_pin: ${aux_gpio_1}
+  can_rx_pin: ${aux_gpio_2}
 
 packages:
-  board: !include
-    file: ../boards/an-penta-plus.yaml
-    vars:
-      enable_ethernet: ${enable_ethernet}
+  board: !include ../boards/an-quad.yaml
   # CAN actuator behaviour (ADR-0020): can0 + CAT_OUTPUT receive -> strip dispatch + heartbeat.
-  # Shared, board-neutral package (ADR-0021) — the An-Quad composes the same one.
+  # Shared, board-neutral package (ADR-0021) — the same one the An-Penta composes.
   can: !include ../lighting/packages/led_can_actuator.yaml
 
 # Protocol header for the CAN actuator lambdas (led_can_actuator.yaml). Flattened into src/ by
@@ -74,9 +68,9 @@ api:
 # mirroring the OTA posture in ADR-0010 §5.
 #
 # Example (REST works with no internet at all):
-#   curl -u admin:$PW -X POST http://an-penta-1.local/light/tunable_white_1/turn_on
-#   curl -u admin:$PW -X POST 'http://an-penta-1.local/light/tunable_white_1/turn_on?brightness=128&color_temperature=300'
-#   curl -u admin:$PW -X POST http://an-penta-1.local/light/tunable_white_2/turn_off
+#   curl -u admin:$PW -X POST http://an-quad-1.local/light/tunable_white_1/turn_on
+#   curl -u admin:$PW -X POST 'http://an-quad-1.local/light/tunable_white_1/turn_on?brightness=128&color_temperature=300'
+#   curl -u admin:$PW -X POST http://an-quad-1.local/light/tunable_white_2/turn_off
 # The REST endpoints use each light's object_id (slug of its name, e.g.
 # "Tunable White 1" -> tunable_white_1); renaming a light changes its path.
 # Only the v3 dashboard's JS/CSS load from a CDN — if you need the UI itself to
@@ -87,7 +81,7 @@ web_server:
   version: 3
   auth:
     username: admin
-    password: !secret an_penta_1_web_password
+    password: !secret an_quad_1_web_password
 
 # Two tunable-white strips over the board's raw LEDC channels (led_ch1..led_ch4).
 # The `cwww` platform gives each strip a single brightness + colour-temperature

@@ -160,12 +160,20 @@ PROFILES = {
         packages=(("buttons", "buttons_8.yaml"), ("bridge", "bridge.yaml")),
         buttons=True, sensors=False, prefix="bridge", kind="Bridge",
     ),
-    # External CAN actuator (ADR-0020): a non-CANBed board (the An-Penta LED controller) that
-    # RECEIVES CAT_OUTPUT commands rather than sending button/sensor frames. Its firmware is the
-    # hand-composed devices/an-penta-1.yaml entry point, so no node YAML is generated — but it is
-    # a first-class registry node (node_id + node_map + map.json + HA health, and it heartbeats
-    # like any node). No boards/packages: the generator emits only the registry-derived exports.
+    # External CAN actuators (ADR-0020): non-CANBed boards (the QuinLED An-Penta-Plus / An-Quad
+    # LED controllers) that RECEIVE CAT_OUTPUT commands rather than sending button/sensor frames.
+    # Their firmware is a hand-composed devices/an-*-1.yaml entry point, so no node YAML is
+    # generated — but each is a first-class registry node (node_id + node_map + map.json + HA
+    # health, and it heartbeats like any node). No boards/packages: the generator emits only the
+    # registry-derived exports. These are the one profile family with empty boards/packages, gated
+    # by the `external` attribute rather than an `if profile ==` branch.
+    #   led-penta  5-channel An-Penta-Plus (devices/an-penta-1.yaml, boards/an-penta-plus.yaml)
+    #   led-quad   4-channel An-Quad, WiFi-only (devices/an-quad-1.yaml, boards/an-quad.yaml)
     "led-penta": Profile(
+        boards=(), packages=(), buttons=False, sensors=False,
+        prefix="node", kind="Actuator", external=True,
+    ),
+    "led-quad": Profile(
         boards=(), packages=(), buttons=False, sensors=False,
         prefix="node", kind="Actuator", external=True,
     ),

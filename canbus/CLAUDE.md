@@ -70,13 +70,13 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
 - **Bridges are ordinary registry rows.** A bridge carries a `node_id` from the same
   allocation space, so it lands in `node_map.h`, `map.json`, and the generated HA
   per-node health entities for free.
-- **External actuator nodes** (`profile.external`, e.g. `led-penta`, ADR-0020) are also
-  ordinary registry rows — they reserve a `node_id` and land in `node_map.h`/`map.json`/health —
-  but their firmware is a hand-composed entry point on a non-CANBed board (`devices/an-penta-1.yaml`),
-  so the generator emits **no** `canbus/nodes/*.yaml` for them. Such a node RECEIVES `CAT_OUTPUT`
-  commands (an actuator) rather than sending button/sensor frames; it still heartbeats. This is the
-  one profile with empty `boards`/`packages` — gated by the `external` attribute, not an
-  `if profile ==` branch.
+- **External actuator nodes** (`profile.external`, e.g. `led-penta` / `led-quad`, ADR-0020/ADR-0021)
+  are also ordinary registry rows — they reserve a `node_id` and land in `node_map.h`/`map.json`/health —
+  but their firmware is a hand-composed entry point on a non-CANBed board (`devices/an-penta-1.yaml`,
+  `devices/an-quad-1.yaml`), so the generator emits **no** `canbus/nodes/*.yaml` for them. Such a node
+  RECEIVES `CAT_OUTPUT` commands (an actuator) rather than sending button/sensor frames; it still
+  heartbeats. This is the one profile family with empty `boards`/`packages` — gated by the `external`
+  attribute, not an `if profile ==` branch.
 - **Two bridge boards** (ADR-0017 §1). `bridge-t2can` on the LilyGO T-2CAN is
   **preferred** — one integrated board, backbone on the interrupt-driven TWAI
   controller. `bridge` / `buttons+bridge` on the CANBed + a 3.3 V add-on MCP2515

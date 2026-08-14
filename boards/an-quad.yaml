@@ -1,0 +1,153 @@
+# =============================================================================
+# an-quad.yaml — QuinLED-An-Quad board hardware
+# =============================================================================
+# Generic board package for the QuinLED-An-Quad: a classic-ESP32, WiFi-only,
+# 4-channel analog (PWM) LED controller. Unlike the An-Penta-Plus it has NO
+# Ethernet PHY, so WiFi is the only network and its config lives inline here —
+# there is no network_package indirection or -wifi/-ethernet split (that pattern
+# only earns its keep on a board that has both, like the An-Penta-Plus). This
+# file owns only fixed board hardware and the esp32/wifi/api/ota scaffolding. How
+# the four output channels are grouped into light entities (monochrome / CCT /
+# RGB / RGBW) and whether the two spare header GPIOs carry anything (a CAN
+# transceiver, in the actuator deployment) are application composition and belong
+# in the entry point, not here (AD-4: entry-point composition, not board concerns).
+#
+# Hardware reference (quinled.info An-Quad pinout + its ESPHome sample config):
+#   LED ch1  GPIO16   LED ch2  GPIO17   LED ch3  GPIO5*   LED ch4  GPIO19
+#   Onboard DS18B20 temperature sensor  GPIO18   (left UNCLAIMED; app policy)
+#   Two spare GPIOs on the pin header   GPIO22 / GPIO23  (aux_gpio_1/aux_gpio_2)
+#   * GPIO5 is an ESP32 strapping pin (boot log / SDIO timing); the board is
+#     designed around driving an LED channel on it, so its LEDC output sets
+#     ignore_strapping_warning below (same discipline as the An-Penta's GPIO12/2).
+#
+#   NOTE: the two spare-header GPIOs (aux_gpio_1/aux_gpio_2) are wired to the
+#   external CAN transceiver in the ADR-0020/ADR-0021 actuator deployment (see the
+#   entry point devices/an-quad-1.yaml). The An-Quad, unlike the An-Penta-Plus, has
+#   no QWIIC/I2C header — these are its plain expansion-header GPIOs, confirmed from
+#   the An-Quad schematic (GPIO22 = tx, GPIO23 = rx). Neither is a strapping pin, so
+#   the tx/rx assignment is free; flip it if the transceiver is wired the other way.
+# =============================================================================
+
+substitutions:
+  # Placeholder default only. Every entry point overrides device_name (and
+  # friendly_name), and that override wins for the resolved esphome.name. It is
+  # kept here so the ${device_name} references in this file — esphome.name and the
+  # wifi_info text_sensor names below — still resolve if the board is inspected on
+  # its own. friendly_name is deliberately NOT defaulted (a board-level default
+  # would override the entry point's value; nothing here references it eagerly).
+  device_name: an-quad
+  logger_level: INFO
+
+  # Fixed board GPIOs exposed so entry points/packages can compose devices on
+  # them without hardcoding pins. The four LED channels are declared as raw LEDC
+  # outputs below; the temperature-sensor and spare-header pins are left for the
+  # entry point (their behaviour is application policy).
+  led_pwm_frequency: "20000Hz" # quinled.info An-Quad ESPHome sample default
+  temperature_sensor_pin: GPIO18 # onboard DS18B20 (unclaimed by the board)
+  # Two GPIOs broken out on the An-Quad expansion header (the board's "2 GPIO
+  # in/outputs available through pin headers"). Left UNCLAIMED by the board so an
+  # entry point decides their use; in this repo the An-Quad is a CAN LED actuator
+  # (ADR-0020/ADR-0021), so the entry point composes an external SN65HVD230 CAN
+  # transceiver on them (aux_gpio_1 -> CTX as TWAI tx, aux_gpio_2 -> CRX as TWAI rx).
+  # Neither is a strapping pin, so there is no boot-level constraint on the split.
+  aux_gpio_1: GPIO22 # spare header GPIO — CAN tx (to transceiver CTX) in the actuator deployment
+  aux_gpio_2: GPIO23 # spare header GPIO — CAN rx (from transceiver CRX) in the actuator deployment
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  # Repo toolchain floor (not an An-Quad hardware requirement); keeps every entry
+  # point on one ESPHome baseline.
+  min_version: 2026.7.0
+  comment: "QuinLED-An-Quad"
+
+# Classic ESP32 (ESP32-WROOM-32), WiFi only — no RMII Ethernet PHY on this board.
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+  level: ${logger_level}
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${encryption_key}
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+# WiFi — the An-Quad's only network (no Ethernet PHY), so it is declared directly
+# here rather than in a swappable network package.
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# # Enable AP when WiFi connection fails
+# ap:
+#   ssid: ${device_name} AP
+#   password: !secret wifi_hotspot_pass
+
+# captive_portal:
+
+# The spare expansion-header GPIOs (aux_gpio_1/aux_gpio_2) are intentionally NOT claimed here —
+# they are exposed as substitutions above and an entry point decides their use (AD-4). In this
+# repo the An-Quad is a CAN LED actuator (ADR-0020/ADR-0021), so the entry point composes a CAN
+# transceiver on those pins.
+
+# Four LEDC PWM channels — the board's fixed, defining hardware, given stable ids
+# (led_ch1..led_ch4). Entry points build light entities on top of these raw
+# outputs, which by themselves impose no colour-mode policy.
+output:
+  - platform: ledc
+    id: led_ch1
+    pin: GPIO16
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch2
+    pin: GPIO17
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch3
+    pin:
+      number: GPIO5 # strapping pin (boot log / SDIO timing); board is designed for it
+      ignore_strapping_warning: true
+    frequency: ${led_pwm_frequency}
+  - platform: ledc
+    id: led_ch4
+    pin: GPIO19
+    frequency: ${led_pwm_frequency}
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${device_name} - IP Address"
+    ssid:
+      name: "${device_name} - Wi-Fi SSID"
+    bssid:
+      name: "${device_name} - Wi-Fi BSSID"
+
+# Virtual buttons (no GPIO) — standard board maintenance controls.
+button:
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config

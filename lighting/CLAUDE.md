@@ -75,11 +75,15 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
   `output` target (ADR-0020) sends a `CAT_OUTPUT` command over `can0` to a remote
   actuator node (an An-Penta strip). CAN TX is non-blocking, so it fires inline
   (no queue). Not natively tested (needs real esphome objects).
-- `packages/an_penta_can.yaml` — the An-Penta's CAN-actuator behaviour (ADR-0020):
-  `can0` (esp32_can on the QWIIC-header transceiver) with an `on_frame` that
-  applies `CAT_OUTPUT` `MSG_OUT_SET_CHANNEL` commands addressed to its node_id to
-  `tw1`/`tw2`, plus a `CAT_STATUS` heartbeat. Composed by `devices/an-penta-1.yaml`
-  (not the gateway — this is the *receiving* actuator side).
+- `packages/led_can_actuator.yaml` — the CAN-actuator behaviour shared by both
+  QuinLED LED boards (ADR-0020/ADR-0021): `can0` (esp32_can on the board's two
+  transceiver GPIOs) with an `on_frame` that applies `CAT_OUTPUT`
+  `MSG_OUT_SET_CHANNEL` commands addressed to its node_id to `tw1`/`tw2`, plus a
+  `CAT_STATUS` heartbeat. Board-neutral — the transceiver pins come from the entry
+  point via `can_tx_pin`/`can_rx_pin` — so the An-Penta (`devices/an-penta-1.yaml`,
+  QWIIC-header transceiver) and the An-Quad (`devices/an-quad-1.yaml`, expansion-
+  header transceiver) compose the one file. This is the *receiving* actuator side,
+  not the gateway.
 - `tests/test_binding_actuation.cpp` — native test for the pure logic, incl. the
   ADR-0020 `binding_is_output`/`out_op_from_str` helpers (see Test & verify below
   for the required `-I` flags).

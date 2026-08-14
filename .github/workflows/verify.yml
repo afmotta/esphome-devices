@@ -42,6 +42,8 @@ jobs:
             devices/light-controller.yaml \
             devices/light-controller-touch.yaml \
             devices/health-monitor.yaml \
+            devices/an-penta-1.yaml \
+            devices/an-quad-1.yaml \
             canbus/tests/compile_bridge.yaml \
             canbus/tests/compile_buttons_bridge.yaml \
             canbus/tests/compile_bridge_t2can.yaml \

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "map_version": "26f9aa208da5cbff",
+  "map_version": "ac496c37828fed88",
   "manifest_hash": "d66767448ba37b2f",
   "nodes": [
     {
@@ -31,6 +31,16 @@
       "location": "First floor An-Penta LED controller 1",
       "sensors": 0,
       "profile": "led-penta",
+      "room_slug": ""
+    },
+    {
+      "node_id": 103,
+      "floor": 1,
+      "room": 10,
+      "board": 0,
+      "location": "First floor An-Quad LED controller 1",
+      "sensors": 0,
+      "profile": "led-quad",
       "room_slug": ""
     }
   ]
