@@ -34,10 +34,10 @@ substitutions:
   # Tunable-white CCT endpoints — set these to your strips' rated temperatures.
   cold_white_temp: "6500 K"
   warm_white_temp: "2700 K"
-  # CAN actuator node (ADR-0020). node_id addresses this board on the house CAN bus and is a
-  # registry row (registry/nodes.csv, profile led-quad). The external SN65HVD230 transceiver
-  # rides the An-Quad's spare expansion-header GPIOs (boards/an-quad.yaml): aux_gpio_1=tx->CTX,
-  # aux_gpio_2=rx<-CRX. Confirm those two pins against the QuinLED An-Quad schematic at bring-up.
+  # CAN actuator node (ADR-0020/ADR-0021). node_id addresses this board on the house CAN bus and
+  # is a registry row (registry/nodes.csv, profile led-quad). The external SN65HVD230 transceiver
+  # rides the An-Quad's spare expansion-header GPIOs (boards/an-quad.yaml): aux_gpio_1=GPIO22=tx->CTX,
+  # aux_gpio_2=GPIO23=rx<-CRX (confirmed from the schematic; flip if wired the other way).
   node_id: "103"
   can_tx_pin: ${aux_gpio_1}
   can_rx_pin: ${aux_gpio_2}
@@ -45,9 +45,10 @@ substitutions:
 packages:
   board: !include ../boards/an-quad.yaml
   # CAN actuator behaviour (ADR-0020): can0 + CAT_OUTPUT receive -> strip dispatch + heartbeat.
-  can: !include ../lighting/packages/an_quad_can.yaml
+  # Shared, board-neutral package (ADR-0021) — the same one the An-Penta composes.
+  can: !include ../lighting/packages/led_can_actuator.yaml
 
-# Protocol header for the CAN actuator lambdas (an_quad_can.yaml). Flattened into src/ by
+# Protocol header for the CAN actuator lambdas (led_can_actuator.yaml). Flattened into src/ by
 # ESPHome; the package references it by flat filename.
 esphome:
   includes:

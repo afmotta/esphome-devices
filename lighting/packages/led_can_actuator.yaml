@@ -1,18 +1,26 @@
 # =============================================================================
-# an_penta_can.yaml — An-Penta as a CAN actuator node (ADR-0020)
+# led_can_actuator.yaml — a QuinLED LED board as a CAN actuator node (ADR-0020/ADR-0021)
 # =============================================================================
-# Makes the An-Penta a CAN actuator NODE: it joins the house CAN bus over an external
-# SN65HVD230 transceiver on the QWIIC header (GPIO16=tx->CTX, GPIO15=rx<-CRX) and applies
-# CAT_OUTPUT / MSG_OUT_SET_CHANNEL commands addressed to its node_id. This is the HA-down path
-# by which the lighting gateway drives these strips — independent of WiFi/router/HA/HTTP. Normal
-# (HA-up) control is unchanged: Home Assistant drives the strips over the WiFi native API.
+# Makes a QuinLED analog-LED board (An-Penta-Plus, An-Quad, …) a CAN actuator NODE: it joins the
+# house CAN bus over an external SN65HVD230 transceiver on two board GPIOs (${can_tx_pin} -> CTX,
+# ${can_rx_pin} <- CRX) and applies CAT_OUTPUT / MSG_OUT_SET_CHANNEL commands addressed to its
+# node_id. This is the HA-down path by which the lighting gateway drives these strips — independent
+# of WiFi/router/HA/HTTP. Normal (HA-up) control is unchanged: Home Assistant drives the strips over
+# the WiFi native API.
 #
-# It also emits a CAT_STATUS heartbeat like any node, so the CAN health monitor tracks its
-# aliveness (this is what makes its node_map health entities real — ADR-0017 §4).
+# It also emits a CAT_STATUS heartbeat like any node, so the CAN health monitor tracks its aliveness
+# (this is what makes its node_map health entities real — ADR-0017 §4).
 #
-# Channel map (this board): channel 0 -> tw1, channel 1 -> tw2 (0-based, mirroring relay ids).
+# Channel map: channel 0 -> tw1, channel 1 -> tw2 (0-based, mirroring relay ids). Both boards in this
+# repo group their channels into two tunable-white (cwww) strips, so one map serves both. If a future
+# deployment wires more strips, add channel 2/3 branches here.
 #
-# Requires from the composing entry point (devices/an-penta-1.yaml):
+# Board-NEUTRAL by design (ADR-0021): the An-Penta and An-Quad differ only in the two transceiver
+# GPIOs and the board they compose onto, which the entry point supplies via can_tx_pin/can_rx_pin —
+# so a single shared package serves both rather than a near-duplicate file per board. The CAT_OUTPUT
+# slice is the general actuator-command layer (ADR-0020 §1); any board that exposes tw1/tw2 reuses it.
+#
+# Requires from the composing entry point (devices/an-penta-1.yaml, devices/an-quad-1.yaml):
 #   esphome.includes: ../canbus/protocol/canbus_protocol.h
 #   substitutions: node_id (this actuator's CAN node_id), can_tx_pin, can_rx_pin
 #   light ids tw1, tw2 (the cwww strips)

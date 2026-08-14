@@ -51,9 +51,10 @@ packages:
     vars:
       enable_ethernet: ${enable_ethernet}
   # CAN actuator behaviour (ADR-0020): can0 + CAT_OUTPUT receive -> strip dispatch + heartbeat.
-  can: !include ../lighting/packages/an_penta_can.yaml
+  # Shared, board-neutral package (ADR-0021) — the An-Quad composes the same one.
+  can: !include ../lighting/packages/led_can_actuator.yaml
 
-# Protocol header for the CAN actuator lambdas (an_penta_can.yaml). Flattened into src/ by
+# Protocol header for the CAN actuator lambdas (led_can_actuator.yaml). Flattened into src/ by
 # ESPHome; the package references it by flat filename.
 esphome:
   includes:
