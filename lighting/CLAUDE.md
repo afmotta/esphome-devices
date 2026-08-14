@@ -80,6 +80,12 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
   applies `CAT_OUTPUT` `MSG_OUT_SET_CHANNEL` commands addressed to its node_id to
   `tw1`/`tw2`, plus a `CAT_STATUS` heartbeat. Composed by `devices/an-penta-1.yaml`
   (not the gateway — this is the *receiving* actuator side).
+- `packages/an_quad_can.yaml` — the same CAN-actuator behaviour for the QuinLED
+  An-Quad (ADR-0021): a 4-channel, WiFi-only sibling board. Structurally identical
+  to `an_penta_can.yaml` (the reused general `CAT_OUTPUT` slice) but composed onto
+  `devices/an-quad-1.yaml` and riding the An-Quad's spare expansion-header GPIOs
+  rather than a QWIIC header. Kept as a separate per-board file on purpose — a
+  change to one actuator must not silently alter the other.
 - `tests/test_binding_actuation.cpp` — native test for the pure logic, incl. the
   ADR-0020 `binding_is_output`/`out_op_from_str` helpers (see Test & verify below
   for the required `-I` flags).

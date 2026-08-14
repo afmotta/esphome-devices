@@ -1,0 +1,89 @@
+# =============================================================================
+# an_quad_can.yaml — An-Quad as a CAN actuator node (ADR-0020)
+# =============================================================================
+# Makes the An-Quad a CAN actuator NODE: it joins the house CAN bus over an external
+# SN65HVD230 transceiver on the board's spare expansion-header GPIOs (aux_gpio_1=tx->CTX,
+# aux_gpio_2=rx<-CRX) and applies CAT_OUTPUT / MSG_OUT_SET_CHANNEL commands addressed to its
+# node_id. This is the HA-down path by which the lighting gateway drives these strips —
+# independent of WiFi/router/HA/HTTP. Normal (HA-up) control is unchanged: Home Assistant drives
+# the strips over the WiFi native API.
+#
+# It also emits a CAT_STATUS heartbeat like any node, so the CAN health monitor tracks its
+# aliveness (this is what makes its node_map health entities real — ADR-0017 §4).
+#
+# Channel map (this board): channel 0 -> tw1, channel 1 -> tw2 (0-based, mirroring relay ids).
+# The An-Quad has four LEDC channels; this deployment groups them into two tunable-white strips,
+# so the CAN channel map matches the An-Penta's two-strip layout. Add channel 2/3 branches here
+# only if a future deployment wires the strips as four monochrome channels.
+#
+# Structurally identical to lighting/packages/an_penta_can.yaml — the CAT_OUTPUT slice is the
+# general actuator-command layer (ADR-0020 §1), reused unchanged; only the header comment and the
+# board it composes onto differ. Kept as a dedicated, self-documenting per-board package to match
+# the repo's explicit per-device style (separate board/entry-point files), not folded into one
+# shared include, so a change to one actuator can't silently alter the other.
+#
+# Requires from the composing entry point (devices/an-quad-1.yaml):
+#   esphome.includes: ../canbus/protocol/canbus_protocol.h
+#   substitutions: node_id (this actuator's CAN node_id), can_tx_pin, can_rx_pin
+#   light ids tw1, tw2 (the cwww strips)
+# =============================================================================
+
+substitutions:
+  can_bit_rate: "125KBPS" # house bus rate (boards/canbed-rp2040.yaml, light-controller.yaml)
+  # Match node_core.yaml's cadence so the health monitor's node_lost timing is uniform.
+  heartbeat_interval: "30s"
+
+canbus:
+  - platform: esp32_can
+    id: can0
+    tx_pin: ${can_tx_pin}
+    rx_pin: ${can_rx_pin}
+    bit_rate: ${can_bit_rate}
+    use_extended_id: true
+    # Component default TX id = CAT_STATUS base (this node's heartbeat). Every send sets an
+    # explicit can_id, so this default is only the component default and is never relied on.
+    can_id: 0x06000000
+    on_frame:
+      # OUTPUT commands (CAT_OUTPUT). Category-only hardware filter; the exact target node_id is
+      # checked in the guard below, which avoids per-node compile-time id arithmetic in YAML.
+      - can_id: 0x04000000 # CAT_OUTPUT << CAT_SHIFT
+        can_id_mask: 0x1E000000 # CAN_MASK_CATEGORY (category bits only)
+        use_extended_id: true
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return x.size() >= OUTPUT_PAYLOAD_MIN
+                         && x[0] == PROTO_V1
+                         && payload_type(x) == MSG_OUT_SET_CHANNEL
+                         && can_id_node(can_id) == (uint16_t) ${node_id};
+              then:
+                - lambda: |-
+                    const uint8_t ch = payload_output_channel(x);
+                    const uint8_t op = payload_output_op(x);
+                    esphome::light::LightState *target = nullptr;
+                    if (ch == 0) target = id(tw1);
+                    else if (ch == 1) target = id(tw2);
+                    if (target == nullptr) {
+                      ESP_LOGW("out", "OUTPUT for unknown channel %u (op %u)", ch, op);
+                      return;
+                    }
+                    switch (op) {
+                      case OUT_OP_ON:     target->turn_on().perform();  break;
+                      case OUT_OP_OFF:    target->turn_off().perform(); break;
+                      case OUT_OP_TOGGLE: target->toggle().perform();   break;
+                      default:
+                        ESP_LOGW("out", "OUTPUT ch %u unknown op %u", ch, op);
+                        return;
+                    }
+                    ESP_LOGI("out", "OUTPUT ch=%u op=%u applied (HA-down path)", ch, op);
+
+# CAT_STATUS heartbeat — mirrors node_core.yaml's send (id(can0).send_data + heartbeat_payload).
+interval:
+  - interval: ${heartbeat_interval}
+    then:
+      - lambda: |-
+          uint64_t hours = (uint64_t) millis() / 3600000ULL; // wraps ~49.7d (diagnostic only)
+          uint16_t uptime_h = hours > 65535ULL ? 65535 : (uint16_t) hours;
+          id(can0).send_data(can_id(CAT_STATUS, (uint16_t) ${node_id}), true,
+                             heartbeat_payload(uptime_h, ERR_NONE));
