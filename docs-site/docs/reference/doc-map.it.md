@@ -70,11 +70,12 @@ di questo elenco.
 
 La cartella `boards/` del repository contiene le definizioni hardware per ogni scheda
 mai usata dal progetto. Alcune di esse sono residui della generazione hardware
-ritirata sopra descritta e non sono più referenziate da nulla: file chiamati
-`a6*.yaml`, `a16*.yaml`, `base.yaml` e `wifi.yaml`, più una serie di varianti
-Waveshare-S3 inutilizzate (`waveshare-s3.yaml`, `waveshare-s3-ethernet.yaml`,
-`waveshare-s3-wifi.yaml` — a differenza di `waveshare-s3-rs485-can.yaml`, che **è**
-quella effettivamente usata, dal monitor di salute del bus CAN). Se stai sfogliando
+ritirata sopra descritta e non sono più referenziate da alcun dispositivo: `a6.yaml`,
+`a16.yaml`, `base.yaml` e la scheda relè inutilizzata `waveshare-s3.yaml` (a differenza
+di `waveshare-s3-rs485-can.yaml`, che **è** quella effettivamente usata, dal monitor di
+salute del bus CAN). Il consolidamento di rete della 2026.8.0 (ADR-0022) ha unito
+Ethernet+WiFi inline in queste schede ed eliminato i loro file frammento
+`-ethernet`/`-wifi` separati e la `wifi.yaml` condivisa. Se stai sfogliando
 quella cartella e ti chiedi perché esista un file che nulla sembra usare, è per
 questo — non è un errore da correggere, solo vecchio codice mai eliminato.
 

@@ -3,7 +3,8 @@ substitutions:
 
 esphome:
   name: ${device_name}
-  min_version: 2026.3.0
+  # Repo baseline; a6/a16 (which compose this) now declare a multi-interface network:.
+  min_version: 2026.8.0
   friendly_name: ${friendly_name}
 
 esp32:

@@ -77,6 +77,14 @@ the active one at runtime.** Concretely:
 Boards with only one interface are untouched: the health monitor (Waveshare ESP32-S3-RS485-CAN) and
 the An-Quad (no Ethernet PHY) keep their single inline `wifi:` and need no `network:` block.
 
+The same inline merge was also applied to the repo's legacy/unused dual-interface boards — `a6.yaml`
+(ESP32/W5500), `a16.yaml` (ESP32/LAN8720), and `waveshare-s3.yaml` (ESP32-S3/W5500) — for
+consistency, deleting their `-ethernet`/`-wifi` fragments and the Gen-1 shared `wifi.yaml`, and
+modernizing two deprecations found in passing (a16's `clk_mode: GPIO17_OUT` → `clk:` block;
+Waveshare-S3's `rgb_order` → `channel_colors`). Those three boards have **no device consumer and no
+CI coverage**, so the merge there is structural only — carried for uniformity, not validated by a
+build.
+
 ## Consequences
 
 ### Positive
