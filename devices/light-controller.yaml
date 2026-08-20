@@ -8,11 +8,12 @@
 #           relay bank. Transport health (canbus/packages/health.yaml) moved to
 #           its own device, devices/health-monitor.yaml — this controller no
 #           longer decodes heartbeats or tracks node aliveness.
-#           This file owns identity/network-mode substitutions, api
-#           encryption/OTA passwords, the lighting protocol-header includes, the
-#           can0 bus definition (ADR-0015 §2), and the relay bank. The board
-#           file (boards/t-connect-pro.yaml) owns the physical network
-#           implementation (Ethernet vs WiFi pins), esp32/api/ota scaffolding.
+#           This file owns identity substitutions, api encryption/OTA passwords,
+#           the lighting protocol-header includes, the can0 bus definition
+#           (ADR-0015 §2), and the relay bank. The board file
+#           (boards/t-connect-pro.yaml) owns the network implementation (Ethernet
+#           + WiFi declared together, arbitrated by network: priority:) and the
+#           esp32/api/ota scaffolding.
 #
 # can0 is defined in this entry point (see the canbus: block below);
 # lighting/packages/buttons.yaml `!extend`s it for the CAT_INPUT handler.
@@ -40,18 +41,11 @@ substitutions:
   # ${friendly_name} actually resolve.
   device_name: light-controller
   friendly_name: "Lighting Controller"
-  # Direct-compile default (this controller has no locals/remotes wrapper, by
-  # design). Forwarded rather than hardcoded so devices/light-controller-touch.yaml
-  # can override it to "false" (WiFi) via its own top-level substitutions:.
-  enable_ethernet: true
 
 packages:
   # Board first: provides modbus_uart (consumed by the relays package below)
   # and the network/api/ota scaffolding the other packages extend.
-  base: !include
-    file: ../boards/t-connect-pro.yaml
-    vars:
-      enable_ethernet: ${enable_ethernet}
+  base: !include ../boards/t-connect-pro.yaml
   # Lighting: decodes CAT_INPUT button frames off can0 (defined in this entry
   # point below), fires HA events, owns the ha_ready gate + single-click fallback.
   buttons: !include ../lighting/packages/buttons.yaml

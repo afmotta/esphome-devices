@@ -47,8 +47,8 @@
 # =============================================================================
 
 # Local fork of the core `ethernet` component, which is what makes the shared
-# bus above legal. Lives here rather than in t-connect-pro-ethernet.yaml so that
-# screen-less Ethernet builds keep the stock upstream component — only builds
+# bus above legal. Lives here rather than in the board file's inline `ethernet:`
+# block so that screen-less builds keep the stock upstream component — only builds
 # that actually create the sharing take on the fork. External components are
 # inserted at sys.meta_path position 0, so this shadows the built-in. The path
 # resolves against the CLI-invoked file's directory, hence the substitution

@@ -71,8 +71,8 @@ esphome compile devices/locals/climate-control.yaml
 
 The battery's generator-idempotence step requires a clean tree under `canbus/`,
 `climate/`, and `registry/` — commit or stash first. The pinned CLI lives in
-`climate/tests/.venv` (esphome 2026.7.0); a system ESPHome below the repo's
-2026.7.0 floor will fail on `min_version`.
+`climate/tests/.venv` (esphome 2026.8.0); a system ESPHome below the repo's
+2026.8.0 floor will fail on `min_version`.
 
 ---
 

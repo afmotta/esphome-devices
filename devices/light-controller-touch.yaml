@@ -16,12 +16,13 @@
 # Flash this variant to the lighting controller that has the panel; the plain
 # light-controller.yaml build (no screen) is unchanged.
 substitutions:
-  # CHANGED 2026-07-25: this build previously forced WiFi (enable_ethernet:
-  # false) purely because the display and the W5500 could not coexist. That
-  # limitation is fixed — both now share one SPI controller (spi2), arbitrated
-  # by their CS lines — so the lighting controller keeps the wired networking
-  # ADR-0014 specified for it, including the arbitration heartbeats. It simply
-  # inherits light-controller.yaml's enable_ethernet: true default now.
+  # This build previously forced WiFi purely because the display and the W5500
+  # could not coexist. That limitation is fixed — both now share one SPI
+  # controller (spi2), arbitrated by their CS lines — so the lighting controller
+  # keeps the wired networking ADR-0014 specified for it, including the
+  # arbitration heartbeats. It inherits the board's Ethernet+WiFi multi-interface
+  # config (Ethernet preferred, WiFi fallback); the W5500 is always present on the
+  # shared bus, which is exactly what shared_spi_pins "true" accounts for.
   #
   # Both the ethernet block and the display's spi bus name GPIO12/11/13, so
   # ESPHome's pin bookkeeping needs them marked.

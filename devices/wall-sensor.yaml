@@ -3,7 +3,8 @@ substitutions:
 
 esphome:
   name: ${device_name}
-  min_version: 2026.3.0
+  # 2026.8.0 repo baseline; also the floor for the sen6x voc_index/nox_index keys.
+  min_version: 2026.8.0
   friendly_name: ${friendly_name}
 
 esp32:
@@ -57,9 +58,11 @@ sensor:
     pm_10_0:
       name: PM <10µm Weight concentration
       accuracy_decimals: 2
-    nox:
+    # ESPHome 2026.8.0 renamed the sen6x voc/nox keys to voc_index/nox_index
+    # (old keys deprecated, removed in 2027.2.0).
+    nox_index:
       name: NOx
-    voc:
+    voc_index:
       name: VOC
     co2:
       name: Carbon Dioxide

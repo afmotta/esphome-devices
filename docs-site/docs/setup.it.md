@@ -54,16 +54,16 @@ Ti servono quattro cose sul tuo computer prima di iniziare:
 ESPHome è il framework che trasforma i file di configurazione YAML del progetto in firmware reale per i microcontrollori ESP32 usati in tutta la casa. Installa la versione esatta su cui questo repository è costruito e testato:
 
 ```
-pip install "esphome==2026.7.0"
+pip install "esphome==2026.8.0"
 ```
 
 Alcune note sul perché questa versione specifica è importante:
 
-- Il progetto fissa deliberatamente `esphome==2026.7.0` in `climate/tests/pyproject.toml`. 🟢 Questa è l'unica versione verificata end-to-end per i percorsi di compilazione dei controller principali (il controller climatico e il firmware dei nodi del bus CAN).
-- Le singole definizioni hardware ("board") nel repository dichiarano una propria versione minima di ESPHome, che varia da 2026.3.0 fino a 2026.7.0 a seconda della board. 🟢 Ma 2026.7.0 è la versione da installare effettivamente — soddisfa il minimo di ogni board ed è quella su cui girano i test stessi del progetto.
+- Il progetto fissa deliberatamente `esphome==2026.8.0` in `climate/tests/pyproject.toml`. 🟢 Questa è la versione su cui girano i gate di compilazione della CI e i test del progetto — installa esattamente questa.
+- Le singole definizioni hardware ("board") nel repository dichiarano una propria versione minima di ESPHome, che varia da 2026.3.0 (alcune board ritirate/legacy) fino a 2026.8.0 a seconda della board. 🟢 Ma 2026.8.0 è la versione da installare effettivamente — soddisfa il minimo di ogni board ed è quella su cui girano i test stessi del progetto.
 
 !!! warning "Attenzione su Mac Intel"
-    🟢 Se sei su un **Mac basato su Intel (x86_64)** in particolare, installare `esphome==2026.7.0` può entrare in conflitto con `esptool` (uno strumento da cui ESPHome dipende per il flashing): ESPHome 2026.7.0 fissa una libreria di sicurezza (`cryptography==49.0.0`) che `esptool 5.3.1` rifiuta su quella piattaforma. Questo è un conflitto reale e confermato — non ipotetico — ma specifico di macOS Intel. Se sei su un **Mac Apple Silicon (serie M/arm64)** o su **Linux**, questo non ti riguarda; sono i due ambienti su cui questo progetto effettivamente sviluppa e testa. Se sei bloccato su un Mac Intel, chiedi a chi mantiene questo repository la soluzione attuale prima di perderci tempo da solo.
+    🟢 Se sei su un **Mac basato su Intel (x86_64)** in particolare, installare `esphome==2026.8.0` può entrare in conflitto con `esptool` (uno strumento da cui ESPHome dipende per il flashing): ESPHome fissa una versione recente di una libreria di sicurezza (`cryptography`) che `esptool 5.3.1` rifiuta su quella piattaforma. Questo conflitto è stato confermato sul precedente pin 2026.7.0 e lo stesso tipo di vincolo può ripresentarsi — ma è specifico di macOS Intel. Se sei su un **Mac Apple Silicon (serie M/arm64)** o su **Linux**, questo non ti riguarda; sono i due ambienti su cui questo progetto effettivamente sviluppa e testa. Se sei bloccato su un Mac Intel, chiedi a chi mantiene questo repository la soluzione attuale prima di perderci tempo da solo.
 
 ## Passo 4: verifica rapida dell'ambiente
 

@@ -13,10 +13,10 @@
 #   Strip 2  cold-white led_ch3 (GPIO12)   warm-white led_ch4 (GPIO4)
 #   led_ch5 (GPIO2) — spare, no strip wired (declared by the board, unused here).
 #
-# This file owns identity/network-mode substitutions, api encryption + OTA
-# passwords, and the light-entity composition over the board's raw LEDC outputs.
-# The board file owns the esp32/api/ota scaffolding and the physical network
-# implementation (Ethernet vs WiFi).
+# This file owns identity substitutions, api encryption + OTA passwords, and the
+# light-entity composition over the board's raw LEDC outputs. The board file owns
+# the esp32/api/ota scaffolding and the network implementation (Ethernet + WiFi
+# declared together, arbitrated at runtime by network: priority:).
 # =============================================================================
 
 substitutions:
@@ -33,8 +33,6 @@ substitutions:
   encryption_key: !secret an_penta_1_encryption_key
   # ADR-0010 §5: authenticate OTA. Shared ota_password, as light-controller uses.
   ota_password: !secret ota_password
-  # Onboard LAN8720 Ethernet by default; set "false" to fall back to WiFi.
-  enable_ethernet: true
   # Tunable-white CCT endpoints — set these to your strips' rated temperatures.
   cold_white_temp: "6500 K"
   warm_white_temp: "2700 K"
@@ -46,10 +44,7 @@ substitutions:
   can_rx_pin: ${qwiic_sda_pin}
 
 packages:
-  board: !include
-    file: ../boards/an-penta-plus.yaml
-    vars:
-      enable_ethernet: ${enable_ethernet}
+  board: !include ../boards/an-penta-plus.yaml
   # CAN actuator behaviour (ADR-0020): can0 + CAT_OUTPUT receive -> strip dispatch + heartbeat.
   # Shared, board-neutral package (ADR-0021) — the An-Quad composes the same one.
   can: !include ../lighting/packages/led_can_actuator.yaml

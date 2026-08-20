@@ -3,9 +3,10 @@
 # =============================================================================
 # Generic board package for the QuinLED-An-Quad: a classic-ESP32, WiFi-only,
 # 4-channel analog (PWM) LED controller. Unlike the An-Penta-Plus it has NO
-# Ethernet PHY, so WiFi is the only network and its config lives inline here —
-# there is no network_package indirection or -wifi/-ethernet split (that pattern
-# only earns its keep on a board that has both, like the An-Penta-Plus). This
+# Ethernet PHY, so WiFi is the only network and needs no `network: priority:`
+# arbitration — a board with both interfaces (the An-Penta-Plus) declares
+# ethernet+wifi together and lists both under network: priority: (ADR-0022),
+# whereas the An-Quad, with one interface, just declares wifi inline here. This
 # file owns only fixed board hardware and the esp32/wifi/api/ota scaffolding. How
 # the four output channels are grouped into light entities (monochrome / CCT /
 # RGB / RGBW) and whether the two spare header GPIOs carry anything (a CAN
@@ -58,7 +59,7 @@ esphome:
   friendly_name: ${friendly_name}
   # Repo toolchain floor (not an An-Quad hardware requirement); keeps every entry
   # point on one ESPHome baseline.
-  min_version: 2026.7.0
+  min_version: 2026.8.0
   comment: "QuinLED-An-Quad"
 
 # Classic ESP32 (ESP32-WROOM-32), WiFi only — no RMII Ethernet PHY on this board.

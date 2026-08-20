@@ -172,7 +172,7 @@ sensor:
             raw: !lambda 'return x;'
             scale: !lambda 'return 10.0f;'    # x10 ug/m3
             is_signed: !lambda 'return false;'
-    voc:
+    voc_index:  # ESPHome 2026.8.0 renamed sen6x voc -> voc_index (old key removed 2027.2.0)
       name: "Node ${node_id} SEN66 VOC Index"
       id: sen66_voc
       on_value:
@@ -182,7 +182,7 @@ sensor:
             raw: !lambda 'return x;'
             scale: !lambda 'return 1.0f;'     # index 1-500
             is_signed: !lambda 'return false;'
-    nox:
+    nox_index:  # ESPHome 2026.8.0 renamed sen6x nox -> nox_index (old key removed 2027.2.0)
       name: "Node ${node_id} SEN66 NOx Index"
       id: sen66_nox
       on_value:

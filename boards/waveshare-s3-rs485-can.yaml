@@ -39,9 +39,9 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
-  # Matches the canbus gateway-class verified ESPHome (see devices/light-controller.yaml);
-  # confirm the esp32_can/TWAI path on this board at bring-up.
-  min_version: 2026.5.0
+  # Repo baseline ESPHome (see devices/light-controller.yaml); confirm the
+  # esp32_can/TWAI path on this board at bring-up.
+  min_version: 2026.8.0
   comment: "Waveshare ESP32-S3-RS485-CAN"
 
 esp32:

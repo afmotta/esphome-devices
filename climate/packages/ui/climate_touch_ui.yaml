@@ -2,10 +2,10 @@
 # Climate controller — on-device LVGL monitoring UI (T-Connect Pro touchscreen)
 # =============================================================================
 # Composed alongside boards/t-connect-pro-display.yaml (which declares the shared
-# `panel_display` / `panel_touch` hardware) by the opt-in touchscreen wrappers
-# devices/locals/climate-control-touch.yaml (Ethernet, shared_spi_pins "true")
-# and devices/locals/climate-control-touch-wifi.yaml (WiFi). Nothing here is
-# network-specific, so both work.
+# `panel_display` / `panel_touch` hardware) by the opt-in touchscreen wrapper
+# devices/locals/climate-control-touch.yaml (shared_spi_pins "true"). Nothing here
+# is network-specific; the board runs Ethernet+WiFi multi-interface (Ethernet
+# preferred), so the panel works on whichever link is active.
 #
 # THE PANEL IS SMALL. 480x222 on a 2.33" display is roughly 54 x 25 mm at
 # 226 dpi — the whole screen is shorter than a postage stamp. Every layout

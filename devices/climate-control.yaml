@@ -2,10 +2,6 @@ defaults:
   device_name: climate-control
   friendly_name: "Climate Control"
   seasonal_mode_id: hp_mode
-  # Forwarded (not hardcoded) below so a wrapper like
-  # devices/locals/climate-control-touch-wifi.yaml can override it to "false"
-  # (WiFi) — mirrors devices/light-controller.yaml's enable_ethernet pattern.
-  enable_ethernet: true
 
 esphome:
   # This file is never compiled directly — it only resolves through the
@@ -22,10 +18,7 @@ esphome:
     - ../../climate/protocol/can_sensor_receiver.h
 
 packages:
-  base: !include
-    file: ../boards/t-connect-pro.yaml
-    vars:
-      enable_ethernet: ${enable_ethernet}
+  base: !include ../boards/t-connect-pro.yaml
   # Publish-only HVAC-1.3 composition (routes before receiver: the receiver's
   # on_frame action calls can_sensor_route_publish/_nan scripts, which must
   # already be defined). Every registered sensors=1 node's temp/humidity
