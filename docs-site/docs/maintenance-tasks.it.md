@@ -294,7 +294,6 @@ committato). Il modello in `devices/secrets.yaml.example` documenta quali esisto
 | `health_monitor_encryption_key` | La chiave di cifratura API propria del monitor di salute del bus CAN — separata da quella del controller dell'illuminazione. |
 | `encryption_key` | Condivisa dal controller di climatizzazione e dai dispositivi sensore autonomi (sensore stanza, sensore a muro). |
 | `ota_password` | Autentica gli aggiornamenti firmware via rete (OTA), in tutta la casa. |
-| `github_username` / `github_pat` | Usati solo dal percorso di distribuzione remota basato su GitHub, per scaricare la configurazione di questo repository durante un aggiornamento OTA tramite l'add-on ESPHome di Home Assistant. |
 
 **Ruota una credenziale alla volta, in questo ordine, in modo da non rimanere
 tagliato fuori:**

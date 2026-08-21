@@ -149,7 +149,7 @@ esphome-devices/
   docs-site/               # maintenance & support site (MkDocs, EN + IT)
 ```
 
-Deployment envelope (unchanged by this spine): node firmware flashed via USB pre-install (frozen); gateway/bridge/climate boards deployed via ESPHome OTA — locally from `devices/locals/`, in production via `devices/remotes/` pulling GitHub `@main` paths (hence AD-9 atomicity); HA imports only `<system>/home-assistant/` paths. Both subsystems are pre-live; there is no staging environment — the test battery + push gate are the release gate.
+Deployment envelope (unchanged by this spine): node firmware flashed via USB pre-install (frozen); gateway/bridge/climate boards deployed via ESPHome OTA from a local checkout (`devices/locals/` and the directly-compiled controller entry points); the former production `devices/remotes/` GitHub-pull path was retired in ADR-0023 (the onboard-screen controller builds need the local `ethernet` fork, which GitHub packages can't carry); HA imports only `<system>/home-assistant/` paths. Both subsystems are pre-live; there is no staging environment — the test battery + push gate are the release gate.
 
 ## Deferred
 

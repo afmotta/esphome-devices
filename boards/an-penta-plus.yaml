@@ -13,7 +13,7 @@
 #   LED ch1  GPIO33   LED ch2  GPIO32   LED ch3  GPIO12*   LED ch4  GPIO4
 #   LED ch5  GPIO2*   Digital-LED data  GPIO5   Digital-LED power relay  GPIO13
 #   Buttons  GPIO36 / GPIO39 / GPIO34 (input-only, hardware pull-up + debounce)
-#   I2C      SDA GPIO15 / SCL GPIO16       Ethernet LAN8720 (see -ethernet.yaml)
+#   I2C      SDA GPIO15 / SCL GPIO16       Ethernet LAN8720 (declared below)
 #   * GPIO12 (flash-voltage select) and GPIO2 (boot mode) are ESP32 strapping
 #     pins; the board is designed around them, so their LEDC outputs set
 #     ignore_strapping_warning below.
@@ -22,14 +22,11 @@
 substitutions:
   # Placeholder default only. Every entry point overrides device_name and that
   # override wins for the resolved esphome.name; it exists so ESPHome's
-  # substitution engine can eagerly evaluate the ${device_name} references
-  # inside the wifi/ethernet !include values below. friendly_name is
-  # deliberately NOT defaulted here — the network packages don't reference it,
-  # and a board-level default would override the entry point's value.
+  # substitution engine can eagerly evaluate the ${device_name} references inside
+  # the inlined ethernet/wifi text_sensor names below when this board is inspected
+  # on its own. friendly_name is deliberately NOT defaulted here — a board-level
+  # default would override the entry point's value.
   device_name: an-penta-plus
-  wifi_package: !include an-penta-plus-wifi.yaml
-  ethernet_package: !include an-penta-plus-ethernet.yaml
-  enable_ethernet: true # Set to "false" to disable Ethernet and enable WiFi
   logger_level: INFO
 
   # Fixed board GPIOs exposed so entry points/packages can compose devices on
@@ -50,15 +47,13 @@ substitutions:
   qwiic_scl_pin: GPIO16 # SCL — CAN tx (to transceiver CTX) in the actuator deployment
   qwiic_sda_pin: GPIO15 # SDA — CAN rx (from transceiver CRX) in the actuator deployment
 
-packages:
-  network_package: ${ethernet_package if enable_ethernet else wifi_package}
-
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   # Repo toolchain floor (not an An-Penta hardware requirement); keeps every
-  # entry point on one ESPHome baseline.
-  min_version: 2026.7.0
+  # entry point on one ESPHome baseline. 2026.8.0 is also the floor for the
+  # multi-interface `network:` block below.
+  min_version: 2026.8.0
   comment: "QuinLED-An-Penta-Plus"
 
 # Classic ESP32 (ESP32-WROOM) — required for the LAN8720 RMII Ethernet PHY.
@@ -80,6 +75,76 @@ api:
 ota:
   - platform: esphome
     password: ${ota_password}
+
+# --------------------------------------------------------------------------
+# Network — both interfaces declared together. ESPHome 2026.8.0 multi-interface
+# networking picks the active one at runtime from the `network: priority:` list
+# and fails over automatically, replacing the former mutually-exclusive
+# `enable_ethernet` toggle plus the swappable an-penta-plus-ethernet.yaml /
+# an-penta-plus-wifi.yaml packages (merged inline here). Ethernet is preferred
+# (the board's onboard LAN8720) with WiFi as the fallback; the HA-down actuation
+# path is CAN regardless (led_can_actuator.yaml, ADR-0020), independent of both.
+#
+# Note: on the classic ESP32 both network stacks run at once. If RAM proves tight
+# at bring-up, add `enable_on_boot: false` to the wifi block and start it from an
+# action on ethernet loss instead (ESPHome network docs); that trades automatic
+# failover for lower boot-time footprint.
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  # 50 MHz RMII reference clock driven out on GPIO17 (was clk_mode: GPIO17_OUT,
+  # deprecated in 2026.7 / removed 2026.9).
+  clk:
+    mode: CLK_OUT
+    pin: 17
+  phy_addr: 0
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# # Enable AP when WiFi connection fails
+# ap:
+#   ssid: ${device_name} AP
+#   password: !secret wifi_hotspot_pass
+# captive_portal:
+
+# ESPHome 2026.8.0 requires both interfaces to be listed here whenever ethernet
+# and wifi are declared together; the first entry wins the default route.
+network:
+  priority:
+    - ethernet
+    - wifi
+
+# Per-interface diagnostics. Both info platforms coexist under multi-interface
+# networking; only the top-level IP-address names are qualified (Ethernet / Wi-Fi)
+# so the two do not collide on one entity name.
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: "${device_name} - Ethernet IP Address"
+      address_0:
+        name: "${device_name} - IP Address 0"
+      address_1:
+        name: "${device_name} - IP Address 1"
+      address_2:
+        name: "${device_name} - IP Address 2"
+      address_3:
+        name: "${device_name} - IP Address 3"
+      address_4:
+        name: "${device_name} - IP Address 4"
+    dns_address:
+      name: "${device_name} - DNS Address"
+    mac_address:
+      name: "${device_name} - MAC Address"
+  - platform: wifi_info
+    ip_address:
+      name: "${device_name} - Wi-Fi IP Address"
+    ssid:
+      name: "${device_name} - Wi-Fi SSID"
+    bssid:
+      name: "${device_name} - Wi-Fi BSSID"
 
 # The QWIIC/expansion header (GPIO15/GPIO16) is intentionally NOT claimed here — it is exposed
 # as qwiic_sda_pin/qwiic_scl_pin substitutions above and an entry point decides its use (AD-4).

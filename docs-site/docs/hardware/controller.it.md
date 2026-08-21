@@ -19,22 +19,14 @@ Prima di fare qualsiasi cosa, capisci quale ruolo è guasto:
 ## Controller climatico
 
 1. Procurati una scheda T-Connect Pro di ricambio (variante Ethernet).
-2. Copia i secret di cui ha bisogno. I secret della build di sviluppo locale si
-   trovano in `devices/locals/secrets.yaml`; quelli della build di
-   produzione/OTA si trovano in `devices/remotes/secrets.yaml` — sono file separati
-   con (probabilmente) chiavi di cifratura diverse, quindi usa quello che corrisponde
-   a come questo specifico controller è stato provisionato. In caso di dubbio, parti
-   da `devices/secrets.yaml.example` e vedi
-   [Configurazione ambiente](../setup.md) per cosa significa ogni chiave.
-3. Flashalo:
-   - Per una build locale/da banco: `esphome run devices/locals/climate-control.yaml
-     --device /dev/ttyUSB0` (il primo flash richiede USB; in seguito `esphome run`
-     può passare per la rete).
-   - Per lo schema di deployment di produzione basato su GitHub:
-     `devices/remotes/climate-control.yaml` recupera la definizione del firmware da
-     GitHub e viene normalmente installato cliccando "Installa" sulla scheda del
-     dispositivo nell'add-on ESPHome di Home Assistant — vedi
-     [Configurazione ambiente](../setup.md) per la differenza tra questi due schemi.
+2. Copia i secret di cui ha bisogno in `devices/locals/secrets.yaml` (parti da
+   `devices/secrets.yaml.example`; vedi [Configurazione ambiente](../setup.md) per
+   cosa significa ogni chiave).
+3. Flashalo: `esphome run devices/locals/climate-control.yaml --device /dev/ttyUSB0`
+   (il primo flash richiede USB; in seguito `esphome run` può passare per la rete).
+   Questa build include il touchscreen integrato — ora standard su ogni build, e lo
+   schema di deployment via GitHub è stato ritirato perché non può trasportare il fork
+   locale `ethernet` del pannello.
 4. **Prima di alimentare qualsiasi cosa**, conferma che il controller si avvii nel suo
    stato di riposo sicuro (🔵 previsto per progetto, descritto nel runbook di
    deployment del progetto, non ancora messo alla prova dopo una vera sostituzione
@@ -59,9 +51,9 @@ Prima di fare qualsiasi cosa, capisci quale ruolo è guasto:
 ## Controller di illuminazione
 
 1. Procurati una scheda T-Connect Pro di ricambio (variante Ethernet).
-2. Questo controller viene compilato direttamente — al momento non esiste una
-   variante `devices/locals/` o `devices/remotes/` per esso (⚠️ a differenza del
-   clima, esiste un solo file di configurazione: `devices/light-controller.yaml`).
+2. Questo controller viene compilato direttamente — non esiste un wrapper
+   `devices/locals/` per esso (⚠️ a differenza del clima, esiste un solo file di
+   configurazione: `devices/light-controller.yaml`).
    Flashalo con `esphome run devices/light-controller.yaml --device /dev/ttyUSB0` per
    il primo flash.
 3. Questo dispositivo porta anche il banco relè e la logica di fallback dei pulsanti —

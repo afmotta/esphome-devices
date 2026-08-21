@@ -14,9 +14,9 @@ relatedDocuments:
   - docs/adr/0014-standardized-controller-modbus-io-hardware.md
   - libs/esphome_overrides/ethernet/
   - boards/t-connect-pro-display.yaml
-  - boards/t-connect-pro-ethernet.yaml
-  - devices/locals/climate-control-touch.yaml
-  - devices/light-controller-touch.yaml
+  - boards/t-connect-pro.yaml
+  - devices/locals/climate-control.yaml
+  - devices/light-controller.yaml
   - climate/packages/ui/climate_touch_ui.yaml
   - lighting/packages/ui/light_touch_ui.yaml
 ---
@@ -79,7 +79,8 @@ fork of ESPHome's `ethernet` component that lets it attach to a bus `spi:` alrea
 
 ### 1. The fork (`libs/esphome_overrides/ethernet/`)
 
-A copy of the 2026.7.1 core component with **two** changes:
+A copy of the core component — rebased to the repo's pinned ESPHome on each
+upgrade (currently 2026.8.0) — with **two** changes:
 
 - **`ethernet_component_esp32.cpp`** — `spi_bus_initialize()` now treats `ESP_ERR_INVALID_STATE`
   as the success path. `spi:` (BUS 1000) brings the host up first with the correct pins; ethernet
@@ -92,6 +93,11 @@ A copy of the 2026.7.1 core component with **two** changes:
 External components are inserted at `sys.meta_path` position 0, so this shadows the built-in.
 
 ### 2. Only touch builds take the fork
+
+> **Amended by ADR-0023 (2026-08-21):** the onboard screen is now standard on every controller
+> build — the display is composed by the core entry points, and there is no longer a screen-less
+> variant — so the fork is active on every build. The mechanism below is unchanged; what changed is
+> that "only touch builds take the fork" became "every build does."
 
 The `external_components` block lives in **`boards/t-connect-pro-display.yaml`**, not in the
 ethernet board file. Screen-less Ethernet builds — `devices/climate-control.yaml` and
@@ -128,12 +134,14 @@ always. Waking is safe because `Touchscreen::loop()` fires its own `on_touch` tr
 
 ### Negative — the maintenance obligation
 
-**This forks a core networking component and pins it to ESPHome 2026.7.1.** Every ESPHome upgrade
-must re-verify the fork against the new upstream source, because upstream can change
+**This forks a core networking component and pins it to the repo's ESPHome (now 2026.8.0).** Every
+ESPHome upgrade must re-verify the fork against the new upstream source, because upstream can change
 `ethernet_component_esp32.cpp` or `_final_validate_spi` freely — they owe us nothing. Concretely,
 on each upgrade: diff `esphome/components/ethernet/` against `libs/esphome_overrides/ethernet/`,
 re-apply the two changes, and re-run the bring-up check below. This obligation belongs with the
-toolchain-upgrade procedure, not in someone's memory.
+toolchain-upgrade procedure, not in someone's memory. (The 2026.8.0 rebase also folded in upstream's
+multi-interface support — removing the ethernet↔wifi `CONFLICTS_WITH`, adding the
+`network: priority:` coexistence validation — which ADR-0022 then relies on.)
 
 ### Known limits
 

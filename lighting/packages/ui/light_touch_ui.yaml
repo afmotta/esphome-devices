@@ -3,9 +3,9 @@
 # (T-Connect Pro touchscreen)
 # =============================================================================
 # Composed alongside boards/t-connect-pro-display.yaml (which declares the shared
-# `panel_display` / `panel_touch` hardware) by the opt-in touchscreen wrapper
-# devices/light-controller-touch.yaml (which sets shared_spi_pins: "true").
-# The plain devices/light-controller.yaml build (no screen) is unaffected.
+# `panel_display` / `panel_touch` hardware) by the lighting controller's entry
+# point devices/light-controller.yaml — the panel is standard on every build now
+# (ADR-0023 retired the separate screen-less build).
 #
 # THE PANEL IS SMALL — the same 480x222 on 2.33" (about 54 x 25 mm) as the
 # climate panel, and every layout decision below is the same consequence:

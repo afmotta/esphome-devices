@@ -72,7 +72,7 @@ the sensor-kit I2C are placed, so it is fleet-fixed).
 
 ## ESPHome Version
 
-**Known-good version:** ESPHome 2026.7.0 — confirmed by the 2026-07-16 verification-battery run (node fixture `canbus/tests/compile_sensor_node.yaml` compile under the renamed `rp2:` platform key). Previous baseline: 2026.6.5, confirmed by successful `esphome compile` of the gateway config (2026-07-12). That combined `devices/gateway.yaml` has since been split by ADR-0015 into `devices/light-controller.yaml` (arbitration + relays) and `devices/health-monitor.yaml` (transport health).
+**Repo baseline:** ESPHome 2026.8.0 — pinned in CI and the board `min_version` floors; the CI compile gates (`canbus/tests/compile_{sensor_node,bridge,buttons_bridge,bridge_t2can}.yaml`) re-confirm the node/bridge fixtures on every push to main. **Last locally battery-confirmed:** ESPHome 2026.7.0 — the 2026-07-16 verification-battery run (node fixture `canbus/tests/compile_sensor_node.yaml` compile under the renamed `rp2:` platform key). Previous baseline: 2026.6.5, confirmed by successful `esphome compile` of the gateway config (2026-07-12). That combined `devices/gateway.yaml` has since been split by ADR-0015 into `devices/light-controller.yaml` (arbitration + relays) and `devices/health-monitor.yaml` (transport health).
 
 > **ADR-0015 device split (2026-07-13):** "the gateway" below is a role, now two physical
 > devices — the **lighting controller** (`devices/light-controller.yaml`, T-Connect Pro) hosts
@@ -80,7 +80,7 @@ the sensor-kit I2C are placed, so it is fleet-fixed).
 > (`devices/health-monitor.yaml`, Waveshare ESP32-S3-RS485-CAN) hosts aliveness/health. Map each
 > "gateway" mention to the device that owns the behavior described.
 
-> **Enforced since 2026.7.0:** the `rp2040:` → `rp2:` platform rename made 2026.7.0 a hard floor for node builds, so `boards/canbed-rp2040.yaml` now carries `esphome: min_version: 2026.7.0` — older toolchains fail with a clear version error instead of an unknown-component one.
+> **Enforced since 2026.7.0:** the `rp2040:` → `rp2:` platform rename made 2026.7.0 a hard floor for node builds; `boards/canbed-rp2040.yaml` carries `esphome: min_version: 2026.8.0` (the repo baseline, at or above that hard floor) — older toolchains fail with a clear version error instead of an unknown-component one.
 
 > **Note:** As of ESPHome 2026.1.0 the `api: password:` option was removed. The gateway uses
 > API encryption instead (`api: encryption: key: !secret api_encryption_key`). Generate a key with

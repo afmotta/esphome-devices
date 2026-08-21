@@ -1,14 +1,13 @@
 # =============================================================================
 # LilyGO T-Connect Pro — onboard display + touch hardware bring-up
 # =============================================================================
-# Shared display hardware for both T-Connect Pro controllers. Composed into a
-# build by the opt-in touchscreen wrapper (e.g. devices/locals/climate-control-touch.yaml,
-# which runs Ethernet and sets shared_spi_pins: "true"; or
-# devices/light-controller-touch.yaml, which runs WiFi instead and leaves it
-# at its "false" default). Pure hardware here — the LVGL UI itself lives in
-# each system's UI package (climate/packages/ui/climate_touch_ui.yaml,
-# lighting/packages/ui/light_touch_ui.yaml), which reference the
-# system-neutral `panel_display` / `panel_touch` ids declared below.
+# Shared display hardware for both T-Connect Pro controllers. Composed by BOTH
+# core entry points (devices/climate-control.yaml, devices/light-controller.yaml)
+# — the panel is standard on every build now that ADR-0023 retired the screen-less
+# variants. Pure hardware here — the LVGL UI itself lives in each system's UI
+# package (climate/packages/ui/climate_touch_ui.yaml,
+# lighting/packages/ui/light_touch_ui.yaml), which reference the system-neutral
+# `panel_display` / `panel_touch` ids declared below.
 #
 # Panel: 2.33" ST7796 SPI LCD, native 222(w)x480(h), driven landscape as
 # 480x222. Touch: CST226SE on the shared i2cbus. Backlight: GPIO46.
@@ -39,20 +38,21 @@
 # shared with other devices") and its validator rejects a matching interface.
 # See ADR-0016 and libs/esphome_overrides/ethernet/.
 #
-# `allow_other_uses` (gated on `shared_spi_pins`) is still required whenever
-# Ethernet is also enabled, because two config blocks legitimately name the same
-# pads; on a WiFi-only build the display owns them outright and the flag stays
-# false. Verified on hardware 2026-07-25: Ethernet and the panel both live,
-# including under a 30 fps full-screen redraw stress test.
+# `allow_other_uses: true` is required on these three pads because the W5500's
+# inline `ethernet:` block (boards/t-connect-pro.yaml) legitimately names the same
+# GPIO12/11/13. It is unconditional now that every build has the panel AND
+# Ethernet (ADR-0023). Verified on hardware 2026-07-25: Ethernet and the panel both
+# live, including under a 30 fps full-screen redraw stress test.
 # =============================================================================
 
-# Local fork of the core `ethernet` component, which is what makes the shared
-# bus above legal. Lives here rather than in t-connect-pro-ethernet.yaml so that
-# screen-less Ethernet builds keep the stock upstream component — only builds
-# that actually create the sharing take on the fork. External components are
-# inserted at sys.meta_path position 0, so this shadows the built-in. The path
-# resolves against the CLI-invoked file's directory, hence the substitution
-# (same convention as boards/s1-pro-multi-sense.yaml's s1_pro_libs_path).
+# Local fork of the core `ethernet` component, which is what makes the shared bus
+# above legal. It lives here in the display file (rather than the board's inline
+# `ethernet:` block) because the display is what creates the SPI sharing; now that
+# every T-Connect Pro build composes this file (ADR-0023), the fork is always
+# active. External components are inserted at sys.meta_path position 0, so this
+# shadows the built-in. The path resolves against the CLI-invoked file's directory,
+# hence the substitution (same convention as boards/s1-pro-multi-sense.yaml's
+# s1_pro_libs_path).
 external_components:
   - source:
       type: local
@@ -68,13 +68,13 @@ spi:
     interface: spi2
     clk_pin:
       number: GPIO12
-      allow_other_uses: ${shared_spi_pins}
+      allow_other_uses: true
     mosi_pin:
       number: GPIO11
-      allow_other_uses: ${shared_spi_pins}
+      allow_other_uses: true
     miso_pin:
       number: GPIO13
-      allow_other_uses: ${shared_spi_pins}
+      allow_other_uses: true
 
 # Backlight — ADR-0014 §5 notes it powers up held off; drive it on via LEDC so
 # brightness is also adjustable from HA.

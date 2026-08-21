@@ -1,8 +1,8 @@
 substitutions:
   logger_level: INFO
   # Relative to the MAIN config's directory, not this file's — entry points in
-  # devices/ use the default; wrappers one level deeper (devices/locals/,
-  # devices/remotes/) must override with "../../libs".
+  # devices/ use the default; wrappers one level deeper (devices/locals/) must
+  # override with "../../libs".
   s1_pro_libs_path: ../libs
 
 esphome:
@@ -143,7 +143,9 @@ light:
     chipset: WS2812
     pin: GPIO3
     num_leds: 1
-    rgb_order: GRB
+    # ESPHome 2026.8.0 deprecates rgb_order in favour of channel_colors (rgb_order
+    # removed in 2027.3.0); GRB maps 1:1 onto the channel_colors permutation.
+    channel_colors: GRB
     restore_mode: RESTORE_DEFAULT_OFF
     effects:
       - addressable_lambda:

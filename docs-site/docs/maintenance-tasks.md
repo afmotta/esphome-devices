@@ -264,7 +264,6 @@ The template at `devices/secrets.yaml.example` documents which ones exist:
 | `health_monitor_encryption_key` | The CAN bus health monitor's own API encryption key — separate from the lighting controller's. |
 | `encryption_key` | Shared by the climate controller and the standalone sensor devices (room sensor, wall sensor). |
 | `ota_password` | Authenticates over-the-air firmware updates, house-wide. |
-| `github_username` / `github_pat` | Used only by the GitHub-based remote deployment path, to pull this repository's config during an OTA update via the Home Assistant ESPHome add-on. |
 
 **Rotate one credential at a time, in this order, so you can't lock yourself out:**
 

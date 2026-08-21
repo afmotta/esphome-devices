@@ -84,6 +84,9 @@ modbus:
   id: modbus_bus
   uart_id: rs485
   send_wait_time: 200ms
+  # ESPHome 2026.8.0: per-controller command_throttle is ignored — command
+  # spacing now comes from the hub's turnaround_time.
+  turnaround_time: 100ms
 
 modbus_controller:
   # The board at its current address — used only to verify it's alive and to
@@ -92,7 +95,6 @@ modbus_controller:
     address: ${current_address}
     modbus_id: modbus_bus
     update_interval: 5s
-    command_throttle: 100ms
   # Broadcast target for the address write (every listening device accepts
   # address-0x00 writes — hence the one-board-on-the-bus warning above).
   - id: bank_broadcast

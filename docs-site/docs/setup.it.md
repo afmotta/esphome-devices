@@ -45,7 +45,6 @@ Ti servono quattro cose sul tuo computer prima di iniziare:
     | `health_monitor_encryption_key` | Lo stesso tipo di chiave, ma specifica per il dispositivo **monitor di salute del bus CAN**. Deve essere un valore casuale *diverso* da `api_encryption_key` — ogni dispositivo ha la propria chiave. | Di nuovo `openssl rand -base64 32` — eseguilo una seconda volta per un nuovo valore. |
     | `encryption_key` | Ancora lo stesso tipo di chiave, ma condivisa dal **controller climatico** e dai dispositivi sensore ambiente/parete autonomi. | `openssl rand -base64 32` — un terzo valore distinto. |
     | `ota_password` | Una password che protegge gli aggiornamenti firmware "OTA" (over-the-air, cioè via rete) dall'essere inviati a un dispositivo da chiunque non sia autorizzato. | `openssl rand -base64 32`, oppure qualsiasi password robusta. |
-    | `github_username` / `github_pat` | Necessari solo se userai il metodo di distribuzione in produzione basato su GitHub (`devices/remotes/`, spiegato al Passo 5) — un nome utente GitHub e un "personal access token" (una specie di password limitata a ciò che serve) che permette a un dispositivo di scaricare la propria configurazione direttamente da GitHub. | Crea un token nelle impostazioni del tuo account GitHub, sotto Developer Settings → Personal Access Tokens. |
 
     Ogni dispositivo ESPHome dovrebbe avere una propria chiave di cifratura distinta — non riusare mai la stessa chiave tra più dispositivi. Ogni comando `openssl rand -base64 32` stampa un nuovo valore casuale di 32 byte codificato come testo; eseguilo una volta per ogni chiave da compilare.
 
@@ -54,16 +53,16 @@ Ti servono quattro cose sul tuo computer prima di iniziare:
 ESPHome è il framework che trasforma i file di configurazione YAML del progetto in firmware reale per i microcontrollori ESP32 usati in tutta la casa. Installa la versione esatta su cui questo repository è costruito e testato:
 
 ```
-pip install "esphome==2026.7.0"
+pip install "esphome==2026.8.0"
 ```
 
 Alcune note sul perché questa versione specifica è importante:
 
-- Il progetto fissa deliberatamente `esphome==2026.7.0` in `climate/tests/pyproject.toml`. 🟢 Questa è l'unica versione verificata end-to-end per i percorsi di compilazione dei controller principali (il controller climatico e il firmware dei nodi del bus CAN).
-- Le singole definizioni hardware ("board") nel repository dichiarano una propria versione minima di ESPHome, che varia da 2026.3.0 fino a 2026.7.0 a seconda della board. 🟢 Ma 2026.7.0 è la versione da installare effettivamente — soddisfa il minimo di ogni board ed è quella su cui girano i test stessi del progetto.
+- Il progetto fissa deliberatamente `esphome==2026.8.0` in `climate/tests/pyproject.toml`. 🟢 Questa è la versione su cui girano i gate di compilazione della CI e i test del progetto — installa esattamente questa.
+- Le singole definizioni hardware ("board") nel repository dichiarano una propria versione minima di ESPHome, che varia da 2026.3.0 (alcune board ritirate/legacy) fino a 2026.8.0 a seconda della board. 🟢 Ma 2026.8.0 è la versione da installare effettivamente — soddisfa il minimo di ogni board ed è quella su cui girano i test stessi del progetto.
 
 !!! warning "Attenzione su Mac Intel"
-    🟢 Se sei su un **Mac basato su Intel (x86_64)** in particolare, installare `esphome==2026.7.0` può entrare in conflitto con `esptool` (uno strumento da cui ESPHome dipende per il flashing): ESPHome 2026.7.0 fissa una libreria di sicurezza (`cryptography==49.0.0`) che `esptool 5.3.1` rifiuta su quella piattaforma. Questo è un conflitto reale e confermato — non ipotetico — ma specifico di macOS Intel. Se sei su un **Mac Apple Silicon (serie M/arm64)** o su **Linux**, questo non ti riguarda; sono i due ambienti su cui questo progetto effettivamente sviluppa e testa. Se sei bloccato su un Mac Intel, chiedi a chi mantiene questo repository la soluzione attuale prima di perderci tempo da solo.
+    🟢 Se sei su un **Mac basato su Intel (x86_64)** in particolare, installare `esphome==2026.8.0` può entrare in conflitto con `esptool` (uno strumento da cui ESPHome dipende per il flashing): ESPHome fissa una versione recente di una libreria di sicurezza (`cryptography`) che `esptool 5.3.1` rifiuta su quella piattaforma. Questo conflitto è stato confermato sul precedente pin 2026.7.0 e lo stesso tipo di vincolo può ripresentarsi — ma è specifico di macOS Intel. Se sei su un **Mac Apple Silicon (serie M/arm64)** o su **Linux**, questo non ti riguarda; sono i due ambienti su cui questo progetto effettivamente sviluppa e testa. Se sei bloccato su un Mac Intel, chiedi a chi mantiene questo repository la soluzione attuale prima di perderci tempo da solo.
 
 ## Passo 4: verifica rapida dell'ambiente
 
@@ -97,15 +96,12 @@ Una volta configurato l'ambiente, ecco i comandi che userai di routine. Vanno tu
 | `esphome run devices/locals/climate-control.yaml --device /dev/ttyUSB0` | Costruisce **e installa** ("flasha") il firmware su un dispositivo collegato via cavo USB. Il percorso `--device` indica quale porta USB usare (varia da computer a computer e da cavo a cavo — `/dev/ttyUSB0` è un esempio tipico su Linux; su macOS assomiglia più a `/dev/cu.usbserial-XXXX`). **Questo passaggio via USB serve solo una volta per ogni dispositivo fisico** — dopo il primo flash, gli aggiornamenti successivi possono avvenire via rete ("OTA," over-the-air). |
 | `esphome logs devices/locals/climate-control.yaml` | Si connette a un dispositivo in funzione e trasmette in tempo reale il suo log al tuo terminale — il modo principale per osservare cosa sta facendo un dispositivo in tempo reale. |
 
-### `devices/locals/` contro `devices/remotes/`
+### I wrapper di build `devices/locals/`
 
-Noterai due cartelle diverse con file dal nome simile:
+`devices/locals/*.yaml` sono le configurazioni che costruisci tu stesso, sul tuo computer, con i comandi sopra — per sviluppo, test e qualsiasi flash via cavo USB o via rete. Ognuno è un wrapper sottile che punta alla composizione vera (per esempio `devices/locals/climate-control.yaml` include `devices/climate-control.yaml`) e fornisce i tuoi secret.
 
-- **`devices/locals/*.yaml`** — configurazioni che costruisci tu stesso, sul tuo computer, con i comandi sopra. È ciò che usi per sviluppo, test, e qualsiasi flash via cavo USB.
-- **`devices/remotes/*.yaml`** — configurazioni di produzione che non contengono direttamente la definizione del firmware; invece dicono a ESPHome di scaricarla direttamente da GitHub (`github://...`). Vengono distribuite in modo diverso: tramite l'add-on ESPHome di Home Assistant, cliccando **"Install"** sulla scheda del dispositivo. Non serve un computer né un terminale per questa via, una volta che un dispositivo è già stato configurato in questo modo — il che la rende la scelta giusta per gli aggiornamenti di routine di un dispositivo già installato in una parete.
-
-!!! note "Non tutti i dispositivi hanno ancora entrambe le varianti"
-    A oggi, **solo il controller climatico** ha sia un `devices/locals/climate-control.yaml` sia un `devices/remotes/climate-control.yaml`. Il controller dell'illuminazione no — non esiste un `devices/locals/light-controller.yaml` né un `devices/remotes/light-controller.yaml`. Se stai lavorando sul controller dell'illuminazione, compila direttamente il suo file punto d'ingresso: `devices/light-controller.yaml`. Non dare per scontato che ogni dispositivo segua lo schema a due varianti del controller climatico; controlla prima cosa esiste davvero nella cartella `devices/`.
+!!! note "Ora è tutto una build locale"
+    Il progetto aveva una cartella `devices/remotes/` con configurazioni che scaricavano da GitHub, per il deployment over-the-air direttamente dall'add-on di Home Assistant. È stata ritirata: entrambi i controller T-Connect Pro montano il touchscreen integrato, che richiede una copia **locale** di un componente `ethernet` modificato — e una configurazione che scarica da GitHub non può recuperare un componente locale, quindi quei controller vengono flashati e aggiornati da un checkout locale. Non tutti i dispositivi hanno nemmeno un wrapper `devices/locals/`: il controller dell'illuminazione viene compilato direttamente da `devices/light-controller.yaml`. Controlla prima cosa esiste davvero nella cartella `devices/`.
 
 ## Un'insidia da conoscere
 

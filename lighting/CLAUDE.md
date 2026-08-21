@@ -54,8 +54,8 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
   `packages/devices/modbus-io/modbus_relay_switch.yaml` hardware driver and registers the created
   switch into `relay_store()` — the registration lives next to the switch it
   registers, so adding a channel registers it automatically.
-- `packages/ui/` — the opt-in on-device LVGL panel (composed only by
-  `devices/light-controller-touch.yaml`; the screen-less build never sees it).
+- `packages/ui/` — the on-device LVGL panel, standard on every build (composed by
+  `devices/light-controller.yaml`; ADR-0023 retired the separate screen-less build).
   `light_touch_ui.yaml` is the panel; `relay_cell.yaml`/`relay_refresh.yaml`
   and `button_row.yaml`/`button_refresh.yaml` are the per-item fragments;
   `touch_ui_format.h` holds the column formatters and the button-event log.

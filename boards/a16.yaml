@@ -1,11 +1,30 @@
-substitutions:
-  wifi_package: !include wifi.yaml
-  ethernet_package: !include a16_ethernet.yaml
-  enable_ethernet: true # Set to "false" to disable Ethernet
-
 packages:
   base: !include base.yaml
-  network_package: ${ethernet_package if enable_ethernet else wifi_package}
+
+# Network — both interfaces declared inline; ESPHome 2026.8.0 multi-interface
+# networking (network: priority:) picks the active one at runtime with automatic
+# failover, replacing the former enable_ethernet toggle + the a16_ethernet.yaml /
+# wifi.yaml split. Ethernet preferred, WiFi fallback. (Gen-1 board with no current
+# consumer — modernized for consistency; not compile-verified in this environment.)
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  # 50 MHz RMII reference clock out on GPIO17 (was clk_mode: GPIO17_OUT,
+  # deprecated in 2026.7 / removed 2026.9).
+  clk:
+    mode: CLK_OUT
+    pin: 17
+  phy_addr: 0
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+network:
+  priority:
+    - ethernet
+    - wifi
 
 uart:
   - id: rs485

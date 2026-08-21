@@ -5,9 +5,10 @@ This is the Climate application system (layered-restructure spine,
 It is **pre-live**: the controller hardware decision is finalized (ADR-0014 — LilyGO
 T-Connect Pro + Modbus RTU I/O boards, implemented) but not yet physically deployed.
 Everything below is scoped to `climate/`; entry
-points that compose Climate packages (`devices/climate-control.yaml`, its
-`devices/locals/` and `devices/remotes/` deployment variants) stay in
-`devices/` (entry points and their variants live together).
+points that compose Climate packages (`devices/climate-control.yaml` and its
+`devices/locals/` build wrapper) stay in
+`devices/` (entry points and their variants live together; ADR-0023 retired the
+`devices/remotes/` GitHub-pull variant).
 
 ## What's here
 
@@ -186,7 +187,7 @@ The whole cross-system battery (canbus generator/python/native tests, lighting,
 these Climate checks, generator idempotence across `canbus`/`climate`/`registry`, and
 the Climate package failover e2e) is codified in `scripts/verification-battery.sh`:
 `bash scripts/verification-battery.sh` (or `--native-only` when ESPHome isn't
-installed). Verification runs pin `esphome==2026.7.0` (`climate/tests/pyproject.toml`).
+installed). Verification runs pin `esphome==2026.8.0` (`climate/tests/pyproject.toml`).
 
 ## Common Tasks
 

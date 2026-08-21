@@ -88,7 +88,9 @@ modbus_controller:
     modbus_id: ${modbus_bus_id}
     update_interval: ${update_interval}
     setup_priority: -10
-    command_throttle: 100ms
+    # Command spacing is handled by the `modbus` hub as of ESPHome 2026.8.0 — the
+    # per-controller command_throttle is now ignored (removed in 2027.2.0). The
+    # rs485_bus hub (devices/climate-control.yaml) sets turnaround_time: 100ms.
 
 # ============================================================================
 # Control Switches (replaces relays 18-21)

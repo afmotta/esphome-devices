@@ -2,14 +2,10 @@ defaults:
   device_name: climate-control
   friendly_name: "Climate Control"
   seasonal_mode_id: hp_mode
-  # Forwarded (not hardcoded) below so a wrapper like
-  # devices/locals/climate-control-touch-wifi.yaml can override it to "false"
-  # (WiFi) — mirrors devices/light-controller.yaml's enable_ethernet pattern.
-  enable_ethernet: true
 
 esphome:
   # This file is never compiled directly — it only resolves through the
-  # one-level-deeper devices/locals/*.yaml or devices/remotes/*.yaml wrapper
+  # one-level-deeper devices/locals/*.yaml wrapper
   # (its `defaults:` substitutions are a no-op otherwise, same as noted in
   # devices/light-controller.yaml). ESPHome resolves `includes:` relative to the
   # top-level CLI-invoked file's directory (esphome/core CORE.config_dir),
@@ -22,10 +18,7 @@ esphome:
     - ../../climate/protocol/can_sensor_receiver.h
 
 packages:
-  base: !include
-    file: ../boards/t-connect-pro.yaml
-    vars:
-      enable_ethernet: ${enable_ethernet}
+  base: !include ../boards/t-connect-pro.yaml
   # Publish-only HVAC-1.3 composition (routes before receiver: the receiver's
   # on_frame action calls can_sensor_route_publish/_nan scripts, which must
   # already be defined). Every registered sensors=1 node's temp/humidity
@@ -65,6 +58,12 @@ packages:
       seasonal_mode_id: hp_mode
       seasonal_mode_name: "Heat Pump Mode"
       time_id: sntp_time
+  # Onboard touchscreen panel — standard on every build (ADR-0023 retired the
+  # screen-less variants). The display shares the W5500's SPI controller via the
+  # local ethernet fork it pulls in (boards/t-connect-pro-display.yaml);
+  # esphome_overrides_path is provided by the devices/locals/ wrapper.
+  display: !include ../boards/t-connect-pro-display.yaml
+  touch_ui: !include ../climate/packages/ui/climate_touch_ui.yaml
 
 udp:
   id: udp_packet_transport
