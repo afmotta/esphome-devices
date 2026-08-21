@@ -18,20 +18,14 @@ Figure out which role died before doing anything else:
 ## Climate controller
 
 1. Get a spare T-Connect Pro board (Ethernet variant).
-2. Copy the secrets it needs. The local development build's secrets live in
-   `devices/locals/secrets.yaml`; the production/OTA build's live in
-   `devices/remotes/secrets.yaml` — these are separate files with (likely) different
-   encryption keys, so use whichever matches how this specific controller was
-   provisioned. If in doubt, start from `devices/secrets.yaml.example` and see
-   [Environment Setup](../setup.md) for what each key means.
-3. Flash it:
-   - For a local/bench build: `esphome run devices/locals/climate-control.yaml
-     --device /dev/ttyUSB0` (first flash needs USB; afterwards `esphome run` can go
-     over the network).
-   - For the production GitHub-pull deployment pattern: `devices/remotes/climate-control.yaml`
-     pulls its firmware definition from GitHub and is normally installed by clicking
-     "Install" on the device's card in the Home Assistant ESPHome add-on — see
-     [Environment Setup](../setup.md) for the difference between these two patterns.
+2. Copy the secrets it needs into `devices/locals/secrets.yaml` (start from
+   `devices/secrets.yaml.example`; see [Environment Setup](../setup.md) for what each
+   key means).
+3. Flash it: `esphome run devices/locals/climate-control.yaml --device /dev/ttyUSB0`
+   (first flash needs USB; afterwards `esphome run` can go over the network). This
+   build includes the onboard touchscreen — standard on every build now, and the
+   GitHub-pull deployment path was retired because it can't carry the panel's local
+   `ethernet` fork.
 4. **Before energizing anything**, confirm the controller comes up in its safe idle
    state (🔵 designed, described in the project's own deployment runbook, not yet
    exercised after a real hardware swap):
@@ -55,9 +49,9 @@ Figure out which role died before doing anything else:
 ## Lighting controller
 
 1. Get a spare T-Connect Pro board (Ethernet variant).
-2. This controller is compiled directly — there's currently no `devices/locals/` or
-   `devices/remotes/` variant for it (⚠️ unlike climate, only one config file exists:
-   `devices/light-controller.yaml`). Flash it with
+2. This controller is compiled directly — there's no `devices/locals/` wrapper for it
+   (⚠️ unlike climate, only one config file exists: `devices/light-controller.yaml`).
+   Flash it with
    `esphome run devices/light-controller.yaml --device /dev/ttyUSB0` for the first
    flash.
 3. This device also carries the relay bank and the button-fallback logic — after

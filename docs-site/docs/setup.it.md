@@ -45,7 +45,6 @@ Ti servono quattro cose sul tuo computer prima di iniziare:
     | `health_monitor_encryption_key` | Lo stesso tipo di chiave, ma specifica per il dispositivo **monitor di salute del bus CAN**. Deve essere un valore casuale *diverso* da `api_encryption_key` — ogni dispositivo ha la propria chiave. | Di nuovo `openssl rand -base64 32` — eseguilo una seconda volta per un nuovo valore. |
     | `encryption_key` | Ancora lo stesso tipo di chiave, ma condivisa dal **controller climatico** e dai dispositivi sensore ambiente/parete autonomi. | `openssl rand -base64 32` — un terzo valore distinto. |
     | `ota_password` | Una password che protegge gli aggiornamenti firmware "OTA" (over-the-air, cioè via rete) dall'essere inviati a un dispositivo da chiunque non sia autorizzato. | `openssl rand -base64 32`, oppure qualsiasi password robusta. |
-    | `github_username` / `github_pat` | Necessari solo se userai il metodo di distribuzione in produzione basato su GitHub (`devices/remotes/`, spiegato al Passo 5) — un nome utente GitHub e un "personal access token" (una specie di password limitata a ciò che serve) che permette a un dispositivo di scaricare la propria configurazione direttamente da GitHub. | Crea un token nelle impostazioni del tuo account GitHub, sotto Developer Settings → Personal Access Tokens. |
 
     Ogni dispositivo ESPHome dovrebbe avere una propria chiave di cifratura distinta — non riusare mai la stessa chiave tra più dispositivi. Ogni comando `openssl rand -base64 32` stampa un nuovo valore casuale di 32 byte codificato come testo; eseguilo una volta per ogni chiave da compilare.
 
@@ -97,15 +96,12 @@ Una volta configurato l'ambiente, ecco i comandi che userai di routine. Vanno tu
 | `esphome run devices/locals/climate-control.yaml --device /dev/ttyUSB0` | Costruisce **e installa** ("flasha") il firmware su un dispositivo collegato via cavo USB. Il percorso `--device` indica quale porta USB usare (varia da computer a computer e da cavo a cavo — `/dev/ttyUSB0` è un esempio tipico su Linux; su macOS assomiglia più a `/dev/cu.usbserial-XXXX`). **Questo passaggio via USB serve solo una volta per ogni dispositivo fisico** — dopo il primo flash, gli aggiornamenti successivi possono avvenire via rete ("OTA," over-the-air). |
 | `esphome logs devices/locals/climate-control.yaml` | Si connette a un dispositivo in funzione e trasmette in tempo reale il suo log al tuo terminale — il modo principale per osservare cosa sta facendo un dispositivo in tempo reale. |
 
-### `devices/locals/` contro `devices/remotes/`
+### I wrapper di build `devices/locals/`
 
-Noterai due cartelle diverse con file dal nome simile:
+`devices/locals/*.yaml` sono le configurazioni che costruisci tu stesso, sul tuo computer, con i comandi sopra — per sviluppo, test e qualsiasi flash via cavo USB o via rete. Ognuno è un wrapper sottile che punta alla composizione vera (per esempio `devices/locals/climate-control.yaml` include `devices/climate-control.yaml`) e fornisce i tuoi secret.
 
-- **`devices/locals/*.yaml`** — configurazioni che costruisci tu stesso, sul tuo computer, con i comandi sopra. È ciò che usi per sviluppo, test, e qualsiasi flash via cavo USB.
-- **`devices/remotes/*.yaml`** — configurazioni di produzione che non contengono direttamente la definizione del firmware; invece dicono a ESPHome di scaricarla direttamente da GitHub (`github://...`). Vengono distribuite in modo diverso: tramite l'add-on ESPHome di Home Assistant, cliccando **"Install"** sulla scheda del dispositivo. Non serve un computer né un terminale per questa via, una volta che un dispositivo è già stato configurato in questo modo — il che la rende la scelta giusta per gli aggiornamenti di routine di un dispositivo già installato in una parete.
-
-!!! note "Non tutti i dispositivi hanno ancora entrambe le varianti"
-    A oggi, **solo il controller climatico** ha sia un `devices/locals/climate-control.yaml` sia un `devices/remotes/climate-control.yaml`. Il controller dell'illuminazione no — non esiste un `devices/locals/light-controller.yaml` né un `devices/remotes/light-controller.yaml`. Se stai lavorando sul controller dell'illuminazione, compila direttamente il suo file punto d'ingresso: `devices/light-controller.yaml`. Non dare per scontato che ogni dispositivo segua lo schema a due varianti del controller climatico; controlla prima cosa esiste davvero nella cartella `devices/`.
+!!! note "Ora è tutto una build locale"
+    Il progetto aveva una cartella `devices/remotes/` con configurazioni che scaricavano da GitHub, per il deployment over-the-air direttamente dall'add-on di Home Assistant. È stata ritirata: entrambi i controller T-Connect Pro montano il touchscreen integrato, che richiede una copia **locale** di un componente `ethernet` modificato — e una configurazione che scarica da GitHub non può recuperare un componente locale, quindi quei controller vengono flashati e aggiornati da un checkout locale. Non tutti i dispositivi hanno nemmeno un wrapper `devices/locals/`: il controller dell'illuminazione viene compilato direttamente da `devices/light-controller.yaml`. Controlla prima cosa esiste davvero nella cartella `devices/`.
 
 ## Un'insidia da conoscere
 

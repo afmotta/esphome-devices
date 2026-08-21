@@ -73,6 +73,9 @@ the active one at runtime.** Concretely:
    W5500 co-claim the pads), false on a screen-less build (W5500 owns them). The 2026.8.0 rebase of
    the ethernet fork (ADR-0016) carries upstream's multi-interface support, so the forked component
    accepts the ethernet+wifi coexistence exactly as the stock component does.
+   > **Superseded by ADR-0023 (2026-08-21):** the screen-less variants were retired, so the display
+   > is present on every build, `allow_other_uses: true` is now unconditional, and `shared_spi_pins`
+   > was removed.
 
 Boards with only one interface are untouched: the health monitor (Waveshare ESP32-S3-RS485-CAN) and
 the An-Quad (no Ethernet PHY) keep their single inline `wifi:` and need no `network:` block.

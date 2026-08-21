@@ -8,11 +8,6 @@ substitutions:
   # would (unlike device_name) override the entry point's value.
   device_name: t-connect-pro
   logger_level: INFO
-  # "true" only when the onboard display shares the W5500's SPI pads
-  # (boards/t-connect-pro-display.yaml); the touchscreen build sets it. Marking
-  # the ethernet SPI pins allow_other_uses is invalid unless the display bus
-  # actually co-claims them, so this stays "false" for screen-less builds.
-  shared_spi_pins: "false"
 
 esphome:
   name: ${device_name}
@@ -62,15 +57,15 @@ ota:
 # (ADR-0014 wired networking) with WiFi as the fallback.
 #
 # The W5500's SCLK/MOSI/MISO (GPIO12/11/13) are the same physical pads as the
-# onboard ST7796 display. On a screen-less build the W5500 owns them outright
-# (shared_spi_pins "false"). On a touchscreen build the display co-claims them and
-# the two share ONE SPI controller (spi2), arbitrated by their CS lines — which is
-# what shared_spi_pins "true" plus the local `ethernet` fork enable. See
-# boards/t-connect-pro-display.yaml for the mechanism and ADR-0016 for the decision.
+# onboard ST7796 display, which every T-Connect Pro build now composes (ADR-0023
+# retired the screen-less variants). The two share ONE SPI controller (spi2),
+# arbitrated by their CS lines — which is what `allow_other_uses: true` below plus
+# the local `ethernet` fork (loaded via boards/t-connect-pro-display.yaml) enable.
+# See that file for the mechanism and ADR-0016 for the decision.
 #
-# `allow_other_uses` is still needed whenever both blocks name these pads, but
-# ESPHome rejects a lone `allow_other_uses: true` when nothing else claims the
-# pin, so it stays gated on `shared_spi_pins` (default false).
+# `allow_other_uses: true` is unconditional: the display's spi: bus always
+# co-claims these same three pads, so the flag is always correct (ESPHome would
+# reject it only if nothing else claimed the pin).
 ethernet:
   type: W5500
   # Explicit rather than implied: ESPHome already defaults non-classic ESP32
@@ -79,13 +74,13 @@ ethernet:
   interface: spi2
   clk_pin:
     number: GPIO12
-    allow_other_uses: ${shared_spi_pins}
+    allow_other_uses: true
   mosi_pin:
     number: GPIO11
-    allow_other_uses: ${shared_spi_pins}
+    allow_other_uses: true
   miso_pin:
     number: GPIO13
-    allow_other_uses: ${shared_spi_pins}
+    allow_other_uses: true
   cs_pin: GPIO10
   interrupt_pin: GPIO9
   reset_pin: GPIO48

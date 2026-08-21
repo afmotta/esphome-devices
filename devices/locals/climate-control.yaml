@@ -1,8 +1,15 @@
+# Local build: climate controller. The onboard T-Connect Pro touchscreen is
+# standard on every build now (ADR-0023 retired the screen-less variants) — the
+# panel and the W5500 Ethernet share one SPI controller via the local ethernet
+# fork the display pulls in (boards/t-connect-pro-display.yaml, ADR-0016).
 substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   encryption_key: !secret encryption_key
   ota_password: !secret ota_password
+  # external_components (the ethernet fork) resolve against THIS file's directory
+  # (devices/locals/), the CLI-invoked config's dir.
+  esphome_overrides_path: ../../libs/esphome_overrides
 
 packages:
   - !include "../climate-control.yaml"

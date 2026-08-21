@@ -5,9 +5,10 @@ This is the Climate application system (layered-restructure spine,
 It is **pre-live**: the controller hardware decision is finalized (ADR-0014 — LilyGO
 T-Connect Pro + Modbus RTU I/O boards, implemented) but not yet physically deployed.
 Everything below is scoped to `climate/`; entry
-points that compose Climate packages (`devices/climate-control.yaml`, its
-`devices/locals/` and `devices/remotes/` deployment variants) stay in
-`devices/` (entry points and their variants live together).
+points that compose Climate packages (`devices/climate-control.yaml` and its
+`devices/locals/` build wrapper) stay in
+`devices/` (entry points and their variants live together; ADR-0023 retired the
+`devices/remotes/` GitHub-pull variant).
 
 ## What's here
 

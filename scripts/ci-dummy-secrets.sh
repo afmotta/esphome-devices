@@ -36,8 +36,6 @@ an_quad_1_encryption_key: "$DUMMY_KEY"
 an_quad_1_web_password: "ci-dummy-an-quad-web"
 encryption_key: "$DUMMY_KEY"
 ota_password: "ci-dummy-ota-password"
-github_username: "ci-dummy-user"
-github_pat: "ghp_cidummytoken"
 EOF
 done
 

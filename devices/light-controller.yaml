@@ -41,6 +41,10 @@ substitutions:
   # ${friendly_name} actually resolve.
   device_name: light-controller
   friendly_name: "Lighting Controller"
+  # external_components (the ethernet fork the display pulls in) resolve against
+  # THIS file's directory (devices/), since this controller is compiled directly.
+  # The onboard panel is standard on every build now (ADR-0023).
+  esphome_overrides_path: ../libs/esphome_overrides
 
 packages:
   # Board first: provides modbus_uart (consumed by the relays package below)
@@ -59,6 +63,12 @@ packages:
       modbus_address: 0x2
       modbus_bus_id: rs485_bus
       update_interval: 2s
+  # Onboard touchscreen panel — standard on every build (ADR-0023 retired the
+  # screen-less variants). Pulls in the local ethernet fork for the shared SPI bus
+  # (boards/t-connect-pro-display.yaml). Composed after buttons/relays so the UI's
+  # references to their entities resolve.
+  display: !include ../boards/t-connect-pro-display.yaml
+  touch_ui: !include ../lighting/packages/ui/light_touch_ui.yaml
 
 esphome:
   includes:

@@ -36,11 +36,9 @@ jobs:
           set -euo pipefail
           for f in \
             devices/locals/climate-control.yaml \
-            devices/locals/climate-control-touch.yaml \
             devices/locals/wall-sensor.yaml \
             devices/locals/room-sensor-soggiorno.yaml \
             devices/light-controller.yaml \
-            devices/light-controller-touch.yaml \
             devices/health-monitor.yaml \
             devices/an-penta-1.yaml \
             devices/an-quad-1.yaml \

@@ -178,8 +178,7 @@ esphome-devices/
 │   ├── light-controller.yaml  # Lighting controller firmware (button events + relay bank; ADR-0015)
 │   ├── health-monitor.yaml    # CAN bus health monitor firmware (transport health; ADR-0015)
 │   ├── secrets.yaml.example   # Template for devices/secrets.yaml (device secrets)
-│   ├── locals/                # Local development/deployment configs
-│   └── remotes/               # Remote GitHub-based deployment configs
+│   └── locals/                # Local build wrappers (climate, sensors) — flashed/OTA'd from a local checkout (ADR-0023 retired devices/remotes/)
 │
 ├── libs/                      # Custom Python/C++ components
 │   ├── s1_pro/                # LD2450 radar driver
@@ -371,23 +370,14 @@ esphome run devices/locals/climate-control.yaml --device /dev/ttyUSB0
 esphome logs devices/locals/climate-control.yaml
 ```
 
-### Remote/Production Deployment
+### Deployment
 
-```yaml
-# devices/remotes/climate-control.yaml references GitHub
-substitutions:
-  github_ref: main
-  github_username: !secret github_username
-  github_pat: !secret github_pat
-
-packages:
-  device: github://${github_username}/esphome-devices@${github_ref}/devices/climate-control.yaml
-```
-
-Then deploy via Home Assistant ESPHome addon:
-- Click "Install" on device card
-- ESPHome pulls config from GitHub
-- OTA update pushed to device
+Both T-Connect Pro controllers carry the onboard screen (standard on every build, ADR-0023), which
+needs the local `ethernet` fork (`external_components: type: local`). That fork cannot travel through
+ESPHome's `github://` packages, so the controllers are flashed and OTA-updated from a **local
+checkout** with the `esphome run` commands above — not a GitHub-pull config. The former
+`devices/remotes/` GitHub-package deployment was retired in ADR-0023 (it could only ever build a
+screen-less config, which no physical controller runs).
 
 ### Secrets Management
 
@@ -398,8 +388,6 @@ wifi_ssid: "YourSSID"
 wifi_password: "password"
 encryption_key: "base64key..."
 ota_password: "password"
-github_username: "username"
-github_pat: "ghp_token..."
 ```
 
 Reference secrets in configs:
@@ -427,9 +415,10 @@ ESPHome version bump must**:
    else from the new upstream — the 2026.8.0 rebase, for instance, adopted upstream's multi-interface
    support (dropped ethernet↔wifi `CONFLICTS_WITH`, added the `network: priority:` coexistence
    validation), which ADR-0022's inline Ethernet+WiFi merge depends on.
-2. Re-run the bring-up check by flashing `devices/locals/climate-control-touch.yaml` — the
-   Ethernet + panel build is itself the regression harness, since it exercises the shared bus in
-   exactly the arrangement the fork enables. Confirm all three:
+2. Re-run the bring-up check by flashing `devices/locals/climate-control.yaml` — the Ethernet +
+   panel build (the panel is standard on every build now, ADR-0023) is itself the regression
+   harness, since it exercises the shared bus in exactly the arrangement the fork enables. Confirm
+   all three:
    - the boot log shows `SPI host 2 already initialized (shared with 'spi:')` — proof the shared
      path was taken rather than the old two-controller failure;
    - the status strip's liveness dot keeps pulsing, i.e. the display is still being flushed (a
@@ -535,9 +524,8 @@ external_components:
 
 | Path | Use Case |
 |------|----------|
-| `devices/locals/climate-control.yaml` | Local development and testing |
-| `devices/remotes/climate-control.yaml` | Production deployment via GitHub |
-| `devices/climate-control.yaml` | Core device configuration |
+| `devices/locals/climate-control.yaml` | The climate controller build (local flash/OTA; onboard screen standard) |
+| `devices/climate-control.yaml` | Core composition (board + climate packages + panel); included by the local wrapper |
 
 ---
 
@@ -649,6 +637,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
+| 2026-08-21 | 1.19 | Standardized on the **onboard-screen build** for both T-Connect Pro controllers and retired the screen-less and GitHub-remote variants (ADR-0023). The display + touch UI are now composed by the core entry points (`devices/climate-control.yaml`, `devices/light-controller.yaml`), so every build has the panel; deleted `devices/locals/climate-control-touch.yaml`, `devices/light-controller-touch.yaml`, and `devices/remotes/climate-control.yaml` (the GitHub-pull deployment couldn't carry the local `ethernet` fork — `external_components: type: local` — anyway). With no screen-less build left, the display always co-claims the W5500's SPI pads, so **`shared_spi_pins` was removed** and `allow_other_uses: true` hardcoded in `boards/t-connect-pro.yaml` + `boards/t-connect-pro-display.yaml` (the PR-review simplification, now valid). The now-unused `github_username`/`github_pat` secrets were dropped from the template + CI dummy secrets; CI's validate list drops the two `-touch` entries. **Config-validated**: `esphome config` passes on both consolidated builds (the climate run logs the fork's shared-SPI INFO line); demonstrated that hardcoding `allow_other_uses: true` without the display fails, which is why the screen-less variants had to go first. Still owed on the next flash: the ADR-0016 hardware bring-up check. | AI Assistant |
 | 2026-08-20 | 1.18 | Upgraded ESPHome to **2026.8.0** and **merged Ethernet + WiFi into one config per board** using the new multi-interface `network:` component (ADR-0022). The mutually-exclusive `enable_ethernet` toggle, the `network_package` indirection, and all the swappable network packages (the `*-ethernet.yaml`/`*-wifi.yaml` board files plus the Gen-1 shared `wifi.yaml`) are gone: every board that had both interfaces — `boards/t-connect-pro.yaml`, `boards/an-penta-plus.yaml`, and the legacy/unused `a6.yaml`/`a16.yaml`/`waveshare-s3.yaml` relay boards — now declares both `ethernet:` and `wifi:` inline with `network: priority: [ethernet, wifi]` (Ethernet preferred, automatic WiFi failover); entry points (`climate-control`, `light-controller`, `an-penta-1`) drop the toggle, and the now-redundant `devices/locals/climate-control-touch-wifi.yaml` was deleted (the base touch build already falls back to WiFi). Per-interface `ethernet_info`/`wifi_info` sensors coexist with qualified IP-address names. **Ethernet fork re-verified** (mandatory per the upgrade procedure): `libs/esphome_overrides/ethernet/` rebased onto upstream 2026.8.0 by diffing and re-applying only the two `LOCAL FORK` changes (`.h`/`rp2.cpp` are now byte-identical to upstream); the rebase adopts upstream's multi-interface support (dropped ethernet↔wifi `CONFLICTS_WITH`, added the `network: priority:` coexistence validation), which the merge depends on. **2026.8.0 breaking changes applied**: sen6x `voc`/`nox` → `voc_index`/`nox_index` (`devices/wall-sensor.yaml`, `canbus/packages/sensor_kit.yaml`); modbus `command_throttle` removed in favour of the hub's `turnaround_time` (`climate/mev_modbus.yaml`, `climate/mev_innova_modbus.yaml`, `docs/change_waveshare_relay_address.yaml`); addressable-LED `rgb_order` → `channel_colors` (`boards/s1-pro-multi-sense.yaml`, `boards/waveshare-s3.yaml`); the legacy a16's deprecated ethernet `clk_mode` → `clk:` block. The three legacy boards (a6/a16/waveshare-s3) have no device consumer or CI coverage, so their merge is structural only. Version pins bumped to 2026.8.0 across CI (`.github/workflows/verify.yml`), `climate/tests/pyproject.toml`, `scripts/verification-battery.sh`, and the active-board `min_version` floors. **Not hardware-verified** (no ESPHome CLI in-env, controllers pre-live): the ADR-0016 shared-SPI bring-up check and the dual-interface failover are owed on the next flash. YAML well-formedness checked on all edited configs; the rebased fork `py_compile`s | AI Assistant |
 | 2026-08-14 | 1.17 | Added the QuinLED-An-Quad as a second lighting LED-strip controller and **CAN actuator node** (ADR-0021), a 4-channel, WiFi-only sibling of the An-Penta-Plus that **reuses ADR-0020's `CAT_OUTPUT` slice unchanged**. Board scaffolding (`boards/an-quad.yaml`; classic ESP32, four raw LEDC channels on GPIO16/17/5/19) and a lighting entry point (`devices/an-quad-1.yaml`) composing two `cwww` tunable-white strips over the four channels; WiFi + HA for normal control (`api: reboot_timeout: 0s`). Because the board has **no Ethernet PHY**, WiFi is declared **inline** in the board file — no `-wifi`/`-ethernet` split, no `network_package` indirection, no `enable_ethernet` toggle (the swappable-network pattern only earns its keep on the An-Penta-Plus, which has both). The HA-down fallback joins the house bus via an external SN65HVD230 transceiver on the An-Quad's spare expansion-header GPIOs (not a QWIIC header — the An-Quad has none), **GPIO22 (tx) / GPIO23 (rx), confirmed from the schematic**, isolated as `aux_gpio_1`/`aux_gpio_2` substitutions. The actuator YAML was **generalized**: `an_penta_can.yaml` → board-neutral `lighting/packages/led_can_actuator.yaml`, now composed by **both** `devices/an-penta-1.yaml` and `devices/an-quad-1.yaml` (they differed only in comments; board specifics — pins, channel wiring — live in the entry points). First-class registry node (node 103, new external-actuator profile `led-quad` beside `led-penta` in `generate_nodes.py` — reserves node_id + `node_map`/`map.json`/health, generates no node YAML). No protocol/binding/dispatch change — the `CAT_OUTPUT` slice, `BindingEntry`, and gateway fallback are reused verbatim; empty-manifest hash `d66767448ba37b2f` unchanged. Both actuator entry points (`an-penta-1`, `an-quad-1`) were added to CI's `esphome config` validate list + `ci-dummy-secrets.sh`, closing the gap where the An-Penta (ADR-0020) had no CI config-validation. Registry artifacts regenerate cleanly; native/Python battery passes (esphome CLI not available in-env for the local compile) | AI Assistant |
 | 2026-08-11 | 1.16 | Added the QuinLED-An-Penta-Plus as a lighting LED-strip controller and integrated it as a **CAN actuator node** (ADR-0020). Board scaffolding (`boards/an-penta-plus.yaml` + `-ethernet`/`-wifi`; classic ESP32 + LAN8720, five raw LEDC channels, QWIIC expansion header) and a lighting entry point (`devices/an-penta-1.yaml`) composing two `cwww` tunable-white strips; it keeps WiFi + HA for normal control (`api: reboot_timeout: 0s` so it survives HA outages). The **HA-down fallback goes over a dedicated CAN channel, not HTTP**: the protocol's reserved `CAT_OUTPUT` slice is realized (`MSG_OUT_SET_CHANNEL` in `canbus_protocol.h`); the An-Penta joins the house bus via an external SN65HVD230 transceiver on the QWIIC header and applies OUTPUT commands to its strips (`lighting/packages/an_penta_can.yaml`), as a first-class registry node (node 102, new **external-actuator** profile `led-penta` in `generate_nodes.py` — reserves node_id + `node_map`/`map.json`/health, generates no node YAML). The binding manifest gains a first-class `output: <node>/<channel>` target beside `relay:` (frozen-additive `BindingEntry`: `target_kind`/`target_node_id`/`channel` — SPEC + drift test updated; empty-manifest hash `d66767448ba37b2f` unchanged), and the gateway fallback (`fire_binding_fallback`) sends a `CAT_OUTPUT` frame on `can0` instead of driving a relay. **Supersedes the withdrawn HTTP approach** (relay-id-32 overload, `web_server` POST). Protocol/binding/dispatch logic natively tested; both devices' firmware compiles | AI Assistant |

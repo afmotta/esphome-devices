@@ -15,8 +15,8 @@ relatedDocuments:
   - libs/esphome_overrides/ethernet/
   - boards/t-connect-pro-display.yaml
   - boards/t-connect-pro.yaml
-  - devices/locals/climate-control-touch.yaml
-  - devices/light-controller-touch.yaml
+  - devices/locals/climate-control.yaml
+  - devices/light-controller.yaml
   - climate/packages/ui/climate_touch_ui.yaml
   - lighting/packages/ui/light_touch_ui.yaml
 ---
@@ -93,6 +93,11 @@ upgrade (currently 2026.8.0) — with **two** changes:
 External components are inserted at `sys.meta_path` position 0, so this shadows the built-in.
 
 ### 2. Only touch builds take the fork
+
+> **Amended by ADR-0023 (2026-08-21):** the onboard screen is now standard on every controller
+> build — the display is composed by the core entry points, and there is no longer a screen-less
+> variant — so the fork is active on every build. The mechanism below is unchanged; what changed is
+> that "only touch builds take the fork" became "every build does."
 
 The `external_components` block lives in **`boards/t-connect-pro-display.yaml`**, not in the
 ethernet board file. Screen-less Ethernet builds — `devices/climate-control.yaml` and

@@ -5,7 +5,7 @@ defaults:
 
 esphome:
   # This file is never compiled directly — it only resolves through the
-  # one-level-deeper devices/locals/*.yaml or devices/remotes/*.yaml wrapper
+  # one-level-deeper devices/locals/*.yaml wrapper
   # (its `defaults:` substitutions are a no-op otherwise, same as noted in
   # devices/light-controller.yaml). ESPHome resolves `includes:` relative to the
   # top-level CLI-invoked file's directory (esphome/core CORE.config_dir),
@@ -58,6 +58,12 @@ packages:
       seasonal_mode_id: hp_mode
       seasonal_mode_name: "Heat Pump Mode"
       time_id: sntp_time
+  # Onboard touchscreen panel — standard on every build (ADR-0023 retired the
+  # screen-less variants). The display shares the W5500's SPI controller via the
+  # local ethernet fork it pulls in (boards/t-connect-pro-display.yaml);
+  # esphome_overrides_path is provided by the devices/locals/ wrapper.
+  display: !include ../boards/t-connect-pro-display.yaml
+  touch_ui: !include ../climate/packages/ui/climate_touch_ui.yaml
 
 udp:
   id: udp_packet_transport
