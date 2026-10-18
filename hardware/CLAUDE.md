@@ -7,7 +7,7 @@ Contesto per le sessioni di Claude Code che riprendono questo progetto. Leggi qu
 PCB di un nodo per la domotica CAN di un fienile ristrutturato, da montare dietro i pulsanti in una scatola elettrica italiana **503**. Una sola scheda, revisione **C** (le rev A e B sono state abbandonate: non ricrearle).
 
 - ESP32-C6-WROOM-1-N8 (Wi-Fi, ESPHome/OTA), TJA1051T/3 per il CAN (VIO a 3,3 V), 24 V dal bus → K7805-500R3 (5 V) → AP2112K-3.3.
-- 6 ingressi pulsante (pull-up 10k, serie 1k, 100 nF), porta Qwiic senza pull-up, pettine di programmazione USB non montato.
+- 6 ingressi pulsante (pull-up 3,3k, serie 1k, 100 nF), porta Qwiic senza pull-up, pettine di programmazione USB non montato.
 - 56 × 41 mm, 2 strati, componenti solo sul lato superiore, 4 fori M3 negli angoli.
 - Pensata per l'assemblaggio completo da JLCPCB (SMD + THT a onda).
 

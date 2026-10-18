@@ -23,7 +23,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 10. **Tolti i pull-up I²C** opzionali (R + ponticelli a saldare): Alberto usa il **QwiicBus**, che li ha già.
 11. **GPIO riassegnati** per sbrogliare meglio: pulsanti 1–3 sul lato sinistro del modulo, 4–6 sul destro, CAN TX/RX scambiati per allinearli ai pin 1 e 4 del TJA1051. Risultato: meno via, retro quasi tutto massa.
 12. **Connettore dei pulsanti.** La scheda sta dietro i pulsanti, quindi servono fili che entrano **dall'alto** e un modo rapido per staccarla: scelto il **morsetto estraibile verticale** (presa KF2EDGV-3.5 + spina a vite KF2EDGK-3.5). Scartato il push-in KF141V-2.54 (alto 13,6 mm, footprint a due file non verificabile, fili solo sottili). Poi passati da 2 × 4 poli a **un 7 poli con un solo GND** (un'unica spina, niente rischio di scambiare le spine, 6 mm in meno). Rischio: magazzino basso (presa 485, spina 234 al 2026-10-14); riserva = due 4 poli, ma richiede di rifare il PCB.
-13. **Filo consigliato per i pulsanti:** cordina 0,5 mm² (corrente ~0,3 mA); isolamento adatto ai 230 V se condivide scatola o tubi con la rete.
+13. **Filo consigliato per i pulsanti:** cordina 0,5 mm² (corrente ~1 mA, vedi voce del 2026-10-18); isolamento adatto ai 230 V se condivide scatola o tubi con la rete.
 14. **Designatori rinumerati** senza buchi (J1 bus, J2 pulsanti, J3 Qwiic, J4 programmazione; R13 EN, R14 GPIO8) e riferimenti J1/J2 spostati lontano dalle etichette dei pin.
 15. **J1 estraibile (2026-10-16).** Su richiesta di Alberto il morsetto a vite del bus è diventato un **morsetto estraibile ad angolo**: presa Kefa KF2EDGR-3.5-4P (C441173, 7 295 pz su LCSC al 2026-10-18) + spina KF2EDGK-3.5-4P (C440849, 12 196 pz, da ordinare a parte). Scelto l'innesto orizzontale (fili sempre dal bordo destro) invece del verticale come J2: lo stock è molto più alto e il piazzamento cambia poco. Footprint Phoenix MC 1,5/4-G-3,5 orizzontale, pin a x = 48 mm per avere il fronte della presa a filo del bordo; spostati di poco F1 (−1 mm) e D4 (−0,3 mm), etichette dei pin a sinistra dei pad, pad GND di U2 collegato pieno (`SOLID_GND`) per un thermal incompleto. Risbrogliato con `route.sh`.
 
@@ -34,7 +34,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 | TJA1051T/3 con VIO a 3,3 V | Uscita RXD già a 3,3 V, niente partitore; pin S a GND (modalità normale). |
 | K7805-500R3 + AP2112K | 5 V per il transceiver, 3,3 V puliti per il modulo; il K7805 regge fino a 36 V in ingresso. |
 | PTC 0,5 A, SS34, SMBJ26CA, NUP2105L | Protezione da sovracorrente, inversione, sovratensione sul 24 V e ESD sulle linee CAN. |
-| RC sui pulsanti (10k / 1k / 100 nF) | Filtro dei disturbi sulle linee lunghe verso i pulsanti; antirimbalzo fine in ESPHome (`delayed_on_off`). |
+| RC sui pulsanti (3,3k / 1k / 100 nF) | Filtro dei disturbi sulle linee lunghe verso i pulsanti; antirimbalzo fine in ESPHome (`delayed_on_off`). |
 | Antenna a filo del bordo superiore, keepout Espressif | Prestazioni Wi-Fi; nessun rame e nessun componente davanti all'antenna. |
 | Fori M3 non metallizzati | Case in plastica; la testa della vite poggia su massa coperta da solder mask. Vite in nylon consigliata nel foro vicino all'antenna. |
 | Freerouting 1.9.0 | Unica versione che funziona headless in questo ambiente (vedi CLAUDE.md). |
@@ -59,3 +59,9 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - **Riferimento di U1** spostato dentro il corpo del K7805: era fuori dal bordo superiore.
 - **Controlli:** la regola DRC `silk_edge_clearance` passa da ignorata a errore; `check_placement.py` segnala le etichette dei connettori a meno di 0,15 mm da un pad. `silk_overlap` e `silk_over_copper` restano ignorate: segnalano riferimenti dei passivi nella zona fitta a destra del modulo, già presenti prima.
 - README: nota sulla catena del bus (due fili per polo nella spina di J1, la scheda si stacca senza interrompere il bus), magazzino aggiornato, verifica del diametro dei fori.
+
+## 2026-10-18 — Pull-up dei pulsanti da 10k a 3,3k
+
+- **R1–R6 da 10 kΩ a 3,3 kΩ** (UNI-ROYAL 0402WGF3301TCE, C25890, Basic). Motivo: con 10k nel contatto passavano ~0,3 mA, poco per i contatti in argento dei pulsanti da rete, che invecchiando possono dare falsi contatti; con 3,3k passa ~1 mA. A 3,3 V resta comunque un "circuito secco": è un miglioramento, non una cura.
+- Un contatto viene ancora letto come chiuso fino a ~1,1 kΩ di resistenza (soglia bassa 0,825 V; con 10k era ~3,3 kΩ). Assorbimento solo a pulsante premuto (max ~6 mA con tutti premuti). Filtro invariato (1k × 100 nF).
+- Stesso footprint 0402 e stesse piste: PCB rigenerato con `build_pcb.sh` sullo sbroglio salvato. R13 (EN) e R14 (GPIO8) restano 10k.

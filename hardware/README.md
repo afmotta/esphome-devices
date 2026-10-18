@@ -33,7 +33,7 @@ Per rigenerare i file di produzione dopo una modifica: `sudo tools/setup.sh` (un
 - **3,3 V:** LDO AP2112K-3.3 (U4, 600 mA). Due diodi B5819W (D3, D5) in "OR" lo alimentano dai 5 V del K7805 oppure dai 5 V del pettine di programmazione: il modulo si programma anche senza i 24 V, e la tensione dell'USB non risale verso il K7805.
 - **CAN:** TJA1051T/3 con VIO a 3,3 V (nessun partitore sulle linee logiche), pin S a GND, protezione ESD NUP2105L sulle linee del bus. **Nessuna terminazione da 120 Ω** a bordo: il bus va terminato agli estremi della linea.
 - **Microcontrollore:** modulo ESP32-C6-WROOM-1-N8 (flash 8 MB, antenna su PCB), con l'antenna a filo del bordo superiore della scheda. Rete RC su EN (10 kΩ + 1 µF) e pull-up da 10 kΩ su GPIO8, come raccomanda Espressif.
-- **Ingressi pulsante:** per ciascuno pull-up da 10 kΩ a 3,3 V, resistenza in serie da 1 kΩ e condensatore da 100 nF verso GND (τ ≈ 100 µs). Il pulsante chiude verso GND (logica attiva bassa). Componenti 0402, sotto il bordo inferiore del modulo.
+- **Ingressi pulsante:** per ciascuno pull-up da 3,3 kΩ a 3,3 V (circa 1 mA nel contatto chiuso, per tenere puliti i contatti in argento dei pulsanti da rete), resistenza in serie da 1 kΩ e condensatore da 100 nF verso GND (τ ≈ 100 µs). Il pulsante chiude verso GND (logica attiva bassa). Componenti 0402, sotto il bordo inferiore del modulo.
 
 ## Pinout
 
@@ -62,7 +62,7 @@ Rispetto alla versione 48 × 44 mm i GPIO di pulsanti, Qwiic e CAN sono cambiati
 - **Catena del bus:** il morsetto del bus è uno solo, quindi il cavo che arriva e quello che riparte verso il nodo successivo vanno nello stesso polo della spina (due fili per polo, meglio con un puntale doppio; la spina accetta fino a 1,5 mm² in tutto). Il collegamento tra i due cavi lo fa la spina stessa: sfilandola stacchi la scheda senza interrompere il bus e l'alimentazione degli altri nodi.
 - **J2 PULSANTI:** morsetto estraibile verticale a 7 poli, passo 3,5 mm, sul bordo inferiore. Sulla scheda c'è la presa (Kefa KF2EDGV-3.5-7P); i fili vanno nella spina a vite (KF2EDGK-3.5-7P), che si innesta dall'alto, quindi i fili escono perpendicolari alla scheda. Cabli la spina sui pulsanti e poi la innesti: per staccare la scheda basta sfilarla. Pin da sinistra: pulsanti 1, 2, 3, 4, 5, 6, GND.
 - **Comune dei pulsanti:** c'è un solo morsetto GND. Fai i ponticelli del comune tra i pulsanti sulla placca e porta un solo filo alla spina. Se preferisci due fili fino alla spina, il morsetto da 1,5 mm² ne accetta due da 0,5 mm², meglio con un puntale doppio.
-- **Filo per i pulsanti:** la corrente è di circa 0,3 mA, quindi la sezione conta solo per la meccanica. Consigliata cordina da **0,5 mm²** (la spina accetta da 0,2 a 1,5 mm²). Se nella scatola o nei tubi passano anche conduttori a 230 V, il filo deve avere un isolamento adatto a quella tensione (ad esempio FS17 o H05V-K da 0,5 mm²).
+- **Filo per i pulsanti:** la corrente è di circa 1 mA, quindi la sezione conta solo per la meccanica. Consigliata cordina da **0,5 mm²** (la spina accetta da 0,2 a 1,5 mm²). Se nella scatola o nei tubi passano anche conduttori a 230 V, il filo deve avere un isolamento adatto a quella tensione (ad esempio FS17 o H05V-K da 0,5 mm²).
 - **J3 Qwiic:** JST SH a 4 pin, passo 1 mm, sul bordo superiore a destra con l'imbocco verso l'alto. GND, 3,3 V, SDA, SCL. **Nessun pull-up I²C sulla scheda:** li forniscono il QwiicBus e le schede dei sensori.
 - **J4 PROG:** pettine verticale 1×6 a passo 2,54 mm sul lato sinistro, da non montare. Pin: 5V, D−, D+, GND, BOOT, GND. I pin 1–4 vanno al cavo USB (USB nativo del C6). Un ponticello sui pin 5–6 porta GPIO9 a massa e fa partire il modulo in modalità download.
 
@@ -117,7 +117,7 @@ binary_sensor:
     pin:
       number: GPIO7
       inverted: true
-      mode: { input: true, pullup: false }   # pull-up esterno da 10k
+      mode: { input: true, pullup: false }   # pull-up esterno da 3,3k
     filters:
       - delayed_on_off: 20ms
   # Pulsanti 2–6: GPIO0, GPIO1, GPIO20, GPIO19, GPIO18

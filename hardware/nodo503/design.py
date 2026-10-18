@@ -112,8 +112,8 @@ for i in range(1, 7):
     sx = 25.4 + ((i - 1) % 3) * 40.64
     sy = 127.0 if i <= 3 else 154.94
     x, y = btn_xy[i]
-    add(f"R{i}", "Device:R", "10k", R0402, {"1": "+3V3", "2": f"BTN{i}_EXT"},
-        (sx, sy), (x, y, 0), mpn="10 kOhm 1% 0402", lcsc="C25744")
+    add(f"R{i}", "Device:R", "3.3k", R0402, {"1": "+3V3", "2": f"BTN{i}_EXT"},
+        (sx, sy), (x, y, 0), mpn="3.3 kOhm 1% 0402 (UNI-ROYAL 0402WGF3301TCE)", lcsc="C25890")
     add(f"R{i+6}", "Device:R", "1k", R0402, {"1": f"BTN{i}_EXT", "2": f"BTN{i}"},
         (sx + 10.16, sy), (x + 2.2, y, 0), mpn="1 kOhm 1% 0402", lcsc="C11702")
     add(f"C{i+6}", "Device:C", "100nF", C0402, {"1": f"BTN{i}", "2": "GND"},
@@ -149,7 +149,7 @@ SCH_TEXT = [
     ("MCU ESP32-C6-WROOM-1: EN RC 10k/1uF, GPIO8 pull-up, BOOT=GPIO9 su J4", (284.48, 71.12)),
     ("PROGRAMMAZIONE: USB nativo (GPIO12/13) su J4, ponticello 5-6 = BOOT", (284.48, 175.26)),
     ("QWIIC I2C (SDA=GPIO3, SCL=GPIO2), pull-up esterni (QwiicBus)", (200.66, 120.65)),
-    ("INGRESSI PULSANTI: pull-up 10k, serie 1k, filtro 100 nF (tau 100 us)", (17.78, 113.03)),
+    ("INGRESSI PULSANTI: pull-up 3,3k (~1 mA), serie 1k, filtro 100 nF (tau 100 us)", (17.78, 113.03)),
 ]
 
 # fixed copper placed before autorouting: (kind, ...)
