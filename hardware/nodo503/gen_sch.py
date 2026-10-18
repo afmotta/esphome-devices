@@ -73,7 +73,7 @@ pro = {
                   "min_text_thickness": 0.1, "min_annular_ring": 0.13, "min_via_annular_width": 0.1,
                   "solder_mask_to_copper_clearance": 0.0},
         "track_widths": [0.0, 0.25, 0.4, 0.6, 1.0], "via_dimensions": [{"diameter": 0.0, "drill": 0.0}, {"diameter": 0.6, "drill": 0.3}],
-        "rule_severities": {"silk_overlap": "ignore", "silk_over_copper": "ignore", "silk_edge_clearance": "ignore",
+        "rule_severities": {"silk_overlap": "ignore", "silk_over_copper": "ignore", "silk_edge_clearance": "error",
                             "lib_footprint_issues": "ignore", "lib_footprint_mismatch": "ignore",
                             "text_height": "ignore", "text_thickness": "ignore"},
     }},

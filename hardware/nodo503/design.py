@@ -17,7 +17,7 @@ C0805 = "Capacitor_SMD:C_0805_2012Metric"
 C1206 = "Capacitor_SMD:C_1206_3216Metric"
 R0402 = "Resistor_SMD:R_0402_1005Metric"
 C0402 = "Capacitor_SMD:C_0402_1005Metric"
-TB4 = "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-4-3.5-H_1x04_P3.50mm_Horizontal"
+PLUG4H = "Connector_Phoenix_MC:PhoenixContact_MC_1,5_4-G-3.5_1x04_P3.50mm_Horizontal"   # pluggable header, plug from the side
 PLUG7V = "Connector_Phoenix_MC:PhoenixContact_MCV_1,5_7-G-3.5_1x07_P3.50mm_Vertical"   # pluggable header, wires from the top
 
 COMP = {}
@@ -28,12 +28,12 @@ def add(ref, lib, value, fp, pins, sch, pcb, mpn="", lcsc="", note=""):
 
 # --- Bus terminal -----------------------------------
 bus = {"4": "VBUS24", "3": "GND", "2": "CANH", "1": "CANL"}
-add("J1", "Connector:Screw_Terminal_01x04", "BUS 24V CAN", TB4, bus, (25.4, 45.72), (51.0, 29.0, 90),
-    mpn="Morsetto a vite 4 poli passo 3,5 mm, DORABO DB125-3.5-4P-GN-S (THT)", lcsc="C2757925")
+add("J1", "Connector:Screw_Terminal_01x04", "BUS 24V CAN", PLUG4H, bus, (25.4, 45.72), (48.0, 29.0, 90),
+    mpn="Presa per morsetto estraibile ad angolo 4 poli passo 3,5 mm, Kefa KF2EDGR-3.5-4P (THT); spina KF2EDGK-3.5-4P C440849 da ordinare a parte", lcsc="C441173")
 
 # --- Power input protection + 5 V regulator --------------------------------
 add("F1", "Device:Polyfuse", "PTC 0.5A 30V", "Fuse:Fuse_1812_4532Metric",
-    {"1": "VBUS24", "2": "V24F"}, (55.88, 45.72), (42.6, 18.5, 180),
+    {"1": "VBUS24", "2": "V24F"}, (55.88, 45.72), (41.6, 18.5, 180),
     mpn="PTC 1812 RUILON SMD1812P050TF/30 (0,5 A hold, 30 V)", lcsc="C12559")
 add("D1", "Device:D_Schottky", "SS34", "Diode_SMD:D_SMA",
     {"1": "V24P", "2": "V24F"}, (76.2, 45.72), (35.0, 18.5, 0),
@@ -82,7 +82,7 @@ add("C5", "Device:C", "100nF", C0603, {"1": "+5V", "2": "GND"}, (106.68, 96.52),
 add("C6", "Device:C", "100nF", C0603, {"1": "+3V3", "2": "GND"}, (119.38, 96.52), (40.3, 25.5, 90),
     mpn="MLCC 100 nF 50 V 0603", lcsc="C14663")
 add("D4", "Power_Protection:NUP2105L", "NUP2105L", "Package_TO_SOT_SMD:SOT-23",
-    {"1": "CANH", "2": "CANL", "3": "GND"}, (139.7, 96.52), (43.8, 27.3, 0),
+    {"1": "CANH", "2": "CANL", "3": "GND"}, (139.7, 96.52), (43.5, 27.3, 0),
     mpn="onsemi NUP2105LT1G - ESD bus CAN 24 V", lcsc="C14486")
 
 # --- MCU ---------------------------------------------------------------------
@@ -164,8 +164,12 @@ for y in _ey:
 PREROUTE += [("via", _ex[0], _ey[0], "GND"), ("via", _ex[2], _ey[0], "GND"),
              ("via", _ex[0], _ey[2], "GND"), ("via", _ex[2], _ey[2], "GND"), ("via", _ex[1], _ey[1], "GND")]
 
+# parts whose body is flush with the board edge: allowed courtyard overhang (mm) in check_placement.py;
+# gen_pcb.py clips their silk outline to the board
+EDGE_OVERHANG = {"J1": 0.5}
+
 # decoupling caps whose GND pad gets a solid (non-thermal) pour connection
-SOLID_GND = {"C9", "C10", "J2", "J4", "U1"}
+SOLID_GND = {"C9", "C10", "J2", "J4", "U1", "U2"}
 
 # AP2112K: EN (pin 3) tied to VIN (pin 1) around the GND pin
 _ux, _uy = 45.6, 13.75

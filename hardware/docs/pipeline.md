@@ -68,6 +68,6 @@ design.py ──► gen_sch.py ──► nodo503.kicad_sch, .kicad_pro, .kicad_s
 
 ## Controlli utili
 
-- `python3 check_placement.py` — sovrapposizioni dei courtyard e componenti fuori scheda (esegui dopo `gen_pcb.py`, prima di sbrogliare: fa risparmiare un giro di Freerouting).
+- `python3 check_placement.py` — sovrapposizioni dei courtyard, componenti fuori scheda (tolleranza in `EDGE_OVERHANG`) ed etichette dei connettori a meno di 0,15 mm da un pad (esegui dopo `gen_pcb.py`, prima di sbrogliare: fa risparmiare un giro di Freerouting).
 - `python3 drc.py` — DRC completo (deve dare 0 e 0).
 - `python3 metrics.py` — lunghezza piste per strato, via, copertura delle masse, lunghezza delle net principali: utile per confrontare due varianti di piazzamento.

@@ -58,7 +58,8 @@ Rispetto alla versione 48 × 44 mm i GPIO di pulsanti, Qwiic e CAN sono cambiati
 
 ## Connettori
 
-- **J1 BUS:** morsetto passo 3,5 mm sul bordo destro, fili che entrano da destra. Dall'alto in basso: 24V – GND – CAN-H – CAN-L.
+- **J1 BUS:** morsetto estraibile ad angolo a 4 poli, passo 3,5 mm, sul bordo destro. Sulla scheda c'è la presa (Kefa KF2EDGR-3.5-4P), a filo del bordo; i fili vanno nella spina a vite (KF2EDGK-3.5-4P), che si innesta di lato da destra, quindi i fili escono paralleli alla scheda come prima. La spina sporge di circa 1 cm oltre il bordo: lascia lo spazio nel case. Dall'alto in basso: 24V – GND – CAN-H – CAN-L.
+- **Catena del bus:** il morsetto del bus è uno solo, quindi il cavo che arriva e quello che riparte verso il nodo successivo vanno nello stesso polo della spina (due fili per polo, meglio con un puntale doppio; la spina accetta fino a 1,5 mm² in tutto). Il collegamento tra i due cavi lo fa la spina stessa: sfilandola stacchi la scheda senza interrompere il bus e l'alimentazione degli altri nodi.
 - **J2 PULSANTI:** morsetto estraibile verticale a 7 poli, passo 3,5 mm, sul bordo inferiore. Sulla scheda c'è la presa (Kefa KF2EDGV-3.5-7P); i fili vanno nella spina a vite (KF2EDGK-3.5-7P), che si innesta dall'alto, quindi i fili escono perpendicolari alla scheda. Cabli la spina sui pulsanti e poi la innesti: per staccare la scheda basta sfilarla. Pin da sinistra: pulsanti 1, 2, 3, 4, 5, 6, GND.
 - **Comune dei pulsanti:** c'è un solo morsetto GND. Fai i ponticelli del comune tra i pulsanti sulla placca e porta un solo filo alla spina. Se preferisci due fili fino alla spina, il morsetto da 1,5 mm² ne accetta due da 0,5 mm², meglio con un puntale doppio.
 - **Filo per i pulsanti:** la corrente è di circa 0,3 mA, quindi la sezione conta solo per la meccanica. Consigliata cordina da **0,5 mm²** (la spina accetta da 0,2 a 1,5 mm²). Se nella scatola o nei tubi passano anche conduttori a 230 V, il filo deve avere un isolamento adatto a quella tensione (ad esempio FS17 o H05V-K da 0,5 mm²).
@@ -79,13 +80,14 @@ Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi de
 ## Da verificare prima dell'ordine
 
 1. **Codici LCSC e magazzino.** Tutti i componenti montati hanno un codice LCSC. Al caricamento della BOM controlla la disponibilità, soprattutto di J3 (vedi sotto).
-2. **Rotazioni nel file CPL.** Controllale nell'anteprima di assemblaggio JLCPCB, soprattutto per il modulo U3 (l'antenna deve stare a filo del bordo superiore, sopra l'area senza rame), U2, U4 (ruotato di 180°), J3 (ruotato di 180°, imbocco verso l'alto), J1 (ruotato di 90°), J2 (il lato con l'incastro della spina deve coincidere con quello del footprint), i diodi e C1.
+2. **Rotazioni nel file CPL.** Controllale nell'anteprima di assemblaggio JLCPCB, soprattutto per il modulo U3 (l'antenna deve stare a filo del bordo superiore, sopra l'area senza rame), U2, U4 (ruotato di 180°), J3 (ruotato di 180°, imbocco verso l'alto), J1 (ruotato di 90°, imbocco della spina verso il bordo destro), J2 (il lato con l'incastro della spina deve coincidere con quello del footprint), i diodi e C1.
 3. **Via nel pad di massa del modulo.** Il pad di massa sotto il WROOM è una griglia 3×3 con 5 via verso la massa sul retro. Su JLCPCB conviene chiedere che le via siano tappate ("via-in-pad" o "epoxy filled"), così lo stagno non cola nei fori. Se non lo fai, di solito funziona comunque.
 4. **Piste sotto il modulo.** La pista di BOOT passa sullo strato superiore sotto il bordo inferiore del modulo, lontano dall'antenna; altre piste passano sul retro sotto il modulo. È ammesso, ma se in KiCad vuoi un piano di massa più pulito sotto il modulo puoi spostarle sul retro.
+5. **Fori di J1 e J2.** I footprint Phoenix MC/MCV hanno fori da 1,2 mm. Il datasheet Kefa non è consultabile da qui: confronta il diametro con il footprint EasyEDA di C441173 e C441326 (pagina del componente su LCSC o JLCPCB) prima di ordinare.
 
 ## Montaggio
 
-- **Montaggio completo:** carica `BOM.csv` e `CPL_JLCPCB.csv`. JLCPCB monta anche i THT (K7805-500R3, J1 e la presa J2) a onda o a mano. Non resta nulla da saldare, J4 resta senza componente. La spina KF2EDGK-3.5-7P si ordina a parte.
+- **Montaggio completo:** carica `BOM.csv` e `CPL_JLCPCB.csv`. JLCPCB monta anche i THT (K7805-500R3, J1 e la presa J2) a onda o a mano. Non resta nulla da saldare, J4 resta senza componente. Le spine KF2EDGK-3.5-7P (J2) e KF2EDGK-3.5-4P (J1) si ordinano a parte.
 - **Solo SMD:** carica `BOM_SMD.csv` e `CPL_SMD.csv`. Il K7805, J1 e la presa J2 restano da saldare a mano.
 
 ## Esempio ESPHome (indicativo)
@@ -128,7 +130,8 @@ Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo
 - **Non montati:** solo **J4** (pettine di programmazione, DNP). Per programmare si usano pin a pressione o un pettine inserito al momento.
 - **C2** è passato da 2,2 µF a **10 µF 50 V 1206** (C13585, Basic): più capacità in ingresso al K7805 e un componente Extended in meno.
 - **C1:** Panasonic EEE-FK1H220P (C128458), 6,3 × 5,8 mm. È compatibile con il footprint 6,3 × 5,4 mm.
-- **J1:** DORABO DB125-3.5-4P-GN-S (C2757925, Extended, saldatura a onda, disponibile anche in PCBA Economic), passo 3,5 mm, ingresso fili laterale, vite M2, filo fino a 1 mm². Il passo coincide con il footprint Phoenix PT 1,5/4-3,5-H. Prima dell'ordine verifica nell'anteprima JLCPCB che il corpo e il lato d'ingresso dei fili coincidano.
+- **J1:** presa Kefa KF2EDGR-3.5-4P (C441173, Extended, ad angolo, 10 A 300 V, saldatura a onda, PCBA Economic e Standard), footprint Phoenix MC 1,5/4-G-3,5 orizzontale, fronte della presa a filo del bordo destro. A magazzino LCSC 7 295 pezzi il 2026-10-18. Prima dell'ordine verifica nell'anteprima JLCPCB che l'imbocco della spina sia verso il bordo.
+- **Spina per J1 da ordinare a parte:** Kefa KF2EDGK-3.5-4P (LCSC C440849, 12 196 pezzi il 2026-10-18), la stessa serie della spina di J2, vite M2, filo fino a 1,5 mm².
 - **J2:** presa Kefa KF2EDGV-3.5-7P (C441326, Extended, saldatura a onda, PCBA Economic e Standard), footprint Phoenix MCV 1,5/7-G-3,5 verticale. A magazzino LCSC ce n'erano 485 il 2026-10-14.
 - **Spina per J2 da ordinare a parte:** Kefa KF2EDGK-3.5-7P (LCSC C440852, circa 0,52 $ da 10 pezzi). Non è nella BOM di montaggio perché non si salda: si aggiunge all'ordine LCSC. Il 2026-10-14 ce n'erano solo 234: comprale con il primo ordine, con qualcuna di scorta. Se finissero, la soluzione di riserva sono due 4 poli (KF2EDGV/KF2EDGK-3.5-4P, C441323/C440849, molto disponibili), ma servirebbe rifare il PCB. 
 - **CPL:** per i THT la posizione è il centro dei pin (non il pin 1). Controlla nell'anteprima di assemblaggio le rotazioni dei morsetti e del K7805.

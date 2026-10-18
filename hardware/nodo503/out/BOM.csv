@@ -13,7 +13,7 @@ B5819W,D3,D_SOD-123,1,B5819W - OR alimentazione LDO (da 5 V bus),C8598,Basic
 NUP2105L,D4,SOT-23,1,onsemi NUP2105LT1G - ESD bus CAN 24 V,C14486,Extended
 B5819W,D5,D_SOD-123,1,B5819W - OR alimentazione LDO (da USB di programmazione),C8598,Basic
 PTC 0.5A 30V,F1,Fuse_1812_4532Metric,1,"PTC 1812 RUILON SMD1812P050TF/30 (0,5 A hold, 30 V)",C12559,Extended
-BUS 24V CAN,J1,"TerminalBlock_Phoenix_PT-1,5-4-3.5-H_1x04_P3.50mm_Horizontal",1,"Morsetto a vite 4 poli passo 3,5 mm, DORABO DB125-3.5-4P-GN-S (THT)",C2757925,Extended - THT (saldatura a onda/manuale JLCPCB)
+BUS 24V CAN,J1,"PhoenixContact_MC_1,5_4-G-3.5_1x04_P3.50mm_Horizontal",1,"Presa per morsetto estraibile ad angolo 4 poli passo 3,5 mm, Kefa KF2EDGR-3.5-4P (THT); spina KF2EDGK-3.5-4P C440849 da ordinare a parte",C441173,Extended - THT (saldatura a onda/manuale JLCPCB)
 PULSANTI 1-6,J2,"PhoenixContact_MCV_1,5_7-G-3.5_1x07_P3.50mm_Vertical",1,"Presa per morsetto estraibile verticale 7 poli passo 3,5 mm, Kefa KF2EDGV-3.5-7P (THT); spina KF2EDGK-3.5-7P C440852 da ordinare a parte",C441326,Extended - THT (saldatura a onda/manuale JLCPCB)
 QWIIC,J3,JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal,1,"JST SM04B-SRSS-TB(LF)(SN) (Qwiic, SH 1 mm, orizzontale)",C160404,Extended
 PROG USB,J4,PinHeader_1x06_P2.54mm_Vertical,1,"Pettine 1x6 2,54 mm (non montato): 5V, D-, D+, GND, BOOT, GND - ponticello 5-6 = download",,non montato (DNP)

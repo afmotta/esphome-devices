@@ -42,12 +42,12 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 3. Guarda le anteprime `out/anteprima_lato_top.png` e `_bottom.png` (strumento Read sull'immagine): niente piste assurde, serigrafie leggibili e non sovrapposte alle etichette dei connettori.
 4. `out/` è versionato: rigeneralo e committalo insieme alle modifiche agli script.
 
-## Stato attuale (2026-10-14)
+## Stato attuale (2026-10-18)
 
 - DRC pulito, parità 0, pronto per l'ordine dopo le verifiche nell'anteprima JLCPCB (vedi README, "Da verificare prima dell'ordine").
-- Connettori: J1 bus (morsetto a vite laterale, bordo destro, dall'alto 24V-GND-H-L), J2 pulsanti (presa estraibile verticale 7 poli KF2EDGV-3.5-7P, pin 1–6 + GND, bordo inferiore; la spina KF2EDGK-3.5-7P si ordina a parte, non è in BOM), J3 Qwiic (JST SH, bordo superiore), J4 pettine di programmazione (DNP).
+- Connettori: J1 bus (presa estraibile ad angolo KF2EDGR-3.5-4P, spina laterale dal bordo destro, dall'alto 24V-GND-H-L; spina KF2EDGK-3.5-4P C440849 a parte), J2 pulsanti (presa estraibile verticale 7 poli KF2EDGV-3.5-7P, pin 1–6 + GND, bordo inferiore; la spina KF2EDGK-3.5-7P si ordina a parte, non è in BOM), J3 Qwiic (JST SH, bordo superiore), J4 pettine di programmazione (DNP).
 - Pinout GPIO: vedi tabella nel README. Pulsanti 1–3 su GPIO7/0/1 (lato sinistro del modulo), 4–6 su GPIO20/19/18 (lato destro); CAN TX GPIO23, RX GPIO22; I²C SDA GPIO3, SCL GPIO2.
-- Aperti / da fare: verifiche nell'anteprima JLCPCB; scarsa disponibilità di J3 (C160404) e delle spine 7 poli; firmware ESPHome non ancora scritto (c'è solo l'esempio nel README); proposta non ancora decisa di rendere estraibile anche J1.
+- Aperti / da fare: verifiche nell'anteprima JLCPCB; scarsa disponibilità di J3 (C160404) e delle spine 7 poli; firmware ESPHome non ancora scritto (c'è solo l'esempio nel README).
 
 ## Mappa del PCB (mm, origine in alto a sinistra, y verso il basso)
 
@@ -70,11 +70,12 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 
 - **Freerouting**: usa la **1.9.0** con `xvfb-run` (senza display va in HeadlessException). La 2.x in headless produce percorsi a un solo punto. Non lanciare mai `pkill -f freerouting`: uccide anche la shell che lo invoca. Per la stessa DSN il risultato è deterministico; piccoli spostamenti cambiano molto l'esito. Se restano collegamenti aperti: sposta di poco i componenti coinvolti o aggiungi piste fisse in `PREROUTE` (esempio: bus +3V3 sulle colonne dei pull-up).
 - **API pcbnew (KiCad 7)**: `board.Zones()` non è iterabile → `GetAreaCount()`/`GetArea(i)`. `ImportSpecctraSES` non è usabile → c'è un parser SES in `route_import.py`. L'angolo dei testi dei footprint è **relativo** alla rotazione del footprint (per un riferimento orizzontale su un footprint ruotato di `rot` usa `-rot`). Rotazione positiva = antioraria sullo schermo (y verso il basso).
-- **Morsetto PT-1,5-H** (J1): a rotazione 0 il lato d'ingresso dei fili è verso +y; a 90° verso +x (bordo destro). La numerazione dei pin di J1 è invertita apposta (pin 4 = 24V in alto).
+- **Presa MC 1,5-G-3,5 orizzontale** (J1): a rotazione 0 l'imbocco della spina è verso +y (corpo da −1,2 a +8 mm dai pin); a 90° verso +x (bordo destro), per questo i pin stanno a x = 48 e il courtyard sporge 0,5 mm (`EDGE_OVERHANG` in `design.py`: `check_placement.py` lo tollera e `gen_pcb.py` ritaglia la serigrafia del contorno a 0,2 mm dal bordo). La numerazione dei pin di J1 è invertita apposta (pin 4 = 24V in alto).
+- **Serigrafie nel DRC:** `silk_edge_clearance` è un errore; `silk_overlap` e `silk_over_copper` sono ignorate (riferimenti dei passivi nella zona fitta). Le etichette dei connettori le controlla `check_placement.py` (almeno 0,15 mm dai pad): eseguilo anche dopo aver toccato le serigrafie.
 - **Starved thermal** su pad GND: aggiungi il riferimento a `SOLID_GND` in `design.py`.
 - Fori di montaggio: footprint board-only, esclusi da BOM e CPL; le rule area attorno ai fori vengono esportate nella DSN come keepout.
 - `gen_sch.py` è deterministico (UUID derivati con uuid5): a parità di `design.py` lo schema è identico byte per byte; lo stesso vale per il PCB prodotto da `build_pcb.sh` (generatore di UUID KiCad inizializzato con un seme). Un diff su `.kicad_sch`/`.kicad_pcb` quindi indica modifiche reali. Gli UUID dei simboli stanno in `.comp_uuid.json`: non cancellarlo, collega i simboli dello schema ai footprint del PCB.
-- Lo sbroglio salvato (`nodo503.ses`) è stato prodotto prima della rinumerazione dei designatori: rilanciando `route.sh` sullo stato attuale Freerouting produce uno sbroglio diverso (anch'esso con DRC pulito, verificato). Va bene: dopo ogni modifica che richiede `route.sh` controlla DRC e anteprime come al solito.
+- Lo sbroglio salvato (`nodo503.ses`) corrisponde allo stato attuale (rifatto con `route.sh` il 2026-10-16 per J1 estraibile): `build_pcb.sh` lo reimporta fedelmente. Dopo ogni modifica che richiede `route.sh` controlla DRC e anteprime come al solito.
 - Rete del sandbox cloud: datasheet LCSC e API EasyEDA sono bloccati; le pagine prodotto di lcsc.com e jlcpcb.com/partdetail funzionano con WebFetch. Le pagine JLCPCB mostrano "Extended" anche per i Preferred. Alcuni codici esistono solo nel catalogo JLCPCB e non su LCSC (es. C42400616): verifica sempre entrambi.
 - Elenco ufficiale Basic/Preferred: `scraped/assembly-details.csv` del repo GitHub CDFER/jlcpcb-parts-database (`base` = Basic, `expand` = Preferred). La classificazione usata è in `hardware/jlc_library.json` (aggiungi lì ogni nuovo codice).
 

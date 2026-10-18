@@ -18,13 +18,14 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 5. **ESP32-C3 valutato e scartato.** Zigbee non serve, ma il risparmio sarebbe ~0,50 €/scheda: non vale la perdita di capacità.
 6. **Revisione di un esperto.** `cleanup.py` per micro-segmenti e sovrapposizioni, coordinate arrotondate a 1 µm, verifica dei pad dei ponticelli e dell'ingresso fili di J1.
 7. **Solo rev C.** Rev A e B abbandonate: non vanno più mantenute.
-8. **Morsetto del bus.** Il codice C42400616 (Kefa KF350) esiste solo nel catalogo JLCPCB e non su LCSC → **DORABO DB125-3.5-4P-GN-S (C2757925)**, stesso passo e footprint.
+8. **Morsetto del bus.** Il codice C42400616 (Kefa KF350) esiste solo nel catalogo JLCPCB e non su LCSC → **DORABO DB125-3.5-4P-GN-S (C2757925)**, stesso passo e footprint. *(Superata dalla 15: J1 ora è una presa estraibile Kefa.)*
 9. **56 × 41 mm con 4 fori M3.** Richiesta: fori agli angoli per un case stampato in 3D, senza superare la **CANBed RP2040 (56 × 41 mm)**. La vecchia 48 × 44 superava già i 41 mm in altezza, quindi la scheda è stata ridisposta: modulo in alto a sinistra, J1 sul bordo destro, pulsanti sul bordo inferiore. Fori a 3,5 mm dai bordi (interasse 49 × 34 mm), keepout piste/via di 3,3 mm.
 10. **Tolti i pull-up I²C** opzionali (R + ponticelli a saldare): Alberto usa il **QwiicBus**, che li ha già.
 11. **GPIO riassegnati** per sbrogliare meglio: pulsanti 1–3 sul lato sinistro del modulo, 4–6 sul destro, CAN TX/RX scambiati per allinearli ai pin 1 e 4 del TJA1051. Risultato: meno via, retro quasi tutto massa.
 12. **Connettore dei pulsanti.** La scheda sta dietro i pulsanti, quindi servono fili che entrano **dall'alto** e un modo rapido per staccarla: scelto il **morsetto estraibile verticale** (presa KF2EDGV-3.5 + spina a vite KF2EDGK-3.5). Scartato il push-in KF141V-2.54 (alto 13,6 mm, footprint a due file non verificabile, fili solo sottili). Poi passati da 2 × 4 poli a **un 7 poli con un solo GND** (un'unica spina, niente rischio di scambiare le spine, 6 mm in meno). Rischio: magazzino basso (presa 485, spina 234 al 2026-10-14); riserva = due 4 poli, ma richiede di rifare il PCB.
 13. **Filo consigliato per i pulsanti:** cordina 0,5 mm² (corrente ~0,3 mA); isolamento adatto ai 230 V se condivide scatola o tubi con la rete.
 14. **Designatori rinumerati** senza buchi (J1 bus, J2 pulsanti, J3 Qwiic, J4 programmazione; R13 EN, R14 GPIO8) e riferimenti J1/J2 spostati lontano dalle etichette dei pin.
+15. **J1 estraibile (2026-10-16).** Su richiesta di Alberto il morsetto a vite del bus è diventato un **morsetto estraibile ad angolo**: presa Kefa KF2EDGR-3.5-4P (C441173, 7 295 pz su LCSC al 2026-10-18) + spina KF2EDGK-3.5-4P (C440849, 12 196 pz, da ordinare a parte). Scelto l'innesto orizzontale (fili sempre dal bordo destro) invece del verticale come J2: lo stock è molto più alto e il piazzamento cambia poco. Footprint Phoenix MC 1,5/4-G-3,5 orizzontale, pin a x = 48 mm per avere il fronte della presa a filo del bordo; spostati di poco F1 (−1 mm) e D4 (−0,3 mm), etichette dei pin a sinistra dei pad, pad GND di U2 collegato pieno (`SOLID_GND`) per un thermal incompleto. Risbrogliato con `route.sh`.
 
 ## Scelte tecniche che non vanno cambiate senza motivo
 
@@ -41,12 +42,20 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 ## Punti aperti
 
 - Verifiche nell'anteprima di assemblaggio JLCPCB: rotazioni (U3, U2, U4, J1, J2, J3, diodi, C1), orientamento del corpo di J1 (fili dal bordo destro), lato dell'incastro di J2, via-in-pad tappate sotto il modulo.
+- Diametro dei fori di J1 e J2 (1,2 mm nei footprint Phoenix) da confrontare con i footprint EasyEDA delle prese Kefa.
 - J3 (JST SH, C160404) ha pochi pezzi: alternative C7430446, C2845363, C18077910 (da confrontare col footprint).
-- Possibile J1 estraibile (proposto, non deciso).
 - Firmware ESPHome da scrivere (c'è solo l'esempio nel README).
-- Case stampato in 3D da progettare (interasse fori 49 × 34 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più).
+- Case stampato in 3D da progettare (interasse fori 49 × 34 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più; la spina di J1 sporge di circa 1 cm oltre il bordo destro).
 
 ## 2026-10-18 — Origine ausiliaria e testi Qwiic
 
 - **Origine ausiliaria** del PCB nell'angolo in basso a sinistra (`gen_pcb.py`). `export.sh` ora esporta Gerber e foratura con quell'origine (`--use-drill-file-origin`, `--drill-origin plot`): prima erano in coordinate assolute (scheda a 100,100) mentre il CPL è relativo all'angolo in basso a sinistra con Y verso l'alto, quindi i due file non coincidevano. Ora Gerber, foratura e CPL hanno la stessa origine.
 - Corretti i testi dello schema e il commento in `design.py`: I²C è SDA=GPIO3, SCL=GPIO2 (restavano GPIO20/21 di una revisione precedente).
+
+## 2026-10-18 — Serigrafie di J1 e controlli
+
+- **Etichette dei pin di J1** (24V, GND, H, L): allineate a destra 0,2 mm prima dei pad, caratteri più stretti (0,45 × 0,6 mm) perché "24V" stia tra F1 e J1. Prima "24V" toccava il pad e "GND" lo copriva per 0,1 mm: JLCPCB avrebbe tagliato le lettere.
+- **Contorno serigrafato di J1** ritagliato a 0,2 mm dal bordo destro (usciva di 0,11 mm). Vale per ogni componente in `EDGE_OVERHANG` (`design.py`), che sostituisce l'eccezione scritta a mano per J1 in `check_placement.py`.
+- **Riferimento di U1** spostato dentro il corpo del K7805: era fuori dal bordo superiore.
+- **Controlli:** la regola DRC `silk_edge_clearance` passa da ignorata a errore; `check_placement.py` segnala le etichette dei connettori a meno di 0,15 mm da un pad. `silk_overlap` e `silk_over_copper` restano ignorate: segnalano riferimenti dei passivi nella zona fitta a destra del modulo, già presenti prima.
+- README: nota sulla catena del bus (due fili per polo nella spina di J1, la scheda si stacca senza interrompere il bus), magazzino aggiornato, verifica del diametro dei fori.

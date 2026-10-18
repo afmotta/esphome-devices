@@ -8,7 +8,7 @@ MM = pcbnew.FromMM
 pcbnew.KIID.SeedGenerator(503)   # deterministic UUIDs -> reproducible .kicad_pcb
 def P(x, y): return pcbnew.VECTOR2I(int(round((OX + x) * 1000)) * 1000, int(round((OY + y) * 1000)) * 1000)
 
-REF_POS = {"J1": (51.5, 14.6), "J2": (35.9, 37.3)}
+REF_POS = {"J1": (51.5, 14.6), "J2": (35.9, 37.3), "U1": (31.0, 2.4)}
 comp_uuid = json.load(open(f"{ROOT}/.comp_uuid.json"))
 path = f"{ROOT}/{PROJECT}.kicad_pcb"
 if os.path.exists(path):
@@ -49,6 +49,17 @@ for ref, c in COMP.items():
     if ref in REF_POS:      # keep the designator away from the pin legends
         rx, ry = REF_POS[ref]
         r.SetPosition(P(rx, ry)); r.SetTextAngleDegrees(-rot)   # FP text angle is relative to the footprint
+    if ref in EDGE_OVERHANG:   # body flush with the edge: clip the silk outline so it stays on the board
+        xmax = MM(OX + W - 0.2)
+        for g in list(fp.GraphicalItems()):
+            if g.GetLayer() != pcbnew.F_SilkS or g.GetClass() == "MTEXT":
+                continue
+            s, e = g.GetStart(), g.GetEnd()
+            if s.x > xmax and e.x > xmax:
+                s.x = e.x = xmax
+            else:
+                s.x, e.x = min(s.x, xmax), min(e.x, xmax)
+            g.SetStart(s); g.SetEnd(e); g.SetLocalCoord()   # FP_SHAPE saves its footprint-local coords
     board.Add(fp)
 
 # outline with rounded corners
@@ -82,15 +93,18 @@ for k, (hx, hy) in enumerate(HOLES, 1):
     board.Add(z)
 
 # silkscreen legends
-def text(t, x, y, size=0.8, rot=0, layer=pcbnew.F_SilkS, mirror=False):
+def text(t, x, y, size=0.8, rot=0, layer=pcbnew.F_SilkS, mirror=False, width=None, right=False):
     tx = pcbnew.PCB_TEXT(board); tx.SetText(t); tx.SetPosition(P(x, y)); tx.SetLayer(layer)
-    tx.SetTextSize(pcbnew.VECTOR2I(MM(size), MM(size))); tx.SetTextThickness(MM(size * 0.15))
+    tx.SetTextSize(pcbnew.VECTOR2I(MM(width or size), MM(size))); tx.SetTextThickness(MM(size * 0.15))
     tx.SetTextAngleDegrees(rot)
+    if right: tx.SetHorizJustify(pcbnew.GR_TEXT_H_ALIGN_RIGHT)   # x is the right end of the text
     if mirror: tx.SetMirrored(True)
     board.Add(tx)
 x0, y0, _ = COMP["J1"]["pcb"]
 for k, t in enumerate(["24V", "GND", "H", "L"]):      # J1 on the right edge, top to bottom
-    text(t, 46.5, y0 - 10.5 + 3.5 * k, 0.6)
+    # right-aligned 0.2 mm short of the pads (x0 - 1.8); "L" also clear of the pin-1 marker;
+    # narrow glyphs so "24V" fits between F1 and J1
+    text(t, x0 - 2.0 - (0.85 if t == "L" else 0), y0 - 10.5 + 3.5 * k, 0.6, width=0.45, right=True)
 for ref, names in (("J2", ["1", "2", "3", "4", "5", "6", "G"]),):
     x0, y0, _ = COMP[ref]["pcb"]
     for k, t in enumerate(names):
