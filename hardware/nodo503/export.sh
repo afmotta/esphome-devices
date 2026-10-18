@@ -18,8 +18,8 @@ for fp in b.GetFootprints():
 print("parita schema/PCB, discrepanze:", bad)
 PY
 rm -rf out/gerber && mkdir -p out/gerber
-kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts -o out/gerber/ nodo503.kicad_pcb >/dev/null 2>&1
-kicad-cli pcb export drill --format excellon --drill-origin absolute --excellon-units mm -o out/gerber/ nodo503.kicad_pcb >/dev/null 2>&1
+kicad-cli pcb export gerbers --use-drill-file-origin --layers F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts -o out/gerber/ nodo503.kicad_pcb >/dev/null 2>&1
+kicad-cli pcb export drill --format excellon --drill-origin plot --excellon-units mm -o out/gerber/ nodo503.kicad_pcb >/dev/null 2>&1
 rm -f out/gerber_JLCPCB.zip; (cd out/gerber && zip -q ../gerber_JLCPCB.zip *)
 python3 gen_bom.py 2>&1 | grep -v swig
 kicad-cli sch export pdf -o out/nodo503_schema.pdf nodo503.kicad_sch >/dev/null 2>&1

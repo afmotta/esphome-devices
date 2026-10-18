@@ -1597,7 +1597,7 @@
 (text "TRANSCEIVER CAN (logica 3,3 V via VIO)" (at 17.78 87.63 0) (effects (font (size 1.8 1.8)) (justify left bottom)) (uuid 3f91228f-1000-5591-a9be-b0635e5e890a))
 (text "MCU ESP32-C6-WROOM-1: EN RC 10k/1uF, GPIO8 pull-up, BOOT=GPIO9 su J4" (at 284.48 71.12 0) (effects (font (size 1.8 1.8)) (justify left bottom)) (uuid 31340e8e-fe6a-55be-b629-f0078af47c09))
 (text "PROGRAMMAZIONE: USB nativo (GPIO12/13) su J4, ponticello 5-6 = BOOT" (at 284.48 175.26 0) (effects (font (size 1.8 1.8)) (justify left bottom)) (uuid 68ddfab0-927a-578e-8e06-e24eaffd69cc))
-(text "QWIIC I2C (SDA=GPIO20, SCL=GPIO21), pull-up esterni (QwiicBus)" (at 200.66 120.65 0) (effects (font (size 1.8 1.8)) (justify left bottom)) (uuid b84f1d3d-7779-5546-b027-b51487e5d091))
+(text "QWIIC I2C (SDA=GPIO3, SCL=GPIO2), pull-up esterni (QwiicBus)" (at 200.66 120.65 0) (effects (font (size 1.8 1.8)) (justify left bottom)) (uuid b84f1d3d-7779-5546-b027-b51487e5d091))
 (text "INGRESSI PULSANTI: pull-up 10k, serie 1k, filtro 100 nF (tau 100 us)" (at 17.78 113.03 0) (effects (font (size 1.8 1.8)) (justify left bottom)) (uuid ffbd6b17-a1ce-54f7-aaea-1d5ed5caa6e5))
   (sheet_instances (path "/" (page "1")))
 )

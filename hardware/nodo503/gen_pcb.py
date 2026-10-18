@@ -120,5 +120,7 @@ for pre in PREROUTE:
     else:
         trk(*pre[1:])
 
+# auxiliary origin at the board's bottom-left corner: Gerber/drill and CPL share it (y up)
+board.GetDesignSettings().SetAuxOrigin(P(0, H))
 pcbnew.SaveBoard(path, board)
 print("saved", path)

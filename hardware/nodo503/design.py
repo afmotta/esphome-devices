@@ -124,7 +124,7 @@ add("J2", "Connector:Screw_Terminal_01x07", "PULSANTI 1-6", PLUG7V,
     (157.48, 127.0), (9.95, 37.3, 0),
     mpn="Presa per morsetto estraibile verticale 7 poli passo 3,5 mm, Kefa KF2EDGV-3.5-7P (THT); spina KF2EDGK-3.5-7P C440852 da ordinare a parte", lcsc="C441326")
 
-# --- Qwiic / I2C (SDA = GPIO20, SCL = GPIO21) ---------------------------
+# --- Qwiic / I2C (SDA = GPIO3, SCL = GPIO2) ---------------------------
 add("J3", "Connector_Generic:Conn_01x04", "QWIIC", "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
     {"1": "GND", "2": "+3V3", "3": "I2C_SDA", "4": "I2C_SCL"}, (259.08, 129.54), (44.7, 3.3, 180),
     mpn="JST SM04B-SRSS-TB(LF)(SN) (Qwiic, SH 1 mm, orizzontale)", lcsc="C160404")
@@ -148,7 +148,7 @@ SCH_TEXT = [
     ("TRANSCEIVER CAN (logica 3,3 V via VIO)", (17.78, 87.63)),
     ("MCU ESP32-C6-WROOM-1: EN RC 10k/1uF, GPIO8 pull-up, BOOT=GPIO9 su J4", (284.48, 71.12)),
     ("PROGRAMMAZIONE: USB nativo (GPIO12/13) su J4, ponticello 5-6 = BOOT", (284.48, 175.26)),
-    ("QWIIC I2C (SDA=GPIO20, SCL=GPIO21), pull-up esterni (QwiicBus)", (200.66, 120.65)),
+    ("QWIIC I2C (SDA=GPIO3, SCL=GPIO2), pull-up esterni (QwiicBus)", (200.66, 120.65)),
     ("INGRESSI PULSANTI: pull-up 10k, serie 1k, filtro 100 nF (tau 100 us)", (17.78, 113.03)),
 ]
 

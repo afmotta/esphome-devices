@@ -45,3 +45,8 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - Possibile J1 estraibile (proposto, non deciso).
 - Firmware ESPHome da scrivere (c'è solo l'esempio nel README).
 - Case stampato in 3D da progettare (interasse fori 49 × 34 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più).
+
+## 2026-10-18 — Origine ausiliaria e testi Qwiic
+
+- **Origine ausiliaria** del PCB nell'angolo in basso a sinistra (`gen_pcb.py`). `export.sh` ora esporta Gerber e foratura con quell'origine (`--use-drill-file-origin`, `--drill-origin plot`): prima erano in coordinate assolute (scheda a 100,100) mentre il CPL è relativo all'angolo in basso a sinistra con Y verso l'alto, quindi i due file non coincidevano. Ora Gerber, foratura e CPL hanno la stessa origine.
+- Corretti i testi dello schema e il commento in `design.py`: I²C è SDA=GPIO3, SCL=GPIO2 (restavano GPIO20/21 di una revisione precedente).
