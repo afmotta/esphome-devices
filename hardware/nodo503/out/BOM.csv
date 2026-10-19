@@ -1,5 +1,5 @@
 Comment,Designator,Footprint,Quantita,Descrizione / MPN,LCSC,Libreria JLCPCB
-22uF 50V,C1,CP_Elec_6.3x5.4,1,"Panasonic EEE-FK1H220P, elettrolitico SMD 22 uF 50 V, D6.3x5.8 mm, 105 C",C128458,Extended
+10uF 50V,C1,CP_Elec_5x5.4,1,"Honor Elec RVT1H100M0505, elettrolitico SMD 10 uF 50 V, D5x5.4 mm, 105 C",C86603,Extended
 10uF 50V,C2,C_1206_3216Metric,1,MLCC 10 uF 50 V X5R 1206 (Samsung CL31A106KBHNNNE),C13585,Basic
 10uF,C3,C_0805_2012Metric,1,MLCC 10 uF 25 V 0805,C15850,Basic
 100nF,"C4,C5,C6,C16",C_0603_1608Metric,4,MLCC 100 nF 50 V 0603,C14663,Basic
@@ -7,7 +7,7 @@ Comment,Designator,Footprint,Quantita,Descrizione / MPN,LCSC,Libreria JLCPCB
 1uF,"C13,C14",C_0603_1608Metric,2,MLCC 1 uF 50 V X5R 0603 (Samsung CL10A105KB8NNNC),C15849,Basic
 10uF,C15,C_0603_1608Metric,1,"MLCC 10 uF 10 V X5R 0603 (Samsung CL10A106KP8NNNC), vicino al modulo",C19702,Basic
 1uF,C17,C_0402_1005Metric,1,MLCC 1 uF 25 V X5R 0402 (Samsung CL05A105KA5NQNC) - RC su EN,C52923,Basic
-SS34,D1,D_SMA,1,SS34 (40 V 3 A) - protezione inversione polarita',C8678,Basic
+B5819W,D1,D_SOD-123,1,B5819W (40 V 1 A) - protezione inversione polarita',C8598,Basic
 SMBJ26CA,D2,D_SMB,1,"SMBJ26CA TVS bidirezionale 26 V, SMB (hongjiacheng)",C19077581,Preferred
 B5819W,D3,D_SOD-123,1,B5819W - OR alimentazione LDO (da 5 V bus),C8598,Basic
 NUP2105L,D4,SOT-23,1,onsemi NUP2105LT1G - ESD bus CAN 24 V,C14486,Extended

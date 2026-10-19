@@ -35,17 +35,18 @@ design.py ──► gen_sch.py ──► nodo503.kicad_sch, .kicad_pro, .kicad_s
   - `pcb`: `(x, y, rotazione)` del footprint, in mm **relativi all'angolo in alto a sinistra della scheda**. Le coordinate vengono arrotondate a 1 µm.
   - `mpn`: descrizione/MPN che finisce in BOM; `lcsc`: codice LCSC (vuoto = da assegnare).
 - `MODX, MODY`: origine del modulo ESP32 (le piste fisse della griglia di massa sotto il modulo dipendono da qui).
-- `btn_xy`: posizione dei 6 gruppi RC dei pulsanti (R pull-up a x, R serie a x+2,2, C a x+4,4).
+- `btn_xy`, `BTN_DY`: colonna RC di ogni pulsante (C a (x, y), R serie a y+`BTN_DY`, R pull-up a y+2·`BTN_DY`, tutti ruotati di 90°: pin 1 in basso). Pulsanti 1–3 a sinistra del modulo, 4–6 a destra.
 - `NETCLASSES`: larghezze e clearance (Bus/Power 0,6 mm, CAN 0,4 mm, Default 0,25 mm). Finiscono nel `.kicad_pro` e quindi nella DSN.
-- `PREROUTE`: rame fisso piazzato prima dello sbroglio. Tipi: `("trk", x1, y1, x2, y2, net)` pista 0,3 mm su F.Cu, `"trkn"` 0,2 mm su F.Cu, `"trkb"` 0,25 mm su B.Cu, `("via", x, y, net)`. Oggi contiene: griglia 3×3 del pad di massa del modulo con 5 via, anello EN–VIN dell'AP2112K, bus +3V3 lungo le colonne dei pull-up dei pulsanti.
+- `PREROUTE`: rame fisso piazzato prima dello sbroglio. Tipi: `("trk", x1, y1, x2, y2, net)` pista 0,3 mm su F.Cu, `"trkn"` 0,2 mm su F.Cu, `"trkb"` 0,25 mm su B.Cu, `("via", x, y, net)`. Oggi contiene: griglia 3×3 del pad di massa del modulo con 5 via, anello EN–VIN dell'AP2112K, +3V3 ai pull-up dei pulsanti (via sotto ogni colonna e bus sul retro), piste BTN dalle colonne RC al modulo (le colonne lontane passano sul retro con due via).
 - `SOLID_GND`: componenti i cui pad GND si collegano al piano senza razze termiche (evita gli starved thermal).
-- `HOLES`, `HOLE_KEEPOUT_R`: centri dei fori M3 e raggio dell'area senza piste/via.
+- `HOLES`, `HOLE_FP`, `HOLE_KEEPOUT_R`: centri dei fori (2 × M2,5), footprint KiCad del foro e raggio dell'area senza piste, via e componenti.
+- `BOTTOM`: footprint montati capovolti sul retro (oggi nessuno).
 - `FLAGS`, `SCH_TEXT`: power flag e testi dello schema.
 
 ## Script
 
 - **`gen_sch.py`** — scrive il simbolo del modulo (`nodo503.kicad_sym`, pin dalla libreria Espressif), le lib-table, il `.kicad_pro` (netclass, regole DRC, severità) e lo schema: ogni simbolo con etichette di net sui pin. Gli UUID dei simboli sono in `.comp_uuid.json` (conservati tra un'esecuzione e l'altra; i nuovi riferimenti ricevono un UUID derivato dal nome); tutti gli altri UUID sono deterministici, quindi lo schema generato è identico byte per byte a parità di `design.py`. Anche `gen_pcb.py` e `route_import.py` inizializzano il generatore di UUID di KiCad (`KIID.SeedGenerator`): a parità di input `build_pcb.sh` produce un `.kicad_pcb` identico. Gerber, PDF e PNG contengono invece date di generazione e cambiano a ogni esportazione.
-- **`gen_pcb.py`** — crea la scheda da zero: net, footprint (librerie KiCad o `nodo503.pretty`), contorno con raggio 1,5 mm, fori M3 board-only + rule area, serigrafie (etichette dei pin dei connettori, testo sul retro), posizioni dei riferimenti (`REF_POS`), rame di `PREROUTE`. I riferimenti dei passivi 0402 sono nascosti.
+- **`gen_pcb.py`** — crea la scheda da zero: net, footprint (librerie KiCad o `nodo503.pretty`), contorno con raggio 1,5 mm, fori di montaggio board-only + rule area, capovolge sul retro i footprint di `BOTTOM`, serigrafie (etichette dei pin dei connettori, testo sul retro), posizioni dei riferimenti (`REF_POS`), rame di `PREROUTE`. I riferimenti dei passivi 0402 sono nascosti.
 - **`route.sh`** — `gen_pcb.py` → `ExportSpecctraDSN` → `xvfb-run java -jar freerouting-1.9.0.jar -de nodo503.dsn -do nodo503.ses -mp 100` (timeout `FR_TIMEOUT`, default 560 s; log in `logs/freerouting.log`) → `route_import.py` → `drc.py`.
 - **`build_pcb.sh`** — come `route.sh` ma senza Freerouting: reimporta `nodo503.ses` salvato. Usalo solo se piazzamento e net non sono cambiati.
 - **`route_import.py`** — parser SES fatto in casa; rimuove via e segmenti duplicati, monconi pendenti e via orfane; chiama `cleanup.run`; crea le zone GND su entrambi gli strati (clearance 0,3 mm, razze 0,3/0,4 mm, spessore minimo 0,25 mm); aggiunge via di cucitura su griglia 2 mm dove entrambe le masse coprono il punto (lontano da via, pad THT e fori di montaggio); rimuove le isole e aggancia con una via quelle rimaste senza collegamento all'altro strato.
@@ -68,6 +69,6 @@ design.py ──► gen_sch.py ──► nodo503.kicad_sch, .kicad_pro, .kicad_s
 
 ## Controlli utili
 
-- `python3 check_placement.py` — sovrapposizioni dei courtyard, componenti fuori scheda (tolleranza in `EDGE_OVERHANG`) ed etichette dei connettori a meno di 0,15 mm da un pad (esegui dopo `gen_pcb.py`, prima di sbrogliare: fa risparmiare un giro di Freerouting).
+- `python3 check_placement.py` — sovrapposizioni dei courtyard, componenti fuori scheda (tolleranza in `EDGE_OVERHANG`) o sotto le teste delle viti, ed etichette dei connettori a meno di 0,15 mm da un pad (esegui dopo `gen_pcb.py`, prima di sbrogliare: fa risparmiare un giro di Freerouting).
 - `python3 drc.py` — DRC completo (deve dare 0 e 0).
 - `python3 metrics.py` — lunghezza piste per strato, via, copertura delle masse, lunghezza delle net principali: utile per confrontare due varianti di piazzamento.

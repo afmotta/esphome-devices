@@ -2,8 +2,8 @@
 
 Nodo per la domotica CAN del fienile, da montare in scatola 503: un morsetto per 24 V e bus CAN, transceiver TJA1051T/3, 6 ingressi pulsante, porta Qwiic (I²C) e modulo **ESP32-C6-WROOM-1-N8** (LCSC C5366877) con Wi-Fi per ESPHome e aggiornamenti OTA. È pensato per il montaggio completo da JLCPCB, con tutti i componenti su un solo lato.
 
-- **Dimensioni:** 56 × 41 mm (come la CANBed RP2040), 2 strati, spessore 1,6 mm, rame 1 oz
-- **Fissaggio:** 4 fori M3 non metallizzati (Ø 3,2 mm) negli angoli, con il centro a 3,5 mm dai bordi: interasse **49 × 34 mm**. Entro 3,3 mm dal centro di ogni foro non passano piste né via, così la testa della vite (fino a Ø 6 mm) appoggia solo su piano di massa coperto da solder mask. Il foro in alto a sinistra è a circa 4 mm dall'antenna: lì usa una vite in nylon o un perno di plastica.
+- **Dimensioni:** 55 × 37 mm (entro i 56 × 41 mm della CANBed RP2040), 2 strati, spessore 1,6 mm, rame 1 oz
+- **Fissaggio:** 2 fori M2,5 non metallizzati (Ø 2,7 mm) in diagonale, in alto a destra e in basso a sinistra, con il centro a 3 mm dai bordi: interasse **49 × 31 mm**. Entro 2,8 mm dal centro di ogni foro non ci sono componenti, piste né via, così la testa della vite (fino a Ø 5 mm) appoggia solo su piano di massa coperto da solder mask. L'angolo dell'antenna (in alto a sinistra) resta senza vite: nel case conviene un appoggio o un incastro sugli altri due angoli.
 - **Progetto:** KiCad 7 (si apre anche in KiCad 8/9)
 - **Simbolo e footprint del modulo:** dalla libreria ufficiale [espressif/kicad-libraries](https://github.com/espressif/kicad-libraries), licenza CC-BY-SA 4.0. Il footprint comprende anche l'area dell'antenna senza rame.
 
@@ -28,12 +28,12 @@ Per rigenerare i file di produzione dopo una modifica: `sudo tools/setup.sh` (un
 
 ## Circuito
 
-- **Ingresso 24 V:** PTC da 0,5 A (F1), diodo SS34 contro l'inversione di polarità (D1), TVS SMBJ26CA (D2), elettrolitico da 22 µF e MLCC da 10 µF 50 V in ingresso.
+- **Ingresso 24 V:** PTC da 0,5 A (F1), diodo B5819W contro l'inversione di polarità (D1, 1 A: basta per il PTC da 0,5 A), TVS SMBJ26CA (D2), elettrolitico da 10 µF 50 V e MLCC da 10 µF 50 V in ingresso.
 - **5 V:** MORNSUN K7805-500R3 (U1), switching con pin compatibili 7805. Alimenta il TJA1051.
 - **3,3 V:** LDO AP2112K-3.3 (U4, 600 mA). Due diodi B5819W (D3, D5) in "OR" lo alimentano dai 5 V del K7805 oppure dai 5 V del pettine di programmazione: il modulo si programma anche senza i 24 V, e la tensione dell'USB non risale verso il K7805.
 - **CAN:** TJA1051T/3 con VIO a 3,3 V (nessun partitore sulle linee logiche), pin S a GND, protezione ESD NUP2105L sulle linee del bus. **Nessuna terminazione da 120 Ω** a bordo: il bus va terminato agli estremi della linea.
 - **Microcontrollore:** modulo ESP32-C6-WROOM-1-N8 (flash 8 MB, antenna su PCB), con l'antenna a filo del bordo superiore della scheda. Rete RC su EN (10 kΩ + 1 µF) e pull-up da 10 kΩ su GPIO8, come raccomanda Espressif.
-- **Ingressi pulsante:** per ciascuno pull-up da 3,3 kΩ a 3,3 V (circa 1 mA nel contatto chiuso, per tenere puliti i contatti in argento dei pulsanti da rete), resistenza in serie da 1 kΩ e condensatore da 100 nF verso GND (τ ≈ 100 µs). Il pulsante chiude verso GND (logica attiva bassa). Componenti 0402, sotto il bordo inferiore del modulo.
+- **Ingressi pulsante:** per ciascuno pull-up da 3,3 kΩ a 3,3 V (circa 1 mA nel contatto chiuso, per tenere puliti i contatti in argento dei pulsanti da rete), resistenza in serie da 1 kΩ e condensatore da 100 nF verso GND (τ ≈ 100 µs). Il pulsante chiude verso GND (logica attiva bassa). Componenti 0402 in tre colonne per lato: pulsanti 1–3 a sinistra del modulo, 4–6 a destra.
 
 ## Pinout
 
@@ -64,13 +64,13 @@ Rispetto alla versione 48 × 44 mm i GPIO di pulsanti, Qwiic e CAN sono cambiati
 - **Comune dei pulsanti:** c'è un solo morsetto GND. Fai i ponticelli del comune tra i pulsanti sulla placca e porta un solo filo alla spina. Se preferisci due fili fino alla spina, il morsetto da 1,5 mm² ne accetta due da 0,5 mm², meglio con un puntale doppio.
 - **Filo per i pulsanti:** la corrente è di circa 1 mA, quindi la sezione conta solo per la meccanica. Consigliata cordina da **0,5 mm²** (la spina accetta da 0,2 a 1,5 mm²). Se nella scatola o nei tubi passano anche conduttori a 230 V, il filo deve avere un isolamento adatto a quella tensione (ad esempio FS17 o H05V-K da 0,5 mm²).
 - **J3 Qwiic:** JST SH a 4 pin, passo 1 mm, sul bordo superiore a destra con l'imbocco verso l'alto. GND, 3,3 V, SDA, SCL. **Nessun pull-up I²C sulla scheda:** li forniscono il QwiicBus e le schede dei sensori.
-- **J4 PROG:** pettine verticale 1×6 a passo 2,54 mm sul lato sinistro, da non montare. Pin: 5V, D−, D+, GND, BOOT, GND. I pin 1–4 vanno al cavo USB (USB nativo del C6). Un ponticello sui pin 5–6 porta GPIO9 a massa e fa partire il modulo in modalità download.
+- **J4 PROG:** pettine 1×6 a passo 2,54 mm, orizzontale sul bordo inferiore a destra, da non montare (fori passanti). Pin da sinistra: 5V, D−, D+, GND, BOOT, GND (serigrafati sopra i fori). I pin 1–4 vanno al cavo USB (USB nativo del C6). Un ponticello sui pin 5–6 porta GPIO9 a massa e fa partire il modulo in modalità download.
 
 Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi della linea.
 
 ## Prima programmazione
 
-1. Collega un cavo USB al pettine J4: rosso al 5V, bianco a D−, verde a D+, nero a GND. Puoi usare un connettore a pettine o delle punte a molla (pogo pin).
+1. Collega un cavo USB al pettine J4: rosso al 5V, bianco a D−, verde a D+, nero a GND. Puoi saldare un pettine maschio 1×6, oppure infilarne uno nei fori e tenerlo premuto mentre programmi.
 2. Con il flash vuoto il modulo di solito entra da solo in modalità download. Se non succede, o se un firmware difettoso ha bloccato l'USB:
    - metti un ponticello sui pin 5–6 di J4 (BOOT–GND);
    - collega l'USB, oppure accendi la scheda;
@@ -82,7 +82,7 @@ Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi de
 1. **Codici LCSC e magazzino.** Tutti i componenti montati hanno un codice LCSC. Al caricamento della BOM controlla la disponibilità, soprattutto di J3 (vedi sotto).
 2. **Rotazioni nel file CPL.** Controllale nell'anteprima di assemblaggio JLCPCB, soprattutto per il modulo U3 (l'antenna deve stare a filo del bordo superiore, sopra l'area senza rame), U2, U4 (ruotato di 180°), J3 (ruotato di 180°, imbocco verso l'alto), J1 (ruotato di 90°, imbocco della spina verso il bordo destro), J2 (il lato con l'incastro della spina deve coincidere con quello del footprint), i diodi e C1.
 3. **Via nel pad di massa del modulo.** Il pad di massa sotto il WROOM è una griglia 3×3 con 5 via verso la massa sul retro. Su JLCPCB conviene chiedere che le via siano tappate ("via-in-pad" o "epoxy filled"), così lo stagno non cola nei fori. Se non lo fai, di solito funziona comunque.
-4. **Piste sotto il modulo.** La pista di BOOT passa sullo strato superiore sotto il bordo inferiore del modulo, lontano dall'antenna; altre piste passano sul retro sotto il modulo. È ammesso, ma se in KiCad vuoi un piano di massa più pulito sotto il modulo puoi spostarle sul retro.
+4. **Piste sotto il modulo.** La pista +3V3 tra i due lati del modulo e le piste USB verso il pettine di programmazione passano sotto il modulo, lontano dall'antenna (sullo strato superiore e sul retro); le piste USB arrivano a J4 passando tra i pin di J2. È ammesso, ma lascia meno piano di massa sotto il modulo.
 5. **Fori di J1 e J2.** I footprint Phoenix MC/MCV hanno fori da 1,2 mm. Il datasheet Kefa non è consultabile da qui: confronta il diametro con il footprint EasyEDA di C441173 e C441326 (pagina del componente su LCSC o JLCPCB) prima di ordinare.
 
 ## Montaggio
@@ -127,9 +127,10 @@ binary_sensor:
 
 Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo da JLCPCB, compresi i THT (J1, J2 e K7805 U1, saldati da JLCPCB a onda o a mano). La colonna **Libreria JLCPCB** della BOM indica Basic / Preferred / Extended; l'elenco usato è in `hardware/jlc_library.json`.
 
-- **Non montati:** solo **J4** (pettine di programmazione, DNP). Per programmare si usano pin a pressione o un pettine inserito al momento.
+- **Non montati:** solo **J4** (pettine di programmazione, DNP). Per programmare si usa un pettine inserito al momento o saldato.
 - **C2** è passato da 2,2 µF a **10 µF 50 V 1206** (C13585, Basic): più capacità in ingresso al K7805 e un componente Extended in meno.
-- **C1:** Panasonic EEE-FK1H220P (C128458), 6,3 × 5,8 mm. È compatibile con il footprint 6,3 × 5,4 mm.
+- **C1:** Honor Elec RVT1H100M0505 (C86603, Extended), 10 µF 50 V, 5 × 5,4 mm, 105 °C. Dalla ricerca risultavano circa 6 000 pezzi su LCSC: verificalo al caricamento della BOM.
+- **D1:** B5819W (C8598, Basic), lo stesso diodo di D3 e D5: al posto dello SS34 in SMA.
 - **J1:** presa Kefa KF2EDGR-3.5-4P (C441173, Extended, ad angolo, 10 A 300 V, saldatura a onda, PCBA Economic e Standard), footprint Phoenix MC 1,5/4-G-3,5 orizzontale, fronte della presa a filo del bordo destro. A magazzino LCSC 7 295 pezzi il 2026-10-18. Prima dell'ordine verifica nell'anteprima JLCPCB che l'imbocco della spina sia verso il bordo.
 - **Spina per J1 da ordinare a parte:** Kefa KF2EDGK-3.5-4P (LCSC C440849, 12 196 pezzi il 2026-10-18), la stessa serie della spina di J2, vite M2, filo fino a 1,5 mm².
 - **J2:** presa Kefa KF2EDGV-3.5-7P (C441326, Extended, saldatura a onda, PCBA Economic e Standard), footprint Phoenix MCV 1,5/7-G-3,5 verticale. A magazzino LCSC ce n'erano 485 il 2026-10-14.
@@ -140,4 +141,4 @@ Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo
 
 ## Storia e decisioni
 
-La storia del progetto (rev A con XIAO, rev B con MINI-1, revisione di un esperto, passaggio a 56 × 41 mm, scelta dei connettori) e il motivo di ogni scelta sono in [docs/decisioni.md](docs/decisioni.md).
+La storia del progetto (rev A con XIAO, rev B con MINI-1, revisione di un esperto, passaggio a 56 × 41 mm e poi a 55 × 37 mm, scelta dei connettori) e il motivo di ogni scelta sono in [docs/decisioni.md](docs/decisioni.md).

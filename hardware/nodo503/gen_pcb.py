@@ -8,7 +8,8 @@ MM = pcbnew.FromMM
 pcbnew.KIID.SeedGenerator(503)   # deterministic UUIDs -> reproducible .kicad_pcb
 def P(x, y): return pcbnew.VECTOR2I(int(round((OX + x) * 1000)) * 1000, int(round((OY + y) * 1000)) * 1000)
 
-REF_POS = {"J1": (51.5, 14.6), "J2": (35.9, 37.3), "U1": (31.0, 2.4)}
+REF_POS = {"J1": (50.5, 14.6), "J2": (6.9, 28.0), "U1": (30.0, 2.4),   # (x, y[, angle on the board])
+           "C1": (47.3, 10.5, 90), "D3": (39.6, 8.4), "J4": (51.8, 35.0)}
 comp_uuid = json.load(open(f"{ROOT}/.comp_uuid.json"))
 path = f"{ROOT}/{PROJECT}.kicad_pcb"
 if os.path.exists(path):
@@ -47,8 +48,8 @@ for ref, c in COMP.items():
     r.SetTextSize(pcbnew.VECTOR2I(MM(0.7), MM(0.7)))
     r.SetTextThickness(MM(0.12))
     if ref in REF_POS:      # keep the designator away from the pin legends
-        rx, ry = REF_POS[ref]
-        r.SetPosition(P(rx, ry)); r.SetTextAngleDegrees(-rot)   # FP text angle is relative to the footprint
+        rx, ry, *ang = REF_POS[ref]
+        r.SetPosition(P(rx, ry)); r.SetTextAngleDegrees((ang[0] if ang else 0) - rot)   # FP text angle is relative to the footprint
     if ref in EDGE_OVERHANG:   # body flush with the edge: clip the silk outline so it stays on the board
         xmax = MM(OX + W - 0.2)
         for g in list(fp.GraphicalItems()):
@@ -61,6 +62,8 @@ for ref, c in COMP.items():
                 s.x, e.x = min(s.x, xmax), min(e.x, xmax)
             g.SetStart(s); g.SetEnd(e); g.SetLocalCoord()   # FP_SHAPE saves its footprint-local coords
     board.Add(fp)
+    if ref in BOTTOM:          # pads-only footprints on the back (flip top/bottom keeps the pad order along x)
+        fp.Flip(fp.GetPosition(), False)
 
 # outline with rounded corners
 R = 1.5
@@ -76,12 +79,12 @@ arc(R, R, 0, R, 90); arc(W - R, R, W - R, 0, 90); arc(W - R, H - R, W, H - R, 90
 
 # antenna keep-out comes with the Espressif module footprint
 
-# M3 mounting holes (NPTH, board-only) + no-track/no-via area under the screw head
+# mounting holes (NPTH, board-only) + no-track/no-via area under the screw head
 import math
 for k, (hx, hy) in enumerate(HOLES, 1):
-    fp = pcbnew.FootprintLoad(f"{FPROOT}/MountingHole.pretty", "MountingHole_3.2mm_M3")
-    fp.SetFPID(pcbnew.LIB_ID("MountingHole", "MountingHole_3.2mm_M3"))
-    fp.SetReference(f"H{k}"); fp.SetValue("M3"); fp.Reference().SetVisible(False); fp.Value().SetVisible(False)
+    fp = pcbnew.FootprintLoad(f"{FPROOT}/MountingHole.pretty", HOLE_FP)
+    fp.SetFPID(pcbnew.LIB_ID("MountingHole", HOLE_FP))
+    fp.SetReference(f"H{k}"); fp.SetValue(HOLE_FP.split("_")[-1]); fp.Reference().SetVisible(False); fp.Value().SetVisible(False)
     fp.SetAttributes(pcbnew.FP_BOARD_ONLY | pcbnew.FP_EXCLUDE_FROM_POS_FILES | pcbnew.FP_EXCLUDE_FROM_BOM)
     fp.SetPosition(P(hx, hy)); board.Add(fp)
     z = pcbnew.ZONE(board); z.SetIsRuleArea(True); ls = pcbnew.LSET(); ls.AddLayer(pcbnew.F_Cu); ls.AddLayer(pcbnew.B_Cu); z.SetLayerSet(ls)
@@ -109,13 +112,13 @@ for ref, names in (("J2", ["1", "2", "3", "4", "5", "6", "G"]),):
     x0, y0, _ = COMP[ref]["pcb"]
     for k, t in enumerate(names):
         text(t, x0 + 3.5 * k, y0 - 5.3, 0.6)
-text("QWIIC", 44.7, 7.0, 0.6)
-x0, y0, _ = COMP["J4"]["pcb"]
+text("QWIIC", 43.7, 7.0, 0.6)
+x0, y0, _ = COMP["J4"]["pcb"]      # horizontal header on the bottom edge: legends above the pins
 for k, t in enumerate(["5V", "D-", "D+", "G", "BT", "G"]):
-    text(t, x0 + 2.4, y0 + 2.54 * k, 0.55)
-text("NODO CAN 503", 41.0, 33.8, 1.0, layer=pcbnew.B_SilkS, mirror=True)
-text("ESP32-C6 + TJA1051T/3", 41.0, 35.6, 0.7, layer=pcbnew.B_SilkS, mirror=True)
-text("rev C - 56 x 41 mm", 41.0, 37.2, 0.7, layer=pcbnew.B_SilkS, mirror=True)
+    text(t, x0 + 2.54 * k, y0 - 2.2, 0.55)
+text("NODO CAN 503", 37.5, 28.2, 1.0, layer=pcbnew.B_SilkS, mirror=True)
+text("ESP32-C6 + TJA1051T/3", 37.5, 30.0, 0.7, layer=pcbnew.B_SilkS, mirror=True)
+text(f"rev C - {W:g} x {H:g} mm", 37.5, 31.6, 0.7, layer=pcbnew.B_SilkS, mirror=True)
 
 # pre-routed GND tie for the TJA1051 / C5 pocket (too tight for the pour to reach a via)
 def trk(x1, y1, x2, y2, net, w=0.3, layer=pcbnew.F_Cu):

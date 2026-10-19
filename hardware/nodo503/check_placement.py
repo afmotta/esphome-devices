@@ -1,6 +1,6 @@
-"""Placement sanity check: courtyard overlaps, parts outside the board, silk legends too close to pads. Run from hardware/ after gen_pcb.py."""
+"""Placement sanity check: courtyard overlaps, parts outside the board or under the screws, silk legends too close to pads. Run from hardware/ after gen_pcb.py."""
 import itertools, pcbnew
-from design import W, H, OX, OY, EDGE_OVERHANG
+from design import W, H, OX, OY, EDGE_OVERHANG, HOLES, HOLE_KEEPOUT_R
 
 b = pcbnew.LoadBoard("nodo503.kicad_pcb")
 fps = list(b.GetFootprints())
@@ -17,6 +17,18 @@ for fp in fps:
     xmax = W + EDGE_OVERHANG.get(fp.GetReference(), 0) + 0.01   # flush-mounted connectors: courtyard margin overhangs
     if x0 < -0.2 or y0 < -0.2 or x1 > xmax or y1 > H + 0.01:   # antenna keep-out may touch the edge
         print("outside", fp.GetReference(), round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2)); bad += 1
+# nothing under the screw heads: courtyards (either side) clear of the hole keep-out circles
+for fp in fps:
+    if fp.GetReference().startswith("H"):
+        continue
+    for layer in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
+        cy = fp.GetCourtyard(layer)
+        if not cy.OutlineCount():
+            continue
+        for hx, hy in HOLES:
+            c = pcbnew.VECTOR2I(pcbnew.FromMM(OX + hx), pcbnew.FromMM(OY + hy))
+            if cy.Collide(c, pcbnew.FromMM(HOLE_KEEPOUT_R)):
+                print("under screw", fp.GetReference(), hx, hy); bad += 1
 # board-level legends (gen_pcb.py) must keep clear of pads: JLCPCB clips silk on exposed copper
 GAP = pcbnew.FromMM(0.15)
 pads = [(f.GetReference(), p.GetNumber(), p.GetBoundingBox()) for f in fps for p in f.Pads()]

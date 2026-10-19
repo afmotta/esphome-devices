@@ -45,7 +45,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - Diametro dei fori di J1 e J2 (1,2 mm nei footprint Phoenix) da confrontare con i footprint EasyEDA delle prese Kefa.
 - J3 (JST SH, C160404) ha pochi pezzi: alternative C7430446, C2845363, C18077910 (da confrontare col footprint).
 - Firmware ESPHome da scrivere (c'è solo l'esempio nel README).
-- Case stampato in 3D da progettare (interasse fori 49 × 34 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più; la spina di J1 sporge di circa 1 cm oltre il bordo destro).
+- Case stampato in 3D da progettare (2 fori M2,5, interasse 49 × 31 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più; la spina di J1 sporge di circa 1 cm oltre il bordo destro).
 
 ## 2026-10-18 — Origine ausiliaria e testi Qwiic
 
@@ -65,3 +65,19 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - **R1–R6 da 10 kΩ a 3,3 kΩ** (UNI-ROYAL 0402WGF3301TCE, C25890, Basic). Motivo: con 10k nel contatto passavano ~0,3 mA, poco per i contatti in argento dei pulsanti da rete, che invecchiando possono dare falsi contatti; con 3,3k passa ~1 mA. A 3,3 V resta comunque un "circuito secco": è un miglioramento, non una cura.
 - Un contatto viene ancora letto come chiuso fino a ~1,1 kΩ di resistenza (soglia bassa 0,825 V; con 10k era ~3,3 kΩ). Assorbimento solo a pulsante premuto (max ~6 mA con tutti premuti). Filtro invariato (1k × 100 nF).
 - Stesso footprint 0402 e stesse piste: PCB rigenerato con `build_pcb.sh` sullo sbroglio salvato. R13 (EN) e R14 (GPIO8) restano 10k.
+
+## 2026-10-19 — Scheda più compatta: 55 × 37 mm (concetto A)
+
+- **Studio.** Misurati i courtyard della scheda 56 × 41: il modulo WROOM-1 occupa il 23 % della superficie, J2 il 10 %, J1 l'8 %, il K7805 il 4 %; i 18 passivi 0402 dei pulsanti solo 31 mm². Valutati tre concetti: A (stessa elettronica, 55 × 37), B (buck 24 → 3,3 V e transceiver a 3,3 V, circa 50 × 36), C (B + ESP32-C6-MINI-1, circa 45 × 32). **Scelto A.** B scartato da Alberto (un convertitore da progettare e un transceiver diverso; il TCAN334 proposto all'inizio era sbagliato perché regge solo ±14 V sul bus, l'alternativa giusta sarebbe stata il TCAN3414). C scartato: MINI-1 esaurito.
+- **Fori:** da 4 × M3 negli angoli a **2 × M2,5** in diagonale (alto a destra, basso a sinistra), centro a 3 mm dai bordi, keepout 2,8 mm per piste, via e componenti. L'angolo dell'antenna resta senza vite.
+- **J4:** il pettine 1×6 (mai montato) diventa sei piazzole Ø 1,6 mm sul retro, sotto il modulo, a passo 2,54 mm, per una maschera a pogo pin. Stesso ordine dei segnali. Libera la striscia sinistra.
+- **Pulsanti:** i gruppi RC diventano tre colonne per lato (C in alto verso massa, R serie, pull-up in basso), 1–3 nella striscia sinistra e 4–6 a destra del modulo; J2 sale subito sotto il modulo. Le piste BTN tra colonne e modulo sono fisse in `PREROUTE` (le colonne lontane passano sul retro): con il primo piazzamento Freerouting faceva girare BTN1 per 54 mm tra i pin di J2.
+- **D1:** SS34 (SMA) → **B5819W** (SOD-123, C8598, Basic, già in BOM). 1 A basta con il PTC da 0,5 A.
+- **C1:** 22 µF Ø 6,3 → **10 µF 50 V Ø 5 × 5,4** (Honor Elec RVT1H100M0505, C86603, Extended come il precedente). Con C2 da 10 µF resta capacità sufficiente all'ingresso del K7805.
+- Pinout GPIO invariato. `check_placement.py` ora segnala anche componenti sotto le teste delle viti. Risbrogliato con `route.sh`: DRC 0, collegamenti aperti 0, parità 0.
+- Le pagine prodotto di LCSC e JLCPCB erano bloccate dal proxy della sessione: lo stock di C86603 (circa 6 000 pezzi) viene da un risultato di ricerca, da ricontrollare al caricamento della BOM.
+
+## 2026-10-19 — Torna il pettine di programmazione
+
+- Alberto non vuole programmare con i pogo pin: J4 torna un **pettine 1×6 a passo 2,54 mm non montato**, con la stessa piedinatura di prima (5V, D−, D+, GND, BOOT, GND; ponticello 5–6 = download). È orizzontale sul bordo inferiore a destra, accanto a J2; per fargli posto C1 è salito in alto a destra, sopra J1. Eliminato il footprint `Pogo_1x06_P2.54mm`; il meccanismo `BOTTOM` resta, vuoto.
+- Scheda invariata a 55 × 37 mm. Risbrogliato con `route.sh`: con il pin 1 a x 35 CANL faceva un giro di 37 mm sotto il pettine, con il pin 1 a x 36 è lungo 10 mm come CANH. DRC 0, collegamenti aperti 0, parità 0.
