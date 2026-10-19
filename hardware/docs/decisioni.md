@@ -45,7 +45,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - Diametro dei fori di J1 e J2 (1,2 mm nei footprint Phoenix) da confrontare con i footprint EasyEDA delle prese Kefa.
 - J3 (JST SH, C160404) ha pochi pezzi: alternative C7430446, C2845363, C18077910 (da confrontare col footprint).
 - Firmware ESPHome da scrivere (c'è solo l'esempio nel README).
-- Case stampato in 3D da progettare (2 fori M2,5, interasse 49 × 31 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più; la spina di J1 sporge di circa 1 cm oltre il bordo destro).
+- Case stampato in 3D da progettare (2 fori M2,5, interasse 49 × 27,5 mm, altezza massima componenti ≈ 11 mm per K7805 e morsetti; la spina di J2 sporge di più; la spina di J1 sporge di circa 1 cm oltre il bordo destro).
 
 ## 2026-10-18 — Origine ausiliaria e testi Qwiic
 
@@ -77,7 +77,20 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - Pinout GPIO invariato. `check_placement.py` ora segnala anche componenti sotto le teste delle viti. Risbrogliato con `route.sh`: DRC 0, collegamenti aperti 0, parità 0.
 - Le pagine prodotto di LCSC e JLCPCB erano bloccate dal proxy della sessione: lo stock di C86603 (circa 6 000 pezzi) viene da un risultato di ricerca, da ricontrollare al caricamento della BOM.
 
+## 2026-10-19 — J2 diviso in due JST PH a 4 poli: 55 × 33,5 mm
+
+- **Motivo.** La presa Kefa a 7 poli era profonda 8,2 mm sulla scheda e, con la spina innestata, era il componente più alto (stima 16–20 mm; il K7805 è 10,4 mm). Ogni filo veniva poi serrato due volte, sul frutto e nella spina. Alberto di solito usa 3 pulsanti, solo a volte 6.
+- **Scelta.** Due JST PH 2 mm a 4 poli verticali (B4B-PH-K-S, C131334, circa 95 000 pezzi su LCSC dalla ricerca): **J2** = pulsanti 1–3 + GND, **J5** = pulsanti 4–6 + GND, affiancati sotto il modulo. Profondi 5,5 mm, alti 6 mm, 8 mm con il cavo: il componente più alto torna il K7805. Scheda da 55 × 37 a **55 × 33,5 mm**. C1 spostato in alto a destra, sopra J1. Pinout GPIO invariato.
+- **Compromessi accettati.** Fili fino a 0,2 mm² (AWG 24) con puntale da 0,25 mm² nei morsetti a vite dei frutti Vimar Linea; aggancio solo per attrito; cavi da crimpare o comprare già crimpati; un GND per gruppo invece di un solo comune. I fili sottili (isolamento tipico 300 V) vanno bene perché **nelle scatole dei pulsanti non ci sono 230 V**.
+- **Scartati.** JST XH (fili fino a 0,33 mm², ma due connettori da 13,4 mm non stanno sotto il modulo: scheda a circa 35 mm); morsetto estraibile a passo 2,5 mm (guadagno di circa 1 mm e stesso rischio di magazzino del 7 poli).
+- Risbrogliato con `route.sh` al primo tentativo: DRC 0, collegamenti aperti 0, parità 0.
+
 ## 2026-10-19 — Torna il pettine di programmazione
 
-- Alberto non vuole programmare con i pogo pin: J4 torna un **pettine 1×6 a passo 2,54 mm non montato**, con la stessa piedinatura di prima (5V, D−, D+, GND, BOOT, GND; ponticello 5–6 = download). È orizzontale sul bordo inferiore a destra, accanto a J2; per fargli posto C1 è salito in alto a destra, sopra J1. Eliminato il footprint `Pogo_1x06_P2.54mm`; il meccanismo `BOTTOM` resta, vuoto.
-- Scheda invariata a 55 × 37 mm. Risbrogliato con `route.sh`: con il pin 1 a x 35 CANL faceva un giro di 37 mm sotto il pettine, con il pin 1 a x 36 è lungo 10 mm come CANH. DRC 0, collegamenti aperti 0, parità 0.
+- Alberto non vuole programmare con i pogo pin: J4 torna un **pettine 1×6 a passo 2,54 mm non montato**, con la stessa piedinatura di prima (5V, D−, D+, GND, BOOT, GND; ponticello 5–6 = download). È orizzontale sul bordo inferiore a destra, accanto a J5 (pin 1 a x 30, y 31,7: il posto c'è esattamente, tra J5, C5/C6/D4 e J1). I testi sul retro sono scesi sotto il modulo. Eliminato il footprint `Pogo_1x06_P2.54mm`; il meccanismo `BOTTOM` resta, vuoto.
+- Scheda invariata a 55 × 33,5 mm. Freerouting lasciava aperti BOOT e un tratto di +3V3 (anche con il pettine girato di 180°): la pista BOOT dal pin 15 del modulo al pin 5 di J4 è ora fissa in `PREROUTE`, sul retro sotto le colonne RC dei pulsanti 4–6. Con quella, sbroglio completo: DRC 0, collegamenti aperti 0, parità 0; CANL 10 mm.
+- Sul branch della scheda 55 × 37 (`claude/pcb-compatto-a`) la stessa modifica ha J4 con il pin 1 a x 36, y 35 e C1 sopra J1.
+
+## 2026-10-19 — La versione con la Kefa resta come variante
+
+- La scheda con i due JST PH (55 × 33,5 mm) diventa quella di `main`. La versione precedente, con la presa estraibile Kefa a 7 poli (55 × 37 mm, pettine J4 in basso a destra), è conservata nel branch **`variante/kefa`**, completa di file di produzione. Non segue le modifiche future di `main`.

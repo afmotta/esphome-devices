@@ -1,5 +1,5 @@
 import csv, collections, json, os, pcbnew
-THT_JLC = {"J1", "J2", "U1"}
+THT_JLC = {"J1", "J2", "J5", "U1"}
 DNP = {"J4"}
 SMD_EXCL = THT_JLC | DNP   # excluded from BOM_SMD / CPL_SMD
 LIB = json.load(open("jlc_library.json")) if os.path.exists("jlc_library.json") else {}

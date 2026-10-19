@@ -3,7 +3,7 @@
 PROJECT = "nodo503"
 
 # Board size (mm)
-W, H = 55.0, 37.0
+W, H = 55.0, 33.5
 OX, OY = 100.0, 100.0   # board origin in KiCad page coordinates
 
 # ---------------------------------------------------------------------------
@@ -18,7 +18,7 @@ C1206 = "Capacitor_SMD:C_1206_3216Metric"
 R0402 = "Resistor_SMD:R_0402_1005Metric"
 C0402 = "Capacitor_SMD:C_0402_1005Metric"
 PLUG4H = "Connector_Phoenix_MC:PhoenixContact_MC_1,5_4-G-3.5_1x04_P3.50mm_Horizontal"   # pluggable header, plug from the side
-PLUG7V = "Connector_Phoenix_MC:PhoenixContact_MCV_1,5_7-G-3.5_1x07_P3.50mm_Vertical"   # pluggable header, wires from the top
+PH4V = "Connector_JST:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical"   # crimp wire-to-board header, cable from the top
 
 COMP = {}
 
@@ -87,7 +87,7 @@ add("D4", "Power_Protection:NUP2105L", "NUP2105L", "Package_TO_SOT_SMD:SOT-23",
 
 # --- MCU ---------------------------------------------------------------------
 mod = {"1": "GND", "28": "GND", "29": "GND", "2": "+3V3", "3": "EN",
-       # buttons 1-3 on the left pins, 4-6 on the right pins (both towards J2)
+       # buttons 1-3 on the left pins, 4-6 on the right pins (towards J2 and J5)
        "7": "BTN1", "8": "BTN2", "9": "BTN3", "18": "BTN4", "17": "BTN5", "16": "BTN6",
        "13": "USB_DN", "14": "USB_DP", "10": "STRAP8", "15": "BOOT",
        "26": "I2C_SDA", "27": "I2C_SCL", "21": "CAN_TX", "20": "CAN_RX"}   # TX above RX, like TJA1051 pins 1 and 4
@@ -103,7 +103,7 @@ add("C17", "Device:C", "1uF", C0402, {"1": "EN", "2": "GND"}, (302.26, 86.36), (
 add("R14", "Device:R", "10k", R0402, {"1": "+3V3", "2": "STRAP8"}, (289.56, 111.76), (5.9, 23.4, 90),
     mpn="10 kOhm 1% 0402 (GPIO8 alto al boot)", lcsc="C25744")
 add("J4", "Connector_Generic:Conn_01x06", "PROG USB", "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
-    {"1": "VBUS_PROG", "2": "USB_DN", "3": "USB_DP", "4": "GND", "5": "BOOT", "6": "GND"}, (325.12, 185.42), (36.0, 35.0, 90),
+    {"1": "VBUS_PROG", "2": "USB_DN", "3": "USB_DP", "4": "GND", "5": "BOOT", "6": "GND"}, (325.12, 185.42), (30.0, 31.7, 90),
     mpn="Pettine 1x6 2,54 mm (non montato): 5V, D-, D+, GND, BOOT, GND - ponticello 5-6 = download")
 
 # --- Button inputs (0402): one column per channel, 1-3 left of the module, 4-6 right of it ----
@@ -123,10 +123,14 @@ for i in range(1, 7):
     add(f"C{i+6}", "Device:C", "100nF", C0402, {"1": f"BTN{i}", "2": "GND"},
         (sx + 20.32, sy), (x, y, 90), mpn="MLCC 100 nF 0402", lcsc="C1525")
 
-add("J2", "Connector:Screw_Terminal_01x07", "PULSANTI 1-6", PLUG7V,
-    {"1": "BTN1_EXT", "2": "BTN2_EXT", "3": "BTN3_EXT", "4": "BTN4_EXT", "5": "BTN5_EXT", "6": "BTN6_EXT", "7": "GND"},
-    (157.48, 127.0), (8.95, 33.3, 0),
-    mpn="Presa per morsetto estraibile verticale 7 poli passo 3,5 mm, Kefa KF2EDGV-3.5-7P (THT); spina KF2EDGK-3.5-7P C440852 da ordinare a parte", lcsc="C441326")
+# two 4-way JST PH headers under the module: buttons 1-3 (the usual case) and 4-6, each with its GND
+_ph = "JST B4B-PH-K-S(LF)(SN), PH 2 mm 4 poli verticale (THT); cavo con terminali SPH-002T-P0.5S da crimpare o precrimpato"
+add("J2", "Connector_Generic:Conn_01x04", "PULSANTI 1-3", PH4V,
+    {"1": "BTN1_EXT", "2": "BTN2_EXT", "3": "BTN3_EXT", "4": "GND"}, (157.48, 127.0), (8.5, 30.15, 0),
+    mpn=_ph, lcsc="C131334")
+add("J5", "Connector_Generic:Conn_01x04", "PULSANTI 4-6", PH4V,
+    {"1": "BTN4_EXT", "2": "BTN5_EXT", "3": "BTN6_EXT", "4": "GND"}, (157.48, 154.94), (19.55, 30.15, 0),
+    mpn=_ph, lcsc="C131334")
 
 # --- Qwiic / I2C (SDA = GPIO3, SCL = GPIO2) ---------------------------
 add("J3", "Connector_Generic:Conn_01x04", "QWIIC", "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
@@ -173,7 +177,7 @@ PREROUTE += [("via", _ex[0], _ey[0], "GND"), ("via", _ex[2], _ey[0], "GND"),
 EDGE_OVERHANG = {"J1": 0.5}
 
 # decoupling caps whose GND pad gets a solid (non-thermal) pour connection
-SOLID_GND = {"C9", "C10", "J2", "J4", "U1", "U2"}
+SOLID_GND = {"C9", "C10", "J2", "J4", "J5", "U1", "U2"}
 
 # AP2112K: EN (pin 3) tied to VIN (pin 1) around the GND pin
 _ux, _uy = 44.6, 13.75
@@ -221,3 +225,11 @@ PREROUTE += [("trkn", _x, _y + BTN_DY - 0.51, _x + 0.41, _PIN_Y[3], "BTN3"),
              ("trkn", _x + 0.41, _PIN_Y[3], _PAD_X["L"], _PIN_Y[3], "BTN3")]
 _x, _y = btn_xy[6]                                        # pin 16 is level with the BTN6 node
 PREROUTE.append(("trkn", _x, _PIN_Y[6], _PAD_X["R"], _PIN_Y[6], "BTN6"))
+
+# BOOT (module pin 15) to pin 5 of the programming header: on the back, under the RC column of buttons 4-6,
+# so the router keeps the front free for the BTN_EXT tracks going down to J5
+_bx, _by = _PAD_X["R"] + 1.39, MODY + 8.25                 # via beside pin 15
+_jx, _jy = COMP["J4"]["pcb"][0] + 4 * 2.54, COMP["J4"]["pcb"][1]
+PREROUTE += [("trkn", _PAD_X["R"], _by, _bx, _by, "BOOT"), ("via", _bx, _by, "BOOT"),
+             ("trkb", _bx, _by, _bx, 28.9, "BOOT"), ("trkb", _bx, 28.9, _jx, 28.9, "BOOT"),
+             ("trkb", _jx, 28.9, _jx, _jy, "BOOT")]

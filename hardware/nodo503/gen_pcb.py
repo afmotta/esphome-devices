@@ -8,8 +8,8 @@ MM = pcbnew.FromMM
 pcbnew.KIID.SeedGenerator(503)   # deterministic UUIDs -> reproducible .kicad_pcb
 def P(x, y): return pcbnew.VECTOR2I(int(round((OX + x) * 1000)) * 1000, int(round((OY + y) * 1000)) * 1000)
 
-REF_POS = {"J1": (50.5, 14.6), "J2": (6.9, 28.0), "U1": (30.0, 2.4),   # (x, y[, angle on the board])
-           "C1": (47.3, 10.5, 90), "D3": (39.6, 8.4), "J4": (51.8, 35.0)}
+REF_POS = {"J1": (50.5, 14.6), "J2": (6.9, 27.55), "J5": (17.95, 27.55), "U1": (30.0, 2.4),   # (x, y[, angle on the board])
+           "C1": (47.3, 10.5, 90), "D3": (39.6, 8.4), "J4": (46.3, 32.9)}
 comp_uuid = json.load(open(f"{ROOT}/.comp_uuid.json"))
 path = f"{ROOT}/{PROJECT}.kicad_pcb"
 if os.path.exists(path):
@@ -108,17 +108,17 @@ for k, t in enumerate(["24V", "GND", "H", "L"]):      # J1 on the right edge, to
     # right-aligned 0.2 mm short of the pads (x0 - 1.8); "L" also clear of the pin-1 marker;
     # narrow glyphs so "24V" fits between F1 and J1
     text(t, x0 - 2.0 - (0.85 if t == "L" else 0), y0 - 10.5 + 3.5 * k, 0.6, width=0.45, right=True)
-for ref, names in (("J2", ["1", "2", "3", "4", "5", "6", "G"]),):
+for ref, names in (("J2", ["1", "2", "3", "G"]), ("J5", ["4", "5", "6", "G"])):   # above the PH headers
     x0, y0, _ = COMP[ref]["pcb"]
     for k, t in enumerate(names):
-        text(t, x0 + 3.5 * k, y0 - 5.3, 0.6)
+        text(t, x0 + 2.0 * k, y0 - 2.6, 0.6)
 text("QWIIC", 43.7, 7.0, 0.6)
 x0, y0, _ = COMP["J4"]["pcb"]      # horizontal header on the bottom edge: legends above the pins
 for k, t in enumerate(["5V", "D-", "D+", "G", "BT", "G"]):
-    text(t, x0 + 2.54 * k, y0 - 2.2, 0.55)
-text("NODO CAN 503", 37.5, 28.2, 1.0, layer=pcbnew.B_SilkS, mirror=True)
-text("ESP32-C6 + TJA1051T/3", 37.5, 30.0, 0.7, layer=pcbnew.B_SilkS, mirror=True)
-text(f"rev C - {W:g} x {H:g} mm", 37.5, 31.6, 0.7, layer=pcbnew.B_SilkS, mirror=True)
+    text(t, x0 + 2.54 * k, y0 - 2.0, 0.55)
+text("NODO CAN 503", 16.3, 17.5, 1.0, layer=pcbnew.B_SilkS, mirror=True)        # on the back, under the module
+text("ESP32-C6 + TJA1051T/3", 16.3, 19.2, 0.7, layer=pcbnew.B_SilkS, mirror=True)
+text(f"rev C - {W:g} x {H:g} mm", 16.3, 20.6, 0.7, layer=pcbnew.B_SilkS, mirror=True)
 
 # pre-routed GND tie for the TJA1051 / C5 pocket (too tight for the pour to reach a via)
 def trk(x1, y1, x2, y2, net, w=0.3, layer=pcbnew.F_Cu):
