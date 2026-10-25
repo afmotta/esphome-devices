@@ -27,6 +27,13 @@ must agree with the valves: true only while the PID's action matches the water
 produced (pid_direction::actuating), while `_is_cooling`/`_is_heating` keep
 reporting the PID's intent for the seasonal demand tier.
 
+The radiant override (review R-05) is the other thing that opens a valve: the
+fancoil_boost coordinator holds it at 100 % through the override switch, HA can
+do the same by hand. The final stage must follow the override, close the valve
+while the room temperature is NaN (the override used to win over the PID's own
+"sensor lost => 0"), and `<room>_radiant_override_active` must tell the floor
+pump-demand sums that a valve is held open without any PID action.
+
 All room PIDs share one temperature stub and the default 20.0 degC target:
 25.0 => 5 degC over target, 15.0 => 5 degC under. Every PID output saturates, so
 "actuates" means level 1.0 / relay held on.
@@ -374,3 +381,117 @@ async def test_mixing_valve_pump_demand_follows_the_water_direction(run_harness,
     await h.call("set_supply_temperature", value=supply)
     await asyncio.sleep(RELAY_SETTLE)
     await assert_active(h, "mix_mixing_valve_pid_is_active", expected)
+
+
+# --- radiant override: valve hold, sensor loss, pump demand (R-05) -----------
+
+AT_TARGET = 20.0  # the PID's default target: no PID action at all
+NAN = float("nan")
+
+
+async def assert_relay_stays_off(h, room: str):
+    await asyncio.sleep(RELAY_SETTLE)
+    assert not relay_on(h, room), f"{room} relay is on"
+
+
+async def test_override_holds_the_valve_open_without_pid_action(run_harness):
+    """Boost-style hold: room at target, no water season, override 100 %.
+
+    Nothing but the override asks for the valve, so this is the case where pump
+    demand has no PID action to follow.
+    """
+    h = await run_harness("radiant_direction")
+    await set_season(h, "SANITARY_ONLY")
+    await read_room(h, AT_TARGET)
+    await assert_relay_stays_off(h, "bath")
+    await assert_active(h, "bath_radiant_pid_is_active", False)
+    await assert_active(h, "bath_radiant_override_active", False)
+    await assert_active(h, "floor_demand", False)
+
+    await h.call("set_bath_override", enabled=True, value=100.0)
+    await h.wait_for("bath_relay", lambda s: s.state is True)
+    await h.wait_for("bath_radiant_override_active", lambda s: s.state is True)
+    # PID idle, override holding: the floor pump must still run.
+    assert not active(h, "bath_radiant_pid_is_active")
+    await h.wait_for("floor_demand", lambda s: s.state is True)
+
+    # The other zone is untouched.
+    assert not relay_on(h, "bedroom")
+    assert not active(h, "bedroom_radiant_override_active")
+
+    await h.call("set_bath_override", enabled=False, value=100.0)
+    await h.wait_for("bath_relay", lambda s: s.state is False)
+    await h.wait_for("bath_radiant_override_active", lambda s: s.state is False)
+    await h.wait_for("floor_demand", lambda s: s.state is False)
+
+
+async def test_override_at_zero_percent_holds_nothing(run_harness):
+    """Switch on with value 0 commands the valve shut: no hold, no demand."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "SANITARY_ONLY")
+    await read_room(h, AT_TARGET)
+    await h.call("set_bath_override", enabled=True, value=0.0)
+    await assert_relay_stays_off(h, "bath")
+    await assert_active(h, "bath_radiant_override_active", False)
+    await assert_active(h, "floor_demand", False)
+
+
+async def test_override_hold_applies_to_heat_cool_zones_too(run_harness):
+    """radiant.yaml includes heat_only_radiant.yaml: the bedroom behaves alike."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "SANITARY_ONLY")
+    await read_room(h, AT_TARGET)
+    await h.call("set_bedroom_override", enabled=True, value=100.0)
+    await h.wait_for("bedroom_relay", lambda s: s.state is True)
+    await h.wait_for("bedroom_radiant_override_active", lambda s: s.state is True)
+    await h.wait_for("floor_demand", lambda s: s.state is True)
+
+
+async def test_override_does_not_survive_sensor_loss(run_harness):
+    """Room temperature NaN with the override on: valve closed, no pump demand.
+
+    The PID writes 0 for a NaN sensor, but the override used to win over it. The
+    switch itself stays on, so the hold resumes when the sensor comes back.
+    """
+    h = await run_harness("radiant_direction")
+    await set_season(h, "COOL")
+    await read_room(h, AT_TARGET)
+    await h.call("set_bath_override", enabled=True, value=100.0)
+    await h.call("set_bedroom_override", enabled=True, value=100.0)
+    await h.wait_for("bath_relay", lambda s: s.state is True)
+    await h.wait_for("bedroom_relay", lambda s: s.state is True)
+    await h.wait_for("floor_demand", lambda s: s.state is True)
+
+    await read_room(h, NAN)
+    await h.wait_for("bath_relay", lambda s: s.state is False)
+    await h.wait_for("bedroom_relay", lambda s: s.state is False)
+    await h.wait_for("bath_radiant_override_active", lambda s: s.state is False)
+    await h.wait_for("bedroom_radiant_override_active", lambda s: s.state is False)
+    await h.wait_for("floor_demand", lambda s: s.state is False)
+    # The override itself was not cleared.
+    assert h.states["bath_radiant_override"].state is True
+
+    # Still closed a while later (no periodic write may re-open it).
+    await assert_relay_stays_off(h, "bath")
+    await assert_relay_stays_off(h, "bedroom")
+
+    # Sensor recovers: the override hold resumes.
+    await read_room(h, AT_TARGET)
+    await h.wait_for("bath_relay", lambda s: s.state is True)
+    await h.wait_for("bath_radiant_override_active", lambda s: s.state is True)
+    await h.wait_for("floor_demand", lambda s: s.state is True)
+
+
+async def test_direct_boost_style_write_cannot_open_a_blind_zone(run_harness):
+    """The boost coordinator also writes the final stage directly (level 1.0).
+
+    Switching the override on while the sensor is NaN is the same situation as a
+    boost replayed at boot before the first reading: the valve must stay shut.
+    """
+    h = await run_harness("radiant_direction")
+    await set_season(h, "COOL")
+    await read_room(h, NAN)
+    await h.call("set_bath_override", enabled=True, value=100.0)
+    await assert_relay_stays_off(h, "bath")
+    await assert_active(h, "bath_radiant_override_active", False)
+    assert relay_count(h, "bath") == 0

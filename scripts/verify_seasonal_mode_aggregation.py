@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Verify seasonal-mode heat/cool demand aggregates cover all Climate PID diagnostics."""
+"""Verify seasonal-mode heat/cool demand aggregates cover all Climate PID diagnostics.
+
+Also verifies that each floor's radiant pump-demand sum covers every radiant zone
+twice over: through the PID's `_radiant_pid_is_active` and through the radiant
+override's `_radiant_override_active` (a valve held open by boost or by hand has
+no PID action behind it; review R-05).
+"""
 
 from __future__ import annotations
 
@@ -92,6 +98,38 @@ def referenced_ids(aggregate_id: str) -> set[str]:
     return set(ID_REF_RE.findall(block))
 
 
+def radiant_pump_demand_errors() -> list[str]:
+    """Each radiant room must appear, with both inputs, in its floor's demand sum."""
+    errors: list[str] = []
+    for floor_dir in sorted(p for p in ROOMS_DIR.iterdir() if p.is_dir()):
+        floor_files = sorted(floor_dir.glob("*-floor.yaml"))
+        if not floor_files:
+            continue
+        floor_text = "\n".join(strip_comments_keep_cpp(f.read_text()) for f in floor_files)
+        for path in sorted(floor_dir.glob("*.yaml")):
+            if path.name.endswith("-floor.yaml"):
+                continue
+            text = strip_comments(path.read_text())
+            slug = room_slug(text, path)
+            if not slug:
+                continue
+            if not (contains_any(text, HEAT_ONLY_MARKERS) or contains_any(text, RADIANT_MARKERS)):
+                continue
+            for suffix in ("radiant_pid_is_active", "radiant_override_active"):
+                # `.state` is mandatory: id(binary_sensor) alone is the sensor's
+                # POINTER, which is always true in an `||` chain.
+                if f"id({slug}_{suffix}).state" not in floor_text:
+                    errors.append(f"{floor_dir.name}: pump demand is missing {slug}_{suffix}.state")
+    return errors
+
+
+def strip_comments_keep_cpp(text: str) -> str:
+    """Drop whole-line YAML comments and C++ // comments from lambda bodies."""
+    return "\n".join(
+        line for line in text.splitlines() if not line.lstrip().startswith(("#", "//"))
+    )
+
+
 def report_delta(title: str, values: set[str]) -> None:
     if not values:
         return
@@ -118,12 +156,18 @@ def main() -> int:
             report_delta("Missing expected PID diagnostics:", missing)
             report_delta("References without a matching room package:", extra)
 
+    pump_errors = radiant_pump_demand_errors()
+    for error in pump_errors:
+        errors = True
+        print(f"Radiant pump demand mismatch: {error}", file=sys.stderr)
+
     if errors:
         return 1
     print(
         "seasonal mode aggregation: heat/cool PID diagnostics match room packages "
         f"({len(expected_heat)} heat, {len(expected_cool)} cool)"
     )
+    print("radiant pump demand: every radiant zone feeds its floor sum via PID and override")
     return 0
 
 

@@ -25,7 +25,16 @@
 #
 # Pump demand: the packages' `<pid>_is_active` binary sensors (what the floor
 # pump-demand sensors OR together) are exercised as published; the tests check
-# they follow the same hp_mode gate as the valves.
+# they follow the same hp_mode gate as the valves. `floor_demand` below ORs the
+# bath and bedroom zones' two inputs exactly as ground-floor.yaml /
+# first-floor.yaml do for their rooms (R-05; the real floor sums are checked
+# for completeness by scripts/verify_seasonal_mode_aggregation.py).
+#
+# Radiant override (R-05): the bath and bedroom override switch/value are driven
+# through set_bath_override / set_bedroom_override. The final stage must hold the
+# valve open at the override level, ignore the override while the (shared)
+# room temperature is NaN, and expose `<room>_radiant_override_active` as the
+# pump-demand input for a valve held open by the override.
 #
 # Roles under test (room_slug => package):
 #   bath     heat_only_radiant.yaml
@@ -48,6 +57,7 @@ esphome:
   # to this file's directory).
   includes:
     - ../../protocol/pid_direction.h
+    - ../../protocol/radiant_override.h
 
 host:
 
@@ -77,6 +87,49 @@ api:
         - select.set:
             id: hp_mode
             option: !lambda "return value;"
+    # Radiant override of a zone, as the boost coordinator / HA drive it.
+    - action: set_bath_override
+      variables:
+        enabled: bool
+        value: float
+      then:
+        - number.set:
+            id: bath_radiant_override_value
+            value: !lambda "return value;"
+        - if:
+            condition:
+              lambda: "return enabled;"
+            then:
+              - switch.turn_on: bath_radiant_override
+            else:
+              - switch.turn_off: bath_radiant_override
+        # The final stage is written by the PID, i.e. whenever the room sensor
+        # publishes (production: the 10 s failover republish). Republish the
+        # current reading so an override change takes effect within the test.
+        - sensor.template.publish:
+            id: stub_temperature
+            state: !lambda "return id(stub_temperature).state;"
+    - action: set_bedroom_override
+      variables:
+        enabled: bool
+        value: float
+      then:
+        - number.set:
+            id: bedroom_radiant_override_value
+            value: !lambda "return value;"
+        - if:
+            condition:
+              lambda: "return enabled;"
+            then:
+              - switch.turn_on: bedroom_radiant_override
+            else:
+              - switch.turn_off: bedroom_radiant_override
+        # The final stage is written by the PID, i.e. whenever the room sensor
+        # publishes (production: the 10 s failover republish). Republish the
+        # current reading so an override change takes effect within the test.
+        - sensor.template.publish:
+            id: stub_temperature
+            state: !lambda "return id(stub_temperature).state;"
     # Stand-in for the fancoil_boost coordinator's set_action: it alone puts
     # the boost-role fancoil into COOL (and back to OFF).
     - action: boost_start
@@ -153,6 +206,16 @@ binary_sensor:
   - platform: template
     id: mix_demand
     internal: true
+  # Same shape as a floor's any-zone-open sensor (ground-floor.yaml): every
+  # radiant zone contributes its PID actuation AND its override hold.
+  - platform: template
+    id: floor_demand
+    name: "Floor Demand"
+    lambda: |-
+      return id(bath_radiant_pid_is_active).state ||
+             id(bedroom_radiant_pid_is_active).state ||
+             id(bath_radiant_override_active).state ||
+             id(bedroom_radiant_override_active).state;
 
 sensor:
   - platform: template

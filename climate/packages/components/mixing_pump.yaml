@@ -117,7 +117,7 @@ binary_sensor:
   - platform: template
     id: ${sensor_id}_wrapped
     lambda: |-
-      return id(${sensor_id});
+      return id(${sensor_id}).state;
     internal: true
     on_state:
       then:

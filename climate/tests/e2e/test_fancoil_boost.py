@@ -9,6 +9,8 @@ Covers the documented state machine contract:
   Anti-cycling:  the timer cancels if the condition clears before it elapses
   Deactivation (AND logic): delta <= 0 AND humidity <= threshold - hysteresis/2
   Season override: leaving cooling season ends boost immediately (no delay)
+  Sensor loss (R-05): a NaN room temperature ends boost immediately, and no
+                 boost starts while it is NaN, whatever the trigger
 
 The harness compresses min_time_in_state to 2 s (prod: 600 s). The radiant
 PID target is 24.0 C, so absolute temps map to deltas: 26.0 => +2.0.
@@ -182,3 +184,62 @@ async def test_disabling_gate_during_boost_drops_to_radiant(run_harness):
     await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=1.5)
     await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is False)
     await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF)
+
+
+async def test_sensor_loss_ends_boost_immediately(run_harness):
+    """Room temperature NaN mid-boost: radiant only at once, no anti-cycling delay.
+
+    should_end_boost cannot end it (a NaN delta never reaches "target"), which used
+    to leave the zone at 100 % radiant cooling plus fancoil COOL indefinitely.
+    """
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)
+    await reach_boost(h)
+    await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is True)
+
+    await h.call("set_temperature", value=NAN)
+    # Well under the 2 s anti-cycling delay: the same immediate path as the
+    # season / gate override.
+    await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=1.0)
+    await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is False, timeout=1.0)
+    await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF, timeout=1.0)
+    await h.wait_for(AUTOMATION, lambda s: s.state == "Idle", timeout=1.0)
+
+    # And it stays down: neither the delay timers nor the triggers revive it.
+    await asyncio.sleep(3)
+    assert h.states[STATE].state == "Radiant Only"
+    assert h.states[OVERRIDE_SWITCH].state is False
+    assert h.states[FANCOIL].mode == ClimateMode.OFF
+
+    # The sensor returns and the room is still hot: boost may be earned again,
+    # but only through the normal anti-cycling delay.
+    await h.call("set_temperature", value=26.0)
+    await h.wait_for(AUTOMATION, lambda s: s.state == "Activating (reactive)")
+    assert h.states[STATE].state == "Radiant Only"
+    await h.wait_for(STATE, lambda s: s.state == "Fancoil Boost", timeout=5)
+
+
+async def test_no_boost_starts_while_the_temperature_is_lost(run_harness):
+    """Every trigger is blocked for a NaN temperature, humidity included.
+
+    Otherwise a humidity-triggered boost would start and be cancelled again by
+    the sensor-loss stop after each anti-cycling delay.
+    """
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)
+    await h.call("set_temperature", value=NAN)
+
+    # Humidity trigger (above 62.5) with the temperature unknown.
+    await h.call("set_humidity", value=70.0)
+    await asyncio.sleep(3)  # > min_time_in_state (2 s): a timer would have fired
+    assert h.states[STATE].state == "Radiant Only"
+    assert h.states[AUTOMATION].state == "Idle"
+    assert h.states[OVERRIDE_SWITCH].state is False
+
+    # Predictive trigger: saturated radiant output, delay compressed to 3 s.
+    await h.call("set_humidity", value=50.0)
+    await h.call("set_predictive_minutes", value=0.05)
+    await h.call("set_radiant_cool_output", value=0.96)
+    await asyncio.sleep(4)
+    assert h.states[STATE].state == "Radiant Only"
+    assert h.states[AUTOMATION].state == "Idle"
