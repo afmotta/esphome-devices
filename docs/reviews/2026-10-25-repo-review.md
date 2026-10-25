@@ -39,7 +39,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | 🔧 parziale (timeout ⏸️ dati da banco) | `50103e2` |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
-| [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
+| [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | 🔧 parziale: MEV ✅, `predictive_minutes` 🔧 | `e1d8e68`, `bd32bc6` |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
@@ -355,6 +355,35 @@ alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del
 velocità minima MEV arriva ancora da HA (`homeassistant` sensor), mentre le soglie di sicurezza sono
 già state rese locali.
 
+**Fix parziale (R-08b, MEV):** ✅ `e1d8e68` (`climate: make MEV min fan speed, cascade thresholds and delays local numbers (R-08b)`)
++ `bd32bc6` (collegamento a battery/CI e documentazione).
+
+- **Valori resi locali.** Diventano `number` template sul controller, persistenti (`restore_value`, `entity_category: config`),
+  con gli stessi id e default uguali ai vecchi helper:
+
+  | Entità | Range | Default | Unità MEV |
+  |---|---|---|---|
+  | `<mev>_min_fan_speed` | 0–50 % | 20 | entrambe |
+  | `<mev>_escalation_threshold` | 50–100 % | 80 | primo piano |
+  | `<mev>_deescalation_threshold` | 10–50 % | 40 | primo piano |
+  | `<mev>_escalation_delay` | 1–120 min | 10 | primo piano |
+  | `<mev>_deescalation_delay` | 1–120 min | 15 | primo piano |
+- **Problema risolto.** Prima, con HA giù, le soglie a NaN disattivavano in silenzio la cascata di deumidificazione e i
+  ritardi calcolavano `NaN * 60000`.
+- **Lato HA:**
+  - `mev_helpers.yaml` perde i 6 helper obsoleti;
+  - la dashboard `system-monitoring` punta ai numeri del controller;
+  - README e QUICK_START sono aggiornati;
+  - ADR-0018 è emendato.
+- **Restano su HA i limiti di domanda** CO2/VOC/NOx/PM/umidità (`proportional_demand_sensor.yaml`). Con HA giù la domanda
+  scende al fallback del 20%: degrada senza danni.
+- **Verificato:** e2e host `test_mev_ventilation.py` **6/6**, rieseguito anche da me, con i due coordinatori reali e senza
+  HA; `esphome config` OK.
+- **Azione una tantum lato HA:** cancellare `input_number.mev_minimum_fan_speed`, `ground_floor_mev_minimum_fan_speed`,
+  `mev_escalation_fan_threshold`, `mev_deescalation_fan_threshold`, `mev_escalation_delay_minutes` e
+  `mev_deescalation_delay_minutes`, ed eventualmente reinserire i valori personalizzati sui numeri del controller.
+- **`predictive_minutes` (R-08a):** in lavorazione con R-05.
+
 ### R-09 — Fail-safe hardware dei relè
 
 Se il master si blocca, i relè Modbus mantengono l'ultimo stato (valvole/pompe accese). Valutare un
@@ -532,3 +561,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-07 | `085bb05`, `a2db85c` | Errori TX CAN segnalati (bridge con retry limitato, nodi con `tx_health.h`) | test nativi, battery PASS, `esphome config` ×10 |
 | 2026-10-25 | R-06 (parz.) | `50103e2` | Avviso del generatore per ogni binding `toggle` | test Python, battery PASS |
 | 2026-10-25 | R-12 | `449be90`, `2763cdf` | Gate HA-tier sulla temperatura esterna | e2e host 4/4, `esphome config`, battery PASS |
+| 2026-10-25 | R-08b | `e1d8e68`, `bd32bc6` | Min-fan, soglie e ritardi MEV come numeri locali | e2e host 6/6, `esphome config`, battery PASS |
