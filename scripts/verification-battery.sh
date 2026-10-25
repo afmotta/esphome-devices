@@ -7,6 +7,10 @@
 # Usage (from anywhere — the script locates the repo root):
 #   bash scripts/verification-battery.sh                 # full battery
 #   bash scripts/verification-battery.sh --native-only   # esphome-free subset
+#   bash scripts/verification-battery.sh --fast          # --native-only minus the
+#                                                        # generator idempotence step
+#                                                        # (the pre-commit hook; works
+#                                                        # with a dirty tree)
 #
 # --native-only runs only the python + native C++ tests and the generator
 # idempotence check, loudly skipping every step that needs the `esphome` CLI:
@@ -36,13 +40,15 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 usage() {
-  sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 NATIVE_ONLY=0
+FAST=0
 for arg in "$@"; do
   case "$arg" in
     --native-only) NATIVE_ONLY=1 ;;
+    --fast) NATIVE_ONLY=1; FAST=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "error: unknown argument '$arg' (try --help)" >&2; exit 2 ;;
   esac
@@ -163,7 +169,11 @@ run_step "native: climate test_pid_direction.cpp" \
   cxx_run climate_pid_direction -Iclimate/protocol climate/tests/test_pid_direction.cpp
 
 # ── Generator idempotence (needs clean canbus/climate/registry paths) ──────────
-run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
+if [ "$FAST" -eq 1 ]; then
+  skip_step "generator idempotence: regenerate + git diff --exit-code" "--fast; needs a clean tree"
+else
+  run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
+fi
 
 # ── ESPHome gates + Climate package e2e (skipped under --native-only) ───────
 if [ "$NATIVE_ONLY" -eq 1 ]; then

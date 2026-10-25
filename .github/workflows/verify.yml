@@ -18,6 +18,22 @@ jobs:
       - name: Run native verification battery
         run: bash scripts/verification-battery.sh --native-only
 
+  # Same checks as the yamllint + repo-hygiene hooks in .pre-commit-config.yaml.
+  lint:
+    name: YAML lint + repo hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install yamllint
+        run: pip install "yamllint==1.37.1"
+      - name: yamllint (config in .yamllint)
+        run: yamllint --strict -c .yamllint .
+      - name: Repo hygiene
+        run: python3 scripts/check_repo_hygiene.py
+
   esphome-config:
     name: ESPHome config gates
     runs-on: ubuntu-latest

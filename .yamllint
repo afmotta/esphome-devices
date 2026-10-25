@@ -1,0 +1,39 @@
+# yamllint configuration (used by CI job `lint` and .pre-commit-config.yaml).
+#
+# Tuned so the CURRENT tree passes without touching any YAML file, while keeping the
+# rules that catch real mistakes: syntax errors, duplicate keys (ESPHome silently takes
+# the last one), indentation consistency, trailing spaces, blank-line runs, colon/hyphen
+# spacing. ESPHome's custom tags (!include, !secret, !lambda, !extend, !remove, ...) are
+# fine: yamllint tokenizes without resolving tags.
+#
+# Silenced rules and why (an audit on 2026-10-25 found only style hits, no real bugs):
+#   line-length          871 hits - ESPHome lambdas, URLs and long comments are
+#                        deliberately unwrapped.
+#   document-start       134 hits - ESPHome/HA configs never carry a leading `---`.
+#   comments             33 hits - `#comment` / one-space-before-comment style nits
+#                        (e.g. lighting/packages/led_can_actuator.yaml:30).
+#   comments-indentation 2 hits - commented-out blocks indented off the next key
+#                        (boards/a6.yaml:30, climate/room_sensors.yaml:118).
+#   braces               32 hits - aligned flow maps with padding spaces, e.g.
+#                        canbus/packages/buttons_8.yaml:21.
+#   commas               10 hits - column-aligned flow lists in
+#                        lighting/packages/ui/light_touch_ui.yaml:270-279.
+#   new-line-at-end-of-file 2 hits - boards/canbed-rp2040.yaml:53,
+#                        devices/wall-sensor.yaml:68 (harmless; fix the files and
+#                        this rule can be re-enabled).
+#   truthy               `yes`/`no` are accepted ESPHome booleans (e.g.
+#                        climate/packages/coordinators/fancoil_boost.yaml:169); the
+#                        workflow `on:` key is exempted via check-keys: false.
+extends: default
+
+rules:
+  line-length: disable
+  document-start: disable
+  comments: disable
+  comments-indentation: disable
+  braces: disable
+  commas: disable
+  new-line-at-end-of-file: disable
+  truthy:
+    allowed-values: ["true", "false", "yes", "no"]
+    check-keys: false
