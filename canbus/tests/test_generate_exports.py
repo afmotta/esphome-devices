@@ -335,7 +335,10 @@ def test_generator_rejects_stale_csv_header():
 def test_ha_package_bakes_hash():
     p = g.render_ha_package(HASH)
     assert f'manifest_hash: "{HASH}"' in p
-    assert "esphome.canbus_gateway_ha_readiness_heartbeat" in p
+    # Derived from the lighting controller's device_name; test_ha_contract.py pins that
+    # name (and the service) against devices/light-controller.yaml + lighting/packages/buttons.yaml.
+    assert "action: esphome.light_controller_ha_readiness_heartbeat" in p
+    assert "canbus_gateway" not in p
     assert "GENERATED" in p
 
 

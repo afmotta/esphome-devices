@@ -142,6 +142,7 @@ run_step "climate: seasonal mode PID aggregation is complete" python3 scripts/ve
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py
 run_step "python: canbus/tests/test_generate_exports.py"  python3 canbus/tests/test_generate_exports.py
 run_step "python: canbus/tests/test_push_gate.py"         python3 canbus/tests/test_push_gate.py
+run_step "python: canbus/tests/test_ha_contract.py"       python3 canbus/tests/test_ha_contract.py
 
 # ── Native C++ tests (no ESPHome deps) ──────────────────────────────────────
 run_step "native: canbus test_protocol.cpp"          cxx_run proto     canbus/tests/test_protocol.cpp
