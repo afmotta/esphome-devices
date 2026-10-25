@@ -7,8 +7,10 @@ the window-aware climate-shutdown capability dropped in the layered restructure)
 ## Purpose
 
 The window guard forces a room's **fancoil** off while a window stays open
-(default: open ≥ 180 s), and restores the previous mode after the window has
-been closed for a stability period (default: 60 s). Radiant circuits are
+(default: open ≥ 180 s). After the window has been closed for a stability
+period (default: 60 s) it asks the fancoil's *owner* to re-derive the mode
+(`resume_script_id`, review R-14) instead of restoring a snapshot: a `boost`
+fancoil comes back only if its boost is still running and `hp_mode` is COOL. Radiant circuits are
 deliberately not guarded — their time constant makes brief airing negligible.
 
 The sensors are HA-tier by design (Zigbee contacts): when HA or a sensor is
@@ -49,8 +51,9 @@ All other rooms are radiant-only and intentionally have no window guard.
 4. Add the room to the table above.
 5. Verify: open the window (or toggle a mock `input_boolean`-backed template
    sensor in HA), wait the timeout, confirm the fancoil PID goes OFF and the
-   `<Room> Window Guard` text sensor reads "Active"; close it and confirm
-   restore after the recovery period.
+   `<Room> Window Guard` text sensor reads "Active"; close it and confirm that,
+   after the recovery period, the fancoil returns to what its owner wants now
+   (e.g. OFF if the boost ended meanwhile, COOL if it is still running).
 
 ## Mock sensors for bench testing
 

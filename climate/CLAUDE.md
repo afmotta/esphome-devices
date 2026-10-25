@@ -141,6 +141,10 @@ to the PID mode in one script (`${room_slug}_fancoil_sync_mode`), run from the s
 *and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package `on_boot`
 mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
 
+**The window guard hands the fancoil back to its owner** (review R-14): it takes a required
+`resume_script_id` and, after recovery, runs the role's `${room_slug}_fancoil_resume_mode` (boost: COOL
+only if the boost is still running and `hp_mode` is COOL) instead of restoring a snapshot.
+
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
 ## Modbus Communication Architecture
