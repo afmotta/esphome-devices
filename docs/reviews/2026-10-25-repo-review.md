@@ -48,7 +48,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ✅ | `173722e`, `bf1681e` |
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ✅ | `5014afd`, `638342f` |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ✅ | `d509ff3`, `7d28baa` |
-| [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
+| [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ✅ (recovery diretto ⏸️ fork) | `bef6792` |
 | [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ⬜ | — |
 | [R-19](#r-19--le-pompe-di-circolazione-erano-sempre-accese) | 🔴 | Pompe di circolazione sempre accese (`id(binary_sensor)` è un puntatore) | ✅ | `504300a` |
 
@@ -667,6 +667,37 @@ _Emersa durante il fix di R-07._ `esp32_can` (ESPHome 2026.8.0) non chiama mai `
 che va in bus-off non torna sul bus senza un riavvio: riguarda health monitor, An-Penta, An-Quad e il bridge T-2CAN.
 Servono un componente esterno, oppure un riavvio automatico in caso di `ERR_CAN_TX_FAIL` persistente.
 
+**Fix applicato:** ✅ `bef6792` — `canbus: reboot stuck ESP32 TWAI transmitters via a TX watchdog (R-17)`
+
+- **Esposizione reale.** Riguarda solo i nodi ESP32 che **trasmettono**: il bridge T-2CAN (backbone su TWAI), An-Penta e
+  An-Quad (heartbeat).
+  - Climate controller e health monitor non trasmettono mai. Il bus-off richiede che il contatore degli errori di
+    trasmissione superi 255, quindi un nodo che solo riceve arriva al massimo a error-passive.
+  - I nodi MCP2515 escono dal bus-off in hardware (128 × 11 bit recessivi).
+- **Watchdog** (`canbus/packages/tx_watchdog.yaml` più la logica pura in `tx_health.h`):
+  - conta solo gli **heartbeat** consecutivi rifiutati su `can0`, quindi un lato zona MCP2515 morto non riavvia il bridge;
+  - alla soglia di 10 heartbeat (5 min) scrive un log ERROR, sincronizza le preferenze e chiama `App.safe_reboot()`;
+  - **backoff esponenziale con tetto**: soglie 10 → 20 → 40 → 80, poi fisso. Su un bus davvero morto significa circa un
+    riavvio ogni 43 min, mai un loop stretto, e un nodo resta comunque recuperabile dopo la riparazione;
+  - il livello di backoff è persistente e si azzera dopo 12 heartbeat accettati di fila, più della profondità della coda
+    TWAI, così un bus morto non può fingere il recupero.
+- **Dove è collegato:** riga `bridge-t2can` di `PROFILES` e `led_can_actuator.yaml` (An-Penta, An-Quad). Non sui nodi
+  MCP2515, dove andrebbe in loop di riavvii.
+- **Lighting controller:** solo un contatore diagnostico "CAN TX Refused" sui `CAT_OUTPUT` di fallback, senza watchdog.
+  Non ha heartbeat per distinguere un bus-off da un bus inattivo, e un riavvio costa secondi di controllo dei relè.
+- **Recovery diretto (⏸️).** `esp32_can` usa il driver v2 (`twai_*_v2`) con un handle protetto in una classe `final`, e non
+  chiama mai `twai_initiate_recovery`. Servirebbe un fork in `libs/esphome_overrides/` come per ethernet; lo snippet e i
+  passi di verifica sono in `canbus/README.md`, non attivato.
+- **Verificato:**
+  - `test_tx_health.cpp` esteso: soglie, transitorio che non arriva mai alla soglia, sequenza di riavvii su bus morto,
+    prova di recupero;
+  - battery nativa PASS, yamllint OK;
+  - `esphome config` OK su 9 target, con il watchdog presente solo su T-2CAN, An-Penta e An-Quad.
+- **Non verificato:**
+  - compilazione ESP32 dei lambda (`App.safe_reboot()`, `global_preferences->sync()`);
+  - prova al banco: CANH-CANL in corto per circa 1 s su un An-Penta, poi bus scollegato per un'ora controllando che i
+    riavvii si diradino (circa 8, 13, 23, 43 min).
+
 ### R-18 — Merge silenzioso degli on_boot dei package
 
 _Emersa durante R-10._ In ESPHome 2026.8.0, quando più package dichiarano `esphome: on_boot:` le regole di merge sono:
@@ -739,3 +770,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-13 | `dea1047`, `583eb8d` | Integrale PID confinato alla direzione attiva (`hp_mode`) | test nativi, e2e host 13/13 |
 | 2026-10-25 | R-16 | `d509ff3`, `7d28baa` | Stato al boot dei fancoil per ruolo; tolleranza sul sensore perso (riconcilia R-05) | e2e host 19/19 + 16/16 |
 | 2026-10-25 | R-14 | `173722e`, `bf1681e` | Il window guard riconsegna il fancoil al proprietario, senza snapshot | e2e host 23/23 |
+| 2026-10-25 | R-17 | `bef6792` | Watchdog TX con backoff per i trasmettitori ESP32 TWAI | test nativi, battery PASS, `esphome config` ×9 |
