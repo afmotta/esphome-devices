@@ -60,7 +60,12 @@ logger:
   level: ${logger_level}
 
 # Enable Home Assistant API
+#
+# reboot_timeout: 0s — the monitor keeps observing the CAN bus locally when Home
+# Assistant is down (ADR-0015); the 15 min no-client reboot would only churn it and
+# drop its in-RAM node-health state.
 api:
+  reboot_timeout: 0s
   encryption:
     key: ${encryption_key}
 
@@ -72,6 +77,8 @@ ota:
 # WiFi only — this board has no Ethernet. ADR-0015: health telemetry over WiFi
 # is acceptable (observability, not actuation; the bus is still observed
 # locally when WiFi is down).
+# wifi: reboot_timeout is deliberately left at its 15 min default: with no Ethernet
+# fallback, a reboot is this board's recovery path from a wedged WiFi stack.
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
