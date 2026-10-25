@@ -329,6 +329,63 @@ namespace
     assert(close(a.sink.level, 0.0f)); // ...which closes it
   }
 
+  // Pump demand (pid_sensors.yaml `_is_active`): the PID's action counts only
+  // while the matching direction passes the gate. Exhaustive over action x mode.
+  void test_actuating_follows_the_gate()
+  {
+    for (const char *mode : HP_MODES)
+    {
+      const bool heat_ok = std::strcmp(mode, "HEAT") == 0;
+      const bool cool_ok = std::strcmp(mode, "COOL") == 0;
+      // idle/off action: never demands water
+      assert(!pid_direction::actuating(false, false, mode));
+      assert(pid_direction::actuating(true, false, mode) == heat_ok);
+      assert(pid_direction::actuating(false, true, mode) == cool_ok);
+    }
+    // Winter, room over target (action COOLING): valve shut, so no pump.
+    assert(!pid_direction::actuating(false, true, "HEAT"));
+    // Winter, room under target (action HEATING): valve open, pump on.
+    assert(pid_direction::actuating(true, false, "HEAT"));
+    // Summer mirror image.
+    assert(!pid_direction::actuating(true, false, "COOL"));
+    assert(pid_direction::actuating(false, true, "COOL"));
+    // No heating/cooling water: nothing is active whatever the PID wants.
+    assert(!pid_direction::actuating(true, false, "SANITARY_ONLY"));
+    assert(!pid_direction::actuating(false, true, "SANITARY_ONLY"));
+    // Unknown / missing option fails closed, like the gate.
+    for (const char *odd : {"", "heat", "HEAT ", "OFF"})
+    {
+      assert(!pid_direction::actuating(true, false, odd));
+      assert(!pid_direction::actuating(false, true, odd));
+    }
+    assert(!pid_direction::actuating(true, false, nullptr));
+    assert(!pid_direction::actuating(false, true, nullptr));
+  }
+
+  // The sensor and the valve must agree: for every wiring, season and PID value
+  // the sensor is true exactly when the shared actuator ends up nonzero.
+  void test_actuating_agrees_with_the_sink()
+  {
+    constexpr float values[] = {0.6f, -0.6f, 0.0f, 1.0f, -1.0f};
+    for (const char *mode : HP_MODES)
+    {
+      for (float value : values)
+      {
+        for (int wiring = 0; wiring < 3; ++wiring) // dual, heat-only, cool-only
+        {
+          Actuator a(wiring != 2, wiring != 1);
+          a.hp_mode = mode;
+          a.pid_update(value);
+          // ESPHome's action: COOLING for value < 0 if cool is wired, HEATING
+          // for value > 0 if heat is wired (pid_climate.cpp write_output_()).
+          const bool cooling = a.has_cool && value < 0;
+          const bool heating = a.has_heat && value > 0;
+          assert(pid_direction::actuating(heating, cooling, mode) == (a.sink.level > EPS));
+        }
+      }
+    }
+  }
+
 } // namespace
 
 int main()
@@ -343,5 +400,7 @@ int main()
   test_fancoil_cool_only_wiring();
   test_fancoil_heat_cool_follows_season();
   test_season_flip_holds_level_until_next_update();
+  test_actuating_follows_the_gate();
+  test_actuating_agrees_with_the_sink();
   return 0;
 }

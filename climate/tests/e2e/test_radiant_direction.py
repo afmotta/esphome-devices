@@ -22,6 +22,11 @@ direction:
   mixing_pump        mix       supply-temperature valve: opens toward the
                                direction the heat pump produces
 
+The `<pid>_is_active` binary sensors drive the circulation-pump demand, so they
+must agree with the valves: true only while the PID's action matches the water
+produced (pid_direction::actuating), while `_is_cooling`/`_is_heating` keep
+reporting the PID's intent for the seasonal demand tier.
+
 All room PIDs share one temperature stub and the default 20.0 degC target:
 25.0 => 5 degC over target, 15.0 => 5 degC under. Every PID output saturates, so
 "actuates" means level 1.0 / relay held on.
@@ -256,3 +261,116 @@ async def test_mixing_valve_closes_when_supply_drops_below_dew_point_minimum(run
     await h.wait_for_value("valve_level", 0.0)
     await asyncio.sleep(LEVEL_SETTLE)
     assert level(h, "valve_level") == pytest.approx(0.0)
+
+
+# --- pump demand (the `_is_active` sensors) ----------------------------------
+
+def active(h, object_id: str) -> bool:
+    state = h.states.get(object_id)
+    assert state is not None, f"{object_id} was never published"
+    return state.state is True
+
+
+async def assert_active(h, object_id: str, expected: bool):
+    """`_is_active` settles on `expected`.
+
+    The template sensor re-evaluates every loop and only publishes changes, so
+    a flip is awaited; "stays false" is checked after the PID had time to update.
+    """
+    if expected:
+        await h.wait_for(object_id, lambda s: s.state is True)
+    else:
+        await asyncio.sleep(LEVEL_SETTLE)
+        assert not active(h, object_id), f"{object_id} demands the pump with no water direction to match"
+
+
+# (hp_mode, room temperature) -> expected `_is_active` per room. A PID that is
+# not moving its valve in the water direction must not ask for the pump:
+# the circulation pump would run against closed valves.
+ACTIVE_MATRIX = [
+    # Winter, room too warm: the PID's action is COOLING but every valve is
+    # gated shut -> no pump demand (the bug: is_active was the raw action).
+    ("HEAT", HOT, dict(bath=False, bedroom=False, living=False, techroom=False, attic=False)),
+    # Winter, room too cold: heating zones demand the pump; cooling-only
+    # fancoils (boost, cool_only) have no heat output and stay idle.
+    ("HEAT", COLD, dict(bath=True, bedroom=True, living=False, techroom=False, attic=True)),
+    # Summer, room too warm: cooling zones demand the pump; the heat-only bath
+    # is off and the boost fancoil waits for the coordinator.
+    ("COOL", HOT, dict(bath=False, bedroom=True, living=False, techroom=True, attic=True)),
+    # Summer, room too cold: only a (gated) heating action, no pump.
+    ("COOL", COLD, dict(bath=False, bedroom=False, living=False, techroom=False, attic=False)),
+    # No heating/cooling water: nothing may ask for the pump.
+    ("SANITARY_ONLY", HOT, dict(bath=False, bedroom=False, living=False, techroom=False, attic=False)),
+    ("SANITARY_ONLY", COLD, dict(bath=False, bedroom=False, living=False, techroom=False, attic=False)),
+]
+
+ACTIVE_IDS = dict(
+    bath="bath_radiant_pid_is_active",
+    bedroom="bedroom_radiant_pid_is_active",
+    living="living_fancoil_pid_is_active",
+    techroom="techroom_fancoil_pid_is_active",
+    attic="attic_fancoil_pid_is_active",
+)
+
+
+@pytest.mark.parametrize("hp_mode,temperature,expected", ACTIVE_MATRIX)
+async def test_pump_demand_follows_the_water_direction(run_harness, hp_mode, temperature, expected):
+    h = await run_harness("radiant_direction")
+    await set_season(h, hp_mode)
+    await read_room(h, temperature)
+    # Same wait as the actuator matrix so the PIDs have computed their action.
+    await asyncio.sleep(RELAY_SETTLE)
+
+    for room, want in expected.items():
+        await assert_active(h, ACTIVE_IDS[room], want)
+
+
+async def test_pump_demand_keeps_the_intent_sensors_ungated(run_harness):
+    """Winter, room too warm: is_active is false but is_cooling still says COOLING.
+
+    The seasonal demand tier reads is_heating/is_cooling as the PID's intent
+    (a room wanting cooling in HEAT season is a signal, not a command).
+    """
+    h = await run_harness("radiant_direction")
+    await set_season(h, "HEAT")
+    await read_room(h, HOT)
+    await h.wait_for("bedroom_radiant_pid_is_cooling", lambda s: s.state is True)
+    assert not active(h, "bedroom_radiant_pid_is_active")
+    assert not h.states["bedroom_radiant_pid_is_heating"].state
+
+    await read_room(h, COLD)
+    await h.wait_for("bedroom_radiant_pid_is_heating", lambda s: s.state is True)
+    await assert_active(h, "bedroom_radiant_pid_is_active", True)
+
+
+async def test_pump_demand_drops_when_the_season_flips(run_harness):
+    """Heating in progress, then the heat pump flips to chilled water.
+
+    The sensor re-evaluates on the season change itself (it reads hp_mode), so
+    the pump demand ends at once instead of waiting for the next PID update.
+    """
+    h = await run_harness("radiant_direction")
+    await set_season(h, "HEAT")
+    await read_room(h, COLD)
+    await assert_active(h, "bedroom_radiant_pid_is_active", True)
+
+    await set_season(h, "SANITARY_ONLY")
+    await h.wait_for("bedroom_radiant_pid_is_active", lambda s: s.state is False)
+
+
+# Mixing-valve PID (target 20 degC): supply 10 is under it (heating action),
+# supply 30 over it (cooling action).
+@pytest.mark.parametrize("hp_mode,supply,expected", [
+    ("HEAT", 10.0, True),
+    ("HEAT", 30.0, False),
+    ("COOL", 30.0, True),
+    ("COOL", 10.0, False),
+    ("SANITARY_ONLY", 10.0, False),
+    ("SANITARY_ONLY", 30.0, False),
+])
+async def test_mixing_valve_pump_demand_follows_the_water_direction(run_harness, hp_mode, supply, expected):
+    h = await run_harness("radiant_direction")
+    await set_season(h, hp_mode)
+    await h.call("set_supply_temperature", value=supply)
+    await asyncio.sleep(RELAY_SETTLE)
+    await assert_active(h, "mix_mixing_valve_pid_is_active", expected)

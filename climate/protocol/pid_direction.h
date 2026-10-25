@@ -36,6 +36,13 @@
 // gated on purpose: they report the controller's intent, which the seasonal
 // demand-driven mode selection relies on.
 //
+// Pump demand must follow what the valves actually do, not the intent: the
+// circulation pumps are demanded by each PID's `_is_active` binary sensor
+// (climate/packages/components/pid_sensors.yaml), and a room above target in
+// HEAT season reports action == COOLING while its gated valve stays shut — a
+// pump against closed valves. actuating() is that sensor's rule: the PID's
+// action counts only while the matching direction passes the gate.
+//
 // Pure helper code with no ESPHome dependency, so it is native-testable
 // (climate/tests/test_pid_direction.cpp); the YAML lambdas in
 // climate/packages/components/{heat_only_radiant,radiant,mixing_pump,fancoil}*.yaml
@@ -66,6 +73,16 @@ namespace pid_direction
   inline float gated_level(Direction direction, const char *hp_mode, float level)
   {
     return is_active(direction, hp_mode) ? level : 0.0f;
+  }
+
+  // True when a PID whose action is heating/cooling is really moving water: the
+  // heating action needs the heat direction active, the cooling action the cool
+  // direction. Takes the two action flags (not the ESPHome enum) to stay free of
+  // ESPHome headers; at most one is ever true, both false means idle/off.
+  inline bool actuating(bool action_is_heating, bool action_is_cooling, const char *hp_mode)
+  {
+    return (action_is_heating && is_active(Direction::HEAT, hp_mode)) ||
+           (action_is_cooling && is_active(Direction::COOL, hp_mode));
   }
 
 } // namespace pid_direction

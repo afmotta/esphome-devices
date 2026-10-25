@@ -23,6 +23,10 @@
 # slow_pwm walks its period start up from 0 one period per loop() iteration,
 # which holds the relay OFF for minutes-to-hours on a long-running machine.
 #
+# Pump demand: the packages' `<pid>_is_active` binary sensors (what the floor
+# pump-demand sensors OR together) are exercised as published; the tests check
+# they follow the same hp_mode gate as the valves.
+#
 # Roles under test (room_slug => package):
 #   bath     heat_only_radiant.yaml
 #   bedroom  radiant.yaml (heat + cool)

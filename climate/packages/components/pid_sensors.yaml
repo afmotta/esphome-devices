@@ -7,6 +7,10 @@
 #   pid_id                   - ID of the PID climate entity (e.g., "living_room_radiant_pid")
 #   pid_name                 - Display name prefix (e.g., "Living Room Radiant PID")
 #
+# Inherited (entry-point substitution, as in the actuator packages):
+#   seasonal_mode_id         - ID of the seasonal mode select ("hp_mode"); is_active
+#                              reads it through climate/protocol/pid_direction.h
+#
 # Exposes:
 #   sensor.{pid_id}_result         - PID output value
 #   sensor.{pid_id}_error          - PID error (setpoint - actual)
@@ -18,9 +22,18 @@
 #   sensor.{pid_id}_kp             - Current Kp value
 #   sensor.{pid_id}_ki             - Current Ki value
 #   sensor.{pid_id}_kd             - Current Kd value
-#   binary_sensor.{pid_id}_is_active  - PID is heating or cooling
-#   binary_sensor.{pid_id}_is_heating - PID is heating
-#   binary_sensor.{pid_id}_is_cooling - PID is cooling
+#   binary_sensor.{pid_id}_is_active  - PID is ACTUATING: heating while hp_mode is HEAT or
+#                                       cooling while hp_mode is COOL (pump demand, see below)
+#   binary_sensor.{pid_id}_is_heating - PID intends to heat (action, ungated)
+#   binary_sensor.{pid_id}_is_cooling - PID intends to cool (action, ungated)
+#
+# is_active vs is_heating/is_cooling (R-01): the PID's `action` is its INTENT and
+# is deliberately not gated (the seasonal demand tier reads is_heating/is_cooling
+# as intent). The actuators ARE gated on hp_mode (pid_direction.h), so a room above
+# target in HEAT season has action COOLING but a shut valve. is_active feeds the
+# circulation-pump demand (floor *_any_zone_open sensors, second-floor direct
+# pump), so it must mean "water is really being asked for": it applies the same
+# gate, otherwise the pump would run against closed valves.
 #
 # Example:
 #   packages:
@@ -89,7 +102,9 @@ binary_sensor:
     id: ${pid_id}_is_active
     lambda: |-
       auto action = id(${pid_id}).action;
-      return (action == CLIMATE_ACTION_HEATING || action == CLIMATE_ACTION_COOLING);
+      return pid_direction::actuating(action == CLIMATE_ACTION_HEATING,
+                                      action == CLIMATE_ACTION_COOLING,
+                                      id(${seasonal_mode_id}).current_option().c_str());
   - platform: template
     name: "${pid_name} is Heating"
     id: ${pid_id}_is_heating
