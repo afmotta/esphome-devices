@@ -36,6 +36,7 @@ esphome:
   name: t-pid-behaviour
   includes:
     - ../../protocol/pid_direction.h
+    - ../../protocol/radiant_override.h   # heat_only_radiant's final stage (R-05)
 
 host:
 
