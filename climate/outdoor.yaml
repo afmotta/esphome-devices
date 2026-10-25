@@ -16,6 +16,26 @@
 #   Emergency: NaN — consumers (weather_compensation.yaml) hold their last
 #     valid output rather than acting on garbage.
 #
+# HA tier staleness (R-12, same rule as the room sensors' R-04 — see the
+# "HA tier staleness" header of room_sensors.yaml for the full rationale): the
+# raw `homeassistant` sensor has no staleness of its own, and a
+# `filter_out: nan` on it used to swallow HA's `unavailable`/`unknown`, so a
+# frozen outdoor reading would drive the heating curve and the 24 h mean
+# indefinitely. Now (1) the raw sensor publishes NaN for `unavailable`/
+# `unknown`, and (2) the failover reads `outdoor_temp_ha_gated`, which is NaN
+# once no HA-capable API client has been connected for
+# `ha_outdoor_staleness_grace_s` (climate/protocol/ha_tier.h, tested natively).
+#
+# NaN consumers (what each does when both tiers are down):
+#   - weather_compensation.yaml: HOLDS the last written supply target (no
+#     NaN-derived write, a throttled warning); the room PIDs keep correcting on
+#     indoor temperature, so a held curve output only costs efficiency.
+#   - outdoor_temp_24h_mean (below): drops NaN samples; during an outage the
+#     window stops advancing and the mean keeps its last value.
+#   - seasonal_mode.yaml Tier 2 ("Weather Intelligence") is still a placeholder
+#     and reads no outdoor sensor yet — a future consumer must treat NaN as
+#     "no weather signal", not as a temperature.
+#
 # Also exposes `outdoor_temp_24h_mean`, a 24 h rolling mean sampled every
 # 5 min (NaN samples dropped) — the seasonal-mode Tier 2 "Weather
 # Intelligence" input and the sanity signal for curve tuning.
@@ -23,6 +43,11 @@
 
 defaults:
   ha_outdoor_temperature_sensor_id: "sensor.outdoor_temperature"
+  # Seconds the HA tier stays valid after the last HA-capable API client
+  # disconnected (rides out an HA restart); same default as room_sensors.yaml.
+  ha_outdoor_staleness_grace_s: "300"
+  # Evaluation period of the HA-tier gate and the failover (e2e harness compresses it).
+  outdoor_sensor_update_interval: "10s"
 
 sensor:
   # Tier 1: CAN target (static declaration, populated by generated routes when
@@ -35,13 +60,37 @@ sensor:
     accuracy_decimals: 2
     internal: true
 
-  # Tier 2: Home Assistant (OpenWeather / weather integration)
+  # Tier 2: Home Assistant (OpenWeather / weather integration). Raw reading:
+  # no `filter_out: nan` — `unavailable`/`unknown` must reach the failover as
+  # NaN (see "HA tier staleness"). The failover reads `outdoor_temp_ha_gated`.
   - platform: homeassistant
     entity_id: ${ha_outdoor_temperature_sensor_id}
     id: outdoor_temp_ha
     internal: true
-    filters:
-      - filter_out: nan
+
+  # Gated HA tier: the raw value while an HA-capable client is (or within the
+  # grace was) connected, NaN otherwise. Polled, so staleness is detected even
+  # when HA never sends anything again. Owns its tracker.
+  - platform: template
+    id: outdoor_temp_ha_gated
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+    update_interval: ${outdoor_sensor_update_interval}
+    lambda: |-
+      static HaTierTracker tracker;
+      const bool ha_client = api::global_api_server != nullptr &&
+                             api::global_api_server->is_connected_with_state_subscription();
+      const float raw = id(outdoor_temp_ha).state;
+      const float gated = ha_tier_gate(tracker, ha_client, millis(),
+                                       (uint32_t) ${ha_outdoor_staleness_grace_s} * 1000U, raw);
+      if (tracker.expired && !std::isnan(raw)) {
+        ESP_LOGW("ha_tier", "[outdoor] temperature: no HA client for >${ha_outdoor_staleness_grace_s}s, HA tier -> NaN");
+        id(outdoor_temp_ha).publish_state(NAN);
+      }
+      return gated;
 
   # 24 h rolling mean of the failover-resolved temperature: 288 samples at
   # 5 min, published every 15 min. NaN samples (both tiers down) are dropped
@@ -70,7 +119,8 @@ packages:
       unit_of_measurement: "°C"
       device_class: temperature
       primary_sensor: outdoor_temp_can
-      secondary_sensor: outdoor_temp_ha
+      secondary_sensor: outdoor_temp_ha_gated
       internal: "false"
       primary_tier_label: "CAN"
       secondary_tier_label: "HA"
+      update_interval: ${outdoor_sensor_update_interval}

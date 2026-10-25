@@ -1,0 +1,70 @@
+# =============================================================================
+# Test harness: outdoor (HA tier staleness, R-12)
+#
+# Compiles for the `host` platform so the full ESPHome runtime (homeassistant
+# sensors, template sensors, native API server) runs as a local Linux binary.
+#
+# The real climate/outdoor.yaml is included unmodified (raw `homeassistant`
+# sensor, gated HA tier, failover, 24 h mean). The pytest driver
+# (tests/e2e/test_outdoor.py) plays Home Assistant exactly as for
+# harness/room_sensors.yaml: it answers the device's HA state subscription,
+# pushes entity states and plays "HA went away" by dropping its connection.
+#
+# Two things are compressed for test speed (both are optional vars of
+# outdoor.yaml): the grace period (2 s instead of 300 s) and the evaluation
+# interval (100 ms instead of 10 s).
+#
+# `nan_seen` latches the first NaN the abstracted outdoor temperature publishes
+# (nothing is observable over the API while the test client is disconnected);
+# `reset_nan_seen` clears it. See harness/room_sensors.yaml.
+#
+# Used by all three test layers:
+#   esphome config  tests/harness/outdoor.yaml   (validate)
+#   esphome compile tests/harness/outdoor.yaml   (compile check)
+#   pytest tests/e2e/test_outdoor.py             (behavior)
+# =============================================================================
+
+esphome:
+  name: t-outdoor
+  # Same header the climate controller compiles in (devices/climate-control.yaml);
+  # resolved relative to this file's directory, the top-level config.
+  includes:
+    - ../../protocol/ha_tier.h
+
+host:
+
+logger:
+  level: DEBUG
+
+api:
+  actions:
+    - action: reset_nan_seen
+      then:
+        - binary_sensor.template.publish:
+            id: nan_seen
+            state: false
+
+binary_sensor:
+  - platform: template
+    id: nan_seen
+    name: "NaN Seen"
+
+# 50 ms is faster than the 100 ms evaluation interval, so no NaN publish can
+# slip between two checks.
+interval:
+  - interval: 50ms
+    then:
+      - lambda: |-
+          if (id(outdoor_temp_abstracted).has_state() &&
+              std::isnan(id(outdoor_temp_abstracted).state)) {
+            id(nan_seen).publish_state(true);
+          }
+
+# Package under test, included exactly as devices/climate-control.yaml does.
+packages:
+  dut: !include
+    file: ../../outdoor.yaml
+    vars:
+      ha_outdoor_temperature_sensor_id: "sensor.test_outdoor_temperature"
+      ha_outdoor_staleness_grace_s: "2"
+      outdoor_sensor_update_interval: "100ms"
