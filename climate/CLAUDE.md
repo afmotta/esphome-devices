@@ -174,6 +174,9 @@ Two constraints drive the phase order and are easy to get wrong:
 # ESPHome's flattened build needs (same pattern as lighting/tests).
 g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Iclimate/protocol climate/tests/test_can_sensor_receiver.cpp -o /tmp/climate_can_sensor_receiver && /tmp/climate_can_sensor_receiver
 
+# HA-tier staleness gate of the room-sensor failover (R-04)
+g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_ha_tier.cpp -o /tmp/climate_ha_tier && /tmp/climate_ha_tier
+
 # Isolated receiver composition fixture (generated routes + receiver package,
 # without the full climate controller)
 esphome config climate/tests/compile_can_sensor_receiver.yaml

@@ -154,6 +154,8 @@ run_step "native: lighting test_binding_actuation.cpp" \
   cxx_run act -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp
 run_step "native: climate test_can_sensor_receiver.cpp" \
   cxx_run climate_can_sensor_receiver -Icanbus/protocol -Iclimate/protocol climate/tests/test_can_sensor_receiver.cpp
+run_step "native: climate test_ha_tier.cpp" \
+  cxx_run climate_ha_tier -Iclimate/protocol climate/tests/test_ha_tier.cpp
 
 # ── Generator idempotence (needs clean canbus/climate/registry paths) ──────────
 run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
@@ -168,6 +170,7 @@ if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
   skip_step "pytest climate/tests/e2e/test_failover_sensor.py"              "--native-only"
+  skip_step "pytest climate/tests/e2e/test_room_sensors.py"                 "--native-only"
 else
   run_step "esphome config climate/tests/compile_can_sensor_receiver.yaml" \
     esphome config climate/tests/compile_can_sensor_receiver.yaml
@@ -185,6 +188,8 @@ else
     esphome compile devices/locals/climate-control.yaml
   run_step "pytest climate/tests/e2e/test_failover_sensor.py" \
     python3 -m pytest climate/tests/e2e/test_failover_sensor.py
+  run_step "pytest climate/tests/e2e/test_room_sensors.py" \
+    python3 -m pytest climate/tests/e2e/test_room_sensors.py
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

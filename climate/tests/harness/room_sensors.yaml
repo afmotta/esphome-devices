@@ -1,0 +1,78 @@
+# =============================================================================
+# Test harness: room_sensors (HA tier staleness, R-04)
+#
+# Compiles for the `host` platform so the full ESPHome runtime (homeassistant
+# sensors, template sensors, native API server) runs as a local Linux binary.
+#
+# Unlike failover_sensor.yaml, nothing here is stubbed: the real
+# climate/room_sensors.yaml is included, so its raw `homeassistant` sensors,
+# the gated HA-tier sensors and the failover all run unmodified. The pytest
+# driver (tests/e2e/test_room_sensors.py) plays Home Assistant — it answers the
+# device's HA state subscription and pushes entity states — and also plays the
+# "HA went away" case by dropping its connection.
+#
+# Two things are compressed for test speed (both are optional vars of
+# room_sensors.yaml): the grace period (2 s instead of 300 s) and the
+# evaluation interval (100 ms instead of 10 s).
+#
+# The test client is the only API client, so while it is connected the gate sees
+# an HA-capable client; once it disconnects nothing is observable over the API.
+# `nan_seen` is therefore a latch: it flips on the first NaN the abstracted
+# temperature publishes and stays set until `reset_nan_seen`, so the test can
+# reconnect and ask "did the device go NaN while I was away?".
+#
+# Used by all three test layers:
+#   esphome config  tests/harness/room_sensors.yaml   (validate)
+#   esphome compile tests/harness/room_sensors.yaml   (compile check)
+#   pytest tests/e2e/test_room_sensors.py             (behavior)
+# =============================================================================
+
+esphome:
+  name: t-room-sensors
+  # Same header the climate controller compiles in (devices/climate-control.yaml);
+  # resolved relative to this file's directory, the top-level config.
+  includes:
+    - ../../protocol/ha_tier.h
+
+host:
+
+logger:
+  level: DEBUG
+
+api:
+  actions:
+    - action: reset_nan_seen
+      then:
+        - binary_sensor.template.publish:
+            id: nan_seen
+            state: false
+
+binary_sensor:
+  - platform: template
+    id: nan_seen
+    name: "NaN Seen"
+
+# Latch on the failover's output (see header). 50 ms is faster than the 100 ms
+# evaluation interval, so no NaN publish can slip between two checks.
+interval:
+  - interval: 50ms
+    then:
+      - lambda: |-
+          if (id(test_room_temp_abstracted).has_state() &&
+              std::isnan(id(test_room_temp_abstracted).state)) {
+            id(nan_seen).publish_state(true);
+          }
+
+# Package under test, included exactly as a room file includes it.
+packages:
+  dut: !include
+    file: ../../room_sensors.yaml
+    vars:
+      # Note: API object ids derive from the entity *name*; the tests look entities
+      # up by name (Harness.object_id), so keep room_name aligned with the tests.
+      room_slug: test_room
+      room_name: "Test Room"
+      ha_temperature_sensor_id: "sensor.test_room_temperature"
+      ha_humidity_sensor_id: "sensor.test_room_humidity"
+      ha_staleness_grace_s: "2"
+      sensor_update_interval: "100ms"

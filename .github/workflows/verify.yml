@@ -45,7 +45,8 @@ jobs:
             canbus/tests/compile_bridge.yaml \
             canbus/tests/compile_buttons_bridge.yaml \
             canbus/tests/compile_bridge_t2can.yaml \
-            climate/tests/compile_can_sensor_receiver.yaml
+            climate/tests/compile_can_sensor_receiver.yaml \
+            climate/tests/harness/room_sensors.yaml
           do
             echo "::group::esphome config $f"
             esphome config "$f" >/dev/null
@@ -94,3 +95,5 @@ jobs:
         run: esphome compile devices/locals/climate-control.yaml
       - name: Climate failover e2e
         run: python3 -m pytest climate/tests/e2e/test_failover_sensor.py
+      - name: Climate room-sensors HA-tier e2e
+        run: python3 -m pytest climate/tests/e2e/test_room_sensors.py
