@@ -20,20 +20,40 @@
 #   room_name             - Display name (e.g., "Soggiorno")
 #   ha_window_sensor_id   - HA binary sensor entity (e.g., "binary_sensor.soggiorno_window")
 #   guarded_pid_id        - Fancoil PID climate id to shut down (e.g., soggiorno_fancoil_pid)
+#   resume_script_id      - Script that puts the guarded PID in the mode its OWNER
+#                           wants right now (fancoil.yaml's role provides
+#                           ${room_slug}_fancoil_resume_mode; see below)
 #
 # Optional vars:
 #   window_timeout        - Seconds a window must stay open before shutdown
 #                           (default: 180 — brief airing never triggers)
 #   recovery_timeout      - Seconds of window-closed stability before the
-#                           previous mode is restored (default: 60)
+#                           owner's desire is re-applied (default: 60)
+#   poll_interval         - State machine poll period (default: 10s; tests
+#                           compress it)
 #
-# State machine (10 s poll):
+# Resuming (R-14): the guard used to remember the running mode when it forced
+# the fancoil OFF and restore that snapshot at the end of recovery. The
+# snapshot goes stale while the window is open: a boost that ENDED meanwhile
+# (or whose {zone}_boost_enabled gate was closed, or a season that changed)
+# left a `boost` fancoil restored to COOL as a permanent cooler, bypassing the
+# fancoil_boost coordinator and the gate. The guard no longer remembers
+# anything: it hands control back to the owner through resume_script_id, which
+# re-derives the mode from the owner's CURRENT desire (boost role: COOL iff a
+# boost is running in COOL season, else OFF; cool_only / heat_cool: the
+# hp_mode mapping). The guard therefore cannot turn on a fancoil its owner
+# would not have on. Trade-off: a manual HA mode change made on a guarded
+# fancoil before the window opened is not restored (the roles do not promise it
+# survives a season change either).
+#
+# State machine (poll_interval, 10 s by default):
 #   Normal → Active       window open ≥ window_timeout AND guarded PID not OFF
 #                         (remembers the running mode, forces OFF)
 #   Active → Recovering   window closes
-#   Recovering → Normal   closed for recovery_timeout (restores remembered mode
-#                         only if the PID is still OFF — a manual/HA change or
-#                         the boost coordinator winning in the meantime is kept)
+#   Recovering → Normal   closed for recovery_timeout (runs the owner's resume
+#                         script only if the PID is still OFF — a manual/HA
+#                         change or the boost coordinator winning in the
+#                         meantime is kept)
 #   Recovering → Active   window re-opens during recovery
 #
 # While Active the guard re-asserts OFF each poll: the fancoil-boost
@@ -47,6 +67,7 @@
 defaults:
   window_timeout: 180
   recovery_timeout: 60
+  poll_interval: 10s
 
 globals:
   # 0=Normal, 1=Active, 2=Recovering
@@ -60,10 +81,6 @@ globals:
   # millis() when recovery stability started (0 = not recovering)
   - id: ${room_slug}_window_recovery_time
     type: uint32_t
-    initial_value: '0'
-  # Climate mode to restore after recovery (stored as int)
-  - id: ${room_slug}_window_saved_mode
-    type: int
     initial_value: '0'
 
 binary_sensor:
@@ -79,7 +96,7 @@ binary_sensor:
           tag: window_guard
 
 interval:
-  - interval: 10s
+  - interval: ${poll_interval}
     then:
       - lambda: |-
           const uint32_t now = millis();
@@ -106,7 +123,6 @@ interval:
 
             if (state == 0 && open_s >= ${window_timeout} &&
                 pid->mode != climate::CLIMATE_MODE_OFF) {
-              id(${room_slug}_window_saved_mode) = (int) pid->mode;
               id(${room_slug}_window_guard_state) = 1;
               ESP_LOGW("window_guard",
                        "${room_name}: window open %us - forcing fancoil OFF (was mode %d)",
@@ -135,12 +151,12 @@ interval:
                 id(${room_slug}_window_guard_state) = 0;
                 id(${room_slug}_window_recovery_time) = 0;
                 if (pid->mode == climate::CLIMATE_MODE_OFF) {
-                  auto call = pid->make_call();
-                  call.set_mode((climate::ClimateMode) id(${room_slug}_window_saved_mode));
-                  call.perform();
+                  // The owner re-derives the mode from its current desire; the
+                  // result may well be OFF (e.g. the boost ended meanwhile).
+                  id(${resume_script_id}).execute();
                   ESP_LOGI("window_guard",
-                           "${room_name}: recovery complete - restored mode %d",
-                           id(${room_slug}_window_saved_mode));
+                           "${room_name}: recovery complete - owner resumed (mode now %d)",
+                           (int) pid->mode);
                 } else {
                   ESP_LOGI("window_guard",
                            "${room_name}: recovery complete - mode changed externally, leaving as-is");
@@ -155,7 +171,7 @@ text_sensor:
     name: "${room_name} Window Guard"
     icon: "mdi:window-open-variant"
     entity_category: diagnostic
-    update_interval: 10s
+    update_interval: ${poll_interval}
     lambda: |-
       switch (id(${room_slug}_window_guard_state)) {
         case 1: return {"Active"};

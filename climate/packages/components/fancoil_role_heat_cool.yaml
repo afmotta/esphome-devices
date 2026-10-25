@@ -28,6 +28,12 @@ climate:
 
 # Seasonal mode handler: the PID follows the heat pump (SANITARY_ONLY => OFF)
 script:
+  # What the window guard calls when a window closes: this role's wanted mode
+  # is a pure function of hp_mode, so resuming is the same as syncing (R-14).
+  - id: ${room_slug}_fancoil_resume_mode
+    then:
+      - script.execute: ${room_slug}_fancoil_sync_mode
+
   - id: ${room_slug}_fancoil_sync_mode
     then:
       - lambda: |-

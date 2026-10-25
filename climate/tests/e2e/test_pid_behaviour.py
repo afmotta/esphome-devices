@@ -17,6 +17,16 @@ to the right side of target by 0.5 degC and require output within 0.5 s. With
 the fix the P term acts at once (0.25); with the old +-1 bounds the integral
 sits at -1 and needs ~1.9 s to climb back, so they fail without it.
 
+R-14 — window guard vs a boost fancoil. The guard forced the fancoil OFF while
+a window was open and restored a SNAPSHOT of the running mode at the end of
+recovery, so a boost that ended meanwhile left the `boost` fancoil in COOL as a
+permanent cooler (bypassing the coordinator and the {zone}_boost_enabled gate).
+The guard now asks the fancoil's owner to re-derive the mode from its current
+desire (${room}_fancoil_resume_mode). Tests (real guard with 1 s / 1 s timeouts
+and a 100 ms poll, real coordinator, hot room):
+  boost ended / gate closed / season left COOL during the open window => OFF
+  boost still running after the window closes                          => COOL
+
 R-16 — boot state of fancoil PIDs. A PID with only a cool_output starts in COOL
 when it has no saved state, and the PID's restore (setup, priority DATA) runs
 AFTER the hp_mode select's restore has already fired the role handlers (HARDWARE),
@@ -336,3 +346,72 @@ async def test_restart_without_a_boost_does_not_resurrect_a_manual_cool(boot):
     h = await boot.start()
     await h.wait_for("living_boost_state", lambda s: s.state == "Radiant Only")
     await hold(h, "Living Fancoil PID", ClimateMode.OFF)
+
+
+# --------------------------------------------------------------------------
+# R-14: the window guard hands the fancoil back to its owner
+# --------------------------------------------------------------------------
+
+LIVING = "Living Fancoil PID"
+OPEN_AND_CLOSED_S = 1.0  # harness: recovery_timeout (window_timeout is 1 s too)
+
+
+async def boost_running(h):
+    """Gate open, boost started, room hot: the boost fancoil is cooling."""
+    await h.call("set_temperature", value=TARGET + 5.0)
+    await h.call("set_boost_enabled", value=True)
+    await h.call("boost_start")
+    await h.wait_for(h.object_id(LIVING), lambda s: s.mode == ClimateMode.COOL)
+    await h.wait_for("living_fan_level", lambda s: s.state == pytest.approx(1.0))
+
+
+async def window_open_until_guard_acts(h):
+    await h.call("set_window", value=True)
+    await h.wait_for(h.object_id(LIVING), lambda s: s.mode == ClimateMode.OFF, timeout=3.0)
+    await h.wait_for(h.object_id("Living Window Guard"), lambda s: s.state == "Active")
+
+
+async def close_window_and_recover(h):
+    await h.call("set_window", value=False)
+    await h.wait_for(h.object_id("Living Window Guard"), lambda s: s.state == "Normal", timeout=4.0)
+    await asyncio.sleep(0.5)  # a wrongly restored mode would show up now
+
+
+async def end_boost_by_stop(h):
+    # The boost ends because the room reached its target. (In a still-hot room
+    # the coordinator would legitimately start the next boost at once.)
+    await h.call("set_temperature", value=TARGET - 1.0)
+    await h.call("boost_stop")
+
+
+async def end_boost_by_gate(h):
+    await h.call("set_boost_enabled", value=False)  # coordinator's override ends the boost
+
+
+async def end_boost_by_season(h):
+    await set_season(h, "HEAT")  # cooling season over: override ends the boost
+
+
+@pytest.mark.parametrize("end_boost", [end_boost_by_stop, end_boost_by_gate, end_boost_by_season])
+async def test_window_guard_does_not_resurrect_a_boost_that_ended(run_harness, end_boost):
+    h = await run_harness("pid_behaviour")
+    await boost_running(h)
+    await window_open_until_guard_acts(h)
+    await end_boost(h)
+    await h.wait_for("living_boost_state", lambda s: s.state == "Radiant Only", timeout=3.0)
+    await close_window_and_recover(h)
+
+    assert mode(h, LIVING) == ClimateMode.OFF
+    assert value(h, "living_fan_level") == pytest.approx(0.0)
+
+
+async def test_window_guard_restores_a_boost_that_is_still_running(run_harness):
+    h = await run_harness("pid_behaviour")
+    await boost_running(h)
+    await window_open_until_guard_acts(h)
+    await h.wait_for("living_fan_level", lambda s: s.state == pytest.approx(0.0))  # shut for the airing
+    await close_window_and_recover(h)
+
+    assert h.states["living_boost_state"].state == "Fancoil Boost"
+    assert mode(h, LIVING) == ClimateMode.COOL
+    await h.wait_for("living_fan_level", lambda s: s.state == pytest.approx(1.0))
