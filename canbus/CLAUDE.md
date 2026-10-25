@@ -102,6 +102,7 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
 python3 canbus/tests/test_bindings.py
 python3 canbus/tests/test_generate_exports.py
 python3 canbus/tests/test_push_gate.py
+python3 canbus/tests/test_ha_contract.py   # HA service/entity names vs the real device (R-03)
 
 # Native C++ protocol logic (no ESPHome deps)
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_protocol.cpp -o /tmp/proto && /tmp/proto

@@ -4,7 +4,7 @@
 # =============================================================================
 # Home Assistant package (NOT ESPHome config). It carries the readiness-heartbeat
 # automation with the binding manifest hash baked in, so HA proves it runs the same
-# bindings the gateway compiled (ADR-0009 §3/§4). Wire it into HA once, e.g.:
+# bindings the light controller compiled (ADR-0009 §3/§4). Wire it into HA once, e.g.:
 #   homeassistant:
 #     packages:
 #       canbus_manifest: !include ha_manifest_package.yaml
@@ -13,13 +13,13 @@
 # =============================================================================
 
 automation:
-  - id: canbus_gateway_readiness_heartbeat
-    alias: "CAN gateway: readiness heartbeat"
+  - id: light_controller_readiness_heartbeat
+    alias: "Light controller: readiness heartbeat"
     mode: single
     triggers:
       - trigger: time_pattern
         seconds: "/5"
     actions:
-      - action: esphome.canbus_gateway_ha_readiness_heartbeat
+      - action: esphome.light_controller_ha_readiness_heartbeat
         data:
           manifest_hash: "d66767448ba37b2f"

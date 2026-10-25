@@ -3,29 +3,33 @@
 # =============================================================================
 # This is HOME ASSISTANT configuration, not ESPHome config. Copy this automation
 # into HA (automations.yaml include, or recreate it in the UI). It pairs with the
-# lighting controller's ha_ack_event API service (devices/light-controller.yaml).
+# lighting controller's ha_ack_event API service (declared in
+# lighting/packages/buttons.yaml, composed onto devices/light-controller.yaml).
 #
 # - The readiness HEARTBEAT automation no longer lives here: it is GENERATED, with the
-#   binding-manifest hash baked in, into gateway/ha_manifest_package.yaml by
+#   binding-manifest hash baked in, into home-assistant/ha_manifest_package.yaml by
 #   tools/generate_nodes.py (ADR-0009 §4). Wire that package into HA once; the hash
 #   then tracks registry/bindings.yaml automatically — no more hand-paste. Stop that
-#   generated automation (or corrupt its hash) to watch the gateway's "HA Ready" sensor
+#   generated automation (or corrupt its hash) to watch the light controller's "HA Ready" sensor
 #   drop and button presses log FALLBACK instead of firing events — the ADR-0003
 #   degraded path, exercisable from the couch.
-# - The ACK automation below answers every forwarded button event within the gateway's
+# - The ACK automation below answers every forwarded button event within the controller's
 #   ack_timeout_ms. It is hand-maintained (not manifest-derived) because the bound action
 #   is still log-only (ADR-0003 open item 7): in the target architecture it is generated
 #   from the binding manifest and ACKs only after applying the bound action; here it ACKs
 #   unconditionally, which is enough to exercise the timeout machinery.
 #
-# Service names are esphome.<device>_<service> — device "canbus-gateway" becomes
-# canbus_gateway.
+# Service names are esphome.<device>_<service> — the ESPHome device_name
+# "light-controller" (devices/light-controller.yaml) becomes light_controller, so the
+# service below is esphome.light_controller_ha_ack_event. A wrong name fails silently
+# (ha_ready never goes true, every press takes the local fallback);
+# canbus/tests/test_ha_contract.py pins it to the real device_name and declared services.
 # =============================================================================
 
-- id: canbus_gateway_ack_button_events
-  alias: "CAN gateway: ACK forwarded button events"
+- id: light_controller_ack_button_events
+  alias: "Light controller: ACK forwarded button events"
   description: >-
-    ACKs each esphome.canbus_button event by its event_id so the gateway cancels the
+    ACKs each esphome.canbus_button event by its event_id so the light controller cancels the
     pending local fallback for that event. Parallel mode: queued mode would serialize
     ACK round-trips (skewing the timeout measurement) and silently drop triggers past
     its max during bursts.
@@ -35,9 +39,9 @@
     - trigger: event
       event_type: esphome.canbus_button
   actions:
-    - action: esphome.canbus_gateway_ha_ack_event
+    - action: esphome.light_controller_ha_ack_event
       data:
-        # Event data values are strings (gateway convention); the service wants an int.
+        # Event data values are strings (lighting controller convention); the service wants an int.
         # Default -1 (not 0) so a malformed event without event_id never ACKs a real
-        # pending entry — it surfaces as "ACK for unknown event_id" on the gateway.
+        # pending entry — it surfaces as "ACK for unknown event_id" on the controller.
         event_id: "{{ trigger.event.data.event_id | int(-1) }}"

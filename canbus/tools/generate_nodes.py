@@ -64,6 +64,17 @@ import bindings  # binding-manifest reader + canonical hash (ADR-0009)
 ROOT = Path(__file__).resolve().parent.parent  # canbus/ (flattened out of firmware/, Phase 6a)
 REPO_ROOT = ROOT.parent  # repo root (registry/ lives here, elevated out of firmware/)
 
+# The lighting controller's ESPHome `device_name` (devices/light-controller.yaml) — the ONE
+# place the generator learns it. Home Assistant registers an ESPHome device's API services as
+# `esphome.<device_name, '-' -> '_'>_<service>` and its entities as `<domain>.<same slug>_<entity>`,
+# so every HA-side name the generated packages reference is derived from this, never typed out.
+# It is a constant (not read from the YAML) so the generator stays hermetic over a temp repo
+# root; tests/test_ha_contract.py pins it to the real device_name and to the services/entities
+# lighting/packages/buttons.yaml declares, so a rename of either side fails loudly.
+LIGHTING_DEVICE_NAME = "light-controller"
+LIGHTING_HA_SLUG = LIGHTING_DEVICE_NAME.replace("-", "_")
+LIGHTING_SERVICE_PREFIX = f"esphome.{LIGHTING_HA_SLUG}_"  # + the api service name
+
 TEMPLATE = """\
 # =============================================================================
 # {kind}: {name} — node_id {node_id}
@@ -611,7 +622,7 @@ def render_ha_package(manifest_hash: str) -> str:
         "# =============================================================================\n"
         "# Home Assistant package (NOT ESPHome config). It carries the readiness-heartbeat\n"
         "# automation with the binding manifest hash baked in, so HA proves it runs the same\n"
-        "# bindings the gateway compiled (ADR-0009 §3/§4). Wire it into HA once, e.g.:\n"
+        "# bindings the light controller compiled (ADR-0009 §3/§4). Wire it into HA once, e.g.:\n"
         "#   homeassistant:\n"
         "#     packages:\n"
         "#       canbus_manifest: !include ha_manifest_package.yaml\n"
@@ -619,14 +630,14 @@ def render_ha_package(manifest_hash: str) -> str:
         "# hand-maintained in ha_arbitration_automations.yaml (still log-only, ADR-0003).\n"
         "# =============================================================================\n\n"
         "automation:\n"
-        "  - id: canbus_gateway_readiness_heartbeat\n"
-        '    alias: "CAN gateway: readiness heartbeat"\n'
+        f"  - id: {LIGHTING_HA_SLUG}_readiness_heartbeat\n"
+        '    alias: "Light controller: readiness heartbeat"\n'
         "    mode: single\n"
         "    triggers:\n"
         '      - trigger: time_pattern\n'
         '        seconds: "/5"\n'
         "    actions:\n"
-        "      - action: esphome.canbus_gateway_ha_readiness_heartbeat\n"
+        f"      - action: {LIGHTING_SERVICE_PREFIX}ha_readiness_heartbeat\n"
         "        data:\n"
         f'          manifest_hash: "{manifest_hash}"\n'
     )
@@ -721,7 +732,7 @@ def render_ha_node_health_package(export_nodes) -> str:
         "    mode: single\n"
         "    triggers:\n"
         "      - trigger: state\n"
-        "        entity_id: binary_sensor.light_controller_ha_ready\n"
+        f"        entity_id: binary_sensor.{LIGHTING_HA_SLUG}_ha_ready\n"
         '        to: "off"\n'
         '        for: "00:00:30"\n'
         "    actions:\n"
@@ -738,7 +749,7 @@ def render_ha_node_health_package(export_nodes) -> str:
         "    mode: single\n"
         "    triggers:\n"
         "      - trigger: state\n"
-        "        entity_id: sensor.light_controller_fallback_events\n"
+        f"        entity_id: sensor.{LIGHTING_HA_SLUG}_fallback_events\n"
         "    conditions:\n"
         "      - condition: template\n"
         "        value_template: >-\n"
