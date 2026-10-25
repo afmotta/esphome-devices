@@ -123,6 +123,13 @@ SANITARY_ONLY → neither). **Never wire heat_output and cool_output to the same
 Fancoils declare a required `fancoil_role`: `boost` (cooling boost, only the
 `fancoil_boost` coordinator starts it), `cool_only`, or `heat_cool`.
 
+**The radiant override is a convenience, never a safety bypass** (review R-05). The final stage
+(`climate/protocol/radiant_override.h`) forces the valve closed whenever the zone temperature is NaN,
+whatever the override says, and a NaN temperature ends a running boost immediately. A floor's pump
+demand is `*_radiant_pid_is_active || *_radiant_override_active` for every radiant zone — read with
+**`.state`**: `id(binary_sensor)` in a lambda is the sensor *pointer* (always true), which is how the
+pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.py` enforces both.
+
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
 ## Modbus Communication Architecture
@@ -188,6 +195,9 @@ g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_ha_tier.cpp -
 
 # Heat/cool direction gating of PID actuators (R-01)
 g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_pid_direction.cpp -o /tmp/climate_pid_direction && /tmp/climate_pid_direction
+
+# Radiant final stage: override vs PID, NaN stop (R-05)
+g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_radiant_override.cpp -o /tmp/climate_radiant_override && /tmp/climate_radiant_override
 
 # Isolated receiver composition fixture (generated routes + receiver package,
 # without the full climate controller)
