@@ -42,7 +42,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⬜ | — |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
-| [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | 🔧 parziale | `1472a90` (sezione PID) |
+| [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
@@ -350,6 +350,28 @@ watchdog o un timeout lato scheda relè.
   0017/0019 mentre esistono fino a 0023 (0019 assente).
 - Changelog molto lungo dentro `CLAUDE.md`: meglio un `CHANGELOG.md` separato.
 
+**Fix applicato:** ✅ `2f56444` (`docs: fix documentation drift, split out CHANGELOG.md (R-11)`) + `633025f` (istruzioni Copilot).
+
+- **`CLAUDE.md` alla radice:**
+  - versione 1.20;
+  - range degli ADR 0001…0023, con la nota che lo 0019 non è mai esistito (numero saltato, assente dalla storia git);
+  - il changelog è spostato in **`CHANGELOG.md`**, con una nuova voce 1.20 per i fix R-01–R-04 e R-10;
+  - sezione "Failover Architecture" riscritta: tier HA → NaN su `unavailable` o dopo 5 min, Emergency → PID a 0
+    **subito**. Non esiste più alcuno "spegnimento dopo 5 minuti".
+- **`climate/CLAUDE.md`, Appendice D:** guadagni allineati al codice (radiante 0.8/0.005/0.05, fancoil 0.2/0.01/0.05,
+  valvola miscelatrice 0.2/0.01/0.0), più gli avvertimenti sull'autotune.
+- **docs-site (EN + IT):**
+  - confidence-ledger: discrepanza dei "5 minuti" marcata come risolta, con una riga "DESIGNED" per la verifica al banco;
+  - monitoring, troubleshooting climate e maintenance-tasks allineati;
+  - doc-map aggiornata con il range ADR.
+- **`docs/architecture/architecture-diagram.md`:** la sezione 4 (failover) è riscritta; il resto del file è segnalato come
+  storico Gen-1.
+- **`.github/copilot-instructions.md`:** al posto del pattern "un PID con heat e cool sulla stessa uscita" ora descrive il
+  pattern gated e `fancoil_role`.
+- **Lasciati com'erano** (storico Gen-1, da riscrivere a parte): il resto di `architecture-diagram.md`,
+  `docs/product-brief.md` e `docs/deployment-guide.md`. Il sito MkDocs non è stato ricompilato: le pagine sono controllate
+  solo sul diff.
+
 ### R-12 — Temperatura esterna da HA congelata
 
 _Emersa durante il fix di R-04._
@@ -415,3 +437,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-01 | `1472a90` | Uscite PID gated su `hp_mode`, ruoli fancoil, sottotetto riscalda | test nativo, e2e host 20/20, `esphome config` ×5, battery PASS |
 | 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
 | 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |
+| 2026-10-25 | R-11 | `2f56444`, `633025f` | Drift documentazione, `CHANGELOG.md`, istruzioni Copilot | review diff (docs) |
