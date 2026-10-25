@@ -1,0 +1,51 @@
+{
+  "devices/locals/climate-control.yaml": {
+    "-100.0": 4,
+    "-110.0": 2
+  },
+  "devices/locals/room-sensor-soggiorno.yaml": {
+    "800.0": 1,
+    "600.0": 1
+  },
+  "devices/light-controller.yaml": {
+    "600.0": 34
+  },
+  "devices/health-monitor.yaml": {
+    "600.0": 1
+  },
+  "devices/an-penta-1.yaml": {},
+  "devices/an-quad-1.yaml": {},
+  "canbus/tests/compile_bridge.yaml": {
+    "200.0": 1,
+    "190.0": 1
+  },
+  "canbus/tests/compile_buttons_bridge.yaml": {
+    "200.0": 1,
+    "190.0": 1
+  },
+  "canbus/tests/compile_bridge_t2can.yaml": {
+    "800.0": 1,
+    "200.0": 1,
+    "190.0": 1
+  },
+  "canbus/tests/compile_sensor_node.yaml": {
+    "200.0": 1
+  },
+  "canbus/nodes/node100.yaml": {
+    "200.0": 1
+  },
+  "canbus/nodes/node101.yaml": {
+    "200.0": 1
+  },
+  "climate/tests/harness/fancoil_boost.yaml": {
+    "-110.0": 1,
+    "-200.0": 1
+  },
+  "climate/tests/harness/pid_behaviour.yaml": {
+    "-100.0": 4,
+    "-110.0": 1
+  },
+  "climate/tests/harness/radiant_direction.yaml": {
+    "-100.0": 3
+  }
+}

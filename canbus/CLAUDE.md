@@ -107,6 +107,10 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   (T-Connect Pro) — two physical devices, not one. `health.yaml` no longer owns the
   bus: each entry point declares its own `can0` (ADR-0015 §2) and `health.yaml` /
   `buttons.yaml` each `!extend can0` to attach their handlers.
+- **`esphome: on_boot` is list-form with an explicit `priority:` per entry** (review R-18; root
+  `CLAUDE.md` Code Style). `node_core.yaml` (200), `bridge.yaml` (190) and the T-2CAN board's MCP2515
+  reset (800) are separate triggers that really run in that order; as mappings they were merged into
+  one trigger at 190. `scripts/check_on_boot_form.py` enforces it.
 - **`on_frame` guards**: validate payloads with `if:`/`condition:` blocks so
   action lambdas stay clean — no redundant re-checks inside lambdas.
 

@@ -228,6 +228,28 @@ esphome-devices/
 
 ### Code Style
 
+#### `esphome: on_boot` is always a list with explicit priorities
+
+Write every `on_boot:` as a **list**, one entry per hook, each with its own `priority:` (review R-18):
+
+```yaml
+esphome:
+  on_boot:
+    - priority: 200
+      then:
+        - lambda: 'ESP_LOGI("x", "up");'
+```
+
+ESPHome merges `packages:` with `merge_config()`: two **mapping**-form `on_boot` blocks become ONE trigger
+(`then` lists concatenated, a single `priority` survives, so every other declared priority and the comments
+justifying it are false), and a mapping mixed with a list silently **drops one side**. Lists concatenate into
+independent triggers that really run at their own priority. `scripts/check_on_boot_form.py` (in the native
+battery, pre-commit and CI) fails on any mapping-form `on_boot` or any entry without a `priority`;
+`scripts/check_on_boot_resolved.py` (CI `esphome-config` job) compares the resolved trigger counts per entry
+point with `scripts/on_boot_baseline.json` — re-run it with `--update` when you add or remove a hook on
+purpose. Hooks that share a priority run in registration (list) order, which depends on package order: give
+hooks that must be ordered distinct priorities.
+
 #### YAML Formatting
 - **Indentation**: 2 spaces (no tabs)
 - **Key spacing**: Space after colon (`key: value`)

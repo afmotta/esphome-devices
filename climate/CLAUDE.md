@@ -138,8 +138,12 @@ output units). Without it the gated direction wound up a full actuator span.
 
 **Fancoil boot state is owned by the role** (review R-16). Each `fancoil_role_*.yaml` maps `hp_mode`
 to the PID mode in one script (`${room_slug}_fancoil_sync_mode`), run from the select's `on_value`
-*and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package `on_boot`
-mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
+*and* from its own `esphome: on_boot` **list entry at priority -100**. `fancoil_boost.yaml`'s boot replay is a
+separate entry at -110, so it runs after the role sync and has the last word on a restored boost (the boost role's
+sync leaves a running boost alone, so the order is safe either way; the distinct priority just keeps the result
+independent of package order). `on_boot` is **always list-form with an explicit `priority:`** — package mappings
+merge into one trigger with a single surviving priority and mixing forms drops a hook (review R-18; enforced by
+`scripts/check_on_boot_form.py`).
 
 **The window guard hands the fancoil back to its owner** (review R-14): it takes a required
 `resume_script_id` and, after recovery, runs the role's `${room_slug}_fancoil_resume_mode` (boost: COOL
