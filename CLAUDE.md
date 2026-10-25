@@ -455,6 +455,14 @@ rebuild a throwaway harness from the board file.
 
 ### Validation Before Commit
 
+**Pre-commit** is configured in `.pre-commit-config.yaml` (review R-10): install it once per clone with
+`pip install pre-commit && pre-commit install`, run it on demand with `pre-commit run --all-files`. It runs
+yamllint (`.yamllint`), `scripts/check_repo_hygiene.py` and `scripts/verification-battery.sh --fast`
+(`--native-only` minus the generator-idempotence step, so it works on a dirty tree, ~5 s). CI mirrors the
+first two as the `lint` job; the climate host e2e (`pytest climate/tests/e2e`) runs on every PR as the
+`climate-e2e` job — serially, since every harness binds API port 6053 (never add `-n`). The slow gates
+(idempotence, `esphome config`/`compile`) run in CI or via the full battery.
+
 ```bash
 # Always validate before committing
 esphome config devices/locals/climate-control.yaml
