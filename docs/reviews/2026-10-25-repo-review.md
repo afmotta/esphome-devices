@@ -32,7 +32,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 
 | ID | Sev. | Titolo | Stato | Fix |
 |----|------|--------|-------|-----|
-| [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | 🔧 | — |
+| [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | ✅ (seguito R-01b 🔧) | `1472a90` |
 | [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | `5b53b0d` |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
@@ -42,8 +42,12 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⬜ | — |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ⬜ | — |
-| [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ⬜ | — |
+| [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | 🔧 parziale | `1472a90` (sezione PID) |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
+| [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
+| [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
+| [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ⬜ | — |
+| [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
 
 ---
 
@@ -73,7 +77,49 @@ sorgente (`hp_mode`): la direzione concorde scrive il livello, quella discorde s
 per ogni ordine di scrittura di `write_output_()`. Ruolo esplicito per i fancoil (boost / solo
 raffrescamento / caldo+freddo). Test nativo della regola + e2e host.
 
-**Fix applicato:** _in lavorazione_
+**Fix applicato:** ✅ `1472a90` — `climate: gate PID heat/cool outputs on the heat pump's water (R-01)`
+
+- **Regola** (`climate/protocol/pid_direction.h`):
+  - La direzione heat è attiva solo con `hp_mode == "HEAT"`, quella cool solo con `hp_mode == "COOL"`; `SANITARY_ONLY`,
+    un testo sconosciuto o null chiudono entrambe.
+  - Ogni attuatore ha due template output gated. La direzione attiva inoltra il livello, quella inattiva inoltra 0.
+  - È corretta per ogni ordine di scrittura di `write_output_()`: prima arrivano gli azzeramenti, poi al massimo una
+    scrittura non nulla, sempre per ultima.
+- **Radiante:**
+  - `${room_slug}_radiant_heat_output` in `heat_only_radiant.yaml` e `${room_slug}_radiant_cool_output` in `radiant.yaml`
+    inoltrano a `${room_slug}_radiant_output`.
+  - `_radiant_output` resta lo stadio finale (override + slow PWM) su cui scrive `fancoil_boost`.
+- **Valvole miscelatrici:** `${valve_slug}_heat_output` e `_cool_output` inoltrano all'uscita analogica. In COOL, una
+  mandata sotto il minimo di dew point ora **chiude** la valvola.
+- **Fancoil:** nuova var obbligatoria `fancoil_role`, con la parte specifica in `fancoil_role_<ruolo>.yaml`:
+  - `boost` (soggiorno, cucina): l'handler stagionale porta il PID solo a OFF; lo mette in COOL esclusivamente il
+    coordinatore boost. Il bypass di `{zone}_boost_enabled` è chiuso.
+  - `cool_only` (locale tecnico): COOL in stagione COOL, altrimenti OFF.
+  - `heat_cool` (sottotetto): ha un'uscita heat gated e segue HEAT, COOL e OFF. **Il sottotetto ora scalda.**
+- **Autotune**, documentato nei commenti:
+  - va eseguito nella stagione del loop;
+  - sui loop con entrambe le uscite l'escursione reale è 0..1, quindi i guadagni stimati vanno dimezzati;
+  - i fancoil `boost` vanno messi in COOL a mano prima di lanciarlo.
+- **Test:**
+  - `climate/tests/test_pid_direction.cpp` riproduce fedelmente `write_output_()` di ESPHome 2026.8.0. Copre
+    hp_mode × valore e tutte le transizioni. Con il gate disattivato il test fallisce, come previsto.
+  - Harness host `climate/tests/harness/radiant_direction.yaml` con i package reali e
+    `climate/tests/e2e/test_radiant_direction.py` (20 casi). Il subagente li ha **eseguiti davvero**: binario host costruito
+    con `esphome compile --only-generate` + g++, **20/20 PASS**; con il gate disattivato 7 casi falliscono.
+  - Aggiunti alla battery, al gate `esphome config` della CI e agli e2e su `main`.
+- **Verifica nella config risolta di climate-control:** 18 PID, nessuno con `heat_output == cool_output`; tutte le uscite
+  sono wrapper gated.
+- **Altre verifiche:** `verify_seasonal_mode_aggregation.py` passa (16 heat, 11 cool). In un worktree isolato sul commit
+  la battery nativa passa e `esphome config` è OK su climate-control e sui 4 harness.
+- **Documentazione:** in `climate/CLAUDE.md` la sezione "Dual PID Pattern", che non era mai stata implementata, è sostituita
+  dal pattern gated, con la regola *mai la stessa uscita per heat e cool*. L'esempio "Adding a New Room" ora cita
+  `fancoil_role`.
+- **Non verificato qui:** la compilazione ESP32 di `devices/locals/climate-control.yaml`.
+
+**Seguito R-01b (in lavorazione).** `*_pid_is_active`, che serve solo a comandare le pompe di circolazione, segue l'*intenzione*
+del PID e non l'attuazione gated. In HEAT, una stanza sopra setpoint risulta "cooling": la pompa partirebbe con tutte le
+valvole tenute chiuse. Il fix allinea `is_active` al gate. `is_heating` e `is_cooling` restano invariati perché li usa il
+seasonal mode.
 
 ---
 
@@ -256,7 +302,7 @@ watchdog o un timeout lato scheda relè.
 
 ### R-11 — Drift della documentazione
 
-- `climate/CLAUDE.md:99` descrive un "Dual PID Pattern" che il codice non implementa.
+- ~~`climate/CLAUDE.md:99` descrive un "Dual PID Pattern" che il codice non implementa.~~ Sostituito in `1472a90` (R-01).
 - Range di tuning fancoil (Kp 1.0–2.0) incoerenti con il default 0.2 di `fancoil.yaml`.
 - `CLAUDE.md` radice: versione 1.17 nell'intestazione vs changelog fino a 1.19; indice ADR fermo a
   0017/0019 mentre esistono fino a 0023 (0019 assente).
@@ -274,6 +320,29 @@ _Emersa durante il fix di R-04._
   - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
   - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
   - Le soglie MEV: vedi R-08.
+
+_Le issue R-13–R-16 sono emerse durante il fix di R-01._
+
+### R-13 — Windup dell'integrale PID
+
+`pid.yaml` non imposta `min_integral` / `max_integral`. Con il gating, la direzione inattiva accumula integrale senza
+limiti: per esempio, una stanza sopra setpoint in un pomeriggio invernale. Quando poi scende sotto target, può restare
+fredda a lungo. Aggiungere limiti in `control_parameters`.
+
+### R-14 — Window guard riaccende un fancoil boost
+
+`window_guard.yaml` ripristina il modo salvato (COOL) se il PID è OFF a fine recovery. Se un boost è terminato mentre la
+finestra era aperta, un fancoil `boost` torna acceso come raffrescatore permanente, scavalcando il coordinatore e il gate.
+
+### R-15 — Var di radiant.yaml ignorate
+
+`pwm_period`, `kp`, `ki` e `kd` passati a `radiant.yaml` vengono ignorati, perché vincono i `defaults:` di
+`heat_only_radiant.yaml`. Oggi il problema è invisibile perché soggiorno e cucina passano i valori di default.
+
+### R-16 — Primo boot dei PID solo-cool
+
+Un PID con sola `cool_output` (fancoil `boost` e `cool_only`) senza stato salvato parte in COOL al primissimo boot.
+Se in quel momento `hp_mode` è già COOL, il fancoil potrebbe partire prima che l'handler stagionale lo spenga.
 
 ---
 
@@ -301,3 +370,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-02 | `5b53b0d` | `api`/`wifi` `reboot_timeout: 0s` sui controller autonomi | `esphome config` ×5; hardware da fare al bring-up |
 | 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
 | 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e in CI |
+| 2026-10-25 | R-01 | `1472a90` | Uscite PID gated su `hp_mode`, ruoli fancoil, sottotetto riscalda | test nativo, e2e host 20/20, `esphome config` ×5, battery PASS |
