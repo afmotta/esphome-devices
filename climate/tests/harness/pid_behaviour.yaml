@@ -347,3 +347,8 @@ packages:
       predictive_minutes_sensor: stub_predictive_minutes
       min_time_in_state_seconds: 2
       diagnostics_update_interval: 100ms
+      # Sensor-loss grace (R-05): production 120 s. Compressed, but long enough
+      # that a boost restored from flash survives the boot-time NaN until the
+      # first reading, which the restart tests publish (or deliberately
+      # withhold, to watch the grace expire) after the API connects.
+      sensor_lost_grace: 5s

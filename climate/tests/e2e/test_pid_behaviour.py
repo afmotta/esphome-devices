@@ -248,6 +248,31 @@ async def test_fresh_boot_does_not_run_the_boost_fancoil_in_cool(boot):
     assert value(h, "living_fan_level") == pytest.approx(0.0)
 
 
+SENSOR_LOST_GRACE = 5.0  # sensor_lost_grace in the harness (prod default 120 s)
+LIVING_BOOST = "living_boost_state"
+# A room still above target, so the boost is not ended by "target reached" meanwhile.
+HOT = TARGET + 3.0
+
+
+async def start_boost_then_restart(boot, *, fancoil_off: bool = False):
+    """Run a boost with a valid room reading, then reboot the controller on the same
+    preference store. Returns the new harness: the boost is restored from flash,
+    the room temperature is NaN until the test publishes one (as after a real
+    reboot, where the first CAN frame / HA connection takes a while)."""
+    h = await boot.start()
+    await h.call("set_boost_enabled", value=True)  # else the gate drops the boost at once
+    await h.call("set_temperature", value=HOT)
+    await h.call("boost_start")
+    await h.wait_for(LIVING_BOOST, lambda s: s.state == "Fancoil Boost")
+    await h.wait_for(h.object_id("Living Fancoil PID"), lambda s: s.mode == ClimateMode.COOL)
+    await h.wait_for(h.object_id("Living Relay"), lambda s: s.state is True)  # valve held open
+    if fancoil_off:
+        await h.call("living_fancoil_mode", value="OFF")
+        await h.wait_for(h.object_id("Living Fancoil PID"), lambda s: s.mode == ClimateMode.OFF)
+    await boot.stop()
+    return await boot.start()
+
+
 async def test_restart_during_boost_replays_the_boost(boot):
     """The boot sync must not stomp the coordinator's replay of a boost that was
     running when the controller rebooted (both live in the one -100 trigger).
@@ -255,19 +280,49 @@ async def test_restart_during_boost_replays_the_boost(boot):
     The PID is switched OFF behind the coordinator's back before the restart, so
     only the replay (select.set of the restored "Fancoil Boost") can bring COOL
     back: a dropped replay AND a sync that wins over it both leave it OFF.
-    """
-    h = await boot.start()
-    await h.call("set_boost_enabled", value=True)  # else the gate drops the boost at once
-    await h.call("boost_start")
-    await h.wait_for("living_boost_state", lambda s: s.state == "Fancoil Boost")
-    await h.wait_for(h.object_id("Living Fancoil PID"), lambda s: s.mode == ClimateMode.COOL)
-    await h.call("living_fancoil_mode", value="OFF")
-    await h.wait_for(h.object_id("Living Fancoil PID"), lambda s: s.mode == ClimateMode.OFF)
-    await boot.stop()
 
-    h = await boot.start()
-    await h.wait_for("living_boost_state", lambda s: s.state == "Fancoil Boost")
+    The first room reading arrives right after the restart, well inside the
+    sensor-loss grace, like the first CAN frame on a healthy controller.
+    """
+    h = await start_boost_then_restart(boot, fancoil_off=True)
+    await h.call("set_temperature", value=HOT)
+    await h.wait_for(LIVING_BOOST, lambda s: s.state == "Fancoil Boost")
     await hold(h, "Living Fancoil PID", ClimateMode.COOL)
+
+
+async def test_restart_during_boost_keeps_it_if_the_reading_arrives_within_the_grace(boot):
+    """Boot-time NaN is not a sensor loss: the restored boost runs through the
+    grace, the valve is shut meanwhile (NaN), and reopens with the first reading."""
+    h = await start_boost_then_restart(boot)
+    await h.wait_for(LIVING_BOOST, lambda s: s.state == "Fancoil Boost")
+    await hold(h, "Living Fancoil PID", ClimateMode.COOL)
+    # No reading yet: the final stage keeps the valve closed whatever the override says.
+    assert h.states[h.object_id("Living Relay")].state is False
+
+    await asyncio.sleep(SENSOR_LOST_GRACE * 0.4)
+    await h.call("set_temperature", value=HOT)  # inside the grace
+    await h.wait_for(h.object_id("Living Relay"), lambda s: s.state is True)
+
+    # Past the point where the grace would have expired had the reading not come.
+    await asyncio.sleep(SENSOR_LOST_GRACE)
+    assert h.states[LIVING_BOOST].state == "Fancoil Boost"
+    assert mode(h, "Living Fancoil PID") == ClimateMode.COOL
+    assert h.states[h.object_id("Living Relay")].state is True
+
+
+async def test_restart_during_boost_ends_it_if_no_reading_arrives_within_the_grace(boot):
+    """A restored boost whose room temperature never comes back is a real sensor
+    loss: it survives the grace, then ends (valve closed all along)."""
+    h = await start_boost_then_restart(boot)
+    await h.wait_for(LIVING_BOOST, lambda s: s.state == "Fancoil Boost")
+    await asyncio.sleep(SENSOR_LOST_GRACE * 0.4)
+    assert h.states[LIVING_BOOST].state == "Fancoil Boost"
+    assert h.states[h.object_id("Living Relay")].state is False
+
+    await h.wait_for(LIVING_BOOST, lambda s: s.state == "Radiant Only", timeout=SENSOR_LOST_GRACE + 2)
+    await h.wait_for(h.object_id("Living Fancoil PID"), lambda s: s.mode == ClimateMode.OFF)
+    await h.wait_for(h.object_id("Living Radiant Override"), lambda s: s.state is False)
+    assert h.states[h.object_id("Living Relay")].state is False
 
 
 async def test_restart_without_a_boost_does_not_resurrect_a_manual_cool(boot):

@@ -11,10 +11,13 @@ Covers the documented state machine contract:
   Anti-cycling:  the timer cancels if the condition clears before it elapses
   Deactivation (AND logic): delta <= 0 AND humidity <= threshold - hysteresis/2
   Season override: leaving cooling season ends boost immediately (no delay)
-  Sensor loss (R-05): a NaN room temperature ends boost immediately, and no
-                 boost starts while it is NaN, whatever the trigger
+  Sensor loss (R-05): a room temperature that stays NaN for the grace ends boost
+                 (no anti-cycling delay); a reading back inside the grace keeps
+                 it; no boost STARTS while it is NaN, whatever the trigger.
+                 The valve itself closes at once (final stage), not tested here
 
-The harness compresses min_time_in_state to 2 s (prod: 600 s). The radiant
+The harness compresses min_time_in_state to 2 s (prod: 600 s) and the
+sensor-loss grace to 1 s (prod: 120 s). The radiant
 PID target is 24.0 C, so absolute temps map to deltas: 26.0 => +2.0.
 With humidity threshold 60 and hysteresis 5, boost activates above 62.5
 and may deactivate at or below 57.5.
@@ -188,11 +191,19 @@ async def test_disabling_gate_during_boost_drops_to_radiant(run_harness):
     await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF)
 
 
-async def test_sensor_loss_ends_boost_immediately(run_harness):
-    """Room temperature NaN mid-boost: radiant only at once, no anti-cycling delay.
+GRACE = 1.0  # sensor_lost_grace in the harness (prod default 120 s)
+MARGIN = 1.0  # scheduling slack on top of the grace
+
+
+async def test_sensor_loss_ends_boost_after_the_grace(run_harness):
+    """Room temperature NaN mid-boost: the boost survives the grace, then ends
+    with no anti-cycling delay.
 
     should_end_boost cannot end it (a NaN delta never reaches "target"), which used
     to leave the zone at 100 % radiant cooling plus fancoil COOL indefinitely.
+    The valve closes at once in production (radiant final stage, covered by
+    test_radiant_direction and test_pid_behaviour); the stub radiant here has no
+    final stage, so only the coordinator's state is observable.
     """
     h = await run_harness("fancoil_boost")
     await setup_zone(h, cooling=True)
@@ -200,12 +211,17 @@ async def test_sensor_loss_ends_boost_immediately(run_harness):
     await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is True)
 
     await h.call("set_temperature", value=NAN)
-    # Well under the 2 s anti-cycling delay: the same immediate path as the
-    # season / gate override.
-    await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=1.0)
-    await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is False, timeout=1.0)
-    await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF, timeout=1.0)
-    await h.wait_for(AUTOMATION, lambda s: s.state == "Idle", timeout=1.0)
+    # Inside the grace nothing is torn down (it is what lets a boot-time NaN pass).
+    await asyncio.sleep(GRACE * 0.4)
+    assert h.states[STATE].state == "Fancoil Boost"
+    assert h.states[OVERRIDE_SWITCH].state is True
+
+    # After the grace, the same immediate path as the season / gate override
+    # (well under the 2 s anti-cycling delay on top of it).
+    await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=GRACE + MARGIN)
+    await h.wait_for(OVERRIDE_SWITCH, lambda s: s.state is False, timeout=MARGIN)
+    await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF, timeout=MARGIN)
+    await h.wait_for(AUTOMATION, lambda s: s.state == "Idle", timeout=MARGIN)
 
     # And it stays down: neither the delay timers nor the triggers revive it.
     await asyncio.sleep(3)
@@ -219,6 +235,31 @@ async def test_sensor_loss_ends_boost_immediately(run_harness):
     await h.wait_for(AUTOMATION, lambda s: s.state == "Activating (reactive)")
     assert h.states[STATE].state == "Radiant Only"
     await h.wait_for(STATE, lambda s: s.state == "Fancoil Boost", timeout=5)
+
+
+async def test_a_reading_back_inside_the_grace_keeps_the_boost(run_harness):
+    """A brief loss (or a boot-time NaN) must not cost the boost, and the grace
+    restarts from zero for the next loss."""
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)
+    await reach_boost(h)
+
+    await h.call("set_temperature", value=NAN)
+    await asyncio.sleep(GRACE * 0.6)
+    await h.call("set_temperature", value=26.0)  # back inside the grace
+    # Longer than the first grace would have lasted in total.
+    await asyncio.sleep(GRACE * 0.8)
+    assert h.states[STATE].state == "Fancoil Boost"
+    assert h.states[OVERRIDE_SWITCH].state is True
+
+    # A second loss gets a full grace of its own: 0.6 s of it (the earlier 0.6 s
+    # would add up past one grace if the timer had not been reset) leaves the
+    # boost running ...
+    await h.call("set_temperature", value=NAN)
+    await asyncio.sleep(GRACE * 0.6)
+    assert h.states[STATE].state == "Fancoil Boost"
+    # ... and it still ends once that loss outlasts the grace.
+    await h.wait_for(STATE, lambda s: s.state == "Radiant Only", timeout=GRACE + MARGIN)
 
 
 async def test_no_boost_starts_while_the_temperature_is_lost(run_harness):

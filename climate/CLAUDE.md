@@ -125,7 +125,8 @@ Fancoils declare a required `fancoil_role`: `boost` (cooling boost, only the
 
 **The radiant override is a convenience, never a safety bypass** (review R-05). The final stage
 (`climate/protocol/radiant_override.h`) forces the valve closed whenever the zone temperature is NaN,
-whatever the override says, and a NaN temperature ends a running boost immediately. A floor's pump
+whatever the override says, and a NaN temperature that persists for `sensor_lost_grace` (default 120 s)
+ends a running boost — the grace lets a boost restored from flash survive the boot-time NaN (R-16). A floor's pump
 demand is `*_radiant_pid_is_active || *_radiant_override_active` for every radiant zone — read with
 **`.state`**: `id(binary_sensor)` in a lambda is the sensor *pointer* (always true), which is how the
 pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.py` enforces both.
@@ -134,6 +135,11 @@ pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.p
 integral on each `hp_mode` change via `pid_direction::integral_bounds()`: HEAT → `[0, limit]`,
 COOL → `[-limit, 0]`, SANITARY_ONLY keeps the previous bounds (`integral_limit` var, default 1.0,
 output units). Without it the gated direction wound up a full actuator span.
+
+**Fancoil boot state is owned by the role** (review R-16). Each `fancoil_role_*.yaml` maps `hp_mode`
+to the PID mode in one script (`${room_slug}_fancoil_sync_mode`), run from the select's `on_value`
+*and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package `on_boot`
+mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
 
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
