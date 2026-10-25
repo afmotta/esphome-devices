@@ -57,8 +57,33 @@ jobs:
             echo "::endgroup::"
           done
 
-  # Full compiles + the Climate failover e2e are heavy (ESP32-S3 esp-idf build),
-  # so they gate pushes to main rather than every PR iteration.
+  # Host-platform e2e: each harness compiles to a plain Linux binary (no ESP32
+  # toolchain), so this is cheap enough to gate every PR as well as pushes to main.
+  # Every harness binds the fixed native-API port 6053 and conftest.py fails fast if
+  # it is busy, so pytest must run serially — never add `-n`/xdist here. A new e2e
+  # file under climate/tests/e2e/ is picked up automatically.
+  climate-e2e:
+    name: Climate host e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # Same pins as climate/tests/pyproject.toml (esphome is pinned deliberately).
+      - name: Install ESPHome + e2e deps (repo pins)
+        run: pip install "esphome==2026.8.0" pytest pytest-asyncio aioesphomeapi
+      - name: Cache PlatformIO (host/native toolchain)
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-host-${{ runner.os }}-esphome-2026.8.0
+      - name: Climate e2e (host harnesses)
+        run: python3 -m pytest climate/tests/e2e
+
+  # Full ESP32/RP2040 compiles are heavy (esp-idf build), so they gate pushes to
+  # main rather than every PR iteration. (The host e2e runs in `climate-e2e` above.)
   esphome-compile:
     name: ESPHome compile gates (main)
     if: github.event_name == 'push'
@@ -69,8 +94,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install ESPHome + e2e deps (repo pins)
-        run: pip install "esphome==2026.8.0" pytest pytest-asyncio aioesphomeapi
+      - name: Install ESPHome (repo pin)
+        run: pip install "esphome==2026.8.0"
       - name: Generate CI dummy secrets
         run: bash scripts/ci-dummy-secrets.sh
       - name: Cache PlatformIO toolchains
@@ -97,15 +122,3 @@ jobs:
         run: esphome compile canbus/tests/compile_bridge_t2can.yaml
       - name: Compile climate controller
         run: esphome compile devices/locals/climate-control.yaml
-      - name: Climate failover e2e
-        run: python3 -m pytest climate/tests/e2e/test_failover_sensor.py
-      - name: Climate room-sensors HA-tier e2e
-        run: python3 -m pytest climate/tests/e2e/test_room_sensors.py
-      - name: Climate PID direction e2e
-        run: python3 -m pytest climate/tests/e2e/test_radiant_direction.py
-      - name: Climate fancoil-boost e2e
-        run: python3 -m pytest climate/tests/e2e/test_fancoil_boost.py
-      - name: Climate outdoor HA-tier e2e
-        run: python3 -m pytest climate/tests/e2e/test_outdoor.py
-      - name: Climate MEV ventilation e2e
-        run: python3 -m pytest climate/tests/e2e/test_mev_ventilation.py
