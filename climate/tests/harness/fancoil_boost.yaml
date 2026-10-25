@@ -28,10 +28,24 @@ esphome:
   # the gate at boot; the gate's own behaviour is covered by dedicated tests
   # that drive it via set_boost_enabled. Priority -200 runs after the
   # coordinator's own -100 boot replay.
+  #
+  # The bare cool-only fancoil PID below would come up in COOL on a fresh
+  # preferences dir (ESPHome's PID default with no restored state, review R-16).
+  # In production the `boost` fancoil role owns that boot state (OFF unless the
+  # coordinator replays a restored boost); mirror that contract here. Kept in
+  # this single on_boot mapping on purpose: turning it into a list makes the
+  # package merge drop the coordinator's own -100 on_boot.
   on_boot:
     priority: -200
     then:
       - switch.turn_on: test_zone_boost_enabled
+      - if:
+          condition:
+            lambda: 'return id(test_zone_boost_state).current_option() != "Fancoil Boost";'
+          then:
+            - climate.control:
+                id: fancoil_pid
+                mode: "OFF"
 
 host:
 
