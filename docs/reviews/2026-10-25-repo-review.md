@@ -37,7 +37,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
-| [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
+| [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | 🔧 parziale (timeout ⏸️ dati da banco) | `50103e2` |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
@@ -299,6 +299,18 @@ pompa, oppure aggiungere i `*_boost_active` alla somma.
 ACK timeout a 500 ms con binding `toggle` ⇒ possibile doppio toggle (nessun effetto visibile). L'ACK di
 HA parte inoltre *prima* di eseguire l'azione. Preferire on/off nei binding e alzare il timeout.
 
+**Fix parziale:** `50103e2` — `canbus: warn on every toggle binding at generation time (R-06, partial)`
+
+- `bindings.advisories()` restituisce un avviso deterministico per ogni binding `op: toggle`, con nodo, bottone e
+  destinazione, e raccomanda `on`/`off`.
+- `generate_nodes.py` lo stampa come `WARNING:` su stderr. Exit code, file generati e hash del manifest non cambiano.
+  L'header di `registry/bindings.yaml` lo menziona.
+- Test: due nuovi casi in `test_bindings.py`, più una prova manuale del generatore in un repo temporaneo.
+- **Rimandati (⏸️):**
+  - Il valore di `ack_timeout_ms` richiede dati da banco (ADR-0003 open item 2).
+  - L'ACK di HA che parte prima dell'azione è un cambio di design: un'automazione ACK generata dal manifest dovrebbe
+    rispondere dopo l'azione. Oggi i binding sono vuoti, quindi il rischio non è ancora attivo.
+
 ### R-07 — Errori CAN invisibili
 
 Il bridge ignora il ritorno di `send_data` (`canbus/packages/bridge.yaml:135,138`): un frame fallito
@@ -503,3 +515,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-11 | `2f56444`, `633025f` | Drift documentazione, `CHANGELOG.md`, istruzioni Copilot | review diff (docs) |
 | 2026-10-25 | R-09 | `710f088` | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
 | 2026-10-25 | R-07 | `085bb05`, `a2db85c` | Errori TX CAN segnalati (bridge con retry limitato, nodi con `tx_health.h`) | test nativi, battery PASS, `esphome config` ×10 |
+| 2026-10-25 | R-06 (parz.) | `50103e2` | Avviso del generatore per ogni binding `toggle` | test Python, battery PASS |
