@@ -39,7 +39,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ✅ | `504300a`, `342cc1c` |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | 🔧 parziale (timeout ⏸️ dati da banco) | `50103e2` |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
-| [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | 🔧 parziale: MEV ✅, `predictive_minutes` 🔧 | `e1d8e68`, `bd32bc6` |
+| [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ✅ | `0583674`, `e1d8e68`, `bd32bc6` |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ✅ (resta `assert()` nei test C++) | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11`, `32b6ea2`, `e2cb259`, `3a0cc0a` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
@@ -407,7 +407,16 @@ già state rese locali.
 - **Azione una tantum lato HA:** cancellare `input_number.mev_minimum_fan_speed`, `ground_floor_mev_minimum_fan_speed`,
   `mev_escalation_fan_threshold`, `mev_deescalation_fan_threshold`, `mev_escalation_delay_minutes` e
   `mev_deescalation_delay_minutes`, ed eventualmente reinserire i valori personalizzati sui numeri del controller.
-- **`predictive_minutes` (R-08a):** in lavorazione con R-05.
+**Fix R-08a:** ✅ `0583674` — `climate: refuse a NaN/non-positive predictive boost delay, clamp a huge one (R-08a)`
+
+- Lo script predittivo si arma solo se `isfinite(minutes) && minutes > 0`; altrimenti logga un WARN e non parte. È stato
+  scelto di rifiutare invece di usare un default, per non introdurre una latenza di boost che l'operatore non ha impostato.
+- Il ritardo è limitato a `[0, predictive_max_minutes]`, nuova var con default 120, coerente con il range del numero di
+  produzione.
+- Gli altri ritardi del coordinatore moltiplicano un intero noto a compile time, quindi non serve una protezione.
+- I ritardi MEV (`state * 60000`) usano ora numeri locali con range 1–120 min (R-08b): non possono più essere NaN.
+- e2e `test_fancoil_boost.py` **15/15** (5 nuovi casi), con preferenze isolate. Ripristinando il codice vecchio, i 5 nuovi
+  casi falliscono.
 
 ### R-09 — Fail-safe hardware dei relè
 
@@ -641,3 +650,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-08b | `e1d8e68`, `bd32bc6` | Min-fan, soglie e ritardi MEV come numeri locali | e2e host 6/6, `esphome config`, battery PASS |
 | 2026-10-25 | R-10 | `32b6ea2`, `e2cb259`, `3a0cc0a` | e2e host su ogni PR, lint yamllint/hygiene, pre-commit, isolamento preferenze host | yamllint OK, battery PASS, e2e climate 57/57 |
 | 2026-10-25 | R-05 + R-19 | `504300a`, `342cc1c` | Sensore perso → boost chiuso e valvola chiusa; domanda pompe con override; pompe non più sempre accese | test nativo, e2e host, verify script |
+| 2026-10-25 | R-08a | `0583674` | Ritardo predittivo del boost: NaN/≤0 rifiutato, valori enormi limitati | e2e host 15/15 |
