@@ -134,6 +134,16 @@ async def run_harness():
         # preferences (e.g. select restore_value) to a file in cwd, and
         # tests must not inherit state from previous runs.
         workdir = tempfile.mkdtemp(prefix=f"climate-e2e-{name}-")
+        # Every harness binds the fixed API port. If something already listens
+        # there (a stale binary, a parallel run), the client would silently talk
+        # to the wrong device and fail with confusing "no entity named ..." errors.
+        try:
+            _, probe = await asyncio.open_connection("127.0.0.1", API_PORT)
+        except OSError:
+            pass
+        else:
+            probe.close()
+            pytest.fail(f"API port {API_PORT} is already in use; stop the other harness binary first")
         proc = subprocess.Popen(
             [str(binary)], cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
