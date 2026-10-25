@@ -45,7 +45,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ✅ | `449be90`, `2763cdf` |
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (limiti simmetrici) | ✅ | `dea1047`, `583eb8d` |
-| [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
+| [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ✅ | `173722e`, `bf1681e` |
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ✅ | `5014afd`, `638342f` |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ✅ | `d509ff3`, `7d28baa` |
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
@@ -598,6 +598,20 @@ dell'harness, documentazione).
 `window_guard.yaml` ripristina il modo salvato (COOL) se il PID è OFF a fine recovery. Se un boost è terminato mentre la
 finestra era aperta, un fancoil `boost` torna acceso come raffrescatore permanente, scavalcando il coordinatore e il gate.
 
+**Fix applicato:** ✅ `173722e` (`climate: window guard resumes the fancoil via its owner, never a snapshot (R-14)`) + `bf1681e`
+(documentazione).
+
+- Il guard non salva più la modalità. Riceve una var obbligatoria `resume_script_id` e, quando la recovery termina con il
+  PID ancora OFF, esegue lo script del ruolo `${room_slug}_fancoil_resume_mode`, che ricalcola la modalità:
+  - `boost`: COOL solo se il boost è ancora attivo e `hp_mode` è COOL;
+  - `cool_only` e `heat_cool`: lo stesso script di sync.
+- Un PID avviato da altro durante la recovery resta com'è. Usano il guard solo soggiorno e cucina, entrambi `boost`.
+- Nuova var `poll_interval` (default 10 s), che i test comprimono.
+- **Compromesso documentato:** un cambio di modalità manuale da HA, fatto prima che la finestra si aprisse, non viene più
+  ripristinato.
+- **e2e:** `test_pid_behaviour.py` 23/23 in cima allo stack. Senza il fix, i 3 casi "boost finito" (boost fermato, gate
+  chiuso, stagione cambiata) ripristinano COOL e falliscono.
+
 ### R-15 — Var di radiant.yaml ignorate
 
 `pwm_period`, `kp`, `ki` e `kd` passati a `radiant.yaml` vengono ignorati, perché vincono i `defaults:` di
@@ -724,3 +738,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-15 | `5014afd`, `638342f` | Le var di `radiant.yaml` arrivano a PID e PWM | config invariata, e2e host 40/40 |
 | 2026-10-25 | R-13 | `dea1047`, `583eb8d` | Integrale PID confinato alla direzione attiva (`hp_mode`) | test nativi, e2e host 13/13 |
 | 2026-10-25 | R-16 | `d509ff3`, `7d28baa` | Stato al boot dei fancoil per ruolo; tolleranza sul sensore perso (riconcilia R-05) | e2e host 19/19 + 16/16 |
+| 2026-10-25 | R-14 | `173722e`, `bf1681e` | Il window guard riconsegna il fancoil al proprietario, senza snapshot | e2e host 23/23 |
