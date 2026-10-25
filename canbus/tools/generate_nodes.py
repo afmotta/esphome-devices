@@ -1102,6 +1102,10 @@ def write_exports(seen_node_ids, export_nodes, root: Path, repo_root: Path):
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
 
+    # Non-fatal: advice goes to stderr and never changes the exit code, the hash or any output.
+    for note in bindings.advisories(manifest):
+        print(f"WARNING: {note}", file=sys.stderr)
+
     manifest_hash = bindings.canonical_hash(manifest)
 
     header_path = root / "protocol" / "bindings.h"
