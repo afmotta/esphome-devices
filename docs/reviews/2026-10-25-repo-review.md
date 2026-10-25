@@ -44,7 +44,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ✅ (resta `assert()` nei test C++) | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11`, `32b6ea2`, `e2cb259`, `3a0cc0a` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ✅ | `449be90`, `2763cdf` |
-| [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
+| [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (limiti simmetrici) | ✅ | `dea1047`, `583eb8d` |
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ✅ | `5014afd`, `638342f` |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
@@ -562,6 +562,34 @@ _Le issue R-13–R-16 sono emerse durante il fix di R-01._
 limiti: per esempio, una stanza sopra setpoint in un pomeriggio invernale. Quando poi scende sotto target, può restare
 fredda a lungo. Aggiungere limiti in `control_parameters`.
 
+**Correzione della premessa:** ESPHome limita già l'integrale a ±1 per default (`pid/climate.py`). Il problema è che il
+limite è **simmetrico**: il lato bloccato dal gate accumula fino a un'escursione piena. Inoltre ESPHome integra anche in
+OFF, quindi i loop solo-caldo accumulano anche d'estate.
+
+**Fix applicato:** ✅ `dea1047` (`climate: confine PID integral to the active direction (R-13)`) + `583eb8d` (CI, include
+dell'harness, documentazione).
+
+- `pid.yaml` rende espliciti i limiti ±`integral_limit` (default 1.0, in unità di uscita perché l'accumulatore include già
+  `ki`).
+- A ogni cambio di `hp_mode` li restringe con `pid_direction::integral_bounds()`, usando i setter pubblici
+  `set_min_integral` / `set_max_integral`:
+  - HEAT → `[0, limit]`;
+  - COOL → `[-limit, 0]`;
+  - SANITARY_ONLY mantiene i limiti precedenti, così una breve fase di sola ACS non cancella l'offset appreso.
+- Non c'è un reset esplicito: l'integrale della stagione precedente viene azzerato dal clamp al primo aggiornamento,
+  mentre un `hp_mode` ripubblicato identico non tocca un integrale legittimo.
+- **Effetto collaterale:** in HEAT l'intenzione `is_cooling` compare solo dopo che l'integrale è sceso a 0 (circa 200 s per
+  unità d'errore con ki 0.005). Il tier di domanda del seasonal mode reagisce un po' più tardi.
+- **Test:**
+  - nuovi test nativi `integral_bounds` in `test_pid_direction.cpp`;
+  - nuovo harness host `pid_behaviour.yaml` con guadagni compressi e `test_pid_behaviour.py`: 13/13 a questo stadio;
+  - senza il fix 9 casi falliscono.
+- **Integrazione:** l'harness non includeva `radiant_override.h`, necessario dopo R-05, e la build host falliva.
+  `esphome config` non lo vede.
+- **Flake osservato dal subagente:** 3 fallimenti su ~75 esecuzioni in
+  `test_legitimate_integral_survives_a_republished_or_idle_mode[HEAT]`, causa ignota, non riprodotto in 80 esecuzioni
+  successive.
+
 ### R-14 — Window guard riaccende un fancoil boost
 
 `window_guard.yaml` ripristina il modo salvato (COOL) se il PID è OFF a fine recovery. Se un boost è terminato mentre la
@@ -664,3 +692,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-05 + R-19 | `504300a`, `342cc1c` | Sensore perso → boost chiuso e valvola chiusa; domanda pompe con override; pompe non più sempre accese | test nativo, e2e host, verify script |
 | 2026-10-25 | R-08a | `0583674` | Ritardo predittivo del boost: NaN/≤0 rifiutato, valori enormi limitati | e2e host 15/15 |
 | 2026-10-25 | R-15 | `5014afd`, `638342f` | Le var di `radiant.yaml` arrivano a PID e PWM | config invariata, e2e host 40/40 |
+| 2026-10-25 | R-13 | `dea1047`, `583eb8d` | Integrale PID confinato alla direzione attiva (`hp_mode`) | test nativi, e2e host 13/13 |
