@@ -16,11 +16,25 @@
 #   integration_switch              - Switch ID for integration (cooling) control
 #   alarm_sensor                   - Binary sensor ID for alarm monitoring
 #   fan_speed_number               - Number entity ID for fan speed output
-#   min_fan_speed_entity           - HA entity for minimum fan speed (%)
-#   escalation_threshold_entity    - HA entity for escalation fan threshold (%)
-#   deescalation_threshold_entity  - HA entity for de-escalation fan threshold (%)
-#   escalation_delay_entity        - HA entity for escalation delay (minutes)
-#   deescalation_delay_entity      - HA entity for de-escalation delay (minutes)
+#
+# Optional vars (first-boot values of the local tuning numbers, see below;
+# afterwards the persisted value wins):
+#   min_fan_speed_default          - Minimum fan speed, % (default: 20)
+#   escalation_threshold_default   - Escalation fan threshold, % (default: 80)
+#   deescalation_threshold_default - De-escalation fan threshold, % (default: 40)
+#   escalation_delay_default       - Escalation delay, minutes (default: 10)
+#   deescalation_delay_default     - De-escalation delay, minutes (default: 15)
+#   update_interval                - Final-fan-speed evaluation period (default: 60s)
+#
+# Tuning numbers (R-08b): the minimum fan speed, the two cascade thresholds and
+# the two cascade delays are persisted template numbers on the controller, not
+# imports from Home Assistant helpers. They used to be `homeassistant` sensors,
+# which read NaN whenever HA is down or the helper is missing: the thresholds
+# then disabled the cascade, the min floor fell back to a guess and the delays
+# (`NaN * 60000`) were undefined. A local number keeps the tuned value across HA
+# outages and reboots (same pattern as the dew-point/boost thresholds in
+# ground-floor.yaml); HA can still tune them (entity_category: config). Ids are
+# unchanged, so mev_demand.yaml's `min_output_id` keeps resolving.
 #
 # Humidity Cascade State Machine (event-driven with script delays):
 #   Fan Only ──escalate──▶ Dehumidifying ──escalate──▶ Integration
@@ -31,6 +45,11 @@
 #   on_release cancels it.
 #
 # Exposes:
+#   number.{component_id}_min_fan_speed         - Minimum fan speed floor (%)
+#   number.{component_id}_escalation_threshold  - Fan % at/above which humidity may escalate
+#   number.{component_id}_deescalation_threshold - Fan % below which humidity may de-escalate
+#   number.{component_id}_escalation_delay      - Minutes a condition must hold to escalate
+#   number.{component_id}_deescalation_delay    - Minutes a condition must hold to de-escalate
 #   sensor.{component_id}_final_fan_speed       - Calculated fan speed (0-100%)
 #   text_sensor.{component_id}_automation_state - Current state machine status
 #   select.{component_id}_humidity_state        - Humidity cascade state selector
@@ -60,41 +79,88 @@
 #         integration_switch: mev_integration
 #         alarm_sensor: mev_alarm
 #         fan_speed_number: mev_fan_speed
-#         min_fan_speed_entity: "input_number.mev_min_fan_speed"
-#         escalation_threshold_entity: "input_number.mev_escalation_threshold"
-#         deescalation_threshold_entity: "input_number.mev_deescalation_threshold"
-#         escalation_delay_entity: "input_number.mev_escalation_delay"
-#         deescalation_delay_entity: "input_number.mev_deescalation_delay"
 #         humidity_lower_sensor: mev_humidity_lower
 # =============================================================================
 
-sensor:
-  # Import configuration from HA
-  - platform: homeassistant
-    entity_id: ${escalation_threshold_entity}
-    id: ${component_id}_escalation_threshold
-    internal: true
+defaults:
+  min_fan_speed_default: "20"
+  escalation_threshold_default: "80"
+  deescalation_threshold_default: "40"
+  escalation_delay_default: "10"
+  deescalation_delay_default: "15"
+  update_interval: 60s
 
-  - platform: homeassistant
-    entity_id: ${deescalation_threshold_entity}
-    id: ${component_id}_deescalation_threshold
-    internal: true
-
-  - platform: homeassistant
-    entity_id: ${min_fan_speed_entity}
+# Local, persisted tuning (see "Tuning numbers" in the header).
+number:
+  - platform: template
     id: ${component_id}_min_fan_speed
-    internal: true
+    name: "${component_name} Minimum Fan Speed"
+    unit_of_measurement: "%"
+    icon: mdi:fan-speed-1
+    min_value: 0
+    max_value: 50
+    step: 5
+    initial_value: ${min_fan_speed_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
 
-  - platform: homeassistant
-    entity_id: ${escalation_delay_entity}
+  # Cascade hysteresis: escalate at/above the high threshold, de-escalate below
+  # the low one. The ranges cannot cross (50 is the only shared value), so the
+  # cascade cannot be tuned into oscillation.
+  - platform: template
+    id: ${component_id}_escalation_threshold
+    name: "${component_name} Escalation Fan Threshold"
+    unit_of_measurement: "%"
+    icon: mdi:fan-alert
+    min_value: 50
+    max_value: 100
+    step: 5
+    initial_value: ${escalation_threshold_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
+
+  - platform: template
+    id: ${component_id}_deescalation_threshold
+    name: "${component_name} De-escalation Fan Threshold"
+    unit_of_measurement: "%"
+    icon: mdi:fan-minus
+    min_value: 10
+    max_value: 50
+    step: 5
+    initial_value: ${deescalation_threshold_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
+
+  - platform: template
     id: ${component_id}_escalation_delay
-    internal: true
+    name: "${component_name} Escalation Delay"
+    unit_of_measurement: "min"
+    icon: mdi:timer
+    min_value: 1
+    max_value: 120
+    step: 1
+    initial_value: ${escalation_delay_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
 
-  - platform: homeassistant
-    entity_id: ${deescalation_delay_entity}
+  - platform: template
     id: ${component_id}_deescalation_delay
-    internal: true
+    name: "${component_name} De-escalation Delay"
+    unit_of_measurement: "min"
+    icon: mdi:timer-outline
+    min_value: 1
+    max_value: 120
+    step: 1
+    initial_value: ${deescalation_delay_default}
+    restore_value: true
+    optimistic: true
+    entity_category: config
 
+sensor:
   # Final Fan Speed (%) - applies min floor and alarm safety
   - platform: template
     name: "${component_name} Final Fan Speed"
@@ -102,7 +168,7 @@ sensor:
     unit_of_measurement: "%"
     icon: mdi:fan-speed-3
     accuracy_decimals: 0
-    update_interval: 60s
+    update_interval: ${update_interval}
     lambda: |-
       // Commissioning gate: unit not yet cleared to run (see header).
       if (!id(${component_id}_enabled).state) {

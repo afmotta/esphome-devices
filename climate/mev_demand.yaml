@@ -20,10 +20,16 @@
 #   humidity_sensor: Sensor ID for humidity input
 #
 # Depends on (must exist in merged config):
-#   ${mev_slug}_min_fan_speed - Minimum fan speed HA import. When this file is
-#     composed through climate/mev_modbus.yaml, it is declared by
-#     climate/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
-#     Standalone consumers must declare an equivalent sensor before using this package.
+#   ${mev_slug}_min_fan_speed - Minimum fan speed (local persisted number, R-08b).
+#     When this file is composed through climate/mev_modbus.yaml or
+#     climate/mev_innova_modbus.yaml, it is declared by the controller package
+#     (coordinators/mev_ventilation*.yaml) with component_id=${mev_slug}.
+#     Standalone consumers must declare an equivalent sensor or number before
+#     using this package.
+#
+# The proportional-demand BOUNDS (lower/upper per channel) are still imported
+# from HA input_numbers (climate/home-assistant/mev_helpers.yaml); with HA down
+# every channel degrades to the flat 20% fallback of proportional_demand_sensor.yaml.
 #
 # Exposes:
 #   sensor.${mev_slug}_max_demand         - MAX of CO2/Air Quality/Humidity demands (0-100%)

@@ -1,74 +1,29 @@
 # =============================================================================
 # mev_helpers.yaml — Home Assistant package: the input_number helpers the MEV
-# demand/ventilation stack reads (climate/mev_demand.yaml bounds and
-# climate/packages/coordinators/mev_ventilation.yaml cascade tuning).
+# demand stack reads (climate/mev_demand.yaml proportional-demand bounds).
 #
 # Install: copy into your HA packages directory (or add to `homeassistant:
 # packages:`). Without these entities the ESPHome `homeassistant` sensors read
-# NaN and every demand signal silently falls back to the minimum-fan default
-# (20%) — the system runs, but air quality no longer modulates the fan.
+# NaN and every demand signal silently falls back to the flat 20% default
+# (proportional_demand_sensor.yaml) — the system runs, but air quality no longer
+# modulates the fan.
 #
-# Defaults mirror the firmware fallbacks where one exists; bounds map
-# lower_bound → minimum fan and upper_bound → 100% demand (proportional
-# between). VOC/NOx are Sensirion index values (1-500, ~100 = baseline).
+# NOT here any more (R-08b): the minimum fan speed (both MEVs) and the first-floor
+# cascade thresholds/delays are persisted `number` entities ON the controller
+# (entity_category: config, restore_value), so they survive an HA outage. Tune
+# them from the controller device in HA (number.climate_control_mev_primo_piano_*
+# and number.climate_control_mev_piano_terra_minimum_fan_speed). If you created
+# the old helpers (mev_minimum_fan_speed, ground_floor_mev_minimum_fan_speed,
+# mev_escalation_fan_threshold, mev_deescalation_fan_threshold,
+# mev_escalation_delay_minutes, mev_deescalation_delay_minutes), delete them —
+# nothing reads them.
+#
+# Bounds map lower_bound → minimum fan and upper_bound → 100% demand
+# (proportional between), shared by both MEVs. VOC/NOx are Sensirion index
+# values (1-500, ~100 = baseline).
 # =============================================================================
 
 input_number:
-  # --------------- Ventilation cascade tuning (mev_ventilation.yaml) --------
-  # First-floor MEV (Cappellotto Air Fresh I). The ground-floor MEV shares the
-  # air-quality bounds below (house-wide air-quality standards) but has its own
-  # minimum fan speed further down — the two units are different models.
-  mev_minimum_fan_speed:
-    name: MEV Minimum Fan Speed
-    min: 0
-    max: 100
-    step: 5
-    initial: 20
-    unit_of_measurement: "%"
-    icon: mdi:fan-speed-1
-  # Ground-floor MEV (Innova HRP DOMO 60 HX) minimum fan speed — independent of
-  # the first-floor unit (mev_ventilation_fan_only.yaml / ADR-0018).
-  ground_floor_mev_minimum_fan_speed:
-    name: MEV Piano Terra Minimum Fan Speed
-    min: 0
-    max: 100
-    step: 5
-    initial: 20
-    unit_of_measurement: "%"
-    icon: mdi:fan-speed-1
-  mev_escalation_fan_threshold:
-    name: MEV Escalation Fan Threshold
-    min: 0
-    max: 100
-    step: 5
-    initial: 80
-    unit_of_measurement: "%"
-    icon: mdi:fan-alert
-  mev_deescalation_fan_threshold:
-    name: MEV De-escalation Fan Threshold
-    min: 0
-    max: 100
-    step: 5
-    initial: 40
-    unit_of_measurement: "%"
-    icon: mdi:fan-minus
-  mev_escalation_delay_minutes:
-    name: MEV Escalation Delay
-    min: 1
-    max: 120
-    step: 1
-    initial: 10
-    unit_of_measurement: min
-    icon: mdi:timer
-  mev_deescalation_delay_minutes:
-    name: MEV De-escalation Delay
-    min: 1
-    max: 120
-    step: 1
-    initial: 15
-    unit_of_measurement: min
-    icon: mdi:timer-outline
-
   # --------------- Proportional demand bounds (mev_demand.yaml) -------------
   mev_co2_lower_bound:
     name: MEV CO2 Lower Bound

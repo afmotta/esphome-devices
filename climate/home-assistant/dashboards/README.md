@@ -409,44 +409,13 @@ input_number:
 
 ### MEV Configuration
 
-```yaml
-input_number:
-  mev_escalation_fan_threshold:
-    name: MEV Escalation Fan Threshold
-    min: 50
-    max: 100
-    step: 5
-    unit_of_measurement: "%"
-    mode: box
-    icon: mdi:fan-alert
-
-  mev_deescalation_fan_threshold:
-    name: MEV Deescalation Fan Threshold
-    min: 10
-    max: 50
-    step: 5
-    unit_of_measurement: "%"
-    mode: box
-    icon: mdi:fan-alert
-
-  mev_minimum_fan_speed:
-    name: MEV Minimum Fan Speed
-    min: 0
-    max: 50
-    step: 5
-    unit_of_measurement: "%"
-    mode: box
-    icon: mdi:fan-speed-1
-
-  mev_escalation_delay_minutes:
-    name: MEV Escalation Delay Minutes
-    min: 1
-    max: 30
-    step: 1
-    unit_of_measurement: "min"
-    mode: box
-    icon: mdi:timer
-```
+The MEV minimum fan speed (both units) and the first-floor cascade thresholds and delays
+are **not** HA helpers: they are persisted `number` entities on the controller
+(`number.climate_control_mev_primo_piano_minimum_fan_speed`,
+`..._escalation_fan_threshold`, `..._de_escalation_fan_threshold`, `..._escalation_delay`,
+`..._de_escalation_delay`, and `number.climate_control_mev_piano_terra_minimum_fan_speed`),
+tuned from the controller device and kept across HA outages. Only the demand bounds remain
+HA helpers (`climate/home-assistant/mev_helpers.yaml`).
 
 **YAML Configuration Alternative** (add to `configuration.yaml`):
 
