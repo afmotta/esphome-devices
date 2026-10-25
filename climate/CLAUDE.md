@@ -176,7 +176,8 @@ Two constraints drive the phase order and are easy to get wrong:
 # ESPHome's flattened build needs (same pattern as lighting/tests).
 g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Iclimate/protocol climate/tests/test_can_sensor_receiver.cpp -o /tmp/climate_can_sensor_receiver && /tmp/climate_can_sensor_receiver
 
-# HA-tier staleness gate of the room-sensor failover (R-04)
+# HA-tier staleness gate of the room-sensor failover (R-04); climate/outdoor.yaml reuses the
+# same gate for the outdoor temperature (outdoor_temp_ha_gated, ha_outdoor_staleness_grace_s; R-12)
 g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_ha_tier.cpp -o /tmp/climate_ha_tier && /tmp/climate_ha_tier
 
 # Heat/cool direction gating of PID actuators (R-01)
