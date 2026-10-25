@@ -32,5 +32,6 @@ packages:
 
 esphome:
   on_boot:
-    - then:
+    - priority: 600
+      then:
         - lambda: 'relay_store(${switch_number}) = id(relay_${switch_number});'

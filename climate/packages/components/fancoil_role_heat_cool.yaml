@@ -60,15 +60,13 @@ select:
 # cool_output starts in COOL regardless of hp_mode. Re-running the handler once
 # everything is set up makes the boot mode deterministic.
 #
-# Written as a MAPPING at priority -100, exactly like fancoil_boost.yaml's
-# boot hook: ESPHome merges package `on_boot:` mappings into ONE trigger (the
-# `then` lists concatenate, one `priority` survives), whereas a list-form
-# on_boot replaces a mapping-form one (or is replaced by it) and silently
-# drops a hook. Do not change the priority or the form without changing the
-# coordinator's too. The sync below does not depend on running before or after
-# the coordinator's replay.
+# Written in LIST form with an explicit priority (review R-18): each entry is
+# its own trigger, so the -100 here is the priority this hook really runs at.
+# (A mapping-form on_boot would be merged with every other package's mapping
+# into one trigger with a single surviving priority, and mixed with a list it
+# would silently drop a hook; scripts/check_on_boot_form.py forbids it.)
 esphome:
   on_boot:
-    priority: -100
-    then:
-      - script.execute: ${room_slug}_fancoil_sync_mode
+    - priority: -100
+      then:
+        - script.execute: ${room_slug}_fancoil_sync_mode

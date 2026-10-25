@@ -63,34 +63,36 @@ esphome:
   includes:
     - ../protocol/bridge_forwarding.h
   on_boot:
-    # Priority below node_core's 200 so its "online" banner logs first.
-    priority: 190
-    then:
-      - lambda: |-
-          // ESPHome's mcp2515 has no interrupt support: it drains RX from loop().
-          // Application::loop() normally gates the component phase on
-          // loop_interval_ (16 ms; ~20 ms once the 10 ms drain tick is waking the
-          // scheduler), and the MCP2515 holds only 2 RX buffers — so a ~20 ms
-          // window can see ~18 frames at 125 kbps and keep two. Those drops happen
-          // BEFORE bridge_enqueue(), so they never latch ERR_BRIDGE_QUEUE_OVERFLOW;
-          // ESPHome's own overrun check is compiled out at logger level INFO; and
-          // the protocol has no sequence numbers, so a receiver cannot infer a gap.
-          // Invisible loss is the worst kind, so a pure forwarder spins: the request
-          // below removes the gate and the poll period becomes the SPI transaction
-          // cost (tens of microseconds), well under the ~1.1 ms minimum frame
-          // arrival interval. 100% duty is free here — this device does nothing else.
-          //
-          // Gated per board via ${bridge_hf_loop}: ON for the CANBed (both ports
-          // polled, no RTOS idle task to starve), OFF for the T-2CAN, whose
-          // backbone side is interrupt-driven TWAI and whose esp-idf task
-          // watchdog would turn a non-yielding loop into a reboot loop.
-          //
-          // ESPHome-INTERNAL API (esphome/core/helpers.h), not a YAML option:
-          // re-check it on every ESPHome upgrade. ADR-0017 §6.
-          if (${bridge_hf_loop}) {
-            static esphome::HighFrequencyLoopRequester hf_request;
-            hf_request.start();
-          }
+    # Priority below node_core's 200 so its "online" banner logs first. They are
+    # separate triggers (list form, review R-18), so this ordering is real; as
+    # mappings they used to be merged into one trigger at this priority.
+    - priority: 190
+      then:
+        - lambda: |-
+            // ESPHome's mcp2515 has no interrupt support: it drains RX from loop().
+            // Application::loop() normally gates the component phase on
+            // loop_interval_ (16 ms; ~20 ms once the 10 ms drain tick is waking the
+            // scheduler), and the MCP2515 holds only 2 RX buffers — so a ~20 ms
+            // window can see ~18 frames at 125 kbps and keep two. Those drops happen
+            // BEFORE bridge_enqueue(), so they never latch ERR_BRIDGE_QUEUE_OVERFLOW;
+            // ESPHome's own overrun check is compiled out at logger level INFO; and
+            // the protocol has no sequence numbers, so a receiver cannot infer a gap.
+            // Invisible loss is the worst kind, so a pure forwarder spins: the request
+            // below removes the gate and the poll period becomes the SPI transaction
+            // cost (tens of microseconds), well under the ~1.1 ms minimum frame
+            // arrival interval. 100% duty is free here — this device does nothing else.
+            //
+            // Gated per board via ${bridge_hf_loop}: ON for the CANBed (both ports
+            // polled, no RTOS idle task to starve), OFF for the T-2CAN, whose
+            // backbone side is interrupt-driven TWAI and whose esp-idf task
+            // watchdog would turn a non-yielding loop into a reboot loop.
+            //
+            // ESPHome-INTERNAL API (esphome/core/helpers.h), not a YAML option:
+            // re-check it on every ESPHome upgrade. ADR-0017 §6.
+            if (${bridge_hf_loop}) {
+              static esphome::HighFrequencyLoopRequester hf_request;
+              hf_request.start();
+            }
 
 canbus:
   # Backbone side is node_core's can0 — attach the handler the way health.yaml and
