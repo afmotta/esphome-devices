@@ -149,6 +149,7 @@ run_step "native: canbus test_protocol.cpp"          cxx_run proto     canbus/te
 run_step "native: canbus test_ha_arbitration.cpp"    cxx_run arb       canbus/tests/test_ha_arbitration.cpp
 run_step "native: canbus test_node_health.cpp"       cxx_run health    canbus/tests/test_node_health.cpp
 run_step "native: canbus test_bridge_forwarding.cpp" cxx_run bridge    canbus/tests/test_bridge_forwarding.cpp
+run_step "native: canbus test_tx_health.cpp"        cxx_run txhealth  canbus/tests/test_tx_health.cpp
 run_step "native: canbus test_bindings_contract.cpp" cxx_run bcontract canbus/tests/test_bindings_contract.cpp
 run_step "native: lighting test_binding_actuation.cpp" \
   cxx_run act -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp

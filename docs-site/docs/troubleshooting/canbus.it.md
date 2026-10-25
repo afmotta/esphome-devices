@@ -222,7 +222,12 @@ Se il bridge è mai costretto a scartare frame perché la sua coda interna si
 è riempita, imposta un indicatore `ERR_BRIDGE_QUEUE_OVERFLOW` nel proprio
 heartbeat, che resta impostato finché il bridge non viene spento e
 riacceso — così un sovraccarico temporaneo lascia una traccia visibile
-invece di scomparire silenziosamente. 🔵 PROGETTATO
+invece di scomparire silenziosamente. I frame che il bridge non riesce a
+trasmettere dopo vari tentativi impostano allo stesso modo, in modo
+permanente, `ERR_CAN_TX_FAIL`. Anche i nodi normali segnalano
+`ERR_CAN_TX_FAIL` quando un loro invio viene rifiutato; su un nodo si
+azzera da solo appena un heartbeat passa, quindi un `canbus_node_error` che
+va e viene indica un tratto di bus instabile. 🔵 PROGETTATO
 
 **Cause probabili:**
 

@@ -33,7 +33,8 @@ yet exercised against a real hardware fault.
 
 There's also a self-reporting signal: if the bridge has ever dropped frames because
 its internal buffer filled up, it latches an error flag (`ERR_BRIDGE_QUEUE_OVERFLOW`)
-into its heartbeat that stays set until the bridge is power-cycled — so a
+into its heartbeat that stays set until the bridge is power-cycled (frames it could not
+transmit after repeated retries latch `ERR_CAN_TX_FAIL` the same way) — so a
 struggling-but-not-fully-dead bridge should be visible in its diagnostics rather than
 silently degrading. Because a bridge is a normal registry row, it also appears in Home
 Assistant's per-node health entities exactly like a node: if it stops heartbeating, you

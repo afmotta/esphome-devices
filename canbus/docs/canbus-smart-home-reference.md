@@ -131,7 +131,7 @@ canbus/                       # flattened out of firmware/ (Phase 6a); the gatew
 │   └── check_registry_pushed.py # ADR-0009 push-discipline gate (run before gateway reflash)
 ├── tests/
 │   ├── test_protocol.cpp    # native round-trip test for canbus_protocol.h
-│   ├── test_ha_arbitration.cpp / test_node_health.cpp / test_bridge_forwarding.cpp
+│   ├── test_ha_arbitration.cpp / test_node_health.cpp / test_bridge_forwarding.cpp / test_tx_health.cpp
 │   │                        # native tests for the pure-logic headers
 │   ├── test_bindings_contract.cpp # drift test for the frozen bindings.h consumer contract
 │   ├── test_bindings.py / test_generate_exports.py / test_push_gate.py # Python (stdlib-only)
