@@ -100,7 +100,12 @@ ethernet:
     pin: 17
   phy_addr: 0
 
+# reboot_timeout: 0s — ESPHome's WiFi watchdog only tracks WiFi's own connection
+# (it ignores Ethernet), so with the default 15 min a missing or unreachable AP
+# would reboot an An-Penta that is perfectly healthy on Ethernet. WiFi is only the
+# fallback here; its absence must never reboot the board.
 wifi:
+  reboot_timeout: 0s
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
