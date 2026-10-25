@@ -35,7 +35,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | 🔧 | — |
 | [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | `5b53b0d` |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
-| [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | 🔧 | — |
+| [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ⬜ | — |
@@ -43,6 +43,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⬜ | — |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ⬜ | — |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ⬜ | — |
+| [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
 
 ---
 
@@ -173,7 +174,43 @@ scavalcato.
 **Correzione prevista.** Rimuovere il filtro; il tier HA vale NaN se il valore è `unavailable` oppure se
 l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della regola + e2e host.
 
-**Fix applicato:** _in lavorazione_
+**Fix applicato:** ✅ `ad79881` — `climate: make the HA sensor tier go NaN when HA is gone (R-04)`
+
+- **Valori `unavailable` di nuovo visibili.** Rimossi i due `filter_out: nan`: `unavailable` e `unknown` di HA arrivano
+  al failover come NaN.
+- **Il failover legge ora sensori filtrati per staleness** (`${room_slug}_temp_ha_gated`, `${room_slug}_humidity_ha_gated`,
+  interni). Restituiscono il valore grezzo finché c'è un client API **con sottoscrizione agli stati** connesso, oppure
+  entro un periodo di grazia dall'ultima connessione; poi NaN. Gli id grezzi `_temp_ha` e `_humidity_ha` restano invariati.
+- **Criterio di connessione:** `api::global_api_server->is_connected_with_state_subscription()` (`api_server.cpp:660`),
+  l'equivalente C++ di `api.connected: state_subscription_only: true`. L'integrazione di HA invia sempre la
+  sottoscrizione agli stati, mentre `is_connected()` conterebbe qualsiasi client.
+- **Grazia di 5 min** (`ha_staleness_grace_s: "300"`), sufficiente a coprire un riavvio di HA. Il criterio è la vita della
+  connessione e non il tempo dall'ultimo aggiornamento, perché HA invia solo i cambi di stato.
+- **Regola pura** in `climate/protocol/ha_tier.h`:
+  - aritmetica su `millis()` sicura al wrap;
+  - scadenza memorizzata finché non c'è una riconnessione;
+  - al boot il gate è chiuso;
+  - un NaN in ingresso passa come NaN.
+  
+  Allo scadere della grazia anche il sensore grezzo viene azzerato a NaN, così una riconnessione non riespone il valore
+  vecchio prima che HA invii quello nuovo.
+- **Test:**
+  - `climate/tests/test_ha_tier.cpp`: 9 casi nativi (connesso, boot, entro e oltre la grazia, riconnessione, blip, NaN,
+    wrap di `millis()`, scadenza che sopravvive a un wrap completo); aggiunto alla battery.
+  - Nuovo harness host `climate/tests/harness/room_sensors.yaml`, che include `room_sensors.yaml` reale.
+  - `climate/tests/e2e/test_room_sensors.py`: un finto HA risponde alla sottoscrizione agli stati. Coperti: valore
+    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA", disconnessione oltre la grazia → NaN.
+  - Aggiunti al job CI su `main` e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
+- **Verificato:**
+  - battery nativa PASS in un worktree isolato sul commit;
+  - `esphome config` OK su climate-control, sui due harness climate, su light-controller e health-monitor;
+  - l'API scelta esiste in 2026.8.0.
+- **Non verificato qui** (PlatformIO bloccato): la compilazione per il device e l'e2e, che girerà in CI su `main`.
+- **Rischio residuo documentato:** anche `esphome logs` si sottoscrive agli stati per default. Una sessione di log lasciata
+  aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
+- **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
+  È trascurabile per la temperatura ambiente.
+- **Interazione con R-05:** l'override del radiante scavalca ancora il NaN, quindi R-05 resta necessaria.
 
 ---
 
@@ -225,6 +262,19 @@ watchdog o un timeout lato scheda relè.
   0017/0019 mentre esistono fino a 0023 (0019 assente).
 - Changelog molto lungo dentro `CLAUDE.md`: meglio un `CHANGELOG.md` separato.
 
+### R-12 — Temperatura esterna da HA congelata
+
+_Emersa durante il fix di R-04._
+
+- **Problema.** `climate/outdoor.yaml:39-45` (`outdoor_temp_ha`) ha lo stesso pattern di R-04: `filter_out: nan` e nessuna
+  staleness. Un valore esterno congelato alimenta la compensazione climatica e la media a 24 h del seasonal mode.
+- **Impatto.** Non c'è rischio di condensa, perché la protezione dew point usa i sensori delle stanze. Il fix è
+  lo stesso: rimuovere il filtro e aggiungere un `HaTierTracker`.
+- **Altri sensori `homeassistant` valutati e lasciati com'erano:**
+  - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
+  - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
+  - Le soglie MEV: vedi R-08.
+
 ---
 
 ## Cosa va bene
@@ -250,3 +300,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 |------|-------|--------|---------|----------|
 | 2026-10-25 | R-02 | `5b53b0d` | `api`/`wifi` `reboot_timeout: 0s` sui controller autonomi | `esphome config` ×5; hardware da fare al bring-up |
 | 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
+| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e in CI |
