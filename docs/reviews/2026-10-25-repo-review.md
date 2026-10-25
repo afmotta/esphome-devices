@@ -43,7 +43,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
-| [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
+| [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ✅ | `449be90`, `2763cdf` |
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ⬜ | — |
@@ -449,6 +449,21 @@ _Emersa durante il fix di R-04._
   staleness. Un valore esterno congelato alimenta la compensazione climatica e la media a 24 h del seasonal mode.
 - **Impatto.** Non c'è rischio di condensa, perché la protezione dew point usa i sensori delle stanze. Il fix è
   lo stesso: rimuovere il filtro e aggiungere un `HaTierTracker`.
+**Fix applicato:** ✅ `449be90` (`climate: make the outdoor-temperature HA tier go NaN when HA is gone (R-12)`) + `2763cdf`
+(collegamento a battery e CI).
+
+- **Fix:** in `climate/outdoor.yaml` è rimosso `filter_out: nan` e il failover legge il nuovo `outdoor_temp_ha_gated`, con
+  lo stesso gate `ha_tier.h` di R-04 (grazia `ha_outdoor_staleness_grace_s`, default 300 s).
+- **Consumatori in caso di NaN** (analizzati, nessuna modifica necessaria):
+  - `weather_compensation.yaml` non scrive nulla e logga un avviso al massimo ogni 10 min. Il target della valvola
+    miscelatrice resta l'ultimo, limitato tra mandata minima e massima, e i PID di stanza continuano a correggere.
+  - La media a 24 h scarta i campioni NaN e resta congelata durante il blackout; oggi è solo diagnostica.
+  - Il Tier 2 del seasonal mode è ancora un placeholder.
+- **Verificato:**
+  - e2e host `test_outdoor.py`: **4/4**, rieseguito anche da me. Con un gate sempre aperto il caso "oltre la grazia"
+    fallisce, come previsto.
+  - `esphome config` OK su climate-control e sull'harness; battery nativa PASS.
+
 - **Altri sensori `homeassistant` valutati e lasciati com'erano:**
   - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
   - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
@@ -516,3 +531,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-09 | `710f088` | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
 | 2026-10-25 | R-07 | `085bb05`, `a2db85c` | Errori TX CAN segnalati (bridge con retry limitato, nodi con `tx_health.h`) | test nativi, battery PASS, `esphome config` ×10 |
 | 2026-10-25 | R-06 (parz.) | `50103e2` | Avviso del generatore per ogni binding `toggle` | test Python, battery PASS |
+| 2026-10-25 | R-12 | `449be90`, `2763cdf` | Gate HA-tier sulla temperatura esterna | e2e host 4/4, `esphome config`, battery PASS |
