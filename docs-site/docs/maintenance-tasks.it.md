@@ -173,10 +173,12 @@ vuoi la spiegazione più completa del perché l'ordine conta.
 ## Tarare i guadagni PID per una zona radiante o fancoil
 
 Il controllo PID (proporzionale-integrale-derivativo) è ciò che porta gradualmente
-la temperatura di ogni zona verso il suo obiettivo. Ogni zona ha guadagni separati
-per riscaldamento e raffrescamento, e i sistemi radianti e fancoil hanno bisogno di
-punti di partenza molto diversi perché si comportano in modo molto diverso — i
-pavimenti radianti sono lenti a rispondere, i fancoil sono veloci.
+la temperatura di ogni zona verso il suo obiettivo. Ogni attuatore di zona ha un
+solo set di guadagni, condiviso da riscaldamento e raffrescamento (le uscite di caldo
+e freddo sono vincolate alla modalità della pompa di calore, quindi non esistono
+guadagni per modalità). I sistemi radianti e fancoil hanno punti di partenza diversi
+perché si comportano in modo diverso — i pavimenti radianti sono lenti a rispondere,
+i fancoil sono veloci.
 
 **Dove vivono i valori:** i guadagni PID (`kp`, `ki`, `kd`) vengono impostati nel
 punto in cui il pacchetto componente PID viene incluso per quella zona/circuito —
@@ -184,30 +186,37 @@ sono parametri passati al momento dell'inclusione, non nascosti nella logica
 condivisa del componente. Cerca il blocco `vars:` che accompagna l'inclusione del
 pacchetto PID di quella zona.
 
-**Intervalli di partenza:**
+**Valori predefiniti nel codice** (quelli che il sistema usa se una zona non li sovrascrive):
 
 | Sistema | Kp | Ki | Kd |
 |---|---|---|---|
-| Pavimento radiante (sistema lento) | 0,5–1,0 (parti da 0,8) | 0,001–0,01 (parti da 0,005) | 0,01–0,1 (parti da 0,05) |
-| Fancoil (sistema veloce) | 1,0–2,0 (parti da 1,2) | 0,005–0,02 (parti da 0,008) | 0,05–0,2 (parti da 0,08) |
+| Pavimento radiante (sistema lento) | 0,8 (intervallo sensato 0,5–1,0) | 0,005 (0,001–0,01) | 0,05 (0,01–0,1) |
+| Fancoil (sistema veloce) | 0,2 | 0,01 | 0,05 |
+| Valvola miscelatrice del piano | 0,2 | 0,01 | 0,0 |
 
-La modalità raffrescamento tipicamente richiede guadagni più alti rispetto al
-riscaldamento (aumenta tutti e tre di circa il 20–50%) perché il raffrescamento
-risponde più velocemente una volta coinvolta la circolazione d'aria a ventilazione
-forzata.
+Non spostare un fancoil verso Kp 1,0 o più: i suoi valori predefiniti sono già quelli
+da "sistema veloce". Il raffrescamento usa gli stessi guadagni del riscaldamento —
+tara una volta, nella stagione in cui il ciclo lavora davvero.
 
 **Prova prima l'auto-taratura.** Prima di tarare a mano, usa il componente
 `pid_autotune.yaml` — è costruito esattamente per questo e di solito ti avvicinerà
-di più, più rapidamente, rispetto a indovinare dagli intervalli sopra. Tara a mano
-solo se il risultato non traccia ancora bene.
+di più, più rapidamente, rispetto a indovinare dai numeri sopra. Tara a mano
+solo se il risultato non traccia ancora bene. Tre avvertenze sull'auto-taratura:
+eseguila nella stagione propria del ciclo (nella stagione sbagliata l'attuatore resta
+chiuso e la taratura non finisce mai); sui cicli con uscita sia di caldo sia di freddo
+(radiante, fancoil caldo+freddo) **dimezza i guadagni riportati**, perché l'escursione
+reale dell'uscita è 0..1 e non -1..+1 come assume il tuner; e per un fancoil `boost`
+metti prima a mano il suo PID in COOL, perché normalmente resta OFF finché non lo
+avvia il coordinatore del boost.
 
 **Processo di taratura, una volta ottenuto un punto di partenza:**
 
 1. Inizia in modo conservativo — `kp` basso, `ki`/`kd` molto bassi.
 2. Aumenta gradualmente osservando eventuali oscillazioni (la temperatura che
    supera il target e oscilla ripetutamente è un segno che sei andato troppo oltre).
-3. Tara le modalità riscaldamento e raffrescamento separatamente — sono problemi di
-   controllo genuinamente diversi sullo stesso hardware.
+3. Ricontrolla in entrambe le stagioni dopo una modifica — riscaldamento e
+   raffrescamento condividono un solo set di guadagni, quindi una modifica che aiuta
+   una stagione può peggiorare l'altra.
 4. Dai a una zona radiante tempo reale per mostrare il suo comportamento — poiché è
    un sistema lento, una modifica fatta ora non mostrerà il suo pieno effetto per
    ore, non minuti. Non correggere eccessivamente basandoti sui primi 20 minuti di

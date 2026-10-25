@@ -326,19 +326,32 @@ Room temperature/humidity control data is **not** on this bus — it is CAN-prim
 
 ### D. PID Tuning Guidelines
 
-**Radiant Floor (Slow System)**:
-- Kp: 0.5 - 1.0 (start at 0.8)
-- Ki: 0.001 - 0.01 (start at 0.005)
-- Kd: 0.01 - 0.1 (start at 0.05)
+Defaults live in the component packages (`climate/packages/components/`); the table is what the code
+ships, not a recommendation to retune. Zones normally just inherit these defaults.
+Note that `radiant.yaml`'s own `kp`/`ki`/`kd`/`pwm_period` vars are currently ignored — the
+`defaults:` of `heat_only_radiant.yaml` win (review R-15), so change radiant gains there.
 
-**Fancoil (Fast System)**:
-- Kp: 1.0 - 2.0 (start at 1.2)
-- Ki: 0.005 - 0.02 (start at 0.008)
-- Kd: 0.05 - 0.2 (start at 0.08)
+| Loop | Package | Kp | Ki | Kd | Notes |
+|------|---------|----|----|----|-------|
+| Radiant floor/ceiling (slow) | `heat_only_radiant.yaml` (used by `radiant.yaml`) | 0.8 | 0.005 | 0.05 | sane tuning range roughly Kp 0.5–1.0, Ki 0.001–0.01, Kd 0.01–0.1 |
+| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them (Kp ~0.1–0.5), not toward 1.0+ |
+| Floor mixing valve | `mixing_pump.yaml` | 0.2 | 0.01 | 0.0 | |
 
-**Cooling Mode** (typically needs higher gains than heating):
-- Increase all parameters by 20-50%
-- Cooling has faster response due to air circulation
+**One gain set per actuator.** Since R-01 each actuator has a single PID whose heat and cool outputs are
+gated on `hp_mode` (see "PID Control Architecture"), so heating and cooling share the same `kp`/`ki`/`kd`.
+There are no separate per-mode gains to tune: tune once, in the season the loop actually works in.
+
+**Autotune caveats** (`pid_autotune.yaml`, `pid_autotune_with_fancoil.yaml`):
+- Run it in the loop's own season (`hp_mode` HEAT for a heating loop, COOL for a cooling one). In the
+  wrong season the gated actuator stays at 0, the room never responds and the tune never completes.
+- The autotuner assumes an output swing of -1..+1, but on a loop with both a heat and a cool output the
+  gated opposite half-cycle only closes the valve, so the real swing is 0..1 and the estimated gains
+  come out about 2x too high: **halve `kp`/`ki`/`kd`** on dual-output loops (radiant, `heat_cool`
+  fancoils). Heat-only and cool-only loops already model 0..1 correctly.
+- The PID must not be OFF. `boost` fancoils sit OFF until the boost coordinator starts them, so set the
+  fancoil PID to COOL by hand before pressing the button.
+- For zones with a fancoil or boost coordinator use `pid_autotune_with_fancoil.yaml` (ends boost and
+  turns the fancoil PID off first) and run it in HEAT.
 
 ### Debugging Modbus and PID issues
 
@@ -352,7 +365,7 @@ Room temperature/humidity control data is **not** on this bus — it is CAN-prim
 - Use auto-tune feature first (`pid_autotune.yaml`)
 - Start with conservative gains (low Kp, very low Ki/Kd)
 - Increase gradually while monitoring stability
-- Different gains for heat vs. cool modes
+- One gain set serves both directions (heat/cool outputs are gated, not separate PIDs); tune in the season the loop works in
 
 ## The room_slug contract with canbus
 

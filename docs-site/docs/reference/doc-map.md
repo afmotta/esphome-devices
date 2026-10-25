@@ -27,7 +27,7 @@ different purposes:
    file is a map of the whole repository; each subsystem's own file is the actual
    rulebook for that subsystem.
 
-3. **ADRs (Architecture Decision Records), under `docs/adr/` (the unified ADR-0001…0017
+3. **ADRs (Architecture Decision Records), under `docs/adr/` (the unified ADR-0001…0023
    set) — the record of *why*.**
    Each ADR documents one significant decision (e.g. "which controller hardware to
    standardize on"), the alternatives that were considered, and the trade-offs

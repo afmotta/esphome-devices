@@ -153,37 +153,46 @@ order matters.
 ## Adjusting PID gains for a radiant or fancoil zone
 
 PID (proportional-integral-derivative) control is what smoothly drives each zone's
-temperature toward its target. Each zone has separate gains for heating and cooling,
-and radiant and fancoil systems need very different starting points because they
-behave very differently — radiant floors are slow to respond, fancoils are fast.
+temperature toward its target. Each zone actuator has one set of gains, shared by
+heating and cooling (the heat and cool outputs are gated on the heat pump's mode, so
+there are no per-mode gains). Radiant and fancoil systems have different starting
+points because they behave differently — radiant floors are slow to respond, fancoils
+are fast.
 
 **Where the values live:** PID gains (`kp`, `ki`, `kd`) are set where the PID
 component package is included for that zone/circuit — they are parameters passed in
 at inclusion time, not buried in the shared component logic itself. Look for the
 `vars:` block accompanying that zone's PID package include.
 
-**Starting-point ranges:**
+**Defaults shipped in the code** (what the system runs unless a zone overrides them):
 
 | System | Kp | Ki | Kd |
 |---|---|---|---|
-| Radiant floor (slow system) | 0.5–1.0 (start 0.8) | 0.001–0.01 (start 0.005) | 0.01–0.1 (start 0.05) |
-| Fancoil (fast system) | 1.0–2.0 (start 1.2) | 0.005–0.02 (start 0.008) | 0.05–0.2 (start 0.08) |
+| Radiant floor (slow system) | 0.8 (sane range 0.5–1.0) | 0.005 (0.001–0.01) | 0.05 (0.01–0.1) |
+| Fancoil (fast system) | 0.2 | 0.01 | 0.05 |
+| Floor mixing valve | 0.2 | 0.01 | 0.0 |
 
-Cooling mode typically needs higher gains than heating (increase all three by roughly
-20–50%) because cooling responds faster once fan-driven air circulation is involved.
+Don't move a fancoil toward Kp 1.0 or more: its defaults are already the "fast system"
+values. Cooling shares the same gains as heating — tune once, in the season the loop
+actually works in.
 
 **Try auto-tune first.** Before hand-tuning, use the `pid_autotune.yaml` component —
 it's built for exactly this and will usually get you closer, faster, than guessing
-from the ranges above. Hand-tune from there only if the result still isn't tracking
-well.
+from the numbers above. Hand-tune from there only if the result still isn't tracking
+well. Three auto-tune caveats: run it in the loop's own season (in the wrong season the
+actuator stays closed and the tune never finishes); on loops that have both a heat and
+a cool output (radiant, a heating-and-cooling fancoil) **halve the reported gains**,
+because the real output swing is 0..1 rather than the -1..+1 the tuner assumes; and
+for a `boost` fancoil, set its PID to COOL by hand first, since it normally sits OFF
+until the boost coordinator starts it.
 
 **Tuning process, once you have a starting point:**
 
 1. Start conservative — low `kp`, very low `ki`/`kd`.
 2. Increase gradually while watching for oscillation (temperature overshooting and
    swinging back repeatedly is a sign you've gone too far).
-3. Tune heat and cool modes separately — they are genuinely different control
-   problems on the same hardware.
+3. Re-check in both seasons after a change — heating and cooling share one gain set,
+   so a change that helps one season can hurt the other.
 4. Give a radiant zone real time to show its behavior — because it's a slow system, a
    change you make now won't show its full effect for hours, not minutes. Don't
    over-correct based on the first 20 minutes of data.

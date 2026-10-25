@@ -39,11 +39,11 @@ Each room's climate control doesn't read a single sensor directly — it reads a
 The three tiers, in priority order:
 
 1. **Primary (labeled "CAN")** — the room's own CAN bus sensor kit, read directly by the climate controller.
-2. **Secondary (labeled "HA")** — a fallback reading pulled from Home Assistant instead, used only when the CAN reading is unavailable.
-3. **Emergency** — no valid reading from either source. The abstracted value becomes invalid (mathematically "NaN," not-a-number) the moment both sources fail — 🔵 there is no built-in delay in this component before that happens.
+2. **Secondary (labeled "HA")** — a fallback reading pulled from Home Assistant instead, used only when the CAN reading is unavailable. It counts as unavailable when Home Assistant reports the entity `unavailable`/`unknown`, or when Home Assistant itself has been disconnected from the controller for more than 5 minutes (a short grace that covers an HA restart) — so a frozen last value is never served indefinitely.
+3. **Emergency** — no valid reading from either source. The abstracted value becomes invalid (mathematically "NaN," not-a-number) the moment both sources fail — 🟢 there is no built-in delay in this component before that happens. The room's PID controller reacts to that invalid reading by dropping its outputs to 0 right away (valve closed, fancoil off), so the room is simply not heated or cooled until a source returns.
 
-    !!! warning "Known gap: the '5-minute' number"
-        You may see other project documentation describe the Emergency tier as triggering "a safe shutdown after 5 minutes." ⚠️ That specific number does not appear in this failover component's own code — it returns an invalid reading immediately, with no delay coded here. If a 5-minute grace period exists anywhere before some larger safety action fires, it must live in a different part of the system; treat that number as unverified until confirmed. Don't assume it protects you.
+    !!! note "About the '5 minutes'"
+        Older project documentation described the Emergency tier as "a safe shutdown after 5 minutes." That was wrong, and it is now resolved: the failover and the PID react **immediately**; the only 5-minute figure is the Home Assistant tier's grace period described above (the time without a Home Assistant connection before that tier is declared unavailable). ✅ Resolved by review item R-04; 🔵 not yet bench-tested on the real controller (see the [Confidence Ledger](reference/confidence-ledger.md)). Tip: an `esphome logs` session left open counts as a Home Assistant connection and keeps the HA tier alive during an outage — use `esphome logs --no-states`.
 
 Each room exposes a diagnostic **"Active Sensor Tier"** text entity in Home Assistant reporting which tier is currently supplying its data, following the pattern `{room}_temp_abstracted_sensor_tier` (for example, `soggiorno_temp_abstracted_sensor_tier` for the living room). There's a matching one for humidity.
 
