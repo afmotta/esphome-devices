@@ -110,7 +110,19 @@ inline constexpr uint8_t EVT_HOLD_RELEASE = 0x07;
 
 // --------------- Error flags (heartbeat) ---------------
 inline constexpr uint8_t ERR_NONE = 0x00;
+// The node's CAN controller refused a frame (send_data() != ERROR_OK: every TX buffer busy /
+// TX queue full). Non-sticky on nodes — set by the failure, cleared once a heartbeat carrying
+// it went out (tx_health.h); on a segment bridge also latched for frames it gave up on.
 inline constexpr uint8_t ERR_CAN_TX_FAIL = 0x01;
+// RESERVED — no firmware sets it, and none can with stock ESPHome (2026.8.0): the `canbus`
+// component's public surface is send_data()/add_callback() only. MCP2515's EFLG.TXBO is read
+// solely by protected helpers (get_error_flags_/check_error_) on a `final` class, and
+// esp32_can does not wrap twai_get_status_info()/twai_read_alerts() nor expose its
+// twai_handle_ (protected, `final`) — nor does it ever start bus-off recovery. Reporting it
+// would need a custom external component. Bus-off is not invisible, though: its effect
+// surfaces as ERR_CAN_TX_FAIL (buffers/queue never drain), and a node that is off the bus
+// cannot heartbeat at all, so the gateway's node_lost covers it. The value stays allocated so
+// the wire meaning is fixed if a component ever exposes the state.
 inline constexpr uint8_t ERR_CAN_BUS_OFF = 0x02;
 // Segment bridge only (ADR-0005): the store-and-forward queue dropped frames.
 inline constexpr uint8_t ERR_BRIDGE_QUEUE_OVERFLOW = 0x04;

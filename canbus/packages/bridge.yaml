@@ -53,7 +53,8 @@
 #     and never holds a segment dominant.
 #   - Conservative forwarding: store-and-forward queues with paced drain
 #     (bridge_forwarding.h); drops are counted and folded into the heartbeat
-#     error flags (ERR_BRIDGE_QUEUE_OVERFLOW).
+#     error flags — ERR_BRIDGE_QUEUE_OVERFLOW for ingress drops, ERR_CAN_TX_FAIL
+#     for frames abandoned after the egress controller kept refusing them.
 #
 # Required substitutions: ${node_id}
 # =============================================================================
@@ -121,7 +122,11 @@ canbus:
 interval:
   # Paced drain: at most BRIDGE_DRAIN_MAX frames per direction per tick (200
   # frames/s/direction at 10 ms) — see bridge_forwarding.h for the TX-buffer
-  # arithmetic behind the cap.
+  # arithmetic behind the cap. A frame counts as forwarded only when send_data()
+  # returned ERROR_OK; a refused one stays at the head of its queue and is retried
+  # next tick, up to BRIDGE_TX_ATTEMPTS_MAX, then dropped and counted (dropped_tx).
+  # Every send also feeds tx_health, so even a refusal a retry recovered reaches the
+  # next heartbeat as the (non-sticky) ERR_CAN_TX_FAIL.
   #
   # The same tick folds any drop into error_flags, which node_core.yaml's single
   # heartbeat transmits. The bridge deliberately has NO heartbeat of its own:
@@ -131,12 +136,26 @@ interval:
   - interval: 10ms
     then:
       - lambda: |-
-          for (const auto &f : bridge_drain(bridge_queue_to_backbone(), bridge_stats_to_backbone()))
-            id(can0).send_data(f.can_id, f.extended,
-                               std::vector<uint8_t>(f.data, f.data + f.len));
-          for (const auto &f : bridge_drain(bridge_queue_to_zone(), bridge_stats_to_zone()))
-            id(can1).send_data(f.can_id, f.extended,
-                               std::vector<uint8_t>(f.data, f.data + f.len));
+          const auto r_bb = bridge_drain_send(
+              bridge_queue_to_backbone(), bridge_stats_to_backbone(),
+              [](const BridgeFrame &f) {
+                return tx_health_track(tx_health(),
+                    id(can0).send_data(f.can_id, f.extended,
+                        std::vector<uint8_t>(f.data, f.data + f.len)) == canbus::ERROR_OK);
+              });
+          const auto r_zone = bridge_drain_send(
+              bridge_queue_to_zone(), bridge_stats_to_zone(),
+              [](const BridgeFrame &f) {
+                return tx_health_track(tx_health(),
+                    id(can1).send_data(f.can_id, f.extended,
+                        std::vector<uint8_t>(f.data, f.data + f.len)) == canbus::ERROR_OK);
+              });
+          if (r_bb.dropped > 0)
+            ESP_LOGW("bridge", "to-backbone TX refused %u times; dropped %u frame(s)",
+                     (unsigned) BRIDGE_TX_ATTEMPTS_MAX, (unsigned) r_bb.dropped);
+          if (r_zone.dropped > 0)
+            ESP_LOGW("bridge", "to-zone TX refused %u times; dropped %u frame(s)",
+                     (unsigned) BRIDGE_TX_ATTEMPTS_MAX, (unsigned) r_zone.dropped);
           id(error_flags) |= bridge_error_flags(bridge_stats_to_backbone(),
                                                 bridge_stats_to_zone());
 
@@ -149,8 +168,10 @@ interval:
           const BridgeStats &tb = bridge_stats_to_backbone();
           const BridgeStats &tz = bridge_stats_to_zone();
           ESP_LOGI("bridge",
-                   "to-backbone fwd=%u q=%u drop(of=%u,sz=%u) | to-zone fwd=%u q=%u drop(of=%u,sz=%u)",
+                   "to-backbone fwd=%u q=%u drop(of=%u,sz=%u,tx=%u) txfail=%u | to-zone fwd=%u q=%u drop(of=%u,sz=%u,tx=%u) txfail=%u",
                    (unsigned) tb.forwarded, (unsigned) bridge_queue_to_backbone().size(),
                    (unsigned) tb.dropped_overflow, (unsigned) tb.dropped_oversize,
+                   (unsigned) tb.dropped_tx, (unsigned) tb.tx_failed,
                    (unsigned) tz.forwarded, (unsigned) bridge_queue_to_zone().size(),
-                   (unsigned) tz.dropped_overflow, (unsigned) tz.dropped_oversize);
+                   (unsigned) tz.dropped_overflow, (unsigned) tz.dropped_oversize,
+                   (unsigned) tz.dropped_tx, (unsigned) tz.tx_failed);
