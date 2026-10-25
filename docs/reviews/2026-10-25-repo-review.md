@@ -47,7 +47,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (limiti simmetrici) | ✅ | `dea1047`, `583eb8d` |
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ✅ | `5014afd`, `638342f` |
-| [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
+| [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ✅ | `d509ff3`, `7d28baa` |
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
 | [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ⬜ | — |
 | [R-19](#r-19--le-pompe-di-circolazione-erano-sempre-accese) | 🔴 | Pompe di circolazione sempre accese (`id(binary_sensor)` è un puntatore) | ✅ | `504300a` |
@@ -300,10 +300,13 @@ pompa, oppure aggiungere i `*_boost_active` alla somma.
 + `342cc1c` (collegamento alla battery e documentazione).
 
 - **Boost:**
-  - il nuovo binary sensor interno "Boost Sensor Lost" chiude **subito** un boost se la temperatura della zona è NaN,
-    senza ritardo anti-ciclo, sulla stessa via dell'override stagionale, con un log WARN;
+  - il nuovo binary sensor interno "Boost Sensor Lost" chiude un boost se la temperatura della zona resta NaN,
+    senza ritardo anti-ciclo, sulla stessa via dell'override stagionale, con un log WARN. Dopo `7d28baa` (R-16) scatta
+    solo se il NaN persiste per `sensor_lost_grace` (default 120 s); la valvola è comunque chiusa fin dal primo
+    istante;
   - nessun trigger (temperatura, umidità, predittivo) può avviare un boost con temperatura NaN;
-  - dopo un reboot un boost ripristinato viene annullato finché il sensore non torna.
+  - dopo un reboot un boost ripristinato sopravvive se la prima lettura arriva entro la tolleranza; altrimenti
+    termina (vedi R-16).
 - **Override manuale (HA):** decisione presa di **ignorarlo** quando il sensore è perso. È una comodità sopra il loop,
   non un bypass di sicurezza; in raffrescamento anche il dew point dipende da quei sensori.
   - La regola è in `climate/protocol/radiant_override.h` (`final_level`, `holds_open`).
@@ -617,6 +620,33 @@ finestra era aperta, un fancoil `boost` torna acceso come raffrescatore permanen
 Un PID con sola `cool_output` (fancoil `boost` e `cool_only`) senza stato salvato parte in COOL al primissimo boot.
 Se in quel momento `hp_mode` è già COOL, il fancoil potrebbe partire prima che l'handler stagionale lo spenga.
 
+**Fix applicato:** ✅ `d509ff3` (`climate: deterministic boot mode for fancoil PIDs per role (R-16)`) + `7d28baa` (tolleranza
+sul sensore perso, riconciliazione con R-05).
+
+- **Causa reale:** il select `hp_mode` (setup HARDWARE) eseguiva gli handler di ruolo prima del `setup()` del PID (DATA).
+  Il restore del PID sovrascriveva poi la modalità impostata dall'handler.
+- **Fix:**
+  - ogni `fancoil_role_*.yaml` ha uno script `${room_slug}_fancoil_sync_mode`, eseguito dall'`on_value` del select e da
+    un `on_boot` **a mappa, a -100**, fuso nello stesso trigger dei replay del coordinatore (vedi R-18);
+  - `boost` → OFF, salvo un boost ripristinato come attivo, che resta al replay;
+  - `cool_only` → COOL solo con `hp_mode` COOL;
+  - `heat_cool` → segue `hp_mode`.
+- **Conflitto con R-05 emerso in integrazione:** R-05 chiudeva subito il boost con temperatura NaN, e dopo un reboot la
+  temperatura è NaN fino alla prima lettura. Ogni boost ripristinato veniva quindi annullato.
+- **Decisione:** tolleranza `sensor_lost_grace` (default 120 s), implementata con un filtro `delayed_on` che si annulla
+  quando il sensore torna e non si riarma sui valori ripetuti.
+  - È sicuro perché con R-05 la valvola radiante si chiude subito con zona NaN e il PID scrive 0. Lo stato del boost
+    decide solo cosa succede quando il sensore torna.
+  - Avviare un boost con temperatura NaN resta vietato.
+- **Osservazione del subagente, assorbita:** la "season override" del boost leggeva `hp_mode_summer` prima che avesse
+  uno stato e poteva chiudere un boost appena ripristinato. Con la tolleranza e il controllo NaN il caso non produce
+  attuazioni; resta un possibile irrigidimento futuro (`has_state()`).
+- **Test** (e2e con preferenze isolate):
+  - `test_pid_behaviour.py` 19/19 a questo stadio: stato al boot per ruolo, replay dopo un restart, restart con e senza
+    lettura entro la tolleranza;
+  - `test_fancoil_boost.py` 16/16;
+  - senza il fix, i tre test sullo stato al boot falliscono.
+
 ### R-17 — Nessun recovery da bus-off sui nodi ESP32
 
 _Emersa durante il fix di R-07._ `esp32_can` (ESPHome 2026.8.0) non chiama mai `twai_initiate_recovery`. Un nodo ESP32
@@ -693,3 +723,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-08a | `0583674` | Ritardo predittivo del boost: NaN/≤0 rifiutato, valori enormi limitati | e2e host 15/15 |
 | 2026-10-25 | R-15 | `5014afd`, `638342f` | Le var di `radiant.yaml` arrivano a PID e PWM | config invariata, e2e host 40/40 |
 | 2026-10-25 | R-13 | `dea1047`, `583eb8d` | Integrale PID confinato alla direzione attiva (`hp_mode`) | test nativi, e2e host 13/13 |
+| 2026-10-25 | R-16 | `d509ff3`, `7d28baa` | Stato al boot dei fancoil per ruolo; tolleranza sul sensore perso (riconcilia R-05) | e2e host 19/19 + 16/16 |
