@@ -25,6 +25,18 @@
 #   techroom fancoil.yaml, fancoil_role: cool_only      cool-only loop
 #   loft     fancoil.yaml, fancoil_role: heat_cool, integral_limit: 0.5
 #   mix      mixing_pump.yaml (supply-temperature valve PID, dual loop)
+#   living   the production soggiorno composition: radiant.yaml + fancoil.yaml
+#            (fancoil_role: boost) + the REAL fancoil_boost.yaml coordinator
+#            (R-16 boot state, R-14 window guard). The activation triggers are
+#            inert (their threshold inputs stay unset); tests start/stop boosts through
+#            the API actions below, which drive the real boost select
+#            (set_action and boot replay included). The boost-enabled gate keeps
+#            its production default (OFF) until a test opens it: with it OFF a
+#            running boost is dropped to "Radiant Only" at once.
+#
+# Boot state (R-16): hp_mode restores (initial COOL) and the tests run the
+# binary against a private ESPHOME_PREFDIR, so a fresh boot really has no
+# saved PID state, while a restart reuses the previous run's.
 # =============================================================================
 
 substitutions:
@@ -39,6 +51,11 @@ esphome:
     - ../../protocol/radiant_override.h   # heat_only_radiant's final stage (R-05)
 
 host:
+
+# The boost coordinator's epoch stamping reads a time component under this id.
+time:
+  - platform: host
+    id: sntp_time
 
 logger:
   level: DEBUG
@@ -66,6 +83,38 @@ api:
         - select.set:
             id: hp_mode
             option: !lambda "return value;"
+    # The boost coordinator's select, driven directly: set_action is the real
+    # one (radiant override, fancoil COOL / OFF), the activation triggers are not.
+    - action: boost_start
+      then:
+        - select.set:
+            id: living_boost_state
+            option: "Fancoil Boost"
+    - action: boost_stop
+      then:
+        - select.set:
+            id: living_boost_state
+            option: "Radiant Only"
+    # The commissioning gate (production default OFF; restored across reboots).
+    - action: set_boost_enabled
+      variables:
+        value: bool
+      then:
+        - if:
+            condition:
+              lambda: "return value;"
+            then:
+              - switch.turn_on: living_boost_enabled
+            else:
+              - switch.turn_off: living_boost_enabled
+    # A manual HA change of the living fancoil mode.
+    - action: living_fancoil_mode
+      variables:
+        value: string
+      then:
+        - climate.control:
+            id: living_fancoil_pid
+            mode: !lambda "return value == \"COOL\" ? CLIMATE_MODE_COOL : CLIMATE_MODE_OFF;"
 
 select:
   - platform: template
@@ -75,8 +124,9 @@ select:
       - "HEAT"
       - "COOL"
       - "SANITARY_ONLY"
-    initial_option: "SANITARY_ONLY"
+    initial_option: "COOL"
     optimistic: true
+    restore_value: true
 
 switch:
   - platform: template
@@ -86,6 +136,10 @@ switch:
   - platform: template
     id: mix_pump
     name: "Mix Pump"
+    optimistic: true
+  - platform: template
+    id: living_relay
+    name: "Living Relay"
     optimistic: true
 
 binary_sensor:
@@ -97,6 +151,18 @@ binary_sensor:
 sensor:
   - platform: template
     id: stub_temperature
+    internal: true
+  - platform: template
+    id: stub_humidity
+    internal: true
+  - platform: template
+    id: stub_temp_threshold
+    internal: true
+  - platform: template
+    id: stub_humidity_threshold
+    internal: true
+  - platform: template
+    id: stub_predictive_minutes
     internal: true
   # Replaces the Dallas supply sensor of mixing_pump.yaml: the valve PID reads
   # this id.
@@ -110,6 +176,9 @@ sensor:
     id: valve_level
     name: "Valve Level"
   - platform: template
+    id: living_fan_level
+    name: "Living Fan Level"
+  - platform: template
     id: attic_fan_level
     name: "Attic Fan Level"
   - platform: template
@@ -122,6 +191,15 @@ sensor:
 output:
   - id: !extend bath_radiant_pwm
     restart_cycle_on_state_change: true
+  - id: !extend living_radiant_pwm
+    restart_cycle_on_state_change: true
+  - platform: template
+    id: living_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: living_fan_level
+          state: !lambda "return state;"
   - platform: template
     id: valve_out
     type: float
@@ -222,3 +300,50 @@ packages:
       kp: 0.5
       ki: 1.0
       kd: 0.0
+  living_radiant: !include
+    file: ../../packages/components/radiant.yaml
+    vars:
+      room_slug: living
+      room_name: "Living"
+      temperature_sensor: stub_temperature
+      relay_id: living_relay
+      pwm_period: 1s
+  living_fancoil: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: living
+      room_name: "Living"
+      temperature_sensor: stub_temperature
+      output_id: living_fan_out
+      fancoil_role: boost
+  # fancoil_boost.yaml's cooling-season input: production derives it from
+  # hp_mode (hp_mode_summer), and so does the stub -- the coordinator ends a
+  # running boost the moment this reads false. A package listed BEFORE the
+  # coordinator, so the stub is evaluated first in the first loop and a
+  # replayed boost is not seen against its initial "false".
+  cooling_stub:
+    binary_sensor:
+      - platform: template
+        id: stub_cooling_mode
+        internal: true
+        lambda: |-
+          return id(hp_mode).current_option() == "COOL";
+  living_boost: !include
+    file: ../../packages/coordinators/fancoil_boost.yaml
+    vars:
+      zone_slug: living
+      zone_name: "Living"
+      temperature_sensor: stub_temperature
+      humidity_sensor: stub_humidity
+      radiant_pid_id: living_radiant_pid
+      radiant_pid_cool_sensor: living_radiant_pid_cool
+      fancoil_pid_id: living_fancoil_pid
+      radiant_override_value_id: living_radiant_override_value
+      radiant_override_switch_id: living_radiant_override
+      radiant_pwm_id: living_radiant_output
+      cooling_mode_sensor: stub_cooling_mode
+      temp_threshold_sensor: stub_temp_threshold
+      humidity_threshold_sensor: stub_humidity_threshold
+      predictive_minutes_sensor: stub_predictive_minutes
+      min_time_in_state_seconds: 2
+      diagnostics_update_interval: 100ms

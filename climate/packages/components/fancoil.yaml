@@ -16,6 +16,14 @@
 #   heat_cool  - standalone heating and cooling (sottotetto): HEAT / COOL /
 #                OFF following the heat pump mode.
 #
+# Boot state (R-16): the role file also re-runs its hp_mode handler once at
+# boot (script ${room_slug}_fancoil_sync_mode, esphome.on_boot priority -100).
+# Without it the PID's own restore, which runs after the hp_mode select has
+# already fired the handler, left a cool-only PID in COOL on a first boot
+# whatever the season. Resulting boot mode: boost => OFF unless the boost
+# coordinator replays a restored boost; cool_only => COOL iff hp_mode COOL;
+# heat_cool => HEAT / COOL / OFF with hp_mode.
+#
 # Direction gating: ESPHome's PID routes a positive value to heat_output and a
 # negative one to cool_output regardless of its HEAT/COOL mode, so a fancoil
 # with only cool_output ran whenever the room was too WARM, even in winter. The

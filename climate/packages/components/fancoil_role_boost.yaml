@@ -13,6 +13,13 @@
 # be cut short (the coordinator would not restart it). When the season really
 # ends the coordinator's own season override ends the boost.
 #
+# Boot (R-16): the PID's first-boot default is COOL (it has only a cool_output)
+# and its restore overwrites what the handler did before the PID's setup, so a
+# fancoil could come up cooling with no boost, behind the commissioning gate.
+# The same handler is therefore re-run once at boot: OFF unless a boost is
+# restored as running, in which case it leaves the PID alone and the
+# coordinator's boot replay (also priority -100, order irrelevant) owns it.
+#
 # Optional vars:
 #   boost_state_select_id    - The boost coordinator's select (default:
 #                              ${room_slug}_boost_state)
@@ -24,13 +31,40 @@
 defaults:
   boost_state_select_id: ${room_slug}_boost_state
 
+script:
+  # Never turns the PID on; see above for the one case it leaves alone.
+  - id: ${room_slug}_fancoil_sync_mode
+    then:
+      - lambda: |-
+          if (id(${seasonal_mode_id}).current_option() == "COOL" &&
+              id(${boost_state_select_id}).current_option() == "Fancoil Boost")
+            return;
+          auto call = id(${room_slug}_fancoil_pid).make_call();
+          call.set_mode(climate::CLIMATE_MODE_OFF);
+          call.perform();
+
 select:
   - id: !extend ${seasonal_mode_id}
     on_value:
       then:
-        - lambda: |-
-            if (x == "COOL" && id(${boost_state_select_id}).current_option() == "Fancoil Boost")
-              return;
-            auto call = id(${room_slug}_fancoil_pid).make_call();
-            call.set_mode(climate::CLIMATE_MODE_OFF);
-            call.perform();
+        - script.execute: ${room_slug}_fancoil_sync_mode
+
+# Boot sync (R-16). The seasonal select's restore publishes (and so fires the
+# handler above) in its setup (priority HARDWARE), BEFORE the PID's own setup()
+# (DATA), whose restore_state_() then overwrites that mode -- and with no saved
+# state (first boot, or a new PID after a firmware change) a PID with only a
+# cool_output starts in COOL regardless of hp_mode. Re-running the handler once
+# everything is set up makes the boot mode deterministic.
+#
+# Written as a MAPPING at priority -100, exactly like fancoil_boost.yaml's
+# boot hook: ESPHome merges package `on_boot:` mappings into ONE trigger (the
+# `then` lists concatenate, one `priority` survives), whereas a list-form
+# on_boot replaces a mapping-form one (or is replaced by it) and silently
+# drops a hook. Do not change the priority or the form without changing the
+# coordinator's too. The sync below does not depend on running before or after
+# the coordinator's replay.
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: ${room_slug}_fancoil_sync_mode

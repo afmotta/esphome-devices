@@ -3,7 +3,9 @@
 # Purpose:   fancoil_role "heat_cool": a standalone fancoil that both heats and
 #            cools its room (sottotetto). Adds the gated HEAT-direction output
 #            to the PID (fancoil.yaml already adds the cool one) and switches
-#            the PID mode with the heat pump: HEAT / COOL / OFF.
+#            the PID mode with the heat pump: HEAT / COOL / OFF. The mapping
+#            lives in one script, run on every hp_mode change and once at boot
+#            (R-16).
 #
 # Uses the vars and substitutions of fancoil.yaml (room_slug, output_id,
 # seasonal_mode_id); not meant to be included on its own.
@@ -25,17 +27,42 @@ climate:
     heat_output: ${room_slug}_fancoil_heat_output
 
 # Seasonal mode handler: the PID follows the heat pump (SANITARY_ONLY => OFF)
+script:
+  - id: ${room_slug}_fancoil_sync_mode
+    then:
+      - lambda: |-
+          auto call = id(${room_slug}_fancoil_pid).make_call();
+          if (id(${seasonal_mode_id}).current_option() == "COOL") {
+            call.set_mode(climate::CLIMATE_MODE_COOL);
+          } else if (id(${seasonal_mode_id}).current_option() == "HEAT") {
+            call.set_mode(climate::CLIMATE_MODE_HEAT);
+          } else {
+            call.set_mode(climate::CLIMATE_MODE_OFF);
+          }
+          call.perform();
+
 select:
   - id: !extend ${seasonal_mode_id}
     on_value:
       then:
-        - lambda: |-
-            auto call = id(${room_slug}_fancoil_pid).make_call();
-            if (x == "COOL") {
-              call.set_mode(climate::CLIMATE_MODE_COOL);
-            } else if (x == "HEAT") {
-              call.set_mode(climate::CLIMATE_MODE_HEAT);
-            } else {
-              call.set_mode(climate::CLIMATE_MODE_OFF);
-            }
-            call.perform();
+        - script.execute: ${room_slug}_fancoil_sync_mode
+
+# Boot sync (R-16). The seasonal select's restore publishes (and so fires the
+# handler above) in its setup (priority HARDWARE), BEFORE the PID's own setup()
+# (DATA), whose restore_state_() then overwrites that mode -- and with no saved
+# state (first boot, or a new PID after a firmware change) a PID with only a
+# cool_output starts in COOL regardless of hp_mode. Re-running the handler once
+# everything is set up makes the boot mode deterministic.
+#
+# Written as a MAPPING at priority -100, exactly like fancoil_boost.yaml's
+# boot hook: ESPHome merges package `on_boot:` mappings into ONE trigger (the
+# `then` lists concatenate, one `priority` survives), whereas a list-form
+# on_boot replaces a mapping-form one (or is replaced by it) and silently
+# drops a hook. Do not change the priority or the form without changing the
+# coordinator's too. The sync below does not depend on running before or after
+# the coordinator's replay.
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: ${room_slug}_fancoil_sync_mode
