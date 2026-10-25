@@ -495,3 +495,20 @@ async def test_direct_boost_style_write_cannot_open_a_blind_zone(run_harness):
     await assert_relay_stays_off(h, "bath")
     await assert_active(h, "bath_radiant_override_active", False)
     assert relay_count(h, "bath") == 0
+
+
+# --- tuning vars reach the PID through radiant.yaml (R-15) -------------------
+
+async def test_radiant_tuning_vars_reach_the_pid(run_harness):
+    """radiant.yaml used to drop kp/ki/kd (heat_only_radiant.yaml's defaults won).
+
+    The harness gives the bedroom (radiant.yaml) non-default gains; the bath
+    (heat_only_radiant.yaml) keeps the package defaults.
+    """
+    h = await run_harness("radiant_direction")
+    await h.wait_for_value("bedroom_radiant_pid_kp", 0.7)
+    await h.wait_for_value("bedroom_radiant_pid_ki", 0.004)
+    await h.wait_for_value("bedroom_radiant_pid_kd", 0.03)
+    await h.wait_for_value("bath_radiant_pid_kp", 0.8)
+    await h.wait_for_value("bath_radiant_pid_ki", 0.005)
+    await h.wait_for_value("bath_radiant_pid_kd", 0.05)

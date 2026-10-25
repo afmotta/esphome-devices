@@ -16,6 +16,7 @@
 #   kp                       - Proportional gain (default: 0.8)
 #   ki                       - Integral gain (default: 0.005)
 #   kd                       - Derivative gain (default: 0.05)
+#   (radiant.yaml forwards its own pwm_period/kp/ki/kd to this file, see R-15)
 #
 # Dependencies:
 #   - pid.yaml (included automatically, must be in same directory)
