@@ -21,6 +21,7 @@ packages:
     file: ../../packages/components/fancoil.yaml
     vars:
       output_id: analog_output_5
+      fancoil_role: cool_only # "Heating: None" — cools only
 
   autotune_fancoil: !include
     file: ../../packages/components/pid_autotune.yaml

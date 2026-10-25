@@ -1,0 +1,36 @@
+# =============================================================================
+# Component: fancoil_role_boost.yaml (included by fancoil.yaml)
+# Purpose:   fancoil_role "boost": the fancoil is the responsive cooling layer
+#            of the hybrid radiant + fancoil scheme (soggiorno, cucina), owned
+#            by coordinators/fancoil_boost.yaml. No heat output is wired.
+#
+# The boost coordinator alone sets this PID to COOL (when a boost starts) and
+# back to OFF (when it ends), and only after the {zone}_boost_enabled
+# commissioning gate is on. The seasonal handler therefore NEVER turns the PID
+# on: it forces it OFF on every heat pump mode change, so a switch to COOL can
+# not start the fancoil behind the gate's back. The one exception is a boost
+# that is already running when the mode is (re)published as COOL: that must not
+# be cut short (the coordinator would not restart it). When the season really
+# ends the coordinator's own season override ends the boost.
+#
+# Optional vars:
+#   boost_state_select_id    - The boost coordinator's select (default:
+#                              ${room_slug}_boost_state)
+#
+# Uses the vars and substitutions of fancoil.yaml (room_slug,
+# seasonal_mode_id); not meant to be included on its own.
+# =============================================================================
+
+defaults:
+  boost_state_select_id: ${room_slug}_boost_state
+
+select:
+  - id: !extend ${seasonal_mode_id}
+    on_value:
+      then:
+        - lambda: |-
+            if (x == "COOL" && id(${boost_state_select_id}).current_option() == "Fancoil Boost")
+              return;
+            auto call = id(${room_slug}_fancoil_pid).make_call();
+            call.set_mode(climate::CLIMATE_MODE_OFF);
+            call.perform();

@@ -96,30 +96,32 @@ first_floor_mev_alarm_active         # Master alarm indicator
 
 ## PID Control Architecture
 
-**Dual PID Pattern**: Each zone has two PID controllers - one for heat mode, one for cool mode.
+**One PID per actuator, direction-gated** (review R-01, `docs/reviews/2026-10-25-repo-review.md`).
+Each zone actuator (radiant valve, fancoil 0-10V channel, floor mixing valve) has ONE PID whose
+`heat_output`/`cool_output` are two *gated* template outputs, never the same output twice:
 
 ```yaml
-climate:
-  # Heat mode PID
-  - platform: pid
-    id: pid_heat_${room_slug}
-    name: "PID Heat ${room_name}"
-    sensor: ${temperature_sensor}
-    control_parameters:
-      kp: 0.8
-      ki: 0.005
-      kd: 0.05
-
-  # Cool mode PID
-  - platform: pid
-    id: pid_cool_${room_slug}
-    name: "PID Cool ${room_name}"
-    sensor: ${temperature_sensor}
-    control_parameters:
-      kp: 1.2
-      ki: 0.008
-      kd: 0.08
+# heat_only_radiant.yaml / radiant.yaml (shape)
+output:
+  - platform: template
+    id: ${room_slug}_radiant_heat_output      # wired to the PID's heat_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(${room_slug}_radiant_output).set_level(pid_direction::gated_level(
+              pid_direction::Direction::HEAT, id(${seasonal_mode_id}).current_option().c_str(), state));
+  # ...and ${room_slug}_radiant_cool_output with Direction::COOL, wired to cool_output
 ```
+
+Why: ESPHome's PID ignores its HEAT/COOL mode when routing output (`pid_climate.cpp`
+`write_output_()` sends value > 0 to heat_output and -value to cool_output). Wiring both to one
+actuator drove it with |error| — an overheated room opened its valve in winter. The gate
+(`climate/protocol/pid_direction.h`, natively tested) lets a direction actuate only while
+`hp_mode` says the heat pump produces matching water (HEAT → heat, COOL → cool,
+SANITARY_ONLY → neither). **Never wire heat_output and cool_output to the same output.**
+
+Fancoils declare a required `fancoil_role`: `boost` (cooling boost, only the
+`fancoil_boost` coordinator starts it), `cool_only`, or `heat_cool`.
 
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
@@ -177,6 +179,9 @@ g++ -std=c++17 -Wall -Wextra -Icanbus/protocol -Iclimate/protocol climate/tests/
 # HA-tier staleness gate of the room-sensor failover (R-04)
 g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_ha_tier.cpp -o /tmp/climate_ha_tier && /tmp/climate_ha_tier
 
+# Heat/cool direction gating of PID actuators (R-01)
+g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_pid_direction.cpp -o /tmp/climate_pid_direction && /tmp/climate_pid_direction
+
 # Isolated receiver composition fixture (generated routes + receiver package,
 # without the full climate controller)
 esphome config climate/tests/compile_can_sensor_receiver.yaml
@@ -217,7 +222,7 @@ defaults:
 packages:
   sensors: !include ../../room_sensors.yaml
   radiant: !include ../../radiant.yaml
-  fancoil: !include ../../fancoil.yaml
+  fancoil: !include ../../fancoil.yaml   # needs vars: output_id, fancoil_role (boost | cool_only | heat_cool)
 ```
 
 ### Modifying PID Parameters

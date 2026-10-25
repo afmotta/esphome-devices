@@ -1,0 +1,41 @@
+# =============================================================================
+# Component: fancoil_role_heat_cool.yaml (included by fancoil.yaml)
+# Purpose:   fancoil_role "heat_cool": a standalone fancoil that both heats and
+#            cools its room (sottotetto). Adds the gated HEAT-direction output
+#            to the PID (fancoil.yaml already adds the cool one) and switches
+#            the PID mode with the heat pump: HEAT / COOL / OFF.
+#
+# Uses the vars and substitutions of fancoil.yaml (room_slug, output_id,
+# seasonal_mode_id); not meant to be included on its own.
+# =============================================================================
+
+output:
+  # Heat-direction gate: forwards to the fan channel only while the heat pump
+  # produces hot water (climate/protocol/pid_direction.h).
+  - platform: template
+    id: ${room_slug}_fancoil_heat_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(${output_id}).set_level(pid_direction::gated_level(
+              pid_direction::Direction::HEAT, id(${seasonal_mode_id}).current_option().c_str(), state));
+
+climate:
+  - id: !extend ${room_slug}_fancoil_pid
+    heat_output: ${room_slug}_fancoil_heat_output
+
+# Seasonal mode handler: the PID follows the heat pump (SANITARY_ONLY => OFF)
+select:
+  - id: !extend ${seasonal_mode_id}
+    on_value:
+      then:
+        - lambda: |-
+            auto call = id(${room_slug}_fancoil_pid).make_call();
+            if (x == "COOL") {
+              call.set_mode(climate::CLIMATE_MODE_COOL);
+            } else if (x == "HEAT") {
+              call.set_mode(climate::CLIMATE_MODE_HEAT);
+            } else {
+              call.set_mode(climate::CLIMATE_MODE_OFF);
+            }
+            call.perform();

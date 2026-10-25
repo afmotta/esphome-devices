@@ -14,6 +14,10 @@
 #   sensor_id                - Binary sensor ID that triggers pump on/off
 #   relay_id                 - Switch ID for the circulation pump relay
 #
+# Inherited substitution (not passed per call site; defined once by the entry
+# point, like the room packages' use of it):
+#   seasonal_mode_id         - ID of the seasonal mode select entity (e.g., "hp_mode")
+#
 # Optional vars:
 #   kp                       - Proportional gain (default: 0.2)
 #   ki                       - Integral gain (default: 0.01)
@@ -24,10 +28,27 @@
 # Dependencies:
 #   - pid.yaml (included automatically, must be in same directory)
 #     - pid_sensors.yaml (included by pid.yaml)
+#   - climate/protocol/pid_direction.h (esphome.includes in the entry point)
+#
+# Direction gating (R-01): the valve PID's target is a supply-water temperature,
+# so its error sign says whether the supply must get hotter or colder. The PID
+# does not look at its HEAT/COOL mode when routing a value and heat/cool end at
+# the one valve, so each direction is gated on what the heat pump produces:
+#   HEAT season: only "supply too cold" (PID value > 0) opens the valve;
+#                "supply too hot" closes it.
+#   COOL season: only "supply too warm" (PID value < 0) opens the chilled valve;
+#                "supply below the dew-point minimum" closes it (without the
+#                gate that case opened it MORE — dew-point protection inverted).
+#   SANITARY_ONLY: no heating/cooling water, valve held closed.
+# A target left over from the other season (weather compensation sets the HEAT
+# target, the floors' dew-point protection the COOL one) therefore fails closed
+# until the owning coordinator writes the new target.
 #
 # Exposes:
 #   sensor.dallas_{dallas_address}               - Supply water temperature
 #   climate.{valve_slug}_pid                     - PID climate for valve control
+#   output.{valve_slug}_heat_output              - Gated heat-direction output
+#   output.{valve_slug}_cool_output              - Gated cool-direction output
 #   binary_sensor.{sensor_id}_wrapped            - Pump trigger wrapper
 #   (plus all pid_sensors entities via pid.yaml)
 #
@@ -71,10 +92,26 @@ packages:
       ki: ${ki}
       kd: ${kd}
 
+output:
+  - platform: template
+    id: ${valve_slug}_heat_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(${output_id}).set_level(pid_direction::gated_level(
+              pid_direction::Direction::HEAT, id(${seasonal_mode_id}).current_option().c_str(), state));
+  - platform: template
+    id: ${valve_slug}_cool_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(${output_id}).set_level(pid_direction::gated_level(
+              pid_direction::Direction::COOL, id(${seasonal_mode_id}).current_option().c_str(), state));
+
 climate:
   - id: !extend ${valve_slug}_pid
-    heat_output: ${output_id}
-    cool_output: ${output_id}
+    heat_output: ${valve_slug}_heat_output
+    cool_output: ${valve_slug}_cool_output
 
 binary_sensor:
   - platform: template
