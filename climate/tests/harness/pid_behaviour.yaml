@@ -1,0 +1,223 @@
+# =============================================================================
+# Test harness: PID behaviour of the real actuator packages (R-13, R-16, R-14)
+#
+# Composes the REAL pid/heat_only_radiant/fancoil/mixing_pump packages on the
+# host platform with every hardware input stubbed, like radiant_direction.yaml,
+# but tuned for time-dependent behaviour:
+#   - temperature sources -> two template sensors (rooms, mixing-valve supply),
+#                            re-published every 100 ms so the PIDs integrate
+#                            continuously (a PID only updates on a sensor
+#                            publish, and its integral accumulates dt between
+#                            updates)
+#   - seasonal mode       -> template select with the production options
+#   - 0-10V channels      -> template outputs mirrored into level sensors
+#
+# Time compression (R-13): the gains are ~200x production (kp 0.5, ki 1.0 per
+# degC*s, kd 0) so that "the integral windup takes minutes to unwind" becomes
+# "takes seconds". The PID integral is in OUTPUT units (it already includes ki),
+# so the +-1 bounds mean the same at any ki; only the unwind time scales.
+# All PIDs share one temperature stub and the default 20.0 degC target:
+# 25.0 => +5.0 over target, 19.5 => 0.5 under.
+#
+# Loops under test (room_slug => package):
+#   bath     heat_only_radiant.yaml                     heat-only loop
+#   attic    fancoil.yaml, fancoil_role: heat_cool      dual loop
+#   techroom fancoil.yaml, fancoil_role: cool_only      cool-only loop
+#   loft     fancoil.yaml, fancoil_role: heat_cool, integral_limit: 0.5
+#   mix      mixing_pump.yaml (supply-temperature valve PID, dual loop)
+# =============================================================================
+
+substitutions:
+  # Production defines this once in devices/climate-control.yaml and the
+  # packages inherit it.
+  seasonal_mode_id: hp_mode
+
+esphome:
+  name: t-pid-behaviour
+  includes:
+    - ../../protocol/pid_direction.h
+
+host:
+
+logger:
+  level: DEBUG
+
+api:
+  actions:
+    - action: set_temperature
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: stub_temperature
+            state: !lambda "return value;"
+    - action: set_supply_temperature
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: dallas_stub
+            state: !lambda "return value;"
+    - action: set_hp_mode
+      variables:
+        value: string
+      then:
+        - select.set:
+            id: hp_mode
+            option: !lambda "return value;"
+
+select:
+  - platform: template
+    id: hp_mode
+    name: "Heat Pump Mode"
+    options:
+      - "HEAT"
+      - "COOL"
+      - "SANITARY_ONLY"
+    initial_option: "SANITARY_ONLY"
+    optimistic: true
+
+switch:
+  - platform: template
+    id: bath_relay
+    name: "Bath Relay"
+    optimistic: true
+  - platform: template
+    id: mix_pump
+    name: "Mix Pump"
+    optimistic: true
+
+binary_sensor:
+  # mixing_pump.yaml's pump trigger input
+  - platform: template
+    id: mix_demand
+    internal: true
+
+sensor:
+  - platform: template
+    id: stub_temperature
+    internal: true
+  # Replaces the Dallas supply sensor of mixing_pump.yaml: the valve PID reads
+  # this id.
+  - id: !remove dallas_stub
+  - platform: template
+    id: dallas_stub
+    internal: true
+
+  # Levels written to the 0-10V channels.
+  - platform: template
+    id: valve_level
+    name: "Valve Level"
+  - platform: template
+    id: attic_fan_level
+    name: "Attic Fan Level"
+  - platform: template
+    id: techroom_fan_level
+    name: "Techroom Fan Level"
+  - platform: template
+    id: loft_fan_level
+    name: "Loft Fan Level"
+
+output:
+  - id: !extend bath_radiant_pwm
+    restart_cycle_on_state_change: true
+  - platform: template
+    id: valve_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: valve_level
+          state: !lambda "return state;"
+  - platform: template
+    id: attic_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: attic_fan_level
+          state: !lambda "return state;"
+  - platform: template
+    id: techroom_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: techroom_fan_level
+          state: !lambda "return state;"
+  - platform: template
+    id: loft_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: loft_fan_level
+          state: !lambda "return state;"
+
+# Keep the PIDs ticking: re-publish the last reading (the sensors have no
+# filters, so every publish reaches the PIDs' state callbacks).
+interval:
+  - interval: 100ms
+    then:
+      - lambda: |-
+          if (!std::isnan(id(stub_temperature).state))
+            id(stub_temperature).publish_state(id(stub_temperature).state);
+          if (!std::isnan(id(dallas_stub).state))
+            id(dallas_stub).publish_state(id(dallas_stub).state);
+
+# Packages under test.
+packages:
+  bath: !include
+    file: ../../packages/components/heat_only_radiant.yaml
+    vars:
+      room_slug: bath
+      room_name: "Bath"
+      temperature_sensor: stub_temperature
+      relay_id: bath_relay
+      pwm_period: 1s
+      kp: 0.5
+      ki: 1.0
+      kd: 0.0
+  attic: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: attic
+      room_name: "Attic"
+      temperature_sensor: stub_temperature
+      output_id: attic_fan_out
+      fancoil_role: heat_cool
+      kp: 0.5
+      ki: 1.0
+      kd: 0.0
+  techroom: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: techroom
+      room_name: "Techroom"
+      temperature_sensor: stub_temperature
+      output_id: techroom_fan_out
+      fancoil_role: cool_only
+      kp: 0.5
+      ki: 1.0
+      kd: 0.0
+  loft: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: loft
+      room_name: "Loft"
+      temperature_sensor: stub_temperature
+      output_id: loft_fan_out
+      fancoil_role: heat_cool
+      kp: 0.5
+      ki: 1.0
+      kd: 0.0
+      integral_limit: 0.5
+  mix: !include
+    file: ../../packages/components/mixing_pump.yaml
+    vars:
+      area_slug: mix
+      area_name: "Mix"
+      dallas_address: stub
+      one_wire_bus_id: unused_one_wire_bus
+      output_id: valve_out
+      sensor_id: mix_demand
+      relay_id: mix_pump
+      kp: 0.5
+      ki: 1.0
+      kd: 0.0

@@ -16,6 +16,27 @@
 #   visual_min_temperature     - UI minimum temperature (default: 0)
 #   visual_max_temperature     - UI maximum temperature (default: 40)
 #   visual_temperature_step    - UI temperature increment (default: 0.5)
+#   integral_limit             - Magnitude of the PID integral term, in output
+#                                units (actuator span 0..1; default: 1.0). The
+#                                accumulator already includes ki, so this does
+#                                not scale with the gains. See "Integral
+#                                windup" below.
+#
+# Inherited (entry-point substitution, as in the actuator packages):
+#   seasonal_mode_id           - ID of the seasonal mode select ("hp_mode")
+#
+# Integral windup (R-13): ESPHome integrates the error on every sensor update
+# whatever the PID mode, clamped to +-1 by default. With the outputs gated on
+# hp_mode (R-01) the direction the heat pump is NOT producing used to wind up
+# to a full actuator span (room above target on a winter afternoon => integral
+# -1 on the gated cool side), so a room that then fell below target stayed
+# cold until ki*error had climbed back. The integral is therefore confined to
+# the active direction on every hp_mode change: HEAT => [0, +limit], COOL =>
+# [-limit, 0]; SANITARY_ONLY keeps the previous bounds. That is right for all
+# loop types without knowing them: a heat-only, cool-only or dual loop only
+# ever needs integral in the direction the water flows, and the integral of the
+# previous season is clamped away on the first update after the flip (see
+# pid_direction::integral_bounds). kp/ki/kd are untouched.
 #
 # Dependencies:
 #   - pid_sensors.yaml (included automatically, must be in same directory)
@@ -46,6 +67,7 @@ defaults:
   visual_max_temperature: 40
   visual_temperature_step: 0.5
   default_target_temperature: 20.00
+  integral_limit: 1.0
 
 packages:
   pid_sensors: !include
@@ -64,7 +86,26 @@ climate:
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
+      # Static bounds (ESPHome's own defaults, made explicit and overridable):
+      # in force until the first HEAT/COOL hp_mode narrows them below.
+      min_integral: -${integral_limit}
+      max_integral: ${integral_limit}
     visual:
       min_temperature: ${visual_min_temperature}
       max_temperature: ${visual_max_temperature}
       temperature_step: ${visual_temperature_step}
+
+# Confine the integral to the active direction (see "Integral windup"). Runs on
+# every hp_mode publish, including the restore at boot: the select's setup
+# (HARDWARE) precedes the PID's (DATA), and the setters only write the
+# controller's bounds, which the PID's setup() does not touch.
+select:
+  - id: !extend ${seasonal_mode_id}
+    on_value:
+      then:
+        - lambda: |-
+            float lo, hi;
+            if (pid_direction::integral_bounds(x.c_str(), ${integral_limit}, lo, hi)) {
+              id(${circuit_slug}_pid).set_min_integral(lo);
+              id(${circuit_slug}_pid).set_max_integral(hi);
+            }

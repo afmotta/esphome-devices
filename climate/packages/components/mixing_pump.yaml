@@ -22,6 +22,8 @@
 #   kp                       - Proportional gain (default: 0.2)
 #   ki                       - Integral gain (default: 0.01)
 #   kd                       - Derivative gain (default: 0.0)
+#   integral_limit           - PID integral magnitude, output units (default: 1.0;
+#                              see pid.yaml "Integral windup")
 #   valve_slug               - Valve entity slug (default: "${area_slug}_mixing_valve")
 #   valve_name               - Valve display name (default: "${area_name} Mixing Valve")
 #
@@ -70,6 +72,7 @@ defaults:
   kp: 0.2
   ki: 0.01
   kd: 0.0
+  integral_limit: 1.0
   valve_slug: "${area_slug}_mixing_valve"
   valve_name: "${area_name} Mixing Valve"
 
@@ -91,6 +94,7 @@ packages:
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
+      integral_limit: ${integral_limit}
 
 output:
   - platform: template
