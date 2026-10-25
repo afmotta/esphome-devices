@@ -32,7 +32,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 
 | ID | Sev. | Titolo | Stato | Fix |
 |----|------|--------|-------|-----|
-| [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | ✅ (seguito R-01b 🔧) | `1472a90` |
+| [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | ✅ | `1472a90`, `ed4d157` |
 | [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | `5b53b0d` |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
@@ -116,10 +116,22 @@ raffrescamento / caldo+freddo). Test nativo della regola + e2e host.
   `fancoil_role`.
 - **Non verificato qui:** la compilazione ESP32 di `devices/locals/climate-control.yaml`.
 
-**Seguito R-01b (in lavorazione).** `*_pid_is_active`, che serve solo a comandare le pompe di circolazione, segue l'*intenzione*
-del PID e non l'attuazione gated. In HEAT, una stanza sopra setpoint risulta "cooling": la pompa partirebbe con tutte le
-valvole tenute chiuse. Il fix allinea `is_active` al gate. `is_heating` e `is_cooling` restano invariati perché li usa il
-seasonal mode.
+**Seguito R-01b:** ✅ `ed4d157` — `climate: pump demand follows the gated actuation, not PID intent (R-01b)`
+
+- **Problema introdotto da R-01.** `*_pid_is_active` è l'unico ingresso della domanda delle pompe di circolazione
+  (`*_any_zone_open` dei piani e pompa diretta del secondo piano) e seguiva l'*intenzione* del PID. Dopo il gating, in HEAT,
+  una stanza sopra setpoint risultava "cooling": la pompa sarebbe partita con tutte le valvole tenute chiuse.
+- **Fix.** `is_active` applica lo stesso gate tramite `pid_direction::actuating()`: il riscaldamento conta solo con
+  `hp_mode` HEAT, il raffrescamento solo con COOL. `is_heating` e `is_cooling` restano l'intenzione non filtrata, che serve
+  al seasonal mode; `verify_seasonal_mode_aggregation.py` passa.
+- **Test:**
+  - nativi: matrice azione × modo, più la verifica che `actuating()` coincida con "il sink condiviso resta non nullo";
+  - e2e: 14 nuovi casi per la domanda pompe (matrice stagione × temperatura su 5 zone e sulla valvola miscelatrice). Il file
+    passa **34/34** sul binario host; col vecchio lambda ripristinato 7 casi falliscono.
+- **Verificato** in un worktree isolato sul commit: battery nativa PASS ed `esphome config` di climate-control OK.
+  `${seasonal_mode_id}` risolve in `hp_mode` in tutti i 18 lambda.
+- **Effetto collaterale (positivo):** le dashboard che leggono `*_is_active` come "zona attiva" ora mostrano "valvola
+  davvero aperta".
 
 ---
 
@@ -268,6 +280,11 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
 `should_end_boost` ritorna false con delta NaN (`fancoil_boost.yaml:464`): se il sensore muore durante
 un boost la zona resta al **100% di freddo** indefinitamente.
 
+_Nota da R-01b:_ l'override del boost tiene aperta la valvola radiante scavalcando PID e gate. Inoltre
+`ground_floor_radiant_any_zone_open` non include `soggiorno_boost_active` e `cucina_boost_active`. Oggi in boost la pompa
+gira comunque, perché il PID radiante è in COOLING; ma il fix di R-05 dovrebbe trattare l'override attivo come domanda
+pompa, oppure aggiungere i `*_boost_active` alla somma.
+
 ### R-06 — Doppia azione con binding toggle
 
 ACK timeout a 500 ms con binding `toggle` ⇒ possibile doppio toggle (nessun effetto visibile). L'ACK di
@@ -371,3 +388,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
 | 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e in CI |
 | 2026-10-25 | R-01 | `1472a90` | Uscite PID gated su `hp_mode`, ruoli fancoil, sottotetto riscalda | test nativo, e2e host 20/20, `esphome config` ×5, battery PASS |
+| 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
