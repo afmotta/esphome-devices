@@ -40,7 +40,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ⬜ | — |
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
-| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⬜ | — |
+| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
@@ -315,6 +315,30 @@ già state rese locali.
 Se il master si blocca, i relè Modbus mantengono l'ultimo stato (valvole/pompe accese). Valutare un
 watchdog o un timeout lato scheda relè.
 
+**Proposta:** `710f088` — `docs/adr/0024-actuator-fail-safe-on-controller-loss.md`, stato **Proposed**. Nessun firmware è cambiato:
+la decisione spetta al proprietario.
+
+- **Già coperto da ESPHome** (verificato sul sorgente 2026.8.0): un loop bloccato. Il task watchdog lo riavvia in circa 5 s.
+- **Non coperto:**
+  - controller morto o senza alimentazione;
+  - bus RS485 interrotto con il controller sano;
+  - boot loop: dopo 10 tentativi parte il safe mode senza Modbus.
+  
+  In tutti questi casi le schede **mantengono l'ultimo stato**: i relè hanno `restore_mode: DISABLED` e al boot non viene
+  scritto nulla.
+- **Cosa offrono le schede:** la Relay 32CH ha comandi **flash-on/flash-off temporizzati** (FC `0x05`, registri
+  `0x0200`–`0x021F` e `0x0400`–`0x041F`, unità di 100 ms).
+  - Fonti: estratti del wiki Waveshare e misure di terzi su una scheda sorella. Il sito Waveshare non era raggiungibile
+    dal sandbox, quindi non è una lettura diretta.
+  - Non è stato trovato alcun timeout per perdita di comunicazione, né sulla Relay 32CH né sulla Analog 8CH (B).
+- **Raccomandazione:**
+  - un relè di riserva ri-armato con flash-on ogni 15 s (impulso di 60 s), con il contatto in serie
+    all'alimentazione delle pompe e dei contatti SG-Ready: un "dead-man" che ferma le pompe entro 60 s se il master tace;
+  - mitigazioni firmware: stato sicuro al boot, `watchdog_timeout` esplicito, allarmi per scheda offline;
+  - come ripiego, un contattore con watchdog esterno.
+- **Da verificare al banco prima di decidere:** 11 punti elencati nell'ADR. I primi quattro sono decisivi: comportamento
+  del flash-on, ri-armo senza "click", rilascio a controller spento, stato delle bobine dopo il power-cycle della scheda.
+
 ### R-10 — Lacune di testing
 
 - La composizione climate reale non ha test di comportamento (R-01 sarebbe stato intercettato da un e2e
@@ -438,3 +462,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
 | 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |
 | 2026-10-25 | R-11 | `2f56444`, `633025f` | Drift documentazione, `CHANGELOG.md`, istruzioni Copilot | review diff (docs) |
+| 2026-10-25 | R-09 | `710f088` | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
