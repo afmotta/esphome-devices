@@ -1,5 +1,6 @@
 #pragma once
 #include "binding_actuation.h"
+#include "tx_health.h"
 #include "esphome/components/switch/switch.h"
 #include "esphome/components/canbus/canbus.h"
 #include "esphome/core/log.h"
@@ -86,9 +87,11 @@ inline void fire_binding_fallback(uint16_t node_id, uint8_t button)
       return;
     }
     // The gateway has no heartbeat of its own to carry an error flag, so a refused
-    // command is surfaced in the log (ESPHome's canbus already WARNs the raw error).
-    if (bus->send_data(can_id(CAT_OUTPUT, b->target_node_id), true,
-                       output_payload(b->channel, out_op)) != esphome::canbus::ERROR_OK) {
+    // command is surfaced in the log (ESPHome's canbus already WARNs the raw error) and
+    // counted in tx_health().failures, which buttons.yaml publishes as "CAN TX Refused" (R-17).
+    const bool sent = bus->send_data(can_id(CAT_OUTPUT, b->target_node_id), true,
+                                     output_payload(b->channel, out_op)) == esphome::canbus::ERROR_OK;
+    if (!tx_health_track(tx_health(), sent)) {
       ESP_LOGE("arb", "FALLBACK output: node=%u btn=%u -> target=%u ch=%u CAN TX refused, command lost",
                (unsigned) node_id, (unsigned) button, (unsigned) b->target_node_id,
                (unsigned) b->channel);

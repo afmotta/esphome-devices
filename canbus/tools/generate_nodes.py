@@ -153,7 +153,8 @@ PROFILES = {
     # PREFERRED bridge (ADR-0017 §1, revised): one integrated dual-CAN board, with
     # the backbone side on the interrupt-driven TWAI controller.
     "bridge-t2can": Profile(
-        boards=T2CAN, packages=(("bridge", "bridge.yaml"),),
+        # tx_watchdog: can0 is TWAI here, which never recovers from bus-off by itself (R-17).
+        boards=T2CAN, packages=(("bridge", "bridge.yaml"), ("tx_watchdog", "tx_watchdog.yaml")),
         buttons=False, sensors=False, prefix="bridge", kind="Bridge",
     ),
     # Fleet node board + a 3.3 V add-on MCP2515. Kept viable as the second source
@@ -209,6 +210,8 @@ PACKAGE_COMMENTS = {
     "bridge.yaml": ("# Bridge:   store-and-forward, can0 (backbone) <-> can1 (zone), from\n"
                     "#           packages/bridge.yaml. Never carries the sensor kit\n"
                     "#           (ADR-0005/ADR-0017).\n"),
+    "tx_watchdog.yaml": ("# Watchdog: reboots a TWAI node whose heartbeats stay refused (bus-off never\n"
+                         "#           self-recovers in ESPHome, R-17), from packages/tx_watchdog.yaml\n"),
 }
 
 

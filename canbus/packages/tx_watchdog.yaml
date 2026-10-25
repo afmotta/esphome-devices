@@ -1,0 +1,68 @@
+# =============================================================================
+# tx_watchdog.yaml — reboot an ESP32 TWAI transmitter that stays off the bus (review R-17)
+# =============================================================================
+# ESPHome 2026.8.0's esp32_can never calls twai_initiate_recovery(), so a TWAI node that goes
+# bus-off (TEC > 255) never rejoins the bus by itself; only a reboot does. ESPHome exposes no
+# bus-off state either, but the effect is visible: the TX queue stops draining, so heartbeats
+# are refused (tx_health.h). This package reboots through ESPHome's safe path once that has
+# lasted long enough that it cannot be a transient full queue. The decision (thresholds,
+# backoff, proof of recovery) is pure logic in tx_health.h, natively tested.
+#
+# WHO COMPOSES IT — exactly the ESP32/TWAI nodes that TRANSMIT, and nobody else:
+#   - bridge-t2can profile (PROFILES in generate_nodes.py; backbone can0 is TWAI)
+#   - lighting/packages/led_can_actuator.yaml (An-Penta / An-Quad; its can0 is TWAI)
+# NOT the MCP2515 nodes (CANBed RP2040 profiles): the MCP2515 leaves bus-off by itself in
+# hardware (128 x 11 recessive bits), and its "TX refused" is a dead/unterminated bus that a
+# reboot cannot fix — composing this there would only create a reboot loop. NOT the climate
+# controller or the health monitor: they never transmit, and a TWAI node that never transmits
+# cannot reach bus-off (TEC counts only the node's own transmit errors). NOT the lighting
+# controller: it does not heartbeat (no signal to decide on) and a reboot costs relay control
+# (see lighting/CLAUDE.md). The board/entry point decides by composing this package — never an
+# `if profile ==` branch here.
+#
+# REQUIRES from the composer: tx_health.h in esphome.includes (node_core.yaml and
+# led_can_actuator.yaml both add it), and a heartbeat that reports through
+# tx_health_heartbeat_sent() — which both do.
+#
+# REBOOT POLICY (details and numbers in tx_health.h): reboot after 10 consecutive refused
+# heartbeats (5 min); the threshold doubles per reboot that did not help (10/20/40/80), so a
+# genuinely dead bus costs a reboot every ~45 min at worst, not a tight loop. The backoff
+# level lives in flash (it has to survive the reboot it causes) and clears only after 12
+# consecutive accepted heartbeats. Nothing is ever disabled permanently: a node that stays
+# bus-off long after the wiring was repaired still gets its next reboot.
+# =============================================================================
+
+globals:
+  # Backoff level 0..TX_WDG_LEVEL_MAX. restore_value: this must survive the reboot it causes.
+  # At most one flash write per reboot plus one when it clears — negligible wear.
+  - id: tx_wdg_level
+    type: uint8_t
+    restore_value: true
+    initial_value: "0"
+
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          if (tx_watchdog_recovered(tx_health(), id(tx_wdg_level))) {
+            ESP_LOGI("tx_wdg", "CAN TX healthy again (%u heartbeats accepted in a row); backoff level %u -> 0",
+                     (unsigned) tx_health().hb_accepted_run, (unsigned) id(tx_wdg_level));
+            id(tx_wdg_level) = 0;
+          }
+      - if:
+          condition:
+            lambda: 'return tx_watchdog_should_reboot(tx_health(), id(tx_wdg_level));'
+          then:
+            - lambda: |-
+                const uint8_t next = tx_watchdog_level_after_reboot(id(tx_wdg_level));
+                ESP_LOGE("tx_wdg", "%u consecutive CAN heartbeats refused (backoff level %u): TWAI is stuck "
+                                   "(bus-off never self-recovers in ESPHome) - rebooting; next threshold %u",
+                         (unsigned) tx_health().hb_refused_run, (unsigned) id(tx_wdg_level),
+                         (unsigned) tx_watchdog_threshold(next));
+                id(tx_wdg_level) = next;
+            # The globals component queues the new level on its 1 s poll; let it, then force the
+            # flash write before restarting (the periodic preferences sync can be up to 60 s away).
+            - delay: 2s
+            - lambda: |-
+                global_preferences->sync();
+                App.safe_reboot();

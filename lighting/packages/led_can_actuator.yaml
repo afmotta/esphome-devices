@@ -26,6 +26,12 @@
 #   light ids tw1, tw2 (the cwww strips)
 # =============================================================================
 
+# TWAI never recovers from bus-off by itself in ESPHome 2026.8.0 (R-17): this node transmits its
+# heartbeat, so it composes the TX watchdog, which reboots it (with backoff) when heartbeats stay
+# refused. The relative path is resolved against THIS file.
+packages:
+  tx_watchdog: !include ../../canbus/packages/tx_watchdog.yaml
+
 esphome:
   includes:
     # Relative to the entry point's directory (devices/), like the entry point's own
