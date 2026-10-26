@@ -449,6 +449,11 @@ _Emersa durante il fix di R-04._
   staleness. Un valore esterno congelato alimenta la compensazione climatica e la media a 24 h del seasonal mode.
 - **Impatto.** Non c'è rischio di condensa, perché la protezione dew point usa i sensori delle stanze. Il fix è
   lo stesso: rimuovere il filtro e aggiungere un `HaTierTracker`.
+- **Altri sensori `homeassistant` valutati e lasciati com'erano:**
+  - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
+  - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
+  - Le soglie MEV: vedi R-08.
+
 **Fix applicato:** ✅ `449be90` (`climate: make the outdoor-temperature HA tier go NaN when HA is gone (R-12)`) + `2763cdf`
 (collegamento a battery e CI).
 
@@ -463,11 +468,6 @@ _Emersa durante il fix di R-04._
   - e2e host `test_outdoor.py`: **4/4**, rieseguito anche da me. Con un gate sempre aperto il caso "oltre la grazia"
     fallisce, come previsto.
   - `esphome config` OK su climate-control e sull'harness; battery nativa PASS.
-
-- **Altri sensori `homeassistant` valutati e lasciati com'erano:**
-  - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
-  - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
-  - Le soglie MEV: vedi R-08.
 
 _Le issue R-13–R-16 sono emerse durante il fix di R-01._
 
