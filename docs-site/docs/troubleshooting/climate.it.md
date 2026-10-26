@@ -54,8 +54,7 @@ direttamente dal codice del componente di failover,
 `climate/packages/components/failover_sensor.yaml`). Il controller PID della
 stanza non vede allora alcuna lettura utilizzabile e porta le proprie uscite
 a 0 (valvola chiusa, fancoil spento) — non esiste da nessuna parte
-un timer di "spegnimento di sicurezza dopo 5 minuti"; i vecchi documenti del
-progetto che lo dicevano erano errati. L'unica cifra di 5 minuti riguarda il
+un timer di spegnimento. L'unica cifra di 5 minuti riguarda il
 lato Home Assistant: il livello secondario è dichiarato non disponibile
 quando nessun client API con sottoscrizione agli stati (Home Assistant o
 altro) è connesso al controller da 5 minuti (una grazia che copre un riavvio

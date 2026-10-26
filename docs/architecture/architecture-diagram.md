@@ -222,7 +222,7 @@ graph TD
    with no state-subscribed API client (HA or otherwise) connected - the grace rides out an HA restart;
    after a boot without HA the tier stays NaN until the first connection
 3. **Emergency (Degraded):** NaN within about 20 s of the HA tier going NaN (one gate poll + one failover poll); the PID zeroes its outputs on a NaN input. There is no
-   "safe shutdown after 5 minutes" timer - the only 5-minute figure is the HA-tier grace above.
+   shutdown timer - the only 5-minute figure is the HA-tier grace above.
    Known gap (review R-05): if the sensor dies during an active fancoil/radiant boost, the boost
    override can keep the radiant valve open (100% cold) until R-05 is fixed
 

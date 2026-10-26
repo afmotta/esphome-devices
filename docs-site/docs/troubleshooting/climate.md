@@ -47,8 +47,7 @@ there is no timer built into the sensor logic itself, only the polling delay
 (within about 20 s: one gate poll plus one failover poll). 🟢 VERIFIED (read directly from the failover component's code,
 `climate/packages/components/failover_sensor.yaml`). The room's PID
 controller then sees no usable reading and drops its outputs to 0
-(valve closed, fancoil off) — there is no "safe shutdown after 5
-minutes" timer anywhere; older project documents that said so were wrong.
+(valve closed, fancoil off) — there is no shutdown timer anywhere.
 The only 5-minute figure is on the Home Assistant side: the secondary tier
 is declared unavailable once no state-subscribed API client (Home Assistant
 or otherwise) has been connected to the controller for 5 minutes (a grace
