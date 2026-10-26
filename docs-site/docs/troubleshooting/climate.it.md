@@ -63,6 +63,10 @@ provato su banco sul controller reale. Nota: una sessione `esphome logs`
 lasciata aperta conta come connessione a Home Assistant e mantiene vivo il
 livello secondario durante un'interruzione; usa `esphome logs --no-states`.
 
+**Limite noto (review R-05):** se il sensore muore durante un boost attivo di
+fancoil/radiante, l'override del boost può tenere aperta la valvola radiante
+(100% freddo) finché R-05 non è risolto.
+
 **Cause probabili:**
 
 - Livello Primario (CAN) fuori uso: un problema del bus CAN — vedi

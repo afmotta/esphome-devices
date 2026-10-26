@@ -221,7 +221,9 @@ graph TD
    `unavailable`/`unknown`, or after 5 minutes (`ha_staleness_grace_s`) with no state-subscribed API
    client connected - the grace rides out an HA restart
 3. **Emergency (Degraded):** NaN immediately; the PID zeroes its outputs on a NaN input. There is no
-   "safe shutdown after 5 minutes" timer - the only 5-minute figure is the HA-tier grace above
+   "safe shutdown after 5 minutes" timer - the only 5-minute figure is the HA-tier grace above.
+   Known gap (review R-05): if the sensor dies during an active fancoil/radiant boost, the boost
+   override can keep the radiant valve open (100% cold) until R-05 is fixed
 
 **Recovery:** Automatic transition back to the highest tier that has a valid reading
 

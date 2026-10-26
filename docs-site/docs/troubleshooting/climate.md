@@ -58,6 +58,10 @@ automated tests, not yet bench-tested on the real controller. Note: an
 keeps the secondary tier alive during an outage; use
 `esphome logs --no-states`.
 
+**Known gap (review R-05):** if the sensor dies during an active
+fancoil/radiant boost, the boost override can keep the radiant valve open
+(100% cold) until R-05 is fixed.
+
 **Likely causes:**
 
 - Primary (CAN) tier down: a CAN bus problem — see
