@@ -110,14 +110,16 @@ struct BridgeDrainResult
 // acceptance, and `forwarded` counts only accepted frames.
 //
 // A refused frame STAYS at the front: it is retried on the next tick, which preserves FIFO
-// order (event sequence intact, same reason overflow drops the newest) and never exceeds
-// the one-attempt-per-tick pacing — a retry storm into already-busy TX buffers would be
-// the exact overrun the drain cap exists to prevent. The rest of the tick is skipped
-// (head-of-line blocking): the frames behind it face the same busy buffers. After
-// BRIDGE_TX_ATTEMPTS_MAX refusals the frame is dropped (dropped_tx) and draining carries
-// on with the next one — a dead segment must surface as a counted loss, not as a queue
-// that wedges forever behind one frame. The O(n) front-erase is trivially cheap at these
-// sizes (same trade as ha_arbitration.h).
+// order (event sequence intact, same reason overflow drops the newest) and keeps retries
+// paced at one tick apart — a retry storm into already-busy TX buffers would be the exact
+// overrun the drain cap exists to prevent. A refusal always ends that direction's tick
+// (head-of-line blocking), including the one that drops the frame: the frames behind it
+// face the same busy buffers and are tried on the next tick. That bounds a direction to at
+// most ONE refused attempt per tick, which matters because a refused twai_transmit_v2 on
+// the T-2CAN backbone blocks the main loop for its enqueue timeout. After
+// BRIDGE_TX_ATTEMPTS_MAX refusals the frame is dropped (dropped_tx) — a dead segment must
+// surface as a counted loss, not as a queue that wedges forever behind one frame. The O(n)
+// front-erase is trivially cheap at these sizes (same trade as ha_arbitration.h).
 template <typename Send>
 inline BridgeDrainResult bridge_drain_send(std::vector<BridgeFrame> &q, BridgeStats &stats,
                                            Send &&send, std::size_t max_frames = BRIDGE_DRAIN_MAX)
@@ -138,6 +140,7 @@ inline BridgeDrainResult bridge_drain_send(std::vector<BridgeFrame> &q, BridgeSt
     stats.dropped_tx++;
     r.dropped++;
     q.erase(q.begin());
+    break;   // a refusal always ends this direction's tick
   }
   return r;
 }
