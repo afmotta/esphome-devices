@@ -66,10 +66,7 @@ inline uint8_t tx_health_flags(const TxHealth &h)
 // Refused: that failure counts too, and the flag stays pending for the next heartbeat.
 inline void tx_health_heartbeat_sent(TxHealth &h, bool ok)
 {
-  if (ok)
-    h.pending = false;
-  else
-    tx_health_track(h, false);
+  h.pending = !ok;
 }
 
 // The node's single TX-health record. Owned here instead of an ESPHome `globals:` entry
