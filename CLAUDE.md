@@ -65,7 +65,7 @@ durable design knowledge — architecture, ADRs, contracts, design notes — liv
 - **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
 - **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain (`climate/room_sensors.yaml`), and until CAN nodes exist an HA outage (no state-subscribed API client) over 300 s puts 12 of 13 zones in Emergency (PID outputs 0)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
-- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency shutdown)
+- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency: NaN, PID outputs 0)
 
 ### Building Layout
 
@@ -511,7 +511,7 @@ external_components:
 | `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
 | `climate/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `climate/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
-| `climate/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
+| `climate/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
 | `climate/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 | [Maintenance Guide](https://afmotta.github.io/esphome-devices/) (`docs-site/`) | Practical, non-expert-oriented operations/troubleshooting/hardware-replacement site (EN + IT), deployed via GitHub Pages |
 
@@ -559,7 +559,7 @@ external_components:
 
 - **No Hardcoded Secrets**: Always use `!secret` references
 - **Sensor Failover**: Always implement failover for critical sensors
-- **Emergency Shutdown**: Include safe shutdown logic for failures
+- **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
 - **Testing**: Never skip testing on critical climate control code
 - **Version Control**: Commit working states frequently
 - **OTA Safety**: Test OTA updates on non-production boards first
@@ -627,7 +627,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check failover logs in Home Assistant
 - Ensure the CAN sensor-kit path (Tier 1) is available and updating
 - Verify Home Assistant sensors (Tier 2) are arriving when CAN drops out
-- Monitor emergency shutdown triggers
+- Monitor for zones sitting in Emergency (all sensor tiers NaN)
 
 Climate-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
 sensor-address appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
