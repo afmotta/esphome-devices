@@ -68,7 +68,8 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   transmitter** — a profile package reports by OR-ing its `ERR_*` bit in, and never
   adds a second `CAT_STATUS` interval. One node_id, one heartbeat.
 - **Node-side TX failures are reported, never just logged** (review R-07). Wrap every node
-  `send_data()` result in `tx_health_track()` (`canbus/protocol/tx_health.h`); the heartbeat ORs
+  `send_data()` result in `tx_health_track()` (`canbus/protocol/tx_health.h`; the battery greps
+  `canbus/packages` and `lighting/packages` for a `send_data(` file without it); the heartbeat ORs
   `tx_health_flags()` in at send time, so `ERR_CAN_TX_FAIL` reaches the health monitor and clears
   once the controller has accepted a heartbeat carrying it (MCP2515: loaded into a TX buffer, not
   ACKed; TWAI: queued) — a dead bus only surfaces once the TX buffers stay full. `error_flags` itself stays sticky-only (the bridge's

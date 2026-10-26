@@ -131,6 +131,25 @@ logger_level_check() {
   fi
 }
 
+# Every node-side send_data() must feed tx_health (review R-07): a package that sends
+# without it brings back the silent-loss bug. A file-level check is deliberately cheap —
+# any tx_health use in the file — and skips comment lines. relay_store.h is the lighting
+# controller (not a node), so it is out of scope.
+tx_health_wrap_check() {
+  local f offenders=""
+  for f in $(git ls-files canbus/packages lighting/packages); do
+    [ "$f" = "lighting/protocol/relay_store.h" ] && continue
+    if grep -v -E '^[[:space:]]*#' "$f" | grep -q 'send_data(' && ! grep -q 'tx_health' "$f"; then
+      offenders="$offenders $f"
+    fi
+  done
+  if [ -n "$offenders" ]; then
+    echo "send_data() without tx_health in:$offenders"
+    echo "Wrap the result in tx_health_track() (see canbus/CLAUDE.md, review R-07)."
+    return 1
+  fi
+}
+
 echo "verification battery — repo: $REPO_ROOT"
 [ "$NATIVE_ONLY" -eq 1 ] && echo "mode: --native-only (esphome-dependent steps are SKIPPED)"
 echo
@@ -138,6 +157,7 @@ echo
 # ── Python tests (stdlib-only) ──────────────────────────────────────────────
 run_step "hygiene: no tracked secrets or build artifacts" python3 scripts/check_repo_hygiene.py
 run_step "hygiene: deployable logger levels are configurable" logger_level_check
+run_step "canbus: every send_data() feeds tx_health" tx_health_wrap_check
 run_step "climate: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py
 run_step "python: canbus/tests/test_generate_exports.py"  python3 canbus/tests/test_generate_exports.py
