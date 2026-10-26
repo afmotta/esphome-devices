@@ -325,7 +325,7 @@ details, and polling intervals):
 2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness (R-04): the HA tier
    reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
    connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
-   rides out an HA restart). A frozen last value is never served indefinitely.
+   rides out an HA restart). For room sensors a frozen last value is never served indefinitely (other HA inputs such as outdoor temperature are not yet gated: R-12, R-08).
 3. **Emergency**: the failover returns NaN **immediately** once both tiers are NaN — it has no timer of its
    own. ESPHome's PID answers a NaN input by driving its outputs to 0 at once (`pid_climate.cpp`); there is
    no separate "safe shutdown after 5 minutes". The only 5-minute figure is the HA-tier grace above.
