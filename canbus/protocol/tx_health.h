@@ -11,9 +11,9 @@
 // than ERROR_OK when all TX buffers are busy (MCP2515: a buffer stays busy until the
 // frame is ACKed, so this is what a dead/unterminated/disconnected bus looks like) or
 // the TWAI TX queue is full. Until this header the refusal was at best logged on the
-// node, where nobody reads it, and the health monitor's node_error alert class only
-// ever fired for the bridge's queue overflow. This tracks the failure so the node's
-// next heartbeat carries ERR_CAN_TX_FAIL.
+// node, where nobody reads it, and the health monitor's node_error event (maintenance class,
+// logbook — ADR-0011) only ever fired for the bridge's queue overflow. This tracks the
+// failure so the node's next heartbeat carries ERR_CAN_TX_FAIL.
 //
 // LATCH / CLEAR POLICY — set on any failed send, transmitted by the next heartbeat,
 // cleared once a heartbeat that carried it was ACCEPTED by the controller

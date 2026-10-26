@@ -38,7 +38,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
-| [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
+| [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | 🔧 parziale | `085bb05`, `a2db85c` |
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
@@ -303,9 +303,9 @@ HA parte inoltre *prima* di eseguire l'azione. Preferire on/off nei binding e al
 
 Il bridge ignora il ritorno di `send_data` (`canbus/packages/bridge.yaml:135,138`): un frame fallito
 viene contato come "forwarded". `ERR_CAN_TX_FAIL` / `ERR_CAN_BUS_OFF` non vengono mai impostati da
-alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del bridge.
+alcun firmware: l'evento `node_error` (classe maintenance, logbook: ADR-0011) scatta solo per l'overflow del bridge.
 
-**Fix applicato:** ✅ `085bb05` (`canbus: report CAN TX failures instead of losing them silently (R-07)`) + `a2db85c`
+**Fix applicato:** 🔧 parziale — `ERR_CAN_BUS_OFF` è rimandato a R-17; `085bb05` (`canbus: report CAN TX failures instead of losing them silently (R-07)`) + `a2db85c`
 (collegamento alla battery e documentazione).
 
 - **Bridge:**
@@ -321,7 +321,7 @@ alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del
   - il flag si azzera solo quando un heartbeat che lo portava è stato accettato. Così HA vede sia il guasto sia il
     recupero;
   - viene aggiunto in OR al momento dell'heartbeat, non in `error_flags`, così non interferisce con i bit permanenti.
-- **`ERR_CAN_BUS_OFF`** resta riservato: ESPHome 2026.8.0 non espone lo stato di bus-off (`mcp2515` e `esp32_can` sono
+- **`ERR_CAN_BUS_OFF`** resta riservato (rimandato a [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32)): ESPHome 2026.8.0 non espone lo stato di bus-off (`mcp2515` e `esp32_can` sono
   classi `final` con helper protetti). È documentato accanto alla costante.
 - **Gateway lighting:** un `CAT_OUTPUT` di fallback rifiutato ora produce un log di errore.
 - **Test:**
