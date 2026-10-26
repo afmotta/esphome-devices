@@ -353,9 +353,9 @@ watchdog o un timeout lato scheda relè.
 **Fix applicato:** ✅ `2f56444` (`docs: fix documentation drift, split out CHANGELOG.md (R-11)`) + `633025f` (istruzioni Copilot).
 
 - **`CLAUDE.md` alla radice:**
-  - versione 1.20;
+  - versione 1.22 (le voci 1.20/1.21 di R-02/R-04 sono nel `CHANGELOG.md`);
   - range degli ADR 0001…0023, con la nota che lo 0019 non è mai esistito (numero saltato, assente dalla storia git);
-  - il changelog è spostato in **`CHANGELOG.md`**, con una nuova voce 1.20 per i fix R-01–R-04 e R-10;
+  - il changelog è spostato in **`CHANGELOG.md`**, con una voce 1.22 per R-11 (e per le note su R-01, R-03, R-10) accanto alle voci 1.20/1.21 di R-02/R-04;
   - sezione "Failover Architecture" riscritta: tier HA → NaN su `unavailable` o dopo 5 min, Emergency → PID a 0
     **subito**. Non esiste più alcuno "spegnimento dopo 5 minuti".
 - **`climate/CLAUDE.md`, Appendice D:** guadagni allineati al codice (radiante 0.8/0.005/0.05, fancoil 0.2/0.01/0.05,

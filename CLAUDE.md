@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.20 |
-| **Last Updated** | October 25, 2026 |
+| **Version** | 1.22 |
+| **Last Updated** | October 26, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -642,7 +642,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 ## Changelog
 
-Version history lives in [`CHANGELOG.md`](CHANGELOG.md) (newest first); this file is at version **1.20**. Add a row there, and bump the version in the table at the top, whenever this guide or the architecture it describes changes materially.
+Version history lives in [`CHANGELOG.md`](CHANGELOG.md) (newest first). Add a row there, and bump the version in the table at the top, whenever this guide or the architecture it describes changes materially.
 
 ---
 
