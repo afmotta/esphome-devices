@@ -107,7 +107,10 @@ board dual-interface (Ethernet primaria).
 - **Scelta per le board solo WiFi** (health monitor, An-Quad, S1 Pro): il reboot WiFi resta al default perché,
   senza Ethernet, è il percorso di recupero da uno stack WiFi bloccato.
 - **Verificato:** `esphome config` valido sui 5 entry point, con i valori risolti indicati in tabella.
-- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento.
+- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento;
+  conferma sul campo che il watchdog WiFi ignora Ethernet (controller sano su Ethernet con AP spento >15 min non si
+  riavvia); Ethernet giù + AP giù: nessun auto-recupero atteso (trade-off accettato, vedi commento in
+  `boards/t-connect-pro.yaml`).
 - **Non toccate:** le board legacy senza consumer (`a6`, `a16`, `waveshare-s3`).
 
 ---
