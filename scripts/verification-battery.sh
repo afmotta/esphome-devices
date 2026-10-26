@@ -135,13 +135,20 @@ logger_level_check() {
 # without it brings back the silent-loss bug. The gate counts non-comment call sites per
 # file: each send_data( must be matched by a tx_health_track( / tx_health_heartbeat_sent(
 # call, so an extra bare send in an already-wrapped file is still caught.
+# Count-based by design, a best-effort convention guard and not a proof: it does not bind a
+# wrap to its send (real sites use `auto err = send_data(...)` and a separate
+# `tx_health_track(..., err == ...)`), so an unrelated wrap can cancel a bare send; multi-line
+# /* */ blocks are not stripped and a bare // inside a string literal (not a URL's ://) still
+# hides the rest of its line.
 tx_health_wrap_check() {
   local f code sends wraps offenders=""
   for f in $(git ls-files canbus/packages lighting/packages); do
-    # drop full-line YAML comments and // comments, then count call sites
-    code="$(grep -v -E '^[[:space:]]*#' "$f" | sed -E 's://.*$::' || true)"
-    sends="$(printf '%s\n' "$code" | grep -o 'send_data(' | wc -l | tr -d ' ' || true)"
-    wraps="$(printf '%s\n' "$code" | grep -o -E 'tx_health_(track|heartbeat_sent)\(' | wc -l | tr -d ' ' || true)"
+    # drop full-line YAML comments, single-line /* */ and // comments (a URL's :// is not one),
+    # then count call sites
+    code="$(grep -v -E '^[[:space:]]*#' "$f" \
+      | sed -E -e 's:/\*[^*]*\*/::g' -e 's:(^|[^:])//.*$:\1:' || true)"
+    sends="$(printf '%s\n' "$code" | grep -o -E 'send_data[[:space:]]*\(' | wc -l | tr -d ' ' || true)"
+    wraps="$(printf '%s\n' "$code" | grep -o -E 'tx_health_(track|heartbeat_sent)[[:space:]]*\(' | wc -l | tr -d ' ' || true)"
     if [ "${sends:-0}" -gt "${wraps:-0}" ]; then
       offenders="$offenders $f(send_data=$sends,wrapped=$wraps)"
     fi
