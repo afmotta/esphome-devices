@@ -29,7 +29,7 @@ recommendation for the owner to accept, amend or reject. Its subject is review i
 (*"if the master hangs, the Modbus relays keep their last state"*). The recommendation depends on
 board behaviours that no primary vendor document confirms; they are listed as bench tests in
 [Open questions](#open-questions-to-verify-on-hardware), and the decision should not be taken as
-final until O1-O4 pass. Vendor facts below are not independently verified (see the access note).
+final until the A2 gate in the Decision (O1-O5, O7, O9) passes. Vendor facts below are not independently verified (see the access note).
 
 ## Context
 
@@ -257,10 +257,11 @@ Cheap and worth doing, but none of them acts when the controller is gone.
   pins the default).
 - **D3, observability:** wire `modbus_controller: on_offline` for `relay_board_1` and `analog_outputs_board_1`
   to a panel alarm and an HA notification (`relay_board_1` has no status sensor today). Surfaces a dead bus
-  that A/C will otherwise convert silently into "house stops heating". Also alarm when the D4 predicate
-  suppresses re-arm for more than one interval (15 s), and when the polled state of the enable relay reads
-  open while pumps are commanded on: the enable relay is otherwise unobserved, so these alarms are the only
-  visibility into a wrongly tripped dead-man.
+  that A/C will otherwise convert silently into "house stops heating" (**D3a**, available now).
+  **D3b**, shipped with A2: also alarm when the D4 predicate suppresses re-arm for more than one interval
+  (15 s), and when the polled state of the enable relay reads open while pumps are commanded on. The
+  enable relay is otherwise unobserved, so these alarms are the only visibility into a wrongly tripped
+  dead-man.
 - **D4, health-gated re-arm:** the re-arm in A (or heartbeat in C) fires only if a software health predicate
   holds (e.g. a recent PID update tick, modbus not offline). Catches wedged logic under a live loop.
 - **Protects:** reboot windows and (D3) human awareness. **Does not** protect: death, bus fault, boot loop.
@@ -281,8 +282,8 @@ Cheap and worth doing, but none of them acts when the controller is gone.
 
 **Adopt D + A2, hold C as the fallback, ask for B.**
 
-1. **D3 and D2 now** (no hardware dependency): `on_offline` and enable-relay alarms, explicit watchdog
-   timeout (D2 only pins the default). **D1 after O6/O8**: safe-by-default boot for the pump relays and
+1. **D3a and D2 now** (no hardware dependency): `on_offline` alarms, explicit watchdog timeout (D2 only
+   pins the default). **D3b ships with A2** (it needs the enable relay and D4). **D1 after O6/O8**: safe-by-default boot for the pump relays and
    analog valves depends on boot ordering and on what 0 V does to the valves.
 2. **A2: a single master-enable relay.** One spare relay channel (`relay_22`) is flash-on re-armed every 15 s
    with a 60 s pulse (`0x0258`); it drives a contactor (by default) whose NO contact is in series with the
@@ -296,10 +297,19 @@ Cheap and worth doing, but none of them acts when the controller is gone.
    a reboot only if boot-to-first-re-arm stays under about 45 s (O7).
    **Precondition:** O9 must confirm freeze protection (antifreeze, WPM frost logic or the D3 alarm) and what
    the Stiebel WPM expects when all consumer pumps stop, before A2 is adopted.
-3. **Gate:** do not wire anything until bench tests O1-O4 pass. If re-arm chatters (O2), the pulse does not
-   self-revert as measured (O1), or the board's timer dies with its MCU in a way that matters (O4), switch to
-   **C** (external watchdog contactor). Both A2 and C share the same series-contact wiring, so the electrical
-   work is not wasted.
+3. **Gate:** do not wire anything until the A2 go/no-go passes: **O1-O5, O7 and O9**. D1 is gated
+   separately on **O6 and O8**. Any of these failing means A2 is not adopted as written:
+   - O1 (pulse does not self-revert as measured) or O2 (re-arm chatters or does not restart the countdown):
+     switch to **C** (external watchdog contactor).
+   - O3 (contact does not open with the master silent): switch to **C**.
+   - O4 (coil comes up ON after a board power cycle): the dead-man is bypassed after any relay-board power
+     cycle, and wiring the contact NC would invert the safety direction, so A2 fails; switch to **C**, or
+     have the master write the enable relay off at boot before any pump can start.
+   - O5 (custom raw command unusable) or O7 (boot-to-first-re-arm over budget): fix the mapping or lengthen
+     the pulse, else **C**.
+   - O9 (freeze/WPM flow or contactor rating unresolved): do not adopt A2.
+   Hung relay-board MCU freezing its timer is not covered by any bench test (comparison table: "maybe [U]");
+   only C covers it. Both A2 and C share the same contactor wiring, so the electrical work is not wasted.
 4. **B is a parallel inquiry** to Waveshare; if a comm-loss timeout turns out to exist it replaces A2.
 5. **Out of scope:** the analog board gets no timeout; the MEV fans are deliberately left fail-as-is.
 
@@ -371,8 +381,10 @@ order:
    controller power: the contact must open at the expiry time and stay open without any bus traffic. Also
    check it stays open when the controller comes back and polls (reading coils must not restart anything).
 4. **O4, board reset behaviour.** Power-cycle the relay board mid-pulse: what is the coil state after boot
-   (not documented in the excerpts reviewed)? If it comes up ON, the A2 premise (de-energised = safe) needs a
-   different wiring (use NC or invert).
+   (not documented in the excerpts reviewed)? If it comes up ON, the A2 premise (de-energised = safe) fails:
+   the pumps would run with no pulse and no timer until a later command. NC wiring does not fix it (it
+   inverts the safety direction). Treat it as a gate failure: fall back to C, or have the master write the
+   enable relay off at boot.
 5. **O5, bus under load.** Measure real transaction time with re-arm interleaved with the 2 s polling and
    the 30 s MEV polls; verify no re-arm is delayed past 15 s (watch `queue_command` timing at DEBUG), and
    that a failed/missed re-arm is tolerated (the pulse is last re-armed up to 15 s before the failure, so two

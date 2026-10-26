@@ -326,18 +326,13 @@ la decisione spetta al proprietario.
   
   In tutti questi casi le schede **mantengono l'ultimo stato**: i relè hanno `restore_mode: DISABLED` e al boot non viene
   scritto nulla.
-- **Cosa offrono le schede:** la Relay 32CH ha comandi **flash-on/flash-off temporizzati** (FC `0x05`, registri
-  `0x0200`–`0x021F` e `0x0400`–`0x041F`, unità di 100 ms).
-  - Fonti: estratti del wiki Waveshare e misure di terzi su una scheda sorella. Il sito Waveshare non era raggiungibile
-    dal sandbox, quindi non è una lettura diretta.
-  - Non è stato trovato alcun timeout per perdita di comunicazione, né sulla Relay 32CH né sulla Analog 8CH (B).
-- **Raccomandazione:**
-  - un relè di riserva ri-armato con flash-on ogni 15 s (impulso di 60 s), con il contatto in serie
-    all'alimentazione delle pompe e dei contatti SG-Ready: un "dead-man" che ferma le pompe entro 60 s se il master tace;
-  - mitigazioni firmware: stato sicuro al boot, `watchdog_timeout` esplicito, allarmi per scheda offline;
-  - come ripiego, un contattore con watchdog esterno.
-- **Da verificare al banco prima di decidere:** 11 punti elencati nell'ADR. I primi quattro sono decisivi: comportamento
-  del flash-on, ri-armo senza "click", rilascio a controller spento, stato delle bobine dopo il power-cycle della scheda.
+- **Cosa offrono le schede:** la Relay 32CH ha comandi **flash-on/flash-off temporizzati**; nessun timeout per perdita
+  di comunicazione trovato su nessuna delle due schede. Fonti e livello di fiducia: nell'ADR.
+- **Raccomandazione (dettagli nell'ADR-0024):** un relè di riserva ri-armato con flash-on ogni 15 s (impulso di 60 s)
+  che comanda un contattore in serie all'alimentazione delle **sole pompe** (SG-Ready escluso), come "dead-man"; ripiego:
+  contattore con watchdog esterno. Fermare le pompe protegge dal funzionamento fuori controllo, non dal gelo: vedi i
+  prerequisiti dell'ADR (O9).
+- **Da verificare al banco prima di decidere:** il gate dell'ADR (O1–O5, O7, O9; O6 e O8 per il boot sicuro).
 
 ### R-10 — Lacune di testing
 
