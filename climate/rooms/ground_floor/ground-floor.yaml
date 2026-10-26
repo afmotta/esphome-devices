@@ -205,6 +205,10 @@ sensor:
       // The max combination skips NaN sources, so a room whose humidity went
       // unavailable would silently drop out and could lower the minimum. Never
       // lower it while a member room has no dew point (R-04 review).
+      // `held` is a ratchet seeded only by an all-valid pass: it is inactive until the
+      // first one after boot/OTA, and while any member is NaN the minimum never drops
+      // below the last all-valid value. The room list must match the `sources` of the
+      // max dew point sensor.
       static float held = NAN;
       float minimum = dew_point + margin;
       if (std::isnan(id(soggiorno_dew_point).state) || std::isnan(id(cucina_dew_point).state) || std::isnan(id(anticamera_dew_point).state)) {
