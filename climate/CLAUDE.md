@@ -334,7 +334,7 @@ Note that `radiant.yaml`'s own `kp`/`ki`/`kd`/`pwm_period` vars are currently ig
 | Loop | Package | Kp | Ki | Kd | Notes |
 |------|---------|----|----|----|-------|
 | Radiant floor/ceiling (slow) | `heat_only_radiant.yaml` (used by `radiant.yaml`) | 0.8 | 0.005 | 0.05 | sane tuning range roughly Kp 0.5–1.0, Ki 0.001–0.01, Kd 0.01–0.1 |
-| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them (Kp ~0.1–0.5), not toward 1.0+ |
+| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them, not toward 1.0+ (a starting window of roughly Kp 0.1–0.5 is a suggestion, not a validated range) |
 | Floor mixing valve | `mixing_pump.yaml` | 0.2 | 0.01 | 0.0 | |
 
 **One gain set per actuator.** Since R-01 each actuator has a single PID whose heat and cool outputs are
