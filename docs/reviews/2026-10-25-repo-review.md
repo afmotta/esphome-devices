@@ -49,7 +49,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ✅ | `5014afd`, `638342f` |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ✅ | `d509ff3`, `7d28baa` |
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ✅ (recovery diretto ⏸️ fork) | `bef6792` |
-| [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ⬜ | — |
+| [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ✅ | `3553901`, `d53e285` |
 | [R-19](#r-19--le-pompe-di-circolazione-erano-sempre-accese) | 🔴 | Pompe di circolazione sempre accese (`id(binary_sensor)` è un puntatore) | ✅ | `504300a` |
 
 ---
@@ -716,6 +716,35 @@ Però le priorità dichiarate nei package (e i commenti che le giustificano) non
 **Proposta:** usare ovunque la forma a lista con priorità esplicite e aggiungere un test che controlli il numero e la
 priorità dei trigger nelle config risolte.
 
+**Fix applicato:** ✅ `3553901` — `climate: list-form on_boot with explicit priorities everywhere (R-18)`, `d53e285` —
+`repo: guard against mapping-form on_boot and merged-trigger drift (R-18)`
+
+- **Forma a lista ovunque.** Ogni `on_boot` è una voce di lista con `priority` esplicita, anche quelle che prima erano
+  implicite a 600. Ogni hook diventa un trigger separato alla priorità dichiarata (board, `canbus/packages/`,
+  `lighting/packages/`, ruoli fancoil, coordinatore boost, harness).
+- **Ordine deterministico del boost.** Il replay del coordinatore boost passa da -100 a -110, quindi gira dopo la
+  sincronizzazione del ruolo fancoil (-100) e ha l'ultima parola su un boost ripristinato. Prima i due erano nello stesso
+  trigger e l'ordine dipendeva dall'ordine dei package.
+- **Commenti corretti** dove giustificavano priorità che non erano quelle effettive, con una nota sui `delay` del reset
+  T-2CAN (sono timer dello scheduler).
+- **Guardie:**
+  - `scripts/check_on_boot_form.py` (solo stdlib) fallisce su qualsiasi YAML tracciato con `on_boot` a mappa o con una
+    voce senza `priority`. È nella battery (quindi `--fast`/`--native-only`, pre-commit e job CI `native`);
+  - `scripts/check_on_boot_resolved.py` risolve gli entry point con `esphome config` e confronta il numero di trigger per
+    priorità con `scripts/on_boot_baseline.json` (battery completa e job CI `esphome-config`; `--update` dopo una
+    modifica voluta).
+- **Guida aggiornata:** `CLAUDE.md` (Code Style), `canbus/CLAUDE.md`, `climate/CLAUDE.md`. Sostituisce la regola R-16
+  "tenere la role sync a mappa a -100".
+- **Verificato:**
+  - `on_boot` risolti prima → dopo: climate-control 1×(-100) → 4×(-100) + 2×(-110); bridge T-2CAN 1×(190) →
+    800/200/190; harness boost 1×(-200) → -110 e -200; harness pid_behaviour 1×(-100) → 4×(-100) + 1×(-110);
+  - il controllo di forma fallisce sui file pre-fix (`boards/lilygo-t-2can.yaml` a mappa, `lighting/packages/buttons.yaml`
+    senza `priority`); self-test inclusi PASS;
+  - dopo il rebase su `main`, sopra R-17: battery nativa PASS, yamllint OK, 15 entry point / 63 trigger uguali alla
+    baseline, e2e climate host 94/94 (7 harness).
+- **Non verificato:** compilazione ESP32 e ordine di boot sull'hardware (in particolare il reset MCP2515 a 800 sulla
+  T-2CAN, ora davvero prima di `node_core`).
+
 ### R-19 — Le pompe di circolazione erano sempre accese
 
 _Emersa durante il fix di R-05; risolta in `504300a`._
@@ -771,3 +800,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-16 | `d509ff3`, `7d28baa` | Stato al boot dei fancoil per ruolo; tolleranza sul sensore perso (riconcilia R-05) | e2e host 19/19 + 16/16 |
 | 2026-10-25 | R-14 | `173722e`, `bf1681e` | Il window guard riconsegna il fancoil al proprietario, senza snapshot | e2e host 23/23 |
 | 2026-10-25 | R-17 | `bef6792` | Watchdog TX con backoff per i trasmettitori ESP32 TWAI | test nativi, battery PASS, `esphome config` ×9 |
+| 2026-10-26 | R-18 | `3553901`, `d53e285` | `on_boot` a lista con priorità esplicite ovunque; controlli di forma e di trigger risolti | battery PASS, yamllint OK, baseline 15/63, e2e climate host 94/94 |
