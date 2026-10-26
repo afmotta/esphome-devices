@@ -32,7 +32,7 @@ int main()
   assert(!tx_health_track(h, false));
   assert(h.pending && tx_health_flags(h) == ERR_CAN_TX_FAIL);
 
-  // --- a later successful non-heartbeat send does NOT clear it (only a heartbeat proves delivery) ---
+  // --- a later successful non-heartbeat send does NOT clear it (only an accepted heartbeat clears it) ---
   tx_health_track(h, true);
   assert(h.pending);
 
