@@ -86,6 +86,9 @@ sensor:
       const float raw = id(outdoor_temp_ha).state;
       const float gated = ha_tier_gate(tracker, ha_client, millis(),
                                        (uint32_t) ${ha_outdoor_staleness_grace_s} * 1000U, raw);
+      // The gate reopens once a client reconnects, so clear the raw sensor too:
+      // if HA does not re-push on reconnect, the frozen pre-outage value would
+      // otherwise come back.
       if (tracker.expired && !std::isnan(raw)) {
         ESP_LOGW("ha_tier", "[outdoor] temperature: no HA client for >${ha_outdoor_staleness_grace_s}s, HA tier -> NaN");
         id(outdoor_temp_ha).publish_state(NAN);
