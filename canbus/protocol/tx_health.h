@@ -43,17 +43,14 @@
 
 struct TxHealth
 {
-  bool pending;       // a failure has not yet been reported by an accepted heartbeat
-  uint32_t failures;  // cumulative refused sends (diagnostic only; never reported on the wire)
+  bool pending;   // a failure has not yet been reported by an accepted heartbeat
 };
 
 // Record the outcome of one send_data() (ok = it returned ERROR_OK).
 inline void tx_health_note(TxHealth &h, bool ok)
 {
-  if (!ok) {
+  if (!ok)
     h.pending = true;
-    h.failures++;
-  }
 }
 
 // Same, passing the outcome through — wraps a send expression without an extra statement.

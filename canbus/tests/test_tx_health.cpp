@@ -25,12 +25,12 @@ int main()
   // --- clean node: no flag, successful sends change nothing ---
   TxHealth h{};
   assert(tx_health_flags(h) == ERR_NONE);
-  assert(tx_health_track(h, true) && tx_health_flags(h) == ERR_NONE && h.failures == 0);
+  assert(tx_health_track(h, true) && tx_health_flags(h) == ERR_NONE);
   assert(heartbeat(h, ERR_NONE, true) == ERR_NONE);
 
   // --- a refused send (button / sensor frame) sets the flag; track() passes the result through ---
   assert(!tx_health_track(h, false));
-  assert(h.pending && h.failures == 1 && tx_health_flags(h) == ERR_CAN_TX_FAIL);
+  assert(h.pending && tx_health_flags(h) == ERR_CAN_TX_FAIL);
 
   // --- a later successful non-heartbeat send does NOT clear it (only a heartbeat proves delivery) ---
   tx_health_note(h, true);
@@ -46,7 +46,6 @@ int main()
   assert(!tx_health_track(h, false));
   for (int i = 0; i < 5; ++i)
     assert(heartbeat(h, ERR_NONE, false) == ERR_CAN_TX_FAIL && h.pending);
-  assert(h.failures == 7);                       // 2 refused frames + 5 refused heartbeats
   assert(heartbeat(h, ERR_NONE, true) == ERR_CAN_TX_FAIL && !h.pending);
 
   // --- a refused heartbeat on a previously clean node starts the latch itself ---
