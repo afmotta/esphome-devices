@@ -200,12 +200,12 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
   - Nuovo harness host `climate/tests/harness/room_sensors.yaml`, che include `room_sensors.yaml` reale.
   - `climate/tests/e2e/test_room_sensors.py`: un finto HA risponde alla sottoscrizione agli stati. Coperti: valore
     numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA", disconnessione oltre la grazia → NaN.
-  - Aggiunti al job CI su `main` e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
+  - Aggiunti a un job CI host su ogni PR e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
 - **Verificato:**
   - battery nativa PASS in un worktree isolato sul commit;
   - `esphome config` OK su climate-control, sui due harness climate, su light-controller e health-monitor;
   - l'API scelta esiste in 2026.8.0.
-- **Non verificato qui** (PlatformIO bloccato): la compilazione per il device e l'e2e, che girerà in CI su `main`.
+- **Non verificato qui** (PlatformIO bloccato): la compilazione per il device, che girerà in CI su `main`. L'e2e è girato in locale su un binario host (4/4, stabile su 3 esecuzioni) e ora gira anche in CI sulle PR.
 - **Rischio residuo documentato:** anche `esphome logs` si sottoscrive agli stati per default. Una sessione di log lasciata
   aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
 - **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
@@ -304,4 +304,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 |------|-------|--------|---------|----------|
 | 2026-10-25 | R-02 | `5b53b0d` | `api`/`wifi` `reboot_timeout: 0s` sui controller autonomi | `esphome config` ×5; hardware da fare al bring-up |
 | 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
-| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e in CI |
+| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e locale 4/4 + CI |
