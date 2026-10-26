@@ -19,8 +19,9 @@
 //
 // Deliberately NOT "time since the last value arrived": HA only pushes state
 // *changes*, so a perfectly healthy but stable room temperature would expire.
-// Connection liveness is the staleness signal; the grace period rides out an HA
-// restart (~1-2 min) without a spurious Emergency.
+// Connection liveness is the staleness signal; the grace period covers only a
+// missing client. Entities HA reports as unavailable/unknown (e.g. while it
+// restarts) still arrive as NaN and are Emergency immediately, by design.
 //
 // Boot: before any client has ever been seen the gate is closed (NaN). That costs
 // nothing in practice — the raw HA sensor has no value until HA connects and

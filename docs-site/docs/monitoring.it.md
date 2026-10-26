@@ -79,6 +79,9 @@ esphome logs <file-punto-d-ingresso.yaml>
 
 Per esempio, `esphome logs devices/locals/climate-control.yaml` per il controller climatico, o `esphome logs devices/light-controller.yaml` per il controller dell'illuminazione. (Vedi [Per iniziare](setup.md) se non hai ancora un'installazione ESPHome funzionante per eseguire questo comando.)
 
+!!! warning "Sessioni di log e blackout di Home Assistant"
+    Una normale sessione `esphome logs` si sottoscrive agli stati delle entità, quindi il controller climatico la conta come una connessione a Home Assistant e, durante un blackout di HA, mantiene vivi gli ultimi valori dei sensori di stanza invece di passare a Emergency. Usa `esphome logs --no-states <file>` per una sessione che non deve contare, e chiudi le sessioni di log quando provi un blackout di HA o il failover.
+
 ### Attivare il log dettagliato Modbus
 
 Modbus è il protocollo cablato che il controller climatico usa per comunicare con le schede relè e uscite analogiche. Se sospetti un problema di comunicazione Modbus (vedi [Risoluzione problemi RS485 / Modbus](troubleshooting/rs485-modbus.md)), puoi ottenere log molto più dettagliati aggiungendo questo alla configurazione del dispositivo prima di compilare e flashare:

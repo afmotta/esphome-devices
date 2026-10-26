@@ -79,6 +79,9 @@ esphome logs <entry-point-file.yaml>
 
 For example, `esphome logs devices/locals/climate-control.yaml` for the climate controller, or `esphome logs devices/light-controller.yaml` for the lighting controller. (See [Getting Started](setup.md) if you don't yet have a working ESPHome install to run this command.)
 
+!!! warning "Log sessions and Home Assistant outages"
+    A plain `esphome logs` session subscribes to entity states, so the climate controller counts it as a Home Assistant connection and keeps the last room-sensor values alive during an HA outage instead of falling back to Emergency. Use `esphome logs --no-states <file>` for a session that must not count, and close log sessions when testing an HA outage or failover.
+
 ### Turning on verbose Modbus logging
 
 Modbus is the wired protocol the climate controller uses to talk to the relay and analog-output boards. If you suspect a Modbus communication problem (see [RS485 / Modbus Troubleshooting](troubleshooting/rs485-modbus.md)), you can get much more detailed logs by adding this to the device's configuration before compiling and flashing:
