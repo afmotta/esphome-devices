@@ -42,17 +42,20 @@ which tier is currently active, so you don't have to guess — see
 [Everyday Monitoring](../monitoring.md) for the exact entity-naming pattern.
 
 **Important — what "stuck in Emergency" actually means:** The Emergency tier
-switches over **immediately**, the moment both the primary and secondary
-readings go bad — there is no waiting period built into the sensor logic
-itself. 🟢 VERIFIED (read directly from the failover component's code,
+switches over as soon as both the primary and secondary readings go bad —
+there is no timer built into the sensor logic itself, only the polling delay
+(within about 20 s: one gate poll plus one failover poll). 🟢 VERIFIED (read directly from the failover component's code,
 `climate/packages/components/failover_sensor.yaml`). The room's PID
-controller then sees no usable reading and drops its outputs to 0 **right
-away** (valve closed, fancoil off) — there is no "safe shutdown after 5
+controller then sees no usable reading and drops its outputs to 0
+(valve closed, fancoil off) — there is no "safe shutdown after 5
 minutes" timer anywhere; older project documents that said so were wrong.
 The only 5-minute figure is on the Home Assistant side: the secondary tier
-is declared unavailable once Home Assistant has been disconnected from the
-controller for 5 minutes (a grace period that rides out an HA restart),
-so a frozen last value is never used indefinitely. 🔵 DESIGNED — covered by
+is declared unavailable once no state-subscribed API client (Home Assistant
+or otherwise) has been connected to the controller for 5 minutes (a grace
+period that rides out an HA restart; after a boot without HA the tier stays
+unavailable until the first connection), so a frozen last value is never
+used indefinitely. A single entity reporting `unavailable` while a client is
+connected goes unavailable with no grace. 🔵 DESIGNED — covered by
 automated tests, not yet bench-tested on the real controller. Note: an
 `esphome logs` session left open counts as a Home Assistant connection and
 keeps the secondary tier alive during an outage; use
