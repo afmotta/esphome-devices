@@ -174,7 +174,17 @@ sensor:
       float dew_point = id(first_floor_max_dew_point).state;
       float margin = id(first_floor_radiant_safe_margin).state;
       if (std::isnan(dew_point) || std::isnan(margin)) return NAN;
-      return dew_point + margin;
+      // The max combination skips NaN sources, so a room whose humidity went
+      // unavailable would silently drop out and could lower the minimum. Never
+      // lower it while a member room has no dew point (R-04 review).
+      static float held = NAN;
+      float minimum = dew_point + margin;
+      if (std::isnan(id(camera_ospiti_dew_point).state) || std::isnan(id(camera_nord_dew_point).state) || std::isnan(id(camera_padronale_dew_point).state) || std::isnan(id(camera_sud_dew_point).state)) {
+        if (!std::isnan(held) && held > minimum) return held;
+        return minimum;
+      }
+      held = minimum;
+      return minimum;
     update_interval: 30s
 
   - platform: combination

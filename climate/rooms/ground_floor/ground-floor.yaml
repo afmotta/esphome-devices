@@ -200,7 +200,17 @@ sensor:
       float dew_point = id(ground_floor_max_dew_point).state;
       float margin = id(ground_floor_radiant_safe_margin).state;
       if (std::isnan(dew_point) || std::isnan(margin)) return NAN;
-      return dew_point + margin;
+      // The max combination skips NaN sources, so a room whose humidity went
+      // unavailable would silently drop out and could lower the minimum. Never
+      // lower it while a member room has no dew point (R-04 review).
+      static float held = NAN;
+      float minimum = dew_point + margin;
+      if (std::isnan(id(soggiorno_dew_point).state) || std::isnan(id(cucina_dew_point).state) || std::isnan(id(anticamera_dew_point).state)) {
+        if (!std::isnan(held) && held > minimum) return held;
+        return minimum;
+      }
+      held = minimum;
+      return minimum;
     update_interval: 30s
 
   # Max humidity across ground floor rooms for boost decisions
