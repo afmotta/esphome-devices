@@ -120,13 +120,10 @@ canbus:
               }
 
 interval:
-  # Paced drain: at most BRIDGE_DRAIN_MAX frames per direction per tick (200
-  # frames/s/direction at the nominal 10 ms tick, slower where the loop is gated, e.g.
-  # T-2CAN) — see bridge_forwarding.h for the TX-buffer arithmetic behind the cap. A frame counts as forwarded only when send_data()
-  # returned ERROR_OK; a refused one stays at the head of its queue and is retried
-  # next tick, up to BRIDGE_TX_ATTEMPTS_MAX, then dropped and counted (dropped_tx);
-  # a refusal (even the dropping one) ends that direction's tick, so at most one
-  # refused attempt per direction per tick.
+  # Paced drain: at most BRIDGE_DRAIN_MAX frames per direction per tick (200 frames/s/
+  # direction at the nominal 10 ms tick, slower where the loop is gated, e.g. T-2CAN);
+  # the TX-buffer arithmetic is in bridge_forwarding.h. A refused send is retried, then
+  # dropped and counted: see bridge_drain_send in bridge_forwarding.h.
   # Every send also feeds tx_health, so even a refusal a retry recovered reaches the
   # next heartbeat as the (non-sticky) ERR_CAN_TX_FAIL.
   #
