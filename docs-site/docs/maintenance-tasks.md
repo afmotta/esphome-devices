@@ -187,9 +187,12 @@ actually works in.
 it's built for exactly this and will usually get you closer, faster, than guessing
 from the numbers above. Hand-tune from there only if the result still isn't tracking
 well. Three auto-tune caveats: run it in the loop's own season (in the wrong season the
-actuator stays closed and the tune never finishes); on loops that have both a heat and
-a cool output (radiant, a heating-and-cooling fancoil) **halve the reported gains**,
-because the real output swing is 0..1 rather than the -1..+1 the tuner assumes; and
+actuator stays closed and the tune never finishes); on dual-output loops (radiant zones
+using `radiant.yaml`, and heating-and-cooling fancoils) **halve the reported gains**,
+because the real output swing is 0..1 rather than the -1..+1 the tuner assumes (do not
+halve the heat-only radiant zones — bathrooms and laundry — or cool-only loops; the 2x
+factor comes from the tuner's code comments and is not bench-verified, so check it at
+bring-up); and
 for a `boost` fancoil, set its PID to COOL by hand first, since it normally sits OFF
 until the boost coordinator starts it.
 

@@ -126,8 +126,8 @@ valori piccoli — vedi i valori predefiniti in
 - Guadagni troppo prudenti (causa più comune di risposta lenta/superamento
   del target per correzione troppo debole).
 - Auto-taratura eseguita nella stagione sbagliata, o risultato applicato
-  senza dimezzarlo (vedi la sezione Soluzione) — sui cicli con uscita sia di
-  caldo sia di freddo i guadagni risultano circa il doppio del necessario.
+  senza dimezzarlo (vedi la sezione Soluzione) — sui cicli a doppia
+  uscita (non le zone radianti solo-caldo) i guadagni risultano circa il doppio del necessario.
 
 **Passi diagnostici:**
 
@@ -148,8 +148,10 @@ valori piccoli — vedi i valori predefiniti in
    (`climate/packages/components/pid_autotune.yaml`) esiste apposta per
    evitare di indovinare i guadagni a mano — eseguilo prima di modificare i
    numeri manualmente. Eseguilo nella stagione in cui il ciclo lavora davvero;
-   sui cicli con uscita sia di caldo sia di freddo dimezza i guadagni che
-   riporta; per un fancoil `boost`, metti prima a mano il suo PID in COOL
+   sui cicli a doppia uscita (zone radianti su `radiant.yaml`, fancoil
+   caldo+freddo) dimezza i guadagni che riporta (non per le zone radianti
+   solo-caldo; il fattore 2 deriva dai commenti del codice, non è verificato
+   al banco — controllalo alla messa in servizio); per un fancoil `boost`, metti prima a mano il suo PID in COOL
    (normalmente resta OFF finché non lo avvia il boost).
 2. **Se tarifichi a mano, parti prudente**: guadagno proporzionale (Kp)
    basso, guadagni integrale/derivativo (Ki/Kd) molto bassi, poi aumenta

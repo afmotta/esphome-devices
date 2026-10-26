@@ -210,9 +210,11 @@ tara una volta, nella stagione in cui il ciclo lavora davvero.
 di più, più rapidamente, rispetto a indovinare dai numeri sopra. Tara a mano
 solo se il risultato non traccia ancora bene. Tre avvertenze sull'auto-taratura:
 eseguila nella stagione propria del ciclo (nella stagione sbagliata l'attuatore resta
-chiuso e la taratura non finisce mai); sui cicli con uscita sia di caldo sia di freddo
-(radiante, fancoil caldo+freddo) **dimezza i guadagni riportati**, perché l'escursione
-reale dell'uscita è 0..1 e non -1..+1 come assume il tuner; e per un fancoil `boost`
+chiuso e la taratura non finisce mai); sui cicli a doppia uscita
+(zone radianti su `radiant.yaml` e fancoil caldo+freddo) **dimezza i guadagni riportati**, perché l'escursione
+reale dell'uscita è 0..1 e non -1..+1 come assume il tuner (non dimezzare le zone radianti
+solo-caldo — bagni e lavanderia — né i cicli solo-freddo; il fattore 2 deriva dai commenti
+del codice del tuner e non è verificato al banco: controllalo alla messa in servizio); e per un fancoil `boost`
 metti prima a mano il suo PID in COOL, perché normalmente resta OFF finché non lo
 avvia il coordinatore del boost.
 

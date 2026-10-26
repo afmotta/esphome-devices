@@ -346,8 +346,10 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
   wrong season the gated actuator stays at 0, the room never responds and the tune never completes.
 - The autotuner assumes an output swing of -1..+1, but on a loop with both a heat and a cool output the
   gated opposite half-cycle only closes the valve, so the real swing is 0..1 and the estimated gains
-  come out about 2x too high: **halve `kp`/`ki`/`kd`** on dual-output loops (radiant, `heat_cool`
-  fancoils). Heat-only and cool-only loops already model 0..1 correctly.
+  come out about 2x too high: **halve `kp`/`ki`/`kd`** only on dual-output loops: radiant zones on `radiant.yaml` and `heat_cool`
+  fancoils. Do **not** halve heat-only loops (the bathroom/laundry zones on `heat_only_radiant.yaml`) or
+  cool-only loops: they already model 0..1 correctly. The 2x factor is derived from the comments in
+  `pid_autotune.yaml`, not bench-verified (verify at bring-up).
 - The PID must not be OFF. `boost` fancoils sit OFF until the boost coordinator starts them, so set the
   fancoil PID to COOL by hand before pressing the button.
 - For zones with a fancoil or boost coordinator use `pid_autotune_with_fancoil.yaml` (ends boost and

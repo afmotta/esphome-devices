@@ -117,8 +117,8 @@ defaults on [Routine Maintenance](../maintenance-tasks.md)). 🔵 DESIGNED
 - Gains too conservative (most common cause of sluggish response/overshoot
   from a slow correction).
 - Auto-tune run in the wrong season, or its result applied without halving
-  (see the Fix section) — the gains come out about twice too high on loops
-  that have both a heat and a cool output.
+  (see the Fix section) — on dual-output loops (not heat-only radiant zones)
+  the gains come out about twice too high.
 
 **Diagnostic steps:**
 
@@ -136,8 +136,10 @@ defaults on [Routine Maintenance](../maintenance-tasks.md)). 🔵 DESIGNED
 1. **Use auto-tune first.** The auto-tune component
    (`climate/packages/components/pid_autotune.yaml`) exists specifically to
    avoid hand-guessing gains — run it before manually adjusting numbers.
-   Run it in the season the loop actually works in; on loops that have both
-   a heat and a cool output, halve the gains it reports; and for a `boost`
+   Run it in the season the loop actually works in; on dual-output loops
+   (radiant zones on `radiant.yaml`, heat-and-cool fancoils), halve the gains it reports
+   (not for heat-only radiant zones; the 2x factor is derived from code comments, not
+   bench-verified — check at bring-up); and for a `boost`
    fancoil, set its PID to COOL by hand first (it normally sits OFF until
    the boost starts it).
 2. **If tuning by hand, start conservative**: low proportional gain (Kp),
