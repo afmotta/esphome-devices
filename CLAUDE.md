@@ -323,7 +323,7 @@ details, and polling intervals):
 
 1. **Primary**: CAN sensor-kit measurement (received directly on the controller's own CAN interface)
 2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness: it reads NaN when HA reports `unavailable`/`unknown` or when no state-subscribed API client has been connected for 300 s (`climate/protocol/ha_tier.h`, R-04)
-3. **Emergency**: Return NAN → triggers safe shutdown after 5 minutes
+3. **Emergency**: Return NAN → the PID outputs drop to 0 immediately (the 300 s is the HA-tier grace before the HA tier itself reads NaN, not a shutdown delay)
 
 **Automatic Recovery**: System automatically switches back to HA when its sensor recovers.
 

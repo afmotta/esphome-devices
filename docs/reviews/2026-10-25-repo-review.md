@@ -199,7 +199,8 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
     wrap di `millis()`, scadenza che sopravvive a un wrap completo); aggiunto alla battery.
   - Nuovo harness host `climate/tests/harness/room_sensors.yaml`, che include `room_sensors.yaml` reale.
   - `climate/tests/e2e/test_room_sensors.py`: un finto HA risponde alla sottoscrizione agli stati. Coperti: valore
-    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA", disconnessione oltre la grazia → NaN.
+    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA" (temperatura e umidità), disconnessione oltre la
+    grazia → NaN, e a riconnessione senza stato da HA il grezzo azzerato mantiene Emergency/NaN (temperatura e umidità).
   - Aggiunti a un job CI host su ogni PR e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
 - **Verificato:**
   - battery nativa PASS in un worktree isolato sul commit;
@@ -210,6 +211,9 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
   aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
 - **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
   È trascurabile per la temperatura ambiente.
+- **Minimo di mandata per piano:** `ground_floor_supply_temp_minimum` e `first_floor_supply_temp_minimum` mantengono il valore
+  precedente (mai più basso) finché il punto di rugiada di una stanza membro è NaN, perché il `max` della `combination`
+  scarta le sorgenti NaN e altrimenti la stanza uscirebbe dalla protezione.
 - **Conseguenza operativa:** finché le altre 12 zone non hanno un nodo CAN, un blackout di HA oltre la grazia
   (`ha_staleness_grace_s`, 300 s) porta tutte e 12 in Emergency (uscite PID a 0); la grazia è la leva da regolare.
   Anche le entità che HA riporta `unavailable`/`unknown` mentre si riavvia valgono NaN subito, per scelta (tenere
