@@ -4,7 +4,7 @@
 |-------|--------|
 | **Data** | 2026-10-25 |
 | **Baseline** | `main` @ `9d0bc28` (Upgrade ESPHome to 2026.8.0, ADR-0022) |
-| **Branch dei fix** | `claude/repo-review-fixes` |
+| **Branch dei fix** | uno per issue, es. `claude/fix-r02-reboot-timeouts` |
 | **Autore** | AI Assistant (Claude Code), su richiesta di Alberto |
 | **Scopo** | Review completa (firmware, logiche, testing, documentazione) e registro vivo di issue e fix |
 
@@ -33,7 +33,6 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | ID | Sev. | Titolo | Stato | Fix |
 |----|------|--------|-------|-----|
 | [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | 🔧 | — |
-| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | `5b53b0d` |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | 🔧 | — |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
@@ -88,10 +87,10 @@ avevano già `reboot_timeout: 0s`. Anche `wifi: reboot_timeout` (default 15 min)
 si connette, e il watchdog WiFi **ignora Ethernet** (confermato sul sorgente, vedi sotto): con l'AP
 spento un controller sano su Ethernet si riavvierebbe comunque.
 
-**Correzione prevista.** `api: reboot_timeout: 0s` sui tre controller; `wifi: reboot_timeout: 0s` sulle
+**Correzione prevista.** `api: reboot_timeout: 0s` su t-connect-pro e waveshare-s3-rs485-can (An-Penta/An-Quad già a 0s); `wifi: reboot_timeout: 0s` sulle
 board dual-interface (Ethernet primaria).
 
-**Fix applicato:** ✅ `5b53b0d` — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
+**Fix applicato:** ✅ PR #67 — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
 
 | Board | `api: reboot_timeout` | `wifi: reboot_timeout` | Device |
 |-------|----------------------|------------------------|--------|
@@ -107,7 +106,10 @@ board dual-interface (Ethernet primaria).
 - **Scelta per le board solo WiFi** (health monitor, An-Quad, S1 Pro): il reboot WiFi resta al default perché,
   senza Ethernet, è il percorso di recupero da uno stack WiFi bloccato.
 - **Verificato:** `esphome config` valido sui 5 entry point, con i valori risolti indicati in tabella.
-- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento.
+- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento;
+  conferma sul campo che il watchdog WiFi ignora Ethernet (controller sano su Ethernet con AP spento >15 min non si
+  riavvia); Ethernet giù + AP giù: nessun auto-recupero atteso (trade-off accettato, vedi commento in
+  `boards/t-connect-pro.yaml`).
 - **Non toccate:** le board legacy senza consumer (`a6`, `a16`, `waveshare-s3`).
 
 ---
@@ -244,9 +246,9 @@ watchdog o un timeout lato scheda relè.
 
 ## Registro dei fix
 
-_Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/repo-review-fixes`._
+_Le voci vengono aggiunte man mano che i fix sono committati (un branch per issue)._
 
 | Data | Issue | Commit | Sintesi | Verifica |
 |------|-------|--------|---------|----------|
-| 2026-10-25 | R-02 | `5b53b0d` | `api`/`wifi` `reboot_timeout: 0s` sui controller autonomi | `esphome config` ×5; hardware da fare al bring-up |
+| 2026-10-25 | R-02 | PR #67 | vedi la sezione R-02 | vedi la sezione R-02 |
 | 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
