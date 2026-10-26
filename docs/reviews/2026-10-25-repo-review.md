@@ -210,6 +210,10 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
   aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
 - **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
   È trascurabile per la temperatura ambiente.
+- **Conseguenza operativa:** finché le altre 12 zone non hanno un nodo CAN, un blackout di HA oltre la grazia
+  (`ha_staleness_grace_s`, 300 s) porta tutte e 12 in Emergency (uscite PID a 0); la grazia è la leva da regolare.
+  Anche le entità che HA riporta `unavailable`/`unknown` mentre si riavvia valgono NaN subito, per scelta (tenere
+  l'ultimo valore è il congelamento che R-04 elimina).
 - **Interazione con R-05:** l'override del radiante scavalca ancora il NaN, quindi R-05 resta necessaria.
 
 ---

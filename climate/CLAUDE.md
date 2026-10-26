@@ -136,6 +136,8 @@ climate:
 
 Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per room in the floor files (`climate/rooms/first_floor/first-floor.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`) and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5). Ground-floor rooms have no air-quality CAN kit registered yet, so their MEV's air-quality channel floors at minimum fan until the kits arrive; its humidity channel is live already (room humidity is sensed) (ADR-0018).
 
+**HA-tier staleness (R-04)**: the Home Assistant fallback tier of `room_sensors.yaml` reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been connected for `ha_staleness_grace_s` (default 300 s; rule in `climate/protocol/ha_tier.h`). Until CAN nodes exist, 12 of the 13 zones depend only on this tier, so an HA outage longer than the grace puts those zones in Emergency (PID outputs 0) — relay/analog/MEV actuation stays autonomous, but without room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs` sessions on `--no-states` during outage tests: a plain session counts as an HA connection.
+
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
 - MEV polling: 30 seconds (`climate/mev_modbus.yaml` / `climate/mev_innova_modbus.yaml` default)
