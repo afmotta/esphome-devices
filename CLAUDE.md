@@ -187,7 +187,7 @@ esphome-devices/
 │                              #   ⚠ tracks the repo's pinned ESPHome (2026.8.0) — re-verify on every upgrade
 │
 ├── docs/                      # Project knowledge base and guides
-│   ├── adr/                    # Architecture Decision Records (ADR-0001…0023, the "why"; no ADR-0019)
+│   ├── adr/                    # Architecture Decision Records (the "why"; `docs/adr/` is the single index)
 │   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
 │   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
 │   ├── design-notes/          # Entity-naming convention, canbus implementation rules
@@ -521,7 +521,7 @@ external_components:
 |------|---------|
 | `docs/architecture/ARCHITECTURE-SPINE.md` | Architectural invariants (AD-1…AD-10) — the current authority |
 | `docs/architecture/architecture-diagram.md` | Mermaid diagrams of system topology and data flows |
-| `docs/adr/` | Architecture Decision Records (ADR-0001…0023; there is no ADR-0019 — the number was skipped and never committed) — the reasoning behind decisions |
+| `docs/adr/` | Architecture Decision Records — the reasoning behind decisions |
 | `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
 | `docs/design-notes/entity-naming.md` | Entity ID naming convention |
 | `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
@@ -611,7 +611,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
    `docs/architecture/architecture-diagram.md` (topology and data flows)
-2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0023; no ADR-0019)
+2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (see the directory listing for the full set)
 3. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
 4. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 
