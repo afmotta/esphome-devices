@@ -46,17 +46,12 @@ struct TxHealth
   bool pending;   // a failure has not yet been reported by an accepted heartbeat
 };
 
-// Record the outcome of one send_data() (ok = it returned ERROR_OK).
-inline void tx_health_note(TxHealth &h, bool ok)
+// Record the outcome of one send_data() (ok = it returned ERROR_OK) and pass it through, so
+// it wraps a send expression without an extra statement.
+inline bool tx_health_track(TxHealth &h, bool ok)
 {
   if (!ok)
     h.pending = true;
-}
-
-// Same, passing the outcome through — wraps a send expression without an extra statement.
-inline bool tx_health_track(TxHealth &h, bool ok)
-{
-  tx_health_note(h, ok);
   return ok;
 }
 
@@ -67,14 +62,14 @@ inline uint8_t tx_health_flags(const TxHealth &h)
 }
 
 // Call right after the heartbeat built from tx_health_flags() was sent. Accepted by the
-// controller (not necessarily delivered): whatever was pending was handed off, clear it. Refused: that failure counts too, and the flag
-// stays pending for the next heartbeat.
+// controller (not necessarily delivered): whatever was pending was handed off, clear it.
+// Refused: that failure counts too, and the flag stays pending for the next heartbeat.
 inline void tx_health_heartbeat_sent(TxHealth &h, bool ok)
 {
   if (ok)
     h.pending = false;
   else
-    tx_health_note(h, false);
+    tx_health_track(h, false);
 }
 
 // The node's single TX-health record. Owned here instead of an ESPHome `globals:` entry

@@ -33,7 +33,7 @@ int main()
   assert(h.pending && tx_health_flags(h) == ERR_CAN_TX_FAIL);
 
   // --- a later successful non-heartbeat send does NOT clear it (only a heartbeat proves delivery) ---
-  tx_health_note(h, true);
+  tx_health_track(h, true);
   assert(h.pending);
 
   // --- next heartbeat carries the flag, and once accepted the latch clears ---
@@ -57,7 +57,7 @@ int main()
   TxHealth b{};
   const uint8_t sticky = ERR_BRIDGE_QUEUE_OVERFLOW;
   assert(heartbeat(b, sticky, true) == ERR_BRIDGE_QUEUE_OVERFLOW);
-  tx_health_note(b, false);
+  tx_health_track(b, false);
   assert(heartbeat(b, sticky, true) == (ERR_BRIDGE_QUEUE_OVERFLOW | ERR_CAN_TX_FAIL));
   assert(heartbeat(b, sticky, true) == ERR_BRIDGE_QUEUE_OVERFLOW);
 
@@ -66,7 +66,7 @@ int main()
 
   // --- the static store exists and is a single shared record ---
   tx_health() = TxHealth{};
-  tx_health_note(tx_health(), false);
+  tx_health_track(tx_health(), false);
   assert(tx_health().pending && tx_health_flags(tx_health()) == ERR_CAN_TX_FAIL);
 
   printf("test_tx_health: all assertions passed\n");
