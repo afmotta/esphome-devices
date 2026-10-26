@@ -62,7 +62,7 @@ inline constexpr std::size_t BRIDGE_QUEUE_MAX = 32;
 // MCP2515 (the weaker TX side) can sustain, and far above expected load.
 inline constexpr std::size_t BRIDGE_DRAIN_MAX = 2;
 // TX attempts per frame before it is dropped. One attempt per tick, so a frame is held
-// 5 ticks (~50 ms at the nominal 10 ms tick, ~100 ms where the loop is gated, e.g. T-2CAN):
+// about 5 ticks (~50 ms at the nominal 10 ms tick, ~100 ms where the loop is gated, e.g. T-2CAN):
 // ~50+ frame times at 125 kbps, long enough to ride out a transient buffer-busy spell
 // (arbitration loss against a busy segment) yet short enough that a genuinely dead segment
 // is declared (dropped_tx -> heartbeat flag) within a heartbeat's worth of traffic instead
