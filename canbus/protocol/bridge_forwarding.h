@@ -61,11 +61,13 @@ inline constexpr std::size_t BRIDGE_QUEUE_MAX = 32;
 // 200 frames/s per direction — under the 3 TX buffers and ~1 ms/frame the
 // MCP2515 (the weaker TX side) can sustain, and far above expected load.
 inline constexpr std::size_t BRIDGE_DRAIN_MAX = 2;
-// TX attempts per frame before it is dropped. One attempt per 10 ms tick, so a frame is
-// held ~50 ms: ~50 frame times at 125 kbps, long enough to ride out a transient buffer-busy
-// spell (arbitration loss against a busy segment) yet short enough that a genuinely dead
-// segment is declared (dropped_tx -> heartbeat flag) within a heartbeat's worth of traffic
-// instead of silently backing the queue up to overflow.
+// TX attempts per frame before it is dropped. One attempt per tick, so a frame is held
+// 5 ticks (~50 ms at the nominal 10 ms tick, ~100 ms where the loop is gated, e.g. T-2CAN):
+// ~50+ frame times at 125 kbps, long enough to ride out a transient buffer-busy spell
+// (arbitration loss against a busy segment) yet short enough that a genuinely dead segment
+// is declared (dropped_tx -> heartbeat flag) within a heartbeat's worth of traffic instead
+// of silently backing the queue up to overflow. The flip side, accepted: a dead egress
+// leaves up to BRIDGE_QUEUE_MAX stale events queued, delivered late once it recovers.
 inline constexpr uint8_t BRIDGE_TX_ATTEMPTS_MAX = 5;
 
 // Queue a received frame for the other segment. Oversize frames (> 8 data

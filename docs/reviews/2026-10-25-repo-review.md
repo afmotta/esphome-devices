@@ -313,7 +313,7 @@ alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del
     controller lo accetta.
   - Un frame rifiutato resta in testa e viene ritentato al tick successivo, mantenendo l'ordine FIFO e il ritmo di
     10 ms che protegge i 3 buffer TX dell'MCP2515.
-  - Dopo 5 tentativi (circa 50 ms) il frame viene scartato e conteggiato in `dropped_tx`, con `ERR_CAN_TX_FAIL`
+  - Dopo 5 tick (circa 50 ms al tick nominale di 10 ms, circa 100 ms dove il loop è limitato, es. T-2CAN) il frame viene scartato e conteggiato in `dropped_tx`, con `ERR_CAN_TX_FAIL`
     **permanente**, accanto a `ERR_BRIDGE_QUEUE_OVERFLOW`.
 - **Nodi** (`canbus/protocol/tx_health.h`, nuovo):
   - ogni invio rifiutato (bottoni, sensor kit, bridge, heartbeat, attuatori An-Penta/An-Quad) attiva `ERR_CAN_TX_FAIL`
