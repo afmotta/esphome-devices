@@ -154,9 +154,21 @@ async def test_disconnect_past_grace_is_nan_then_recovers(run_harness):
     nan_seen = await h.wait_for(ids["nan_seen"], lambda s: True)
     assert nan_seen.state is True, "HA tier kept its frozen value after the grace period"
 
-    # HA comes back: it answers the resubscription and the tier recovers.
+    # Reconnected but HA has not re-sent anything yet: the gate reopens, so the
+    # raw sensors must have been reset to NaN on expiry. If they still held the
+    # frozen 21.5 / 48.0 the tiers would read HA here. Humidity is checked too: it
+    # feeds the dew-point protection.
+    await h.wait_for(ids["temp_tier"], lambda s: s.state == "Emergency")
+    await h.wait_for_value(ids["temp"], NAN)
+    await h.wait_for(ids["humidity_tier"], lambda s: s.state == "Emergency")
+    await h.wait_for_value(ids["humidity"], NAN)
+
+    # HA comes back with different values: it answers the resubscription and the
+    # tier follows the fresh values, not the pre-outage ones.
+    ha.entity_states[TEMP_ENTITY] = "22.0"
+    ha.entity_states[HUMIDITY_ENTITY] = "50.0"
     ha.attach()
     await h.wait_for(ids["temp_tier"], lambda s: s.state == "HA")
-    await h.wait_for_value(ids["temp"], 21.5)
+    await h.wait_for_value(ids["temp"], 22.0)
     await h.wait_for(ids["humidity_tier"], lambda s: s.state == "HA")
-    await h.wait_for_value(ids["humidity"], 48.0)
+    await h.wait_for_value(ids["humidity"], 50.0)
