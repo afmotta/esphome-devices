@@ -53,6 +53,9 @@
 # states by default (use `--no-states` for a log session that must not count), so a
 # laptop log session left open during an HA outage keeps the last value alive; the
 # API has no per-connection "subscribed to HA states" accessor to be stricter.
+# Timing: the grace counts from the last HA-capable client's disconnect. From the
+# HA outage itself the tier takes up to ~7 min to read NaN (dead-link detection
+# ~90 s + grace 300 s + up to two 10 s polling stages).
 # When the grace expires the raw sensor is also reset to NaN, so a reconnect cannot
 # briefly re-expose the old value before HA pushes the fresh state.
 #
