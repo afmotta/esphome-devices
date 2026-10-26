@@ -132,19 +132,22 @@ logger_level_check() {
 }
 
 # Every node-side send_data() must feed tx_health (review R-07): a package that sends
-# without it brings back the silent-loss bug. A file-level check is deliberately cheap —
-# any tx_health use in the file — and skips comment lines. relay_store.h is the lighting
-# controller (not a node), so it is out of scope.
+# without it brings back the silent-loss bug. The gate counts non-comment call sites per
+# file: each send_data( must be matched by a tx_health_track( / tx_health_heartbeat_sent(
+# call, so an extra bare send in an already-wrapped file is still caught.
 tx_health_wrap_check() {
-  local f offenders=""
+  local f code sends wraps offenders=""
   for f in $(git ls-files canbus/packages lighting/packages); do
-    [ "$f" = "lighting/protocol/relay_store.h" ] && continue
-    if grep -v -E '^[[:space:]]*#' "$f" | grep -q 'send_data(' && ! grep -q 'tx_health' "$f"; then
-      offenders="$offenders $f"
+    # drop full-line YAML comments and // comments, then count call sites
+    code="$(grep -v -E '^[[:space:]]*#' "$f" | sed -E 's://.*$::' || true)"
+    sends="$(printf '%s\n' "$code" | grep -o 'send_data(' | wc -l | tr -d ' ' || true)"
+    wraps="$(printf '%s\n' "$code" | grep -o -E 'tx_health_(track|heartbeat_sent)\(' | wc -l | tr -d ' ' || true)"
+    if [ "${sends:-0}" -gt "${wraps:-0}" ]; then
+      offenders="$offenders $f(send_data=$sends,wrapped=$wraps)"
     fi
   done
   if [ -n "$offenders" ]; then
-    echo "send_data() without tx_health in:$offenders"
+    echo "send_data() not matched by tx_health_track()/tx_health_heartbeat_sent() in:$offenders"
     echo "Wrap the result in tx_health_track() (see canbus/CLAUDE.md, review R-07)."
     return 1
   fi
