@@ -16,7 +16,7 @@ esphome:
     - ../../canbus/protocol/canbus_protocol.h
     - ../../climate/protocol/generated_can_sensor_routes.h
     - ../../climate/protocol/can_sensor_receiver.h
-    - ../../climate/protocol/ha_tier.h   # HA-tier staleness gate for room_sensors.yaml (R-04)
+    - ../../climate/protocol/ha_tier.h   # HA-tier staleness gate for room_sensors.yaml (R-04) and outdoor.yaml (R-12)
     - ../../climate/protocol/pid_direction.h   # heat/cool direction gating of PID actuators (R-01)
 
 packages:
