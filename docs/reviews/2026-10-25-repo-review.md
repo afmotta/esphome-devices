@@ -40,7 +40,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ⬜ | — |
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
-| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
+| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
@@ -315,7 +315,7 @@ già state rese locali.
 Se il master si blocca, i relè Modbus mantengono l'ultimo stato (valvole/pompe accese). Valutare un
 watchdog o un timeout lato scheda relè.
 
-**Proposta:** `710f088` — `docs/adr/0024-actuator-fail-safe-on-controller-loss.md`, stato **Proposed**. Nessun firmware è cambiato:
+**Proposta:** `docs/adr/0024-actuator-fail-safe-on-controller-loss.md`, stato **Proposed**. Nessun firmware è cambiato:
 la decisione spetta al proprietario.
 
 - **Già coperto da ESPHome** (verificato sul sorgente 2026.8.0): un loop bloccato. Il task watchdog lo riavvia in circa 5 s.
@@ -457,4 +457,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/
 | 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
 | 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |
 | 2026-10-25 | R-11 | `2f56444`, `633025f` | Drift documentazione, `CHANGELOG.md`, istruzioni Copilot | review diff (docs) |
-| 2026-10-25 | R-09 | `710f088` | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
+| 2026-10-25 | R-09 | ADR-0024 | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |

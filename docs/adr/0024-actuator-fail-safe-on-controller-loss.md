@@ -42,7 +42,7 @@ and nothing asks them to prove the master is still alive.
 | Relay 32CH | `0x2` | `relay_1..4` circulation pumps; `relay_6..17` radiant zone valves; `relay_18/19` planned for the heat pump's SG-Ready contacts (`docs/heat-pump-integration.md`) | Pumps on: running against closed/open valves, wear, and in cooling season circulating cold water through a mixing valve that is no longer being dew-point-protected (condensation). SG-Ready stuck at "forced-on": heat pump held at max boost |
 | Analog Out 8CH (B) | `0x1` | `analog_output_1,2` mixing valves; `3..6` fancoil fans; `7,8` MEV fan speed | Valve frozen at its last opening; fans frozen at last speed |
 
-### What already happens when the controller misbehaves (read from the code, ESPHome 2026.8.0)
+### What already happens when the controller misbehaves (read from the code, ESPHome 2026.7.x; re-verify against 2026.8.0)
 
 - **Hung main loop: covered, quickly.** ESPHome enables the ESP-IDF task watchdog on the loop task only
   (`esp32/hal.cpp: esp_task_wdt_add(nullptr)`; idle tasks are not watched), with
@@ -150,7 +150,7 @@ be protected too it needs its own enable channel in series with the SG loop. Eve
 Cost scale: S (<1 day / a few lines), M (a few days), L (hardware + electrician). Traffic figures assume
 the repo's bus settings (38400 8E1, `turnaround_time: 100ms`, `send_wait_time: 250ms`): one write-single
 transaction is about 5 ms of wire time plus the 100 ms turnaround, call it **~0.11 s of bus per command**.
-The 2026.8.0 hub picks WRITE-class commands ahead of polling reads (`modbus.cpp`, `select_next_ready_`);
+The hub (read in 2026.7.x) picks WRITE-class commands ahead of polling reads (`modbus.cpp`, `select_next_ready_`);
 whether a custom raw command is classed as a write is not verified (O5).
 
 ### Option A: board-native dead-man, re-armed by the master
@@ -166,19 +166,23 @@ contact **opens**, within N x 100 ms.
   see Cost). Pump relays stay ordinary
   switches. Nothing else in the package model changes, and the "hands-off during pulse" quirk affects only
   the enable relay, which nothing else drives. One command per re-arm instead of four.
-- **Protects:** dead/hung controller, dead RS485 bus or connector, crash loop, safe mode, the OTA window; any
+- **Protects:** dead/hung controller, dead RS485 bus or connector, crash loop, safe mode, and an OTA or reboot only if boot-to-first-re-arm stays under about 45 s; any
   condition under which the master stops talking. Does *not* protect against a hung **relay board** MCU that
   freezes its timer (unknown), nor against a controller that is alive, talking and wrong.
 - **Cost:** A2: S firmware (one script + `interval:`), M electrical (the enable relay drives a contactor
   in the pump supply by default; a direct series contact only if O9 shows pump inrush well inside the
-  relay's 250 VAC/10 A rating). A1:
+  relay's 250 VAC/10 A rating [U], unsourced; confirm on the datasheet or silkscreen in O9). A1:
   M firmware (see risks).
 - **Traffic:** A2 ~0.11 s per 15 s (<1 %). A1 4x that. Protecting all 17 used relays would be ~12 % bus load
-  on top of polling and is not warranted.
+  on top of polling and is not warranted. These figures assume `send_wait_time: 250ms` is not charged per
+  command; if it is, the load is several times higher (measured in O5).
 - **Risks:**
   - Behaviour is only [T]-measured on a sibling board. Must be bench-confirmed on the real 32CH (see O1-O4).
   - **Single point of failure:** the enable path fails in both directions. A contact welded closed silently
-    loses the safeguard (check it in the bench test or a periodic proof test); stuck open loses all pump
+    loses the safeguard. This is an accepted residual risk: the polled coil reflects the coil, not the
+    contact, and the 32CH has no inputs, so it can be checked only manually (cut-off-and-observe at
+    commissioning and during service) unless a contactor with an auxiliary contact wired to an input is
+    added later; stuck open loses all pump
     heat, which is the fail-safe direction.
   - **Re-arm chatter:** if re-triggering a running pulse momentarily de-energises the coil, the enable relay
     (and, for A1, each pump) clicks every re-arm: 5 760 cycles/day, about 2 M per year, which would wear the
@@ -192,10 +196,13 @@ contact **opens**, within N x 100 ms.
     re-armed up to 15 s before the failure. Boot-to-first-re-arm includes Ethernet/DHCP, display, hub and
     the first successful poll (re-arm is gated on the hub being online); a TWDT reboot is an estimated
     10-20 s plus that (not measured). Pumps survive a reboot only if boot-to-first-re-arm stays under about
-    45 s, so re-arm immediately in `on_boot` once the hub is online rather than waiting for the first
+    45 s, so re-arm immediately from the hub's `on_online` (`on_boot` runs before the hub is up) rather than waiting for the first
     `interval`. A slow OTA or reboot can still bounce the pumps (see Negative).
 - **ESPHome mapping:** no new component. A raw frame through the existing hub, no CRC needed (the hub
   appends it; the custom command is "address + PDU", `modbus_controller.cpp: ModbusCommandItem::send`):
+
+  Illustrative sketch, not implemented: the `create_custom_command`/`queue_command` use is unverified until
+  O5 passes.
 
   ```yaml
   interval:
@@ -229,14 +236,11 @@ see a heartbeat from the controller, driving a normally-open contactor in the pu
   heartbeat. Independent of Waveshare firmware. If the controller's heartbeat is gated on recent *successful
   Modbus writes*, a dead bus trips it too.
 - **Cost:** L: a part, DIN space, a mains contactor or relay, wiring, and a heartbeat signal. The T-Connect
-  Pro has almost no free GPIO (ADR-0014 §5); IO4/IO5 (RS232 pins) are free but sit behind the RS232
-  transceiver and would need level handling, **to be checked on the LilyGO schematic**. A creative alternative
-  heartbeat is a relay-board contact (flash-on on a spare channel into the watchdog trigger), but that is
-  Option A with extra parts.
+  Pro has few spare GPIOs: IO4/IO5 (RS232 pins) are free but sit behind the RS232 transceiver, **to be
+  checked on the LilyGO schematic**.
 - **Risks:** a new single point of failure that can itself nuisance-trip (cold house), another thing to
   commission; a trigger relay toggling at a fast heartbeat rate wears out, a slow one needs a long watchdog
-  timeout. If the supply of the whole relay board were switched instead, the analog board would need a
-  verified 0 V power-on state and the MEV fan would stop with it, so do not switch the analog board.
+  timeout.
 - **ESPHome mapping:** `interval: 1s` toggling a `output: gpio` pin, gated on a template boolean
   (loop alive, relay board `on_online`, last write acknowledged).
 
@@ -267,7 +271,8 @@ Cheap and worth doing, but none of them acts when the controller is gone.
   holds (e.g. a recent PID update tick, modbus not offline). Catches wedged logic under a live loop.
 - **Protects:** reboot windows and (D3) human awareness. **Does not** protect: death, bus fault, boot loop.
 - **Cost:** S. **Risks:** D1 bounces the pumps once on every reboot/OTA (they are re-commanded within
-  seconds). Acceptable and arguably desirable.
+  seconds), which is tolerable. D1 also drives the mixing valves and fancoil loops to 0 V on every reboot/OTA,
+  acceptable only once O8 shows 0 V is safe for each valve, including in cooling season.
 
 ### Comparison
 
@@ -320,7 +325,8 @@ Cheap and worth doing, but none of them acts when the controller is gone.
 
 - Pumps stop within <= 60 s of the controller falling silent for any
   reason, including cases the ESP32 watchdog cannot see (bus, boot loop, safe mode).
-- Software change is tiny and local (a script, an `interval`, two optional vars). No changes to room/floor files.
+- Software change is small and local (a script, an `interval`, the D1 `restore_mode` var), plus the
+  `relay_22` reservation and doc edits listed under "To do on acceptance". No changes to room/floor files.
 - Wiring done for A2 is reusable if the project upgrades to C.
 
 ### Negative / costs
@@ -338,7 +344,9 @@ Cheap and worth doing, but none of them acts when the controller is gone.
 
 ### To do on acceptance
 
-`relay_22` is currently advertised as spare capacity (range `relay_22`-`relay_32`). On acceptance, reserve it
+`relay_22` was chosen as an example spare channel; the reserved `relay_20`/`relay_21` (no planned use; `relay_18/19` are
+SG-Ready candidates) would work equally and would avoid the doc churn below, so the channel can still be switched at
+acceptance. `relay_22` is currently advertised as spare capacity (range `relay_22`-`relay_32`). On acceptance, reserve it
 for the pump master enable (spare range becomes `relay_23`-`relay_32`) and update:
 
 - `climate/CLAUDE.md`: Appendix B row (`relay_22` becomes "Pump master enable") and the example
@@ -415,8 +423,6 @@ order:
    (flow monitoring, buffer; ask the installer). An answer here is a precondition for adopting A2.
 10. **O10, B inquiry.** Ask Waveshare support whether any firmware has a communication-loss timeout or a
     configurable power-on state for the Relay 32CH or Analog 8CH (B).
-11. **O11, heartbeat for C.** If C is ever needed: which T-Connect Pro pin can carry a heartbeat (check the
-    LilyGO schematic; IO4/IO5 sit behind the RS232 transceiver).
 
 ## Sources
 
@@ -433,7 +439,7 @@ order:
   <https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)> (via search excerpt)
 - Measured flash semantics on a 30CH sibling (third-party, read directly):
   <https://github.com/pradki/waveshare-mqtt-gateway>
-- ESPHome 2026.8.0 sources read locally: `esphome/components/esp32/{__init__.py,hal.cpp}`,
+- ESPHome 2026.7.0/2026.7.1 sources read locally (re-verify against 2026.8.0 before acceptance): `esphome/components/esp32/{__init__.py,hal.cpp}`,
   `esphome/components/safe_mode/{__init__.py,safe_mode.cpp}`,
   `esphome/components/modbus_controller/{__init__.py,modbus_controller.cpp,switch/}`,
   `esphome/components/modbus/modbus.cpp`.
