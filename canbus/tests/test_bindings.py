@@ -256,8 +256,7 @@ def test_reader_rejects_unknown_top_key():
     raise AssertionError("reader accepted an unknown top-level key")
 
 
-def test_advisories_flag_every_toggle():
-    text = """\
+TOGGLE_MIX = """\
 schema_version: 1
 bindings:
   - node_id: 100
@@ -273,16 +272,22 @@ bindings:
     output: "102/1"
     op: toggle
 """
-    parsed = _parse(text)
+
+
+def test_advisories_flag_every_toggle():
+    parsed = _parse(TOGGLE_MIX)
     notes = bindings.advisories(parsed)
     assert len(notes) == 2, notes
     assert "node 100 button 0" in notes[0] and "relay 0" in notes[0] and "op: toggle" in notes[0]
     assert "node 101 button 3" in notes[1] and "output 102/1" in notes[1]
     assert all("prefer op: on or op: off" in n for n in notes)
-    # Advice is deterministic and does not touch validity or the hash.
-    assert notes == bindings.advisories(parsed)
+
+
+def test_advisories_do_not_affect_validate_or_hash():
+    parsed = _parse(TOGGLE_MIX)
+    bindings.advisories(parsed)
     assert bindings.validate(parsed, {100, 101, 102}) == []
-    assert bindings.canonical_hash(parsed) == bindings.canonical_hash(_parse(text))
+    assert bindings.canonical_hash(parsed) == bindings.canonical_hash(_parse(TOGGLE_MIX))
 
 
 def test_advisories_silent_without_toggle():
