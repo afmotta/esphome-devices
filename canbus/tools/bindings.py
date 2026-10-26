@@ -274,8 +274,9 @@ def advisories(parsed: dict) -> list:
         target = f"relay {b['relay']}" if "relay" in b else f"output {b.get('output')}"
         out.append(
             f"binding node {b.get('node_id')} button {b.get('button')} ({target}) uses op: toggle - "
-            "the ADR-0003 double-action window (ack_timeout_ms) can apply a toggle twice "
-            "(HA toggles, then the late fallback toggles) with no visible effect; prefer op: on or op: off"
+            "the ADR-0003 ack_timeout_ms fallback window may apply a toggle twice "
+            "(HA toggles, then a late fallback toggles) with no visible effect; the timeout is "
+            "unmeasured (ADR-0003 open item 2), so prefer op: on or op: off"
         )
     return out
 
