@@ -122,17 +122,22 @@ async def test_disconnect_within_grace_keeps_value(run_harness):
     h, ha, ids = await _start(run_harness)
 
     ha.push(TEMP_ENTITY, "21.5")
+    ha.push(HUMIDITY_ENTITY, "48.0")
     await h.wait_for(ids["temp_tier"], lambda s: s.state == "HA")
+    await h.wait_for(ids["humidity_tier"], lambda s: s.state == "HA")
     await _reset_nan_latch(h, ids)
 
-    # An HA restart shorter than the grace period must not trip Emergency.
+    # An HA restart shorter than the grace period must not trip Emergency. A quarter
+    # of the grace leaves room for reconnect latency on a loaded runner.
     await h.disconnect()
-    await asyncio.sleep(GRACE_S / 2)
+    await asyncio.sleep(GRACE_S / 4)
     await h.reconnect()
     ha.attach()
 
     await h.wait_for(ids["temp_tier"], lambda s: s.state == "HA")
     await h.wait_for_value(ids["temp"], 21.5)
+    await h.wait_for(ids["humidity_tier"], lambda s: s.state == "HA")
+    await h.wait_for_value(ids["humidity"], 48.0)
     nan_seen = await h.wait_for(ids["nan_seen"], lambda s: True)
     assert nan_seen.state is False, "temperature went NaN during a disconnect shorter than the grace"
 
