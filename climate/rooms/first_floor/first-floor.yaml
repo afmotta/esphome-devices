@@ -203,7 +203,9 @@ sensor:
       then:
         - if:
             condition:
-              lambda: "return id(hp_mode_summer).state;"
+              # A NaN minimum (every member room's dew point lost) must not reach
+              # the valve PID: it keeps its last valid setpoint instead.
+              lambda: "return id(hp_mode_summer).state && !std::isnan(id(first_floor_supply_temp_minimum).state);"
             then:
               - climate.control:
                   id: first_floor_radiant_mixing_valve_pid
