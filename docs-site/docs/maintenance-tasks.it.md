@@ -186,6 +186,13 @@ sono parametri passati al momento dell'inclusione, non nascosti nella logica
 condivisa del componente. Cerca il blocco `vars:` che accompagna l'inclusione del
 pacchetto PID di quella zona.
 
+!!! warning "Limite noto (review R-15): le zone radianti ignorano le var dei guadagni"
+    Per le zone che usano `radiant.yaml`, le var `kp`/`ki`/`kd`/`pwm_period` della zona sono
+    attualmente ignorate. I guadagni radianti si cambiano in
+    `climate/packages/components/heat_only_radiant.yaml` (`defaults:`) e la modifica vale per
+    **tutte** le zone radianti. I guadagni di fancoil e valvola miscelatrice, e delle zone che
+    includono direttamente `heat_only_radiant.yaml`, restano nelle `vars:` della zona.
+
 **Valori predefiniti nel codice** (quelli che il sistema usa se una zona non li sovrascrive):
 
 | Sistema | Kp | Ki | Kd |

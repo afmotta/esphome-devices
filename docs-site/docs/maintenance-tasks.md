@@ -164,6 +164,13 @@ component package is included for that zone/circuit — they are parameters pass
 at inclusion time, not buried in the shared component logic itself. Look for the
 `vars:` block accompanying that zone's PID package include.
 
+!!! warning "Known gap (review R-15): radiant zones ignore their gain vars"
+    For the zones that use `radiant.yaml`, the zone's `kp`/`ki`/`kd`/`pwm_period` vars are
+    currently ignored. Radiant gains are changed in
+    `climate/packages/components/heat_only_radiant.yaml` (`defaults:`) and the change affects
+    **every** radiant zone. Fancoil and mixing-valve gains, and zones that include
+    `heat_only_radiant.yaml` directly, still take their gains from the zone `vars:`.
+
 **Defaults shipped in the code** (what the system runs unless a zone overrides them):
 
 | System | Kp | Ki | Kd |

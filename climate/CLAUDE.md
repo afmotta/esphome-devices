@@ -329,7 +329,7 @@ Room temperature/humidity control data is **not** on this bus — it is CAN-prim
 Defaults live in the component packages (`climate/packages/components/`); the table is what the code
 ships, not a recommendation to retune. Zones normally just inherit these defaults.
 Note that `radiant.yaml`'s own `kp`/`ki`/`kd`/`pwm_period` vars are currently ignored — the
-`defaults:` of `heat_only_radiant.yaml` win (review R-15), so change radiant gains there.
+`defaults:` of `heat_only_radiant.yaml` win (review R-15), so change radiant gains there; that edit applies to every radiant zone. Zones that include `heat_only_radiant.yaml` directly (the heat-only bathrooms and laundry) and fancoil/mixing-valve zones still take their gains from the zone `vars:`.
 
 | Loop | Package | Kp | Ki | Kd | Notes |
 |------|---------|----|----|----|-------|
