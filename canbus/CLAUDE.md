@@ -70,7 +70,8 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
 - **Node-side TX failures are reported, never just logged** (review R-07). Wrap every node
   `send_data()` result in `tx_health_track()` (`canbus/protocol/tx_health.h`); the heartbeat ORs
   `tx_health_flags()` in at send time, so `ERR_CAN_TX_FAIL` reaches the health monitor and clears
-  once an accepted heartbeat has carried it. `error_flags` itself stays sticky-only (the bridge's
+  once the controller has accepted a heartbeat carrying it (MCP2515: loaded into a TX buffer, not
+  ACKed; TWAI: queued) — a dead bus only surfaces once the TX buffers stay full. `error_flags` itself stays sticky-only (the bridge's
   `ERR_BRIDGE_QUEUE_OVERFLOW` / dropped-TX bits). `ERR_CAN_BUS_OFF` is reserved: ESPHome exposes no
   bus-off state.
 - **Bridges are ordinary registry rows.** A bridge carries a `node_id` from the same

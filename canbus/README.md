@@ -319,8 +319,9 @@ retried each tick; after `BRIDGE_TX_ATTEMPTS_MAX` (5, ~50 ms) refusals it is dro
 
 Every node (and the An-Penta/An-Quad actuators) also reports its own refused sends:
 `ERR_CAN_TX_FAIL` rides the next heartbeat and clears once a heartbeat carrying it was
-accepted (`canbus/protocol/tx_health.h`), so the health monitor's `canbus_node_error` shows
-both the failure and the recovery. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
+accepted by the controller (MCP2515: loaded into a TX buffer, not ACKed; TWAI: queued;
+`canbus/protocol/tx_health.h`), so the health monitor's `canbus_node_error` shows
+both the failure and the recovery. A dead bus only surfaces once the TX buffers stay full. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
 2026.8.0 exposes no bus-off state; a bus-off node shows up as TX failures or `node_lost`.
 
 On the CANBed the forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot.
