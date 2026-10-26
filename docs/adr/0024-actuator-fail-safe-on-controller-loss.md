@@ -259,7 +259,8 @@ Cheap and worth doing, but none of them acts when the controller is gone.
   to a panel alarm and an HA notification (`relay_board_1` has no status sensor today). Surfaces a dead bus
   that A/C will otherwise convert silently into "house stops heating" (**D3a**, available now).
   **D3b**, shipped with A2: also alarm when the D4 predicate suppresses re-arm for more than one interval
-  (15 s), and when the polled state of the enable relay reads open while pumps are commanded on. The
+  (15 s), and when the polled state of the enable relay reads open while pumps are commanded on (valid
+  only if the polled coil tracks the pulse, checked in O3). The
   enable relay is otherwise unobserved, so these alarms are the only visibility into a wrongly tripped
   dead-man.
 - **D4, health-gated re-arm:** the re-arm in A (or heartbeat in C) fires only if a software health predicate
@@ -380,6 +381,10 @@ order:
 3. **O3, master silent.** With the contact held by an active pulse, pull the RS485 plug and, separately, cut
    controller power: the contact must open at the expiry time and stay open without any bus traffic. Also
    check it stays open when the controller comes back and polls (reading coils must not restart anything).
+   Also record the polled FC01 state of `relay_22` through the pulse and after expiry: it must track the
+   timer-driven state (ON during, OFF after). D3b's enable-relay alarm depends on this; if the board
+   reports only the last written value, that alarm is not usable and only the re-arm-suppression alarm
+   remains.
 4. **O4, board reset behaviour.** Power-cycle the relay board mid-pulse: what is the coil state after boot
    (not documented in the excerpts reviewed)? If it comes up ON, the A2 premise (de-energised = safe) fails:
    the pumps would run with no pulse and no timer until a later command. NC wiring does not fix it (it
