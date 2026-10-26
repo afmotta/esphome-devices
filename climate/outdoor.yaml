@@ -25,6 +25,8 @@
 # `unknown`, and (2) the failover reads `outdoor_temp_ha_gated`, which is NaN
 # once no HA-capable API client has been connected for
 # `ha_outdoor_staleness_grace_s` (climate/protocol/ha_tier.h, tested natively).
+# Requires: the composing entry point lists climate/protocol/ha_tier.h under
+# `esphome: includes:` (devices/climate-control.yaml; same for room_sensors.yaml).
 #
 # NaN consumers (what each does when both tiers are down):
 #   - weather_compensation.yaml: HOLDS the last written supply target (no
