@@ -27,10 +27,11 @@
 #   mix      mixing_pump.yaml (supply-temperature valve PID, dual loop)
 #   living   the production soggiorno composition: radiant.yaml + fancoil.yaml
 #            (fancoil_role: boost) + the REAL fancoil_boost.yaml coordinator
-#            (R-16 boot state), plus the real window_guard.yaml (R-14;
-#            its HA contact is replaced by a template sensor, timings compressed). The activation triggers are
-#            inert (their threshold inputs stay unset); tests start/stop boosts through
-#            the API actions below, which drive the real boost select
+#            (R-16 boot state), plus the real window_guard.yaml (R-14; its
+#            HA contact is replaced by a template sensor, timings compressed).
+#            The activation triggers are inert (their threshold inputs stay
+#            unset); tests start/stop boosts through the API actions below,
+#            which drive the real boost select
 #            (set_action and boot replay included). The boost-enabled gate keeps
 #            its production default (OFF) until a test opens it: with it OFF a
 #            running boost is dropped to "Radiant Only" at once.
