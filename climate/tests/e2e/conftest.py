@@ -27,7 +27,7 @@ API_PORT = 6053
 DEFAULT_TIMEOUT = 5.0
 
 
-def _compile(config: Path) -> Path:
+def compile_harness(config: Path) -> Path:
     """Compile a harness config and return the path to the host binary.
 
     ESPHome's own build cache makes recompiles a no-op, so this is cheap
@@ -130,7 +130,7 @@ async def run_harness():
     clients: list[APIClient] = []
 
     async def _run(name: str) -> Harness:
-        binary = await asyncio.to_thread(_compile, HARNESS_DIR / f"{name}.yaml")
+        binary = await asyncio.to_thread(compile_harness, HARNESS_DIR / f"{name}.yaml")
         # Fresh working directory per run, also used as the preferences dir
         # (see ESPHOME_PREFDIR below): tests must not inherit restore_value
         # state from previous tests or runs.

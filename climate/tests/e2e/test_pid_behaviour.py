@@ -39,12 +39,11 @@ restored "Fancoil Boost" must still win in COOL.
 import asyncio
 import os
 import subprocess
-import tempfile
 
 import pytest
 import pytest_asyncio
 from aioesphomeapi import APIClient, ClimateMode
-from conftest import API_PORT, HARNESS_DIR, Harness, _compile
+from conftest import API_PORT, HARNESS_DIR, Harness, compile_harness
 
 pytestmark = pytest.mark.asyncio
 
@@ -186,13 +185,16 @@ class Boot:
         self.prefdir = prefdir
         self.proc: subprocess.Popen | None = None
         self.harness: Harness | None = None
+        self._log = None
 
     async def start(self, name: str = "pid_behaviour") -> Harness:
-        binary = await asyncio.to_thread(_compile, HARNESS_DIR / f"{name}.yaml")
+        binary = await asyncio.to_thread(compile_harness, HARNESS_DIR / f"{name}.yaml")
         env = {**os.environ, "ESPHOME_PREFDIR": self.prefdir}
+        self._log = open(os.environ.get("BOOT_LOG", os.devnull), "ab")
+        # The preference dir doubles as the working directory (it is private to
+        # the test and removed with it).
         self.proc = subprocess.Popen(
-            [str(binary)], cwd=tempfile.mkdtemp(prefix="climate-e2e-boot-"), env=env,
-            stdout=open(os.environ.get("BOOT_LOG", os.devnull), "ab"), stderr=subprocess.STDOUT,
+            [str(binary)], cwd=self.prefdir, env=env, stdout=self._log, stderr=subprocess.STDOUT,
         )
         async with asyncio.timeout(10):
             while True:
@@ -212,8 +214,16 @@ class Boot:
             self.harness = None
         if self.proc is not None:
             self.proc.terminate()  # SIGTERM: the host platform flushes preferences
-            await asyncio.to_thread(self.proc.wait, 5)
+            try:
+                await asyncio.to_thread(self.proc.wait, 5)
+            except subprocess.TimeoutExpired:
+                # A binary left running would hold API port 6053 for every later test.
+                self.proc.kill()
+                await asyncio.to_thread(self.proc.wait)
             self.proc = None
+        if self._log is not None:
+            self._log.close()
+            self._log = None
 
 
 @pytest_asyncio.fixture
@@ -318,11 +328,12 @@ async def test_restart_during_boost_replays_the_boost(boot):
 
 async def test_restart_during_boost_keeps_it_if_the_reading_arrives_within_the_grace(boot):
     """Boot-time NaN is not a sensor loss: the restored boost runs through the
-    grace, the valve is shut meanwhile (NaN), and reopens with the first reading."""
+    grace, the relay stays off until the first reading, then switches on."""
     h = await start_boost_then_restart(boot)
     await h.wait_for(LIVING_BOOST, lambda s: s.state == "Fancoil Boost")
     await hold(h, "Living Fancoil PID", ClimateMode.COOL)
-    # No reading yet: the final stage keeps the valve closed whatever the override says.
+    # No reading yet. The relay starts off, so this only checks it did not switch
+    # on; that the valve really opens again is shown by the wait below.
     assert h.states[h.object_id("Living Relay")].state is False
 
     await asyncio.sleep(SENSOR_LOST_GRACE * 0.4)
@@ -338,7 +349,7 @@ async def test_restart_during_boost_keeps_it_if_the_reading_arrives_within_the_g
 
 async def test_restart_during_boost_ends_it_if_no_reading_arrives_within_the_grace(boot):
     """A restored boost whose room temperature never comes back is a real sensor
-    loss: it survives the grace, then ends (valve closed all along)."""
+    loss: it survives the grace, then ends (the relay never switches on)."""
     h = await start_boost_then_restart(boot)
     await h.wait_for(LIVING_BOOST, lambda s: s.state == "Fancoil Boost")
     await asyncio.sleep(SENSOR_LOST_GRACE * 0.4)
