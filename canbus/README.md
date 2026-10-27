@@ -357,6 +357,9 @@ stops draining, so heartbeats start being refused. After **10 consecutive refuse
   more than the TWAI queue depth, so a dead bus cannot fake recovery. There is deliberately no
   "give up" state: a node that is still bus-off after the wiring was repaired must still get
   its next reboot.
+- *Idle bus counts as dead:* a lone transmitter with no ACKing peer (gateway and other nodes
+  down, or a bench unit) stays error-passive but its TX queue fills all the same, so it reboots
+  on the same backoff schedule; an LED actuator re-runs its light setup on each reboot.
 - *Cost:* a few seconds of unavailability per reboot (An-Penta/An-Quad: LEDs restore their
   last state; bridge: queued forwards are lost). A reboot is visible to the health monitor
   only as the node's uptime resetting and, while the bus is down, as `node_lost`.

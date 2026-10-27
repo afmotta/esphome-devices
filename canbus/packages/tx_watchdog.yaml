@@ -30,6 +30,11 @@
 # level lives in flash (it has to survive the reboot it causes) and clears only after 12
 # consecutive accepted heartbeats. Nothing is ever disabled permanently: a node that stays
 # bus-off long after the wiring was repaired still gets its next reboot.
+#
+# An idle bus counts as dead: a lone transmitter with no ACKing peer (gateway and the other nodes
+# down, or a bench unit) retransmits forever, its TX queue fills and heartbeats are refused just
+# as on a bus-off node. It reboots on the same schedule, and an LED actuator re-runs its light
+# setup each time (lights may flicker). No opt-out: the backoff bounds the rate.
 # =============================================================================
 
 globals:
