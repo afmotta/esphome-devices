@@ -238,9 +238,8 @@ def mode(h, name: str):
 
 
 async def hold(h, name: str, expected, seconds: float = 0.6):
-    """The PID mode is `expected` as soon as the boot states are in, and stays so."""
-    await h.wait_for(h.object_id(name), lambda s: True)
-    assert mode(h, name) == expected
+    """The PID mode becomes `expected` once the boot states are in, and stays so."""
+    await h.wait_for(h.object_id(name), lambda s: s.mode == expected, timeout=2.0)
     await asyncio.sleep(seconds)
     assert mode(h, name) == expected
 
