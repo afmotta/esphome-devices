@@ -58,14 +58,7 @@ def expected_pid_ids() -> tuple[set[str], set[str]]:
     expected_heat: set[str] = set()
     expected_cool: set[str] = set()
 
-    for path in sorted(ROOMS_DIR.glob("**/*.yaml")):
-        if path.name.endswith("-floor.yaml"):
-            continue
-        text = strip_comments(path.read_text())
-        slug = room_slug(text, path)
-        if not slug:
-            continue
-
+    for _, slug, text in iter_rooms():
         has_heat_only_radiant = contains_any(text, HEAT_ONLY_MARKERS)
         has_radiant = contains_any(text, RADIANT_MARKERS)
         has_fancoil = contains_any(text, FANCOIL_MARKERS)
@@ -98,6 +91,34 @@ def referenced_ids(aggregate_id: str) -> set[str]:
     return set(ID_REF_RE.findall(block))
 
 
+DEMAND_BLOCK_RE = re.compile(r"^\s+id:\s*\w*any_zone_open\b.*?(?=\n  - |\Z)", re.S | re.M)
+BARE_DEMAND_REF_RE = re.compile(
+    r"id\(\w+_radiant_(?:pid_is_active|override_active)\)(?!\.state)"
+)
+
+
+def strip_comments_keep_cpp(text: str) -> str:
+    """Drop whole-line YAML comments and C++ // comments, keeping lambda code.
+
+    strip_comments cuts at any `#`, which would truncate lambda bodies.
+    """
+    return "\n".join(
+        line for line in text.splitlines() if not line.lstrip().startswith(("#", "//"))
+    )
+
+
+def iter_rooms(floor_dir: Path | None = None):
+    """Yield (path, slug, comment-stripped text) for every room file."""
+    root = floor_dir or ROOMS_DIR
+    for path in sorted(root.glob("**/*.yaml")):
+        if path.name.endswith("-floor.yaml"):
+            continue
+        text = strip_comments(path.read_text())
+        slug = room_slug(text, path)
+        if slug:
+            yield path, slug, text
+
+
 def radiant_pump_demand_errors() -> list[str]:
     """Each radiant room must appear, with both inputs, in its floor's demand sum."""
     errors: list[str] = []
@@ -106,28 +127,29 @@ def radiant_pump_demand_errors() -> list[str]:
         if not floor_files:
             continue
         floor_text = "\n".join(strip_comments_keep_cpp(f.read_text()) for f in floor_files)
-        for path in sorted(floor_dir.glob("*.yaml")):
-            if path.name.endswith("-floor.yaml"):
-                continue
-            text = strip_comments(path.read_text())
-            slug = room_slug(text, path)
-            if not slug:
-                continue
-            if not (contains_any(text, HEAT_ONLY_MARKERS) or contains_any(text, RADIANT_MARKERS)):
-                continue
+        radiant_rooms = [
+            slug
+            for _, slug, text in iter_rooms(floor_dir)
+            if contains_any(text, HEAT_ONLY_MARKERS) or contains_any(text, RADIANT_MARKERS)
+        ]
+        if not radiant_rooms:
+            continue
+        # The floor's radiant sum; the fancoil sum has no radiant inputs.
+        demand = "\n".join(
+            m.group(0) for m in DEMAND_BLOCK_RE.finditer(floor_text) if "_radiant_" in m.group(0)
+        )
+        if not demand:
+            errors.append(f"{floor_dir.name}: missing *_any_zone_open radiant demand sum")
+            continue
+        # `.state` is mandatory: id(binary_sensor) alone is the sensor's
+        # POINTER, which is always true in an `||` chain.
+        for bare in BARE_DEMAND_REF_RE.findall(demand):
+            errors.append(f"{floor_dir.name}: pump demand reads {bare} without .state")
+        for slug in radiant_rooms:
             for suffix in ("radiant_pid_is_active", "radiant_override_active"):
-                # `.state` is mandatory: id(binary_sensor) alone is the sensor's
-                # POINTER, which is always true in an `||` chain.
-                if f"id({slug}_{suffix}).state" not in floor_text:
+                if f"id({slug}_{suffix}).state" not in demand:
                     errors.append(f"{floor_dir.name}: pump demand is missing {slug}_{suffix}.state")
     return errors
-
-
-def strip_comments_keep_cpp(text: str) -> str:
-    """Drop whole-line YAML comments and C++ // comments from lambda bodies."""
-    return "\n".join(
-        line for line in text.splitlines() if not line.lstrip().startswith(("#", "//"))
-    )
 
 
 def report_delta(title: str, values: set[str]) -> None:
