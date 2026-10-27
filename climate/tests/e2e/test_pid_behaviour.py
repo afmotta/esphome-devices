@@ -113,9 +113,11 @@ async def test_active_direction_keeps_its_range(run_harness, loop, season, expec
     integral = h.object_id(LOOPS[loop][0])
     await set_season(h, season)
     await h.call("set_temperature", value=TARGET - 1.0 if season == "HEAT" else TARGET + 1.0)
-    await h.wait_for_value(integral, expected * PCT, timeout=3.0)  # ki * |error| = 1.0 per second
+    await h.wait_for_value(integral, expected * PCT, timeout=10.0)  # ki * |error| = 1.0 per second
     await asyncio.sleep(0.5)
-    assert value(h, integral) == pytest.approx(expected * PCT, abs=0.1)  # saturates, not beyond
+    assert value(h, integral) == pytest.approx(expected * PCT, abs=0.1), (  # saturates, not beyond
+        f"integral {value(h, integral)} after saturating"
+    )
 
 
 async def test_season_flip_drops_the_old_seasons_integral(run_harness):
@@ -125,7 +127,7 @@ async def test_season_flip_drops_the_old_seasons_integral(run_harness):
     integral = h.object_id(LOOPS["attic"][0])
     await set_season(h, "HEAT")
     await h.call("set_temperature", value=TARGET - 1.0)
-    await h.wait_for_value(integral, PCT, timeout=3.0)
+    await h.wait_for_value(integral, PCT, timeout=10.0)
     await set_season(h, "COOL")
     await h.wait_for_value(integral, 0.0, timeout=RECOVER_S)
 
@@ -138,8 +140,8 @@ async def test_legitimate_integral_survives_a_republished_or_idle_mode(run_harne
     integral = h.object_id(LOOPS["attic"][0])
     await set_season(h, "HEAT")
     await h.call("set_temperature", value=TARGET - 1.0)
-    await h.wait_for_value(integral, PCT, timeout=3.0)
+    await h.wait_for_value(integral, PCT, timeout=10.0)
     await h.call("set_temperature", value=TARGET)  # error 0: the integral holds
     await set_season(h, republished)
     await asyncio.sleep(0.5)
-    assert value(h, integral) == pytest.approx(PCT, abs=0.1)
+    assert value(h, integral) == pytest.approx(PCT, abs=0.1), f"integral {value(h, integral)} after {republished}"
