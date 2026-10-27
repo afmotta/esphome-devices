@@ -98,13 +98,12 @@ BARE_DEMAND_REF_RE = re.compile(
 
 
 def strip_comments_keep_cpp(text: str) -> str:
-    """Drop whole-line YAML comments and C++ // comments, keeping lambda code.
+    """Drop YAML comment lines and C++ // comments, keeping lambda code.
 
     strip_comments cuts at any `#`, which would truncate lambda bodies.
     """
-    return "\n".join(
-        line for line in text.splitlines() if not line.lstrip().startswith(("#", "//"))
-    )
+    lines = (re.sub(r"\s//.*$", "", line) for line in text.splitlines())
+    return "\n".join(line for line in lines if not line.lstrip().startswith(("#", "//")))
 
 
 def iter_rooms(floor_dir: Path | None = None):
@@ -134,10 +133,11 @@ def radiant_pump_demand_errors() -> list[str]:
         ]
         if not radiant_rooms:
             continue
-        # The floor's radiant sum; the fancoil sum has no radiant inputs.
-        demand = "\n".join(
-            m.group(0) for m in DEMAND_BLOCK_RE.finditer(floor_text) if "_radiant_" in m.group(0)
-        )
+        # The radiant sum is picked by its id; a floor with a single sum (no
+        # fancoil sum) uses that one.
+        blocks = [m.group(0) for m in DEMAND_BLOCK_RE.finditer(floor_text)]
+        radiant_blocks = [b for b in blocks if "radiant" in b.split(None, 2)[1]]
+        demand = "\n".join(radiant_blocks or (blocks if len(blocks) == 1 else []))
         if not demand:
             errors.append(f"{floor_dir.name}: missing *_any_zone_open radiant demand sum")
             continue
