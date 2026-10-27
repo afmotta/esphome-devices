@@ -98,7 +98,7 @@ number:
     unit_of_measurement: "%"
     icon: mdi:fan-speed-1
     min_value: 0
-    max_value: 50
+    max_value: 30
     step: 5
     initial_value: ${min_fan_speed_default}
     restore_value: true
@@ -107,7 +107,10 @@ number:
 
   # Cascade hysteresis: escalate at/above the high threshold, de-escalate below
   # the low one. The ranges cannot cross (50 is the only shared value), so the
-  # cascade cannot be tuned into oscillation.
+  # cascade cannot be tuned into oscillation. The minimum fan speed (max 30)
+  # also stays below the de-escalation threshold (min 35): final_fan_speed is
+  # floored at the minimum, so a minimum at or above the threshold would make
+  # `fan < threshold` unreachable and the cascade could never de-escalate.
   - platform: template
     id: ${component_id}_escalation_threshold
     name: "${component_name} Escalation Fan Threshold"
@@ -126,7 +129,7 @@ number:
     name: "${component_name} De-escalation Fan Threshold"
     unit_of_measurement: "%"
     icon: mdi:fan-minus
-    min_value: 10
+    min_value: 35
     max_value: 50
     step: 5
     initial_value: ${deescalation_threshold_default}
