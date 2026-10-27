@@ -316,18 +316,6 @@ packages:
       temperature_sensor: stub_temperature
       output_id: living_fan_out
       fancoil_role: boost
-  # fancoil_boost.yaml's cooling-season input: production derives it from
-  # hp_mode (hp_mode_summer), and so does the stub -- the coordinator ends a
-  # running boost the moment this reads false. A package listed BEFORE the
-  # coordinator, so the stub is evaluated first in the first loop and a
-  # replayed boost is not seen against its initial "false".
-  cooling_stub:
-    binary_sensor:
-      - platform: template
-        id: stub_cooling_mode
-        internal: true
-        lambda: |-
-          return id(hp_mode).current_option() == "COOL";
   living_boost: !include
     file: ../../packages/coordinators/fancoil_boost.yaml
     vars:
@@ -352,3 +340,16 @@ packages:
       # first reading, which the restart tests publish (or deliberately
       # withhold, to watch the grace expire) after the API connects.
       sensor_lost_grace: 5s
+  # fancoil_boost.yaml's cooling-season input: production derives it from
+  # hp_mode (hp_mode_summer), and so does the stub -- the coordinator ends a
+  # running boost the moment this reads false. Listed AFTER the coordinator,
+  # as in production (the room packages precede seasonal_mode): in the first
+  # loop the season override still sees no state and must not cancel a
+  # replayed boost against the sensor's initial "false".
+  cooling_stub:
+    binary_sensor:
+      - platform: template
+        id: stub_cooling_mode
+        internal: true
+        lambda: |-
+          return id(hp_mode).current_option() == "COOL";
