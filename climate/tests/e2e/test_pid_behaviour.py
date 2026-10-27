@@ -353,7 +353,6 @@ async def test_restart_without_a_boost_does_not_resurrect_a_manual_cool(boot):
 # --------------------------------------------------------------------------
 
 LIVING = "Living Fancoil PID"
-OPEN_AND_CLOSED_S = 1.0  # harness: recovery_timeout (window_timeout is 1 s too)
 
 
 async def boost_running(h):
