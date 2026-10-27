@@ -16,11 +16,13 @@
 #   visual_min_temperature     - UI minimum temperature (default: 0)
 #   visual_max_temperature     - UI maximum temperature (default: 40)
 #   visual_temperature_step    - UI temperature increment (default: 0.5)
-#   integral_limit             - Magnitude of the PID integral term, in output
-#                                units (actuator span 0..1; default: 1.0). The
-#                                accumulator already includes ki, so this does
-#                                not scale with the gains. See "Integral
-#                                windup" below.
+#   integral_limit             - Positive number: magnitude of the PID integral
+#                                term, in output units (actuator span 0..1;
+#                                default: 1.0). The accumulator already includes
+#                                ki, so this does not scale with the gains. No
+#                                sign or expression (the lower bound is built by
+#                                prefixing '-'); 0 disables integral action. See
+#                                "Integral windup" below.
 #
 # Inherited (entry-point substitution, as in the actuator packages):
 #   seasonal_mode_id           - ID of the seasonal mode select ("hp_mode")
