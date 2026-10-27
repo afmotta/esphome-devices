@@ -153,6 +153,8 @@ interval:
                 if (pid->mode == climate::CLIMATE_MODE_OFF) {
                   // The owner re-derives the mode from its current desire; the
                   // result may well be OFF (e.g. the boost ended meanwhile).
+                  // The role scripts are synchronous, so the logged mode below
+                  // is the result.
                   id(${resume_script_id}).execute();
                   ESP_LOGI("window_guard",
                            "${room_name}: recovery complete - owner resumed (mode now %d)",
