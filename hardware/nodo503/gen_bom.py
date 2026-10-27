@@ -1,7 +1,7 @@
 import csv, collections, json, os, pcbnew
 THT_JLC = {"J1", "J3", "J4", "U1"}
 DNP = {"J5"}
-SMD_EXCL = THT_JLC | DNP   # excluded from BOM_SMD / CPL_SMD
+SMD_EXCL = THT_JLC | DNP | {"P1"}   # excluded from BOM_SMD / CPL_SMD
 LIB = json.load(open("jlc_library.json")) if os.path.exists("jlc_library.json") else {}
 from design import *
 b = pcbnew.LoadBoard("nodo503.kicad_pcb")
@@ -21,6 +21,8 @@ with open("out/BOM.csv", "w", newline="") as f:
         elif not lcsc: lib = "codice da assegnare"
         elif refs[0] in THT_JLC: lib += " - THT (saldatura a onda/manuale JLCPCB)"
         w.writerow([val, ",".join(refs), fp.split(":")[1], len(refs), mpn, lcsc, lib])
+    for ref, (val, fp, mpn, lcsc) in BOM_ONLY.items():
+        w.writerow([val, ref, fp, 1, mpn, lcsc, (LIB.get(lcsc) or "classe da verificare") + " - solo BOM, non montata, spedita con i PCB"])
 tht = DNP
 # JLCPCB's 3D model of the JST PH (C131334) is 180 deg off from the KiCad footprint
 CPL_ROT_FIX = {"J3": 180, "J4": 180}

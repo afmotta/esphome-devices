@@ -31,6 +31,13 @@ bus = {"4": "VBUS24", "3": "GND", "2": "CANH", "1": "CANL"}
 add("J1", "Connector:Screw_Terminal_01x04", "BUS 24V CAN", PLUG4H, bus, (25.4, 45.72), (47.0, 29.0, 90),
     mpn="Presa per morsetto estraibile ad angolo 4 poli passo 3,5 mm, Kefa KF2EDGR-3.5-4P (THT); spina KF2EDGK-3.5-4P C440849 da ordinare a parte", lcsc="C441173")
 
+# Parts that appear only in the BOM (not on the PCB, no footprint, no CPL row): JLCPCB ships them with the boards.
+#   ref: (value, footprint label, mpn, lcsc)
+BOM_ONLY = {
+    "P1": ("KF2EDGK-3.5-4P", "Spina 3,5 mm 4 poli (per J1)",
+           "Spina per morsetto estraibile 4 poli passo 3,5 mm, Kefa KF2EDGK-3.5-4P (non montata: spedita con i PCB)", "C440849"),
+}
+
 # --- Power input protection + 5 V regulator --------------------------------
 add("F1", "Device:Polyfuse", "PTC 0.5A 30V", "Fuse:Fuse_1812_4532Metric",
     {"1": "VBUS24", "2": "V24F"}, (55.88, 45.72), (40.6, 18.5, 180),

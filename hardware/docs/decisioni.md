@@ -102,3 +102,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 ## 2026-10-27 — Connettori rinumerati
 
 - Su richiesta di Alberto: J1 bus (invariato), **J2 Qwiic** (era J3), **J3 pulsanti 1–3** (era J2), **J4 pulsanti 4–6** (era J5), **J5 pettine di programmazione** (era J4). Cambiano solo i designatori: piazzamento e sbroglio sono invariati (`build_pcb.sh`, DRC 0, parità 0). Le voci più vecchie di questo file usano ancora la numerazione precedente.
+
+## 2026-10-27 — Spina Kefa nel BOM
+
+- Alberto ha comprato le spine KF2EDGK-3.5-4P (C440849) e il servizio clienti JLCPCB chiede che siano nel BOM per spedirle insieme ai PCB. Aggiunta in `design.py` la tabella `BOM_ONLY` (riga **P1**, quantità 1): compare solo in `out/BOM.csv`, non nel PCB, nello schema, nel CPL né in `BOM_SMD.csv`. In JLCPCB la riga andrà segnata come "non montata" (assente dal CPL). La classe Basic/Extended di C440849 non è verificata (rete del sandbox bloccata): da controllare nell'anteprima del BOM.

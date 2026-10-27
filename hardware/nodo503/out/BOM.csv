@@ -26,3 +26,4 @@ K7805-500R3,U1,Converter_DCDC_TRACO_TSR-1_THT,1,"MORNSUN K7805-500R3 (6,5-36 V -
 TJA1051T/3,U2,SOIC-8_3.9x4.9mm_P1.27mm,1,NXP TJA1051T/3/1J,C38695,Extended
 ESP32-C6-WROOM-1-N8,U3,ESP32-C6-WROOM-1,1,Espressif ESP32-C6-WROOM-1-N8,C5366877,Extended
 AP2112K-3.3,U4,SOT-23-5,1,Diodes AP2112K-3.3TRG1 (LDO 600 mA),C51118,Extended
+KF2EDGK-3.5-4P,P1,"Spina 3,5 mm 4 poli (per J1)",1,"Spina per morsetto estraibile 4 poli passo 3,5 mm, Kefa KF2EDGK-3.5-4P (non montata: spedita con i PCB)",C440849,"classe da verificare - solo BOM, non montata, spedita con i PCB"
