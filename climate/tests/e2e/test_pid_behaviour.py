@@ -3,14 +3,8 @@
 Harness: harness/pid_behaviour.yaml (heat-only radiant, heat_cool and cool_only
 fancoils, a mixing valve, all with time-compressed gains: kp 0.5, ki 1.0).
 
-R-13 — integral windup. ESPHome integrates the error on every sensor update,
-whatever the PID mode, clamped to +-1. With the outputs gated on hp_mode (R-01)
-the direction the heat pump is NOT producing wound up to a full actuator span:
-a room above target on a winter afternoon drove the integral to -1 on the gated
-cool side, and after it fell below target the PID stayed at output <= 0 until
-ki * error had climbed the integral back. pid.yaml now confines the integral to
-the active direction on every hp_mode change (HEAT => [0, limit], COOL =>
-[-limit, 0]; SANITARY_ONLY keeps the previous bounds).
+R-13 — integral windup: pid.yaml confines the integral to the active direction
+on every hp_mode change (rationale: pid_direction::integral_bounds).
 
 The recovery tests wind the loop up the WRONG way for 1.5 s, then flip the room
 to the right side of target by 0.5 degC and require output within 0.5 s. With

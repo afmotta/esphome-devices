@@ -27,18 +27,10 @@
 # Inherited (entry-point substitution, as in the actuator packages):
 #   seasonal_mode_id           - ID of the seasonal mode select ("hp_mode")
 #
-# Integral windup (R-13): ESPHome integrates the error on every sensor update
-# whatever the PID mode, clamped to +-1 by default. With the outputs gated on
-# hp_mode (R-01) the direction the heat pump is NOT producing used to wind up
-# to a full actuator span (room above target on a winter afternoon => integral
-# -1 on the gated cool side), so a room that then fell below target stayed
-# cold until ki*error had climbed back. The integral is therefore confined to
-# the active direction on every hp_mode change: HEAT => [0, +limit], COOL =>
-# [-limit, 0]; SANITARY_ONLY keeps the previous bounds. That is right for all
-# loop types without knowing them: a heat-only, cool-only or dual loop only
-# ever needs integral in the direction the water flows, and the integral of the
-# previous season is clamped away on the first update after the flip (see
-# pid_direction::integral_bounds). kp/ki/kd are untouched.
+# Integral windup (R-13): the integral is confined to the active direction on
+# every hp_mode change (HEAT => [0, +limit], COOL => [-limit, 0]; SANITARY_ONLY
+# keeps the previous bounds), so the gated direction cannot wind up. Rationale
+# and trade-offs: pid_direction::integral_bounds (climate/protocol/pid_direction.h).
 #
 # Dependencies:
 #   - pid_sensors.yaml (included automatically, must be in same directory)
