@@ -133,7 +133,12 @@ pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.p
 **PID integral confined to the active direction** (review R-13). `pid.yaml` re-bounds every PID's
 integral on each `hp_mode` change via `pid_direction::integral_bounds()`: HEAT → `[0, limit]`,
 COOL → `[-limit, 0]`, SANITARY_ONLY keeps the previous bounds (`integral_limit` var, default 1.0,
-output units). Without it the gated direction wound up a full actuator span.
+output units). Without it the gated direction wound up a full actuator span. Side effects: the
+first demand-tier intent in the new direction is delayed — in HEAT `is_cooling` only appears once
+the integral has decayed to 0 (~200 s per unit of error at ki 0.005, mirror in COOL), which the
+seasonal-mode coordinators reading `*_pid_is_active` see — and after a long SANITARY_ONLY the
+previous season's bounds still apply (a SANITARY_ONLY restored at boot runs symmetric bounds);
+both are bounded by `integral_limit`. Rationale: `pid_direction::integral_bounds`.
 
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
