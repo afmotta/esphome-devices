@@ -150,7 +150,7 @@ async def test_cascade_starts_without_home_assistant(run_harness):
     # Fan below the (default 80 %) threshold: no escalation timer.
     await h.call("set_casc_demand", value=70.0)
     await h.wait_for_value(ids["final"], 70.0)
-    assert (ids["state"] not in h.states) or h.states[ids["state"]].state != "Escalating (Dehum)"
+    await h.wait_for(ids["state"], lambda s: s.state == "Idle")
 
     # Fan at/above it: the escalation delay starts.
     await h.call("set_casc_demand", value=85.0)
