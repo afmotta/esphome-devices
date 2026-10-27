@@ -19,8 +19,6 @@
 #   fan_speed_number               - Number entity ID for fan speed output
 #
 # Optional vars:
-#   min_fan_speed_default          - First-boot value of the minimum fan speed (%)
-#                                    (default: 20; afterwards the persisted value wins)
 #   update_interval                - Final-fan-speed evaluation period (default: 60s;
 #                                    the e2e harness compresses it)
 #
@@ -46,7 +44,6 @@
 # =============================================================================
 
 defaults:
-  min_fan_speed_default: "20"
   update_interval: 60s
 
 number:
@@ -58,7 +55,7 @@ number:
     min_value: 0
     max_value: 50
     step: 5
-    initial_value: ${min_fan_speed_default}
+    initial_value: 20
     restore_value: true
     optimistic: true
     entity_category: config
