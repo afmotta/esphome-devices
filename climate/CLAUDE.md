@@ -143,6 +143,10 @@ to the PID mode in one script (`${room_slug}_fancoil_sync_mode`); `fancoil.yaml`
 The hook order against the boost coordinator's replay only matters for a restored boost under a non-COOL
 `hp_mode`: the final PID mode (OFF or COOL) then depends on which runs last, but it never actuates (the cool
 output is gated on `hp_mode`) and the coordinator's season override ends the boost.
+A reboot discards a manual or HA-set fancoil PID mode and returns to the role/`hp_mode` mapping (as an
+`hp_mode` change already does); the window guard re-asserts OFF if the window is still open. A restored boost
+surviving the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s staleness grace exceeds
+`sensor_lost_grace`.
 
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 

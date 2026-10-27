@@ -22,6 +22,11 @@
 # hooks at the bottom). Resulting boot mode: boost => OFF unless the boost
 # coordinator replays a restored boost; cool_only => COOL iff hp_mode COOL;
 # heat_cool => HEAT / COOL / OFF with hp_mode.
+# A reboot therefore discards a manual or HA-set fancoil PID mode and returns
+# to this role/hp_mode mapping (as an hp_mode change already does); the window
+# guard re-asserts OFF if the window is still open. A restored boost surviving
+# the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s
+# staleness grace exceeds the coordinator's sensor_lost_grace.
 #
 # Direction gating: ESPHome's PID routes a positive value to heat_output and a
 # negative one to cool_output regardless of its HEAT/COOL mode, so a fancoil
