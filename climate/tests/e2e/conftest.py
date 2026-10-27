@@ -52,6 +52,7 @@ class Harness:
     _entities: dict[str, object] = field(default_factory=dict)
     _services: dict[str, object] = field(default_factory=dict)
     _changed: asyncio.Event = field(default_factory=asyncio.Event)
+    restart: object = None  # async callable installed by run_harness: reboot the device
 
     async def start(self) -> None:
         await self.client.connect(login=True)
@@ -161,6 +162,29 @@ async def run_harness():
         clients.append(client)
         harness = Harness(client=client)
         await harness.start()
+
+        async def restart() -> None:
+            # Same binary, working directory and environment (notably
+            # ESPHOME_PREFDIR), so restore_value state is what the new run sees.
+            await client.disconnect()
+            proc.terminate()
+            proc.wait(timeout=5)
+            new_proc = subprocess.Popen(
+                [str(binary)], cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+            processes.append(new_proc)
+            async with asyncio.timeout(10):
+                while True:
+                    try:
+                        _, writer = await asyncio.open_connection("127.0.0.1", API_PORT)
+                        writer.close()
+                        break
+                    except OSError:
+                        await asyncio.sleep(0.05)
+            harness.states.clear()
+            await harness.start()
+
+        harness.restart = restart
         return harness
 
     yield _run
