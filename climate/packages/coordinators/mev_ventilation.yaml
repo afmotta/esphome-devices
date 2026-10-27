@@ -192,7 +192,6 @@ sensor:
       float demand = id(${demand_sensor}).state;
       float min_fan = id(${component_id}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       if (isnan(demand)) demand = min_fan;
 
       return std::min(100.0f, std::max(demand, min_fan));
@@ -341,7 +340,7 @@ binary_sensor:
       float fan = id(${component_id}_final_fan_speed).state;
       float rate = id(${humidity_rate_sensor}).state;
       float thresh = id(${component_id}_escalation_threshold).state;
-      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      if (isnan(fan) || isnan(rate)) return false;
       return state == "Fan Only" && fan >= thresh && rate > 0.0f;
     on_press:
       - script.execute: ${component_id}_escalate_to_dehumidifying
@@ -360,7 +359,7 @@ binary_sensor:
       float rate = id(${humidity_rate_sensor}).state;
       float thresh = id(${component_id}_escalation_threshold).state;
       bool summer = id(${cooling_mode_sensor}).state;
-      if (isnan(fan) || isnan(rate) || isnan(thresh)) return false;
+      if (isnan(fan) || isnan(rate)) return false;
       return state == "Dehumidifying" && summer && fan >= thresh && rate > 0.0f;
     on_press:
       - script.execute: ${component_id}_escalate_to_integration
@@ -379,7 +378,7 @@ binary_sensor:
       float lower = id(${humidity_lower_sensor}).state;
       float thresh = id(${component_id}_deescalation_threshold).state;
       bool summer = id(${cooling_mode_sensor}).state;
-      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      if (isnan(fan) || isnan(humidity) || isnan(lower)) return false;
       return state == "Integration" && (!summer || (humidity < lower && fan < thresh));
     on_press:
       - script.execute: ${component_id}_deescalate_to_dehumidifying
@@ -416,7 +415,7 @@ binary_sensor:
       float humidity = id(${humidity_sensor}).state;
       float lower = id(${humidity_lower_sensor}).state;
       float thresh = id(${component_id}_deescalation_threshold).state;
-      if (isnan(fan) || isnan(humidity) || isnan(lower) || isnan(thresh)) return false;
+      if (isnan(fan) || isnan(humidity) || isnan(lower)) return false;
       return state == "Dehumidifying" && humidity < lower && fan < thresh;
     on_press:
       - script.execute: ${component_id}_deescalate_to_fan_only

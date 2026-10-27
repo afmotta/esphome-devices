@@ -92,7 +92,6 @@ sensor:
       float demand = id(${demand_sensor}).state;
       float min_fan = id(${component_id}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       if (isnan(demand)) demand = min_fan;
 
       return std::min(100.0f, std::max(demand, min_fan));
@@ -107,7 +106,6 @@ sensor:
               if (!id(${component_id}_enabled).state) return std::string("Disabled");
               if (id(${alarm_sensor}).state) return std::string("Alarm");
               float min_fan = id(${component_id}_min_fan_speed).state;
-              if (isnan(min_fan)) min_fan = 20.0f;
               return x > min_fan ? std::string("Ventilating") : std::string("Idle");
 
 # Commissioning gate: OFF until ventilation is cleared to run (see header).
