@@ -29,3 +29,4 @@ DONE:
 - - Logica di controllo della VMC basata sulla qualità dell'aria interna [DONE]
 - - Coordinamento tra riscaldamento/raffreddamento e VMC per ottimizzare il comfort e l'efficienza energetica [DONE]
 - - Calcolo rateo umidità e state machine 3-stati su ESPHome [DONE]
+- Recupero bus-off TWAI sul posto (invece del riavvio del watchdog TX): fork locale di esp32_can con twai_get_status_info_v2 + twai_initiate_recovery_v2, da verificare sull'IDF pinnato
