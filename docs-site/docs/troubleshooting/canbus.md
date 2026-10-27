@@ -208,7 +208,7 @@ and An-Quad LED controllers) falls off the bus after a serious electrical
 fault, it cannot rejoin by itself. These nodes watch for that: if their
 heartbeat is refused for about 5 minutes in a row they restart themselves.
 If the bus stays dead they back off (restarts get further apart, up to about
-45 minutes), so a node on a broken cable restarts occasionally rather than
+43 minutes), so a node on a broken cable restarts occasionally rather than
 constantly. Seeing such a node's uptime reset while its segment is down is
 this, not a power problem. The CANBed nodes recover in hardware and never
 restart for this. 🔵 DESIGNED

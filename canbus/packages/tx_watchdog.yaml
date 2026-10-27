@@ -24,9 +24,9 @@
 # led_can_actuator.yaml both add it), and a heartbeat that reports through
 # tx_health_heartbeat_sent() — which both do.
 #
-# REBOOT POLICY (details and numbers in tx_health.h): reboot after 10 consecutive refused
+# REBOOT POLICY (tx_health.h is the authoritative copy of the numbers): reboot after 10 consecutive refused
 # heartbeats (5 min); the threshold doubles per reboot that did not help (10/20/40/80), so a
-# genuinely dead bus costs a reboot every ~45 min at worst, not a tight loop. The backoff
+# genuinely dead bus costs a reboot every ~43 min at worst, not a tight loop. The backoff
 # level lives in flash (it has to survive the reboot it causes) and clears only after 12
 # consecutive accepted heartbeats. Nothing is ever disabled permanently: a node that stays
 # bus-off long after the wiring was repaired still gets its next reboot.

@@ -47,7 +47,7 @@
 //   REBOOT POLICY — reboot after TX_WDG_REBOOT_AFTER_REFUSED consecutive refused heartbeats
 //   (10 = 5 min of heartbeats at 30 s), then back off: the threshold doubles for each
 //   reboot that did not bring the bus back (10, 20, 40, 80 heartbeats; capped), so a node on
-//   a bus that is genuinely dead reboots at most every ~45 min instead of looping. The
+//   a bus that is genuinely dead reboots at most every ~43 min instead of looping. The
 //   backoff level is persisted by the package (it must survive the reboot it causes) and
 //   only cleared by proof of recovery: TX_WDG_PROVEN_ACCEPTED consecutive accepted
 //   heartbeats. "Accepted" alone is NOT proof on TWAI — twai_transmit() succeeds as long as
