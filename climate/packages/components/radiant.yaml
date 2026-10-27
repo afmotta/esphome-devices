@@ -42,12 +42,9 @@
 
 # Required vars (room_slug, room_name, temperature_sensor, relay_id,
 # seasonal_mode_id) reach heat_only_radiant.yaml through ESPHome's substitution
-# inheritance. The optional tuning vars do NOT: heat_only_radiant.yaml's own
-# `defaults:` are merged into the global substitutions first and then win over
-# a value this file's caller passed, so pwm_period/kp/ki/kd set on radiant.yaml
-# were silently ignored (R-15). They are therefore forwarded explicitly below,
-# with the defaults restated here so an omitted var still resolves - keep the
-# four values in sync with heat_only_radiant.yaml.
+# inheritance. The optional pwm_period/kp/ki/kd are forwarded explicitly below
+# because the child's own `defaults:` win over a value passed here (R-15). Keep
+# these four defaults equal to heat_only_radiant.yaml's.
 defaults:
   pwm_period: 60s
   kp: 0.8
