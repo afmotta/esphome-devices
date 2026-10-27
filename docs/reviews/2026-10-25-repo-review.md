@@ -156,7 +156,7 @@ automazioni HA.
   1. ricaricare il package `ha_manifest_package.yaml`;
   2. sostituire l'automazione ACK;
   3. eliminare le vecchie automazioni orfane `canbus_gateway_*`;
-  4. controllare che `binary_sensor.light_controller_ha_ready` diventi `on` entro circa 5 s.
+  4. controllare che `binary_sensor.lighting_controller_ha_ready` diventi `on` entro circa 5 s.
 
 ---
 

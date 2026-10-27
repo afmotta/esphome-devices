@@ -95,7 +95,7 @@ automation:
     mode: single
     triggers:
       - trigger: state
-        entity_id: binary_sensor.light_controller_ha_ready
+        entity_id: binary_sensor.lighting_controller_ha_ready
         to: "off"
         for: "00:00:30"
     actions:
@@ -112,7 +112,7 @@ automation:
     mode: single
     triggers:
       - trigger: state
-        entity_id: sensor.light_controller_fallback_events
+        entity_id: sensor.lighting_controller_fallback_events
     conditions:
       - condition: template
         value_template: >-
@@ -135,7 +135,7 @@ automation:
     mode: single
     triggers:
       - trigger: state
-        entity_id: sensor.canbus_health_monitor_nodes_online
+        entity_id: sensor.can_bus_health_monitor_nodes_online
         to: "unavailable"
         for: "00:02:00"
     actions:
@@ -201,12 +201,12 @@ automation:
     conditions:
       - condition: template
         value_template: >-
-          {{ states('sensor.canbus_health_monitor_nodes_missing') not in
+          {{ states('sensor.can_bus_health_monitor_nodes_missing') not in
              ('', 'unknown', 'unavailable') }}
     actions:
       - action: persistent_notification.create
         data:
           title: "CAN bus daily digest: nodes missing"
           message: >-
-            Missing nodes: {{ states('sensor.canbus_health_monitor_nodes_missing') }}
+            Missing nodes: {{ states('sensor.can_bus_health_monitor_nodes_missing') }}
           notification_id: "canbus_daily_digest"

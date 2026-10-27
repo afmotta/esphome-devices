@@ -64,15 +64,28 @@ import bindings  # binding-manifest reader + canonical hash (ADR-0009)
 ROOT = Path(__file__).resolve().parent.parent  # canbus/ (flattened out of firmware/, Phase 6a)
 REPO_ROOT = ROOT.parent  # repo root (registry/ lives here, elevated out of firmware/)
 
-# The lighting controller's ESPHome `device_name` (devices/light-controller.yaml) — the ONE
-# place the generator learns it. Home Assistant registers an ESPHome device's API services as
-# `esphome.<device_name, '-' -> '_'>_<service>` and its entities as `<domain>.<same slug>_<entity>`,
-# so every HA-side name the generated packages reference is derived from this, never typed out.
-# It is a constant (not read from the YAML) so the generator stays hermetic over a temp repo
-# root; tests/test_ha_contract.py pins it to the real device_name and to the services/entities
+# The lighting controller's ESPHome `device_name` and `friendly_name` (devices/light-controller.yaml)
+# — the ONE place the generator learns them. Home Assistant registers an ESPHome device's API
+# services as `esphome.<device_name, '-' -> '_'>_<service>`, but names its entities after the
+# HA *device* name, which is `friendly_name` when set: `<domain>.<friendly_name slug>_<entity>`.
+# Every HA-side name the generated packages reference is derived from these, never typed out.
+# They are constants (not read from the YAML) so the generator stays hermetic over a temp repo
+# root; tests/test_ha_contract.py pins them to the real device YAML and to the services/entities
 # lighting/packages/buttons.yaml declares, so a rename of either side fails loudly.
 LIGHTING_DEVICE_NAME = "light-controller"
-LIGHTING_HA_SLUG = LIGHTING_DEVICE_NAME.replace("-", "_")
+LIGHTING_FRIENDLY_NAME = "Lighting Controller"
+# The health monitor (devices/health-monitor.yaml) — only its entity ids are referenced.
+HEALTH_FRIENDLY_NAME = "CAN Bus Health Monitor"
+
+
+def ha_slug(name: str) -> str:
+    """How HA slugifies a device/entity name into an entity-id fragment."""
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+LIGHTING_HA_SLUG = ha_slug(LIGHTING_DEVICE_NAME)  # service slug
+LIGHTING_ENTITY_SLUG = ha_slug(LIGHTING_FRIENDLY_NAME)
+HEALTH_ENTITY_SLUG = ha_slug(HEALTH_FRIENDLY_NAME)
 LIGHTING_SERVICE_PREFIX = f"esphome.{LIGHTING_HA_SLUG}_"  # + the api service name
 
 TEMPLATE = """\
@@ -732,7 +745,7 @@ def render_ha_node_health_package(export_nodes) -> str:
         "    mode: single\n"
         "    triggers:\n"
         "      - trigger: state\n"
-        f"        entity_id: binary_sensor.{LIGHTING_HA_SLUG}_ha_ready\n"
+        f"        entity_id: binary_sensor.{LIGHTING_ENTITY_SLUG}_ha_ready\n"
         '        to: "off"\n'
         '        for: "00:00:30"\n'
         "    actions:\n"
@@ -749,7 +762,7 @@ def render_ha_node_health_package(export_nodes) -> str:
         "    mode: single\n"
         "    triggers:\n"
         "      - trigger: state\n"
-        f"        entity_id: sensor.{LIGHTING_HA_SLUG}_fallback_events\n"
+        f"        entity_id: sensor.{LIGHTING_ENTITY_SLUG}_fallback_events\n"
         "    conditions:\n"
         "      - condition: template\n"
         "        value_template: >-\n"
@@ -772,7 +785,7 @@ def render_ha_node_health_package(export_nodes) -> str:
         "    mode: single\n"
         "    triggers:\n"
         "      - trigger: state\n"
-        "        entity_id: sensor.canbus_health_monitor_nodes_online\n"
+        f"        entity_id: sensor.{HEALTH_ENTITY_SLUG}_nodes_online\n"
         '        to: "unavailable"\n'
         '        for: "00:02:00"\n'
         "    actions:\n"
@@ -823,14 +836,14 @@ def render_ha_node_health_package(export_nodes) -> str:
         "    conditions:\n"
         "      - condition: template\n"
         "        value_template: >-\n"
-        "          {{ states('sensor.canbus_health_monitor_nodes_missing') not in\n"
+        f"          {{{{ states('sensor.{HEALTH_ENTITY_SLUG}_nodes_missing') not in\n"
         "             ('', 'unknown', 'unavailable') }}\n"
         "    actions:\n"
         "      - action: persistent_notification.create\n"
         "        data:\n"
         '          title: "CAN bus daily digest: nodes missing"\n'
         "          message: >-\n"
-        "            Missing nodes: {{ states('sensor.canbus_health_monitor_nodes_missing') }}\n"
+        f"            Missing nodes: {{{{ states('sensor.{HEALTH_ENTITY_SLUG}_nodes_missing') }}}}\n"
         '          notification_id: "canbus_daily_digest"\n'
     )
 
