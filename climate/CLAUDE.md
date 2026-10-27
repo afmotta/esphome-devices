@@ -137,9 +137,12 @@ COOL → `[-limit, 0]`, SANITARY_ONLY keeps the previous bounds (`integral_limit
 output units). Without it the gated direction wound up a full actuator span.
 
 **Fancoil boot state is owned by the role** (review R-16). Each `fancoil_role_*.yaml` maps `hp_mode`
-to the PID mode in one script (`${room_slug}_fancoil_sync_mode`), run from the select's `on_value`
-*and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package `on_boot`
-mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
+to the PID mode in one script (`${room_slug}_fancoil_sync_mode`); `fancoil.yaml` runs it from the select's
+`on_value` *and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package
+`on_boot` mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
+The hook order against the boost coordinator's replay only matters for a restored boost under a non-COOL
+`hp_mode`: the final PID mode (OFF or COOL) then depends on which runs last, but it never actuates (the cool
+output is gated on `hp_mode`) and the coordinator's season override ends the boost.
 
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
