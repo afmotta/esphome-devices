@@ -27,8 +27,9 @@ binary_sensor:
     lambda: |-
       return id(${sensor_id}).state;
     internal: true
-    # Short-cycle guard: the demand follows PID is_active edges (R-19), so the
-    # relay must not chase them.
+    # Short-cycle guard for every pump using this wrapper (R-19 made the relay
+    # follow demand edges). Also defers the first OFF after boot and any NaN or
+    # emergency OFF by up to 3 min; an ON passes through immediately.
     filters:
       - delayed_off: 3min
     on_state:
