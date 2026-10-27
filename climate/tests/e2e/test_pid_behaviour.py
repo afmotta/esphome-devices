@@ -17,17 +17,23 @@ to the right side of target by 0.5 degC and require output within 0.5 s. With
 the fix the P term acts at once (0.25); with the old +-1 bounds the integral
 sits at -1 and needs ~1.9 s to climb back, so they fail without it.
 
-R-16 — boot state of fancoil PIDs. A PID with only a cool_output starts in COOL
+R-16 — boot state of fancoil PIDs. A PID with a cool_output starts in COOL
 when it has no saved state, and the PID's restore (setup, priority DATA) runs
 AFTER the hp_mode select's restore has already fired the role handlers (HARDWARE),
 overwriting what they did. The roles now re-run their handler once everything is
 set up (esphome.on_boot, priority -100, in the same merged trigger as the boost
 coordinator's boot replay). Tests boot the harness on a fresh preference store
-with hp_mode restored as COOL:
-  boost      OFF (the real fancoil_boost coordinator is in the harness; its
-             replay of a restored "Fancoil Boost" must still win)
-  cool_only  COOL
-  heat_cool  COOL (follows hp_mode)
+and check the resulting modes per hp_mode:
+  hp_mode COOL           boost OFF (only the coordinator starts it), cool_only
+                         COOL, heat_cool COOL. In COOL the cool_only case holds
+                         even without the sync (COOL is its default), so it pins
+                         nothing about R-16.
+  hp_mode HEAT           boost OFF, cool_only OFF, heat_cool HEAT. The real
+                         regression guard: without the sync cool_only/boost
+                         come up in COOL here. (variant pid_behaviour_heat.yaml)
+  hp_mode SANITARY_ONLY  everything OFF. (variant pid_behaviour_sanitary.yaml)
+The harness also holds the real fancoil_boost coordinator; its replay of a
+restored "Fancoil Boost" must still win in COOL.
 """
 
 import asyncio
@@ -236,6 +242,26 @@ async def test_fresh_boot_in_cool_has_deterministic_fancoil_modes(boot):
     await hold(h, "Techroom Fancoil PID", ClimateMode.COOL)  # cool_only follows hp_mode
     await hold(h, "Attic Fancoil PID", ClimateMode.COOL)  # heat_cool follows hp_mode
     await hold(h, "Loft Fancoil PID", ClimateMode.COOL)
+
+
+@pytest.mark.parametrize(
+    "variant, season, living, techroom, attic, loft",
+    [
+        ("pid_behaviour_heat", "HEAT", ClimateMode.OFF, ClimateMode.OFF, ClimateMode.HEAT, ClimateMode.HEAT),
+        ("pid_behaviour_sanitary", "SANITARY_ONLY", ClimateMode.OFF, ClimateMode.OFF, ClimateMode.OFF, ClimateMode.OFF),
+    ],
+)
+async def test_fresh_boot_outside_cool_has_deterministic_fancoil_modes(
+    boot, variant, season, living, techroom, attic, loft
+):
+    """The real R-16 failure: a cool_only or boost PID used to come up in COOL
+    on a first boot while the heat pump was not producing chilled water."""
+    h = await boot.start(variant)
+    await h.wait_for("heat_pump_mode", lambda s: s.state == season)
+    await hold(h, "Living Fancoil PID", living)  # boost: only the coordinator starts it
+    await hold(h, "Techroom Fancoil PID", techroom)  # cool_only: COOL iff hp_mode COOL
+    await hold(h, "Attic Fancoil PID", attic)  # heat_cool follows hp_mode
+    await hold(h, "Loft Fancoil PID", loft)
 
 
 async def test_fresh_boot_does_not_run_the_boost_fancoil_in_cool(boot):
