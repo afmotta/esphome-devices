@@ -373,7 +373,6 @@ async def window_open_until_guard_acts(h):
 async def close_window_and_recover(h):
     await h.call("set_window", value=False)
     await h.wait_for(h.object_id("Living Window Guard"), lambda s: s.state == "Normal", timeout=4.0)
-    await asyncio.sleep(0.5)  # a wrongly restored mode would show up now
 
 
 async def end_boost_by_stop(h):
@@ -400,7 +399,7 @@ async def test_window_guard_does_not_resurrect_a_boost_that_ended(run_harness, e
     await h.wait_for("living_boost_state", lambda s: s.state == "Radiant Only", timeout=3.0)
     await close_window_and_recover(h)
 
-    assert mode(h, LIVING) == ClimateMode.OFF
+    await hold(h, LIVING, ClimateMode.OFF)  # a wrongly restored mode would show up now
     assert value(h, "living_fan_level") == pytest.approx(0.0)
 
 
@@ -412,5 +411,19 @@ async def test_window_guard_restores_a_boost_that_is_still_running(run_harness):
     await close_window_and_recover(h)
 
     assert h.states["living_boost_state"].state == "Fancoil Boost"
-    assert mode(h, LIVING) == ClimateMode.COOL
+    await hold(h, LIVING, ClimateMode.COOL)
     await h.wait_for("living_fan_level", lambda s: s.state == pytest.approx(1.0))
+
+
+async def test_window_guard_leaves_a_mode_changed_during_recovery(run_harness):
+    h = await run_harness("pid_behaviour")
+    await boost_running(h)
+    await window_open_until_guard_acts(h)
+    await end_boost_by_stop(h)
+    await h.wait_for("living_boost_state", lambda s: s.state == "Radiant Only", timeout=3.0)
+    await h.call("set_window", value=False)
+    await h.wait_for(h.object_id("Living Window Guard"), lambda s: s.state == "Recovering")
+    await h.call("living_fancoil_mode", value="COOL")  # someone else takes over
+    await h.wait_for(h.object_id("Living Window Guard"), lambda s: s.state == "Normal", timeout=4.0)
+
+    await hold(h, LIVING, ClimateMode.COOL)  # the guard did not undo it
