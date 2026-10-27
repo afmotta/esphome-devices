@@ -1,6 +1,6 @@
 import csv, collections, json, os, pcbnew
-THT_JLC = {"J1", "J2", "J5", "U1"}
-DNP = {"J4"}
+THT_JLC = {"J1", "J3", "J4", "U1"}
+DNP = {"J5"}
 SMD_EXCL = THT_JLC | DNP   # excluded from BOM_SMD / CPL_SMD
 LIB = json.load(open("jlc_library.json")) if os.path.exists("jlc_library.json") else {}
 from design import *
@@ -22,6 +22,8 @@ with open("out/BOM.csv", "w", newline="") as f:
         elif refs[0] in THT_JLC: lib += " - THT (saldatura a onda/manuale JLCPCB)"
         w.writerow([val, ",".join(refs), fp.split(":")[1], len(refs), mpn, lcsc, lib])
 tht = DNP
+# JLCPCB's 3D model of the JST PH (C131334) is 180 deg off from the KiCad footprint
+CPL_ROT_FIX = {"J3": 180, "J4": 180}
 with open("out/CPL_JLCPCB.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
@@ -34,7 +36,7 @@ with open("out/CPL_JLCPCB.csv", "w", newline="") as f:
             xs = [pd.GetPosition().x for pd in fp.Pads()]; ys = [pd.GetPosition().y for pd in fp.Pads()]
             p = pcbnew.VECTOR2I(int((min(xs) + max(xs)) / 2), int((min(ys) + max(ys)) / 2))
         w.writerow([r, f"{pcbnew.ToMM(p.x) - OX:.3f}mm", f"{OY + H - pcbnew.ToMM(p.y):.3f}mm", "Top",
-                    f"{fp.GetOrientationDegrees() % 360:.0f}"])
+                    f"{(fp.GetOrientationDegrees() + CPL_ROT_FIX.get(r, 0)) % 360:.0f}"])
 # SMD-only BOM/CPL (THT parts and DNP excluded)
 rows = list(csv.reader(open("out/BOM.csv")))
 csv.writer(open("out/BOM_SMD.csv", "w", newline="")).writerows(

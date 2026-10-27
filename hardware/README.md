@@ -50,7 +50,7 @@ Per rigenerare i file di produzione dopo una modifica: `sudo tools/setup.sh` (un
 | Qwiic SDA | GPIO3 | 26 |
 | Qwiic SCL | GPIO2 | 27 |
 | USB D− / D+ (programmazione) | GPIO12 / GPIO13 | 13 / 14 |
-| BOOT (pin 5 di J4) | GPIO9 | 15 |
+| BOOT (pin 5 di J5) | GPIO9 | 15 |
 | Pull-up di boot | GPIO8 | 10 |
 | Liberi | GPIO4, 5, 6, 10, 11, 15, 16, 17, 21 | – |
 
@@ -60,36 +60,36 @@ Rispetto alla versione 48 × 44 mm i GPIO di pulsanti, Qwiic e CAN sono cambiati
 
 - **J1 BUS:** morsetto estraibile ad angolo a 4 poli, passo 3,5 mm, sul bordo destro. Sulla scheda c'è la presa (Kefa KF2EDGR-3.5-4P), a filo del bordo; i fili vanno nella spina a vite (KF2EDGK-3.5-4P), che si innesta di lato da destra, quindi i fili escono paralleli alla scheda come prima. La spina sporge di circa 1 cm oltre il bordo: lascia lo spazio nel case. Dall'alto in basso: 24V – GND – CAN-H – CAN-L.
 - **Catena del bus:** il morsetto del bus è uno solo, quindi il cavo che arriva e quello che riparte verso il nodo successivo vanno nello stesso polo della spina (due fili per polo, meglio con un puntale doppio; la spina accetta fino a 1,5 mm² in tutto). Il collegamento tra i due cavi lo fa la spina stessa: sfilandola stacchi la scheda senza interrompere il bus e l'alimentazione degli altri nodi.
-- **J2 e J5 PULSANTI:** due connettori JST PH a 4 poli (passo 2 mm, B4B-PH-K-S verticale) sul bordo inferiore, sotto il modulo. **J2** (a sinistra): pulsanti 1, 2, 3, GND. **J5** (a destra): pulsanti 4, 5, 6, GND. Nella maggior parte dei casi basta J2; J5 serve solo per i nodi con più di 3 pulsanti. Il cavo si innesta dall'alto (fili perpendicolari alla scheda) e si sfila per staccare la scheda. Alto 6 mm, 8 mm con il cavo innestato: il componente più alto della scheda resta il K7805.
+- **J3 e J4 PULSANTI:** due connettori JST PH a 4 poli (passo 2 mm, B4B-PH-K-S verticale) sul bordo inferiore, sotto il modulo. **J3** (a sinistra): pulsanti 1, 2, 3, GND. **J4** (a destra): pulsanti 4, 5, 6, GND. Nella maggior parte dei casi basta J3; J4 serve solo per i nodi con più di 3 pulsanti. Il cavo si innesta dall'alto (fili perpendicolari alla scheda) e si sfila per staccare la scheda. Alto 6 mm, 8 mm con il cavo innestato: il componente più alto della scheda resta il K7805.
 - **Cavi dei pulsanti:** un cavo a 4 fili per gruppo, con il connettore JST PHR-4 e i contatti SPH-002T-P0.5S (filo da AWG 30 a AWG 24, cioè fino a 0,2 mm²). Il modo più semplice è comprare cavetti PH 2,0 a 4 poli già crimpati, con fili **AWG 24** lunghi 10–15 cm. Il connettore non si salda: si ordina a parte, come prima la spina. La corrente è di circa 1 mA, quindi la sezione conta solo per la meccanica.
 - **Collegamento ai frutti:** i pulsanti Vimar Linea hanno morsetti a vite pensati per fili da rete. Metti un **puntale da 0,25 mm²** su ogni filo (oppure ripiega il filo spelato) perché la vite stringa bene. Il GND di ogni cavo va al comune dei 3 frutti del suo gruppo.
 - **Montaggio nella scatola:** il JST PH resta innestato per attrito, senza dente di blocco. Lascia un po' di lasco ai cavi quando spingi i frutti nella 503, ed etichetta i due cavi (1–3 e 4–6): hanno lo stesso connettore e si possono scambiare. Nelle scatole dei pulsanti non ci sono conduttori a 230 V; se un giorno ci fossero, i fili sottili dei cavetti PH (isolamento da 300 V) non andrebbero bene così.
-- **J3 Qwiic:** JST SH a 4 pin, passo 1 mm, sul bordo superiore a destra con l'imbocco verso l'alto. GND, 3,3 V, SDA, SCL. **Nessun pull-up I²C sulla scheda:** li forniscono il QwiicBus e le schede dei sensori.
-- **J4 PROG:** pettine 1×6 a passo 2,54 mm, orizzontale sul bordo inferiore a destra, da non montare (fori passanti). Pin da sinistra: 5V, D−, D+, GND, BOOT, GND (serigrafati sopra i fori). I pin 1–4 vanno al cavo USB (USB nativo del C6). Un ponticello sui pin 5–6 porta GPIO9 a massa e fa partire il modulo in modalità download.
+- **J2 Qwiic:** JST SH a 4 pin, passo 1 mm, sul bordo superiore a destra con l'imbocco verso l'alto. GND, 3,3 V, SDA, SCL. **Nessun pull-up I²C sulla scheda:** li forniscono il QwiicBus e le schede dei sensori.
+- **J5 PROG:** pettine 1×6 a passo 2,54 mm, orizzontale sul bordo inferiore a destra, da non montare (fori passanti). Pin da sinistra: 5V, D−, D+, GND, BOOT, GND (serigrafati sopra i fori). I pin 1–4 vanno al cavo USB (USB nativo del C6). Un ponticello sui pin 5–6 porta GPIO9 a massa e fa partire il modulo in modalità download.
 
 Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi della linea.
 
 ## Prima programmazione
 
-1. Collega un cavo USB al pettine J4: rosso al 5V, bianco a D−, verde a D+, nero a GND. Puoi saldare un pettine maschio 1×6, oppure infilarne uno nei fori e tenerlo premuto mentre programmi.
+1. Collega un cavo USB al pettine J5: rosso al 5V, bianco a D−, verde a D+, nero a GND. Puoi saldare un pettine maschio 1×6, oppure infilarne uno nei fori e tenerlo premuto mentre programmi.
 2. Con il flash vuoto il modulo di solito entra da solo in modalità download. Se non succede, o se un firmware difettoso ha bloccato l'USB:
-   - metti un ponticello sui pin 5–6 di J4 (BOOT–GND);
+   - metti un ponticello sui pin 5–6 di J5 (BOOT–GND);
    - collega l'USB, oppure accendi la scheda;
    - programma, poi **togli il ponticello**. Se lo lasci, il modulo resta in modalità download a ogni riavvio e il firmware non parte.
 3. Programma con ESPHome (o esptool) via USB. Dal flash successivo puoi usare l'OTA via Wi-Fi.
 
 ## Da verificare prima dell'ordine
 
-1. **Codici LCSC e magazzino.** Tutti i componenti montati hanno un codice LCSC. Al caricamento della BOM controlla la disponibilità, soprattutto di J3 (vedi sotto).
-2. **Rotazioni nel file CPL.** Controllale nell'anteprima di assemblaggio JLCPCB, soprattutto per il modulo U3 (l'antenna deve stare a filo del bordo superiore, sopra l'area senza rame), U2, U4 (ruotato di 180°), J3 (ruotato di 180°, imbocco verso l'alto), J1 (ruotato di 90°, imbocco della spina verso il bordo destro), J2 e J5 (la tacca del connettore deve coincidere con quella del footprint), i diodi e C1.
+1. **Codici LCSC e magazzino.** Tutti i componenti montati hanno un codice LCSC. Al caricamento della BOM controlla la disponibilità, soprattutto di J2 (vedi sotto).
+2. **Rotazioni nel file CPL.** Controllale nell'anteprima di assemblaggio JLCPCB, soprattutto per il modulo U3 (l'antenna deve stare a filo del bordo superiore, sopra l'area senza rame), U2, U4 (ruotato di 180°), J2 (ruotato di 180°, imbocco verso l'alto), J1 (ruotato di 90°, imbocco della spina verso il bordo destro), J3 e J4 (la tacca del connettore deve coincidere con quella del footprint), i diodi e C1.
 3. **Via nel pad di massa del modulo.** Il pad di massa sotto il WROOM è una griglia 3×3 con 5 via verso la massa sul retro. Su JLCPCB conviene chiedere che le via siano tappate ("via-in-pad" o "epoxy filled"), così lo stagno non cola nei fori. Se non lo fai, di solito funziona comunque.
 4. **Piste sotto il modulo.** La pista +3V3 tra i due lati del modulo e le piste USB verso il pettine di programmazione passano sotto il modulo, lontano dall'antenna (sullo strato superiore e sul retro). È ammesso, ma lascia meno piano di massa sotto il modulo.
-5. **Fori di J1.** Il footprint Phoenix MC ha fori da 1,2 mm. Il datasheet Kefa non è consultabile da qui: confronta il diametro con il footprint EasyEDA di C441173 (pagina del componente su LCSC o JLCPCB) prima di ordinare. J2 e J5 usano il footprint KiCad del JST PH originale.
+5. **Fori di J1.** Il footprint Phoenix MC ha fori da 1,2 mm. Il datasheet Kefa non è consultabile da qui: confronta il diametro con il footprint EasyEDA di C441173 (pagina del componente su LCSC o JLCPCB) prima di ordinare. J3 e J4 usano il footprint KiCad del JST PH originale.
 
 ## Montaggio
 
-- **Montaggio completo:** carica `BOM.csv` e `CPL_JLCPCB.csv`. JLCPCB monta anche i THT (K7805-500R3, J1, J2 e J5) a onda o a mano. Non resta nulla da saldare, J4 resta senza componente. La spina KF2EDGK-3.5-4P (J1) e i cavi PH per J2/J5 si ordinano a parte.
-- **Solo SMD:** carica `BOM_SMD.csv` e `CPL_SMD.csv`. Il K7805, J1, J2 e J5 restano da saldare a mano.
+- **Montaggio completo:** carica `BOM.csv` e `CPL_JLCPCB.csv`. JLCPCB monta anche i THT (K7805-500R3, J1, J3 e J4) a onda o a mano. Non resta nulla da saldare, J5 resta senza componente. La spina KF2EDGK-3.5-4P (J1) e i cavi PH per J3/J4 si ordinano a parte.
+- **Solo SMD:** carica `BOM_SMD.csv` e `CPL_SMD.csv`. Il K7805, J1, J3 e J4 restano da saldare a mano.
 
 ## Esempio ESPHome (indicativo)
 
@@ -126,18 +126,18 @@ binary_sensor:
 
 ## BOM e librerie JLCPCB (aggiornata il 2026-10-14)
 
-Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo da JLCPCB, compresi i THT (J1, J2, J5 e K7805 U1, saldati da JLCPCB a onda o a mano). La colonna **Libreria JLCPCB** della BOM indica Basic / Preferred / Extended; l'elenco usato è in `hardware/jlc_library.json`.
+Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo da JLCPCB, compresi i THT (J1, J3, J4 e K7805 U1, saldati da JLCPCB a onda o a mano). La colonna **Libreria JLCPCB** della BOM indica Basic / Preferred / Extended; l'elenco usato è in `hardware/jlc_library.json`.
 
-- **Non montati:** solo **J4** (pettine di programmazione, DNP). Per programmare si usa un pettine inserito al momento o saldato.
+- **Non montati:** solo **J5** (pettine di programmazione, DNP). Per programmare si usa un pettine inserito al momento o saldato.
 - **C2** è passato da 2,2 µF a **10 µF 50 V 1206** (C13585, Basic): più capacità in ingresso al K7805 e un componente Extended in meno.
 - **C1:** Honor Elec RVT1H100M0505 (C86603, Extended), 10 µF 50 V, 5 × 5,4 mm, 105 °C. Dalla ricerca risultavano circa 6 000 pezzi su LCSC: verificalo al caricamento della BOM.
 - **D1:** B5819W (C8598, Basic), lo stesso diodo di D3 e D5: al posto dello SS34 in SMA.
 - **J1:** presa Kefa KF2EDGR-3.5-4P (C441173, Extended, ad angolo, 10 A 300 V, saldatura a onda, PCBA Economic e Standard), footprint Phoenix MC 1,5/4-G-3,5 orizzontale, fronte della presa a filo del bordo destro. A magazzino LCSC 7 295 pezzi il 2026-10-18. Prima dell'ordine verifica nell'anteprima JLCPCB che l'imbocco della spina sia verso il bordo.
 - **Spina per J1 da ordinare a parte:** Kefa KF2EDGK-3.5-4P (LCSC C440849, 12 196 pezzi il 2026-10-18), vite M2, filo fino a 1,5 mm².
-- **J2 e J5:** JST B4B-PH-K-S(LF)(SN) originale (C131334, Extended, saldatura a onda), lo stesso codice per i due connettori. Dalla ricerca del 2026-10-19 risultavano circa 95 000 pezzi su LCSC: verificalo al caricamento della BOM.
-- **Cavi per J2/J5 da ordinare a parte:** cavetti PH 2,0 a 4 poli già crimpati (fili AWG 24), oppure connettori JST PHR-4 con contatti SPH-002T-P0.5S da crimpare. Non sono nella BOM di montaggio perché non si saldano.
+- **J3 e J4:** JST B4B-PH-K-S(LF)(SN) originale (C131334, Extended, saldatura a onda), lo stesso codice per i due connettori. Dalla ricerca del 2026-10-19 risultavano circa 95 000 pezzi su LCSC: verificalo al caricamento della BOM.
+- **Cavi per J3/J4 da ordinare a parte:** cavetti PH 2,0 a 4 poli già crimpati (fili AWG 24), oppure connettori JST PHR-4 con contatti SPH-002T-P0.5S da crimpare. Non sono nella BOM di montaggio perché non si saldano.
 - **CPL:** per i THT la posizione è il centro dei pin (non il pin 1). Controlla nell'anteprima di assemblaggio le rotazioni dei morsetti e del K7805.
-- **J3 (C160404) ha pochissimi pezzi a magazzino.** Alternative compatibili Qwiic (Extended, da confrontare con il footprint): ZX-SH1.0-4PWT C7430446, HC-1.0-4PWT C2845363, BX-SH1.0-4PWT C18077910.
+- **J2 (C160404) ha pochissimi pezzi a magazzino.** Alternative compatibili Qwiic (Extended, da confrontare con il footprint): ZX-SH1.0-4PWT C7430446, HC-1.0-4PWT C2845363, BX-SH1.0-4PWT C18077910.
 - Le pagine JLCPCB dei componenti Preferred mostrano solo "Extended": al caricamento della BOM verifica che abbiano il badge "Preferred".
 
 ## Storia e decisioni

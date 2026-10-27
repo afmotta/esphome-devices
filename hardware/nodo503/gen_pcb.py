@@ -8,8 +8,8 @@ MM = pcbnew.FromMM
 pcbnew.KIID.SeedGenerator(503)   # deterministic UUIDs -> reproducible .kicad_pcb
 def P(x, y): return pcbnew.VECTOR2I(int(round((OX + x) * 1000)) * 1000, int(round((OY + y) * 1000)) * 1000)
 
-REF_POS = {"J1": (50.5, 14.6), "J2": (6.9, 27.55), "J5": (17.95, 27.55), "U1": (30.0, 2.4),   # (x, y[, angle on the board])
-           "C1": (47.3, 10.5, 90), "D3": (39.6, 8.4), "J4": (46.3, 32.9)}
+REF_POS = {"J1": (50.5, 14.6), "J3": (6.9, 27.55), "J4": (17.95, 27.55), "U1": (30.0, 2.4),   # (x, y[, angle on the board])
+           "C1": (47.3, 10.5, 90), "D3": (39.6, 8.4), "J5": (46.3, 32.9)}
 comp_uuid = json.load(open(f"{ROOT}/.comp_uuid.json"))
 path = f"{ROOT}/{PROJECT}.kicad_pcb"
 if os.path.exists(path):
@@ -108,12 +108,12 @@ for k, t in enumerate(["24V", "GND", "H", "L"]):      # J1 on the right edge, to
     # right-aligned 0.2 mm short of the pads (x0 - 1.8); "L" also clear of the pin-1 marker;
     # narrow glyphs so "24V" fits between F1 and J1
     text(t, x0 - 2.0 - (0.85 if t == "L" else 0), y0 - 10.5 + 3.5 * k, 0.6, width=0.45, right=True)
-for ref, names in (("J2", ["1", "2", "3", "G"]), ("J5", ["4", "5", "6", "G"])):   # above the PH headers
+for ref, names in (("J3", ["1", "2", "3", "G"]), ("J4", ["4", "5", "6", "G"])):   # above the PH headers
     x0, y0, _ = COMP[ref]["pcb"]
     for k, t in enumerate(names):
         text(t, x0 + 2.0 * k, y0 - 2.6, 0.6)
 text("QWIIC", 43.7, 7.0, 0.6)
-x0, y0, _ = COMP["J4"]["pcb"]      # horizontal header on the bottom edge: legends above the pins
+x0, y0, _ = COMP["J5"]["pcb"]      # horizontal header on the bottom edge: legends above the pins
 for k, t in enumerate(["5V", "D-", "D+", "G", "BT", "G"]):
     text(t, x0 + 2.54 * k, y0 - 2.0, 0.55)
 text("NODO CAN 503", 16.3, 17.5, 1.0, layer=pcbnew.B_SilkS, mirror=True)        # on the back, under the module

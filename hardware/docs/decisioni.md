@@ -94,3 +94,11 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 ## 2026-10-19 — La versione con la Kefa resta come variante
 
 - La scheda con i due JST PH (55 × 33,5 mm) diventa quella di `main`. La versione precedente, con la presa estraibile Kefa a 7 poli (55 × 37 mm, pettine J4 in basso a destra), è conservata nel branch **`variante/kefa`**, completa di file di produzione. Non segue le modifiche future di `main`.
+
+## 2026-10-27 — CPL: J2 e J5 ruotati di 180°
+
+- Nell'anteprima JLCPCB la sagoma dei JST PH (C131334) di J2 e J5 non copriva la serigrafia: il modello 3D di JLCPCB è girato di 180° rispetto al footprint KiCad. `gen_bom.py` ora scrive nel CPL 180° per J2 e J5 (`CPL_ROT_FIX`); il PCB e le serigrafie non cambiano. Se l'anteprima mostra ancora uno scarto, correggere anche la posizione (Mid X/Y) del CPL, calcolata sul centro dei pad.
+
+## 2026-10-27 — Connettori rinumerati
+
+- Su richiesta di Alberto: J1 bus (invariato), **J2 Qwiic** (era J3), **J3 pulsanti 1–3** (era J2), **J4 pulsanti 4–6** (era J5), **J5 pettine di programmazione** (era J4). Cambiano solo i designatori: piazzamento e sbroglio sono invariati (`build_pcb.sh`, DRC 0, parità 0). Le voci più vecchie di questo file usano ancora la numerazione precedente.

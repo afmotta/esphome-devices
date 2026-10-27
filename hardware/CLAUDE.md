@@ -45,18 +45,18 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 ## Stato attuale (2026-10-19)
 
 - DRC pulito, parità 0, pronto per l'ordine dopo le verifiche nell'anteprima JLCPCB (vedi README, "Da verificare prima dell'ordine").
-- Connettori: J1 bus (presa estraibile ad angolo KF2EDGR-3.5-4P, spina laterale dal bordo destro, dall'alto 24V-GND-H-L; spina KF2EDGK-3.5-4P C440849 a parte), J2 pulsanti 1–3 + GND e J5 pulsanti 4–6 + GND (JST PH 4 poli verticale B4B-PH-K-S C131334, bordo inferiore sotto il modulo; i cavi PH crimpati si ordinano a parte, non sono in BOM; J5 serve solo con più di 3 pulsanti), J3 Qwiic (JST SH, bordo superiore), J4 pettine di programmazione 1×6 orizzontale in basso a destra (DNP; ponticello 5–6 = download).
+- Connettori: J1 bus (presa estraibile ad angolo KF2EDGR-3.5-4P, spina laterale dal bordo destro, dall'alto 24V-GND-H-L; spina KF2EDGK-3.5-4P C440849 a parte), J3 pulsanti 1–3 + GND e J4 pulsanti 4–6 + GND (JST PH 4 poli verticale B4B-PH-K-S C131334, bordo inferiore sotto il modulo; i cavi PH crimpati si ordinano a parte, non sono in BOM; J4 serve solo con più di 3 pulsanti), J2 Qwiic (JST SH, bordo superiore), J5 pettine di programmazione 1×6 orizzontale in basso a destra (DNP; ponticello 5–6 = download).
 - Pinout GPIO: vedi tabella nel README. Pulsanti 1–3 su GPIO7/0/1 (lato sinistro del modulo), 4–6 su GPIO20/19/18 (lato destro); CAN TX GPIO23, RX GPIO22; I²C SDA GPIO3, SCL GPIO2.
-- Studio di compattazione del 2026-10-19 (`docs/decisioni.md`): applicato il concetto A, poi J2 diviso in due JST PH (55 × 33,5 mm); scartati il buck a 3,3 V con transceiver a 3,3 V (non convinceva Alberto) e il MINI-1 (esaurito). I pogo pin per la programmazione sono stati provati e tolti: J4 è di nuovo un pettine.
-- Aperti / da fare: verifiche nell'anteprima JLCPCB; scarsa disponibilità di J3 (C160404); firmware ESPHome non ancora scritto (c'è solo l'esempio nel README).
+- Studio di compattazione del 2026-10-19 (`docs/decisioni.md`): applicato il concetto A, poi J3 diviso in due JST PH (55 × 33,5 mm); scartati il buck a 3,3 V con transceiver a 3,3 V (non convinceva Alberto) e il MINI-1 (esaurito). I pogo pin per la programmazione sono stati provati e tolti: J5 è di nuovo un pettine.
+- Aperti / da fare: verifiche nell'anteprima JLCPCB; scarsa disponibilità di J2 (C160404); firmware ESPHome non ancora scritto (c'è solo l'esempio nel README).
 
 ## Mappa del PCB (mm, origine in alto a sinistra, y verso il basso)
 
 - Modulo U3 in alto a sinistra (`MODX, MODY = 16.3, 15.9`), antenna a filo del bordo superiore: **nessun rame** davanti all'antenna (keepout nel footprint Espressif). Non spostare parti o piste in quella zona.
 - Striscia sinistra (x 0–6.3): disaccoppiamento 3V3 (C15, C16), RC su EN (R13, C17), colonne RC dei pulsanti 1–3 (`btn_xy`), pull-up GPIO8 (R14) sotto.
-- Subito sotto il modulo, sul bordo inferiore: J2 (x 6–17) e J5 (x 17–28), JST PH con le etichette dei pin sopra. A destra di J5, sul bordo inferiore: J4 orizzontale (pin 1 a x 30, y 31.7).
+- Subito sotto il modulo, sul bordo inferiore: J3 (x 6–17) e J4 (x 17–28), JST PH con le etichette dei pin sopra. A destra di J4, sul bordo inferiore: J5 orizzontale (pin 1 a x 30, y 31.7).
 - Colonne RC dei pulsanti 4–6 a destra del modulo (x 27–31, y 20–27), con le piste BTN fisse in `PREROUTE`.
-- Destra del modulo: U1 K7805 in alto, J3 Qwiic in alto a destra, D2/C2/C3/C4, gruppo LDO (D3, D5, C13, C14, U4), F1/D1 sulla riga di J1, U2 TJA1051 + C5/C6/D4 in basso; C1 (5 × 5,4 mm) in alto a destra, sopra J1.
+- Destra del modulo: U1 K7805 in alto, J2 Qwiic in alto a destra, D2/C2/C3/C4, gruppo LDO (D3, D5, C13, C14, U4), F1/D1 sulla riga di J1, U2 TJA1051 + C5/C6/D4 in basso; C1 (5 × 5,4 mm) in alto a destra, sopra J1.
 - Fori M2,5 in alto a destra e in basso a sinistra, a 3 mm dai bordi (`HOLES`), keepout di raggio 2,8 mm per piste, via e componenti (`HOLE_KEEPOUT_R`, controllato anche da `check_placement.py`). L'angolo dell'antenna non ha fori.
 
 ## Vincoli e preferenze dell'utente (non violarli senza chiedere)
@@ -64,7 +64,7 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 - Dimensione massima: **56 × 41 mm** (quella della CANBed RP2040); oggi 55 × 33,5 mm. Due viti **M2,5** in diagonale per un case stampato in 3D (scelta del 2026-10-19).
 - Assemblaggio **completo** da JLCPCB ("non voglio montare nulla a mano"): ogni parte montata ha un codice LCSC; preferire Basic, poi Preferred, poi Extended. Esiste anche la variante solo SMD (BOM_SMD/CPL_SMD).
 - Resta su **ESP32-C6** (scartato il C3: risparmio irrilevante). Zigbee non usato per ora.
-- Nessuna terminazione 120 Ω a bordo. Un solo morsetto per il bus. Niente pull-up I²C (usa QwiicBus). Ingressi pulsante su due connettori da 4 poli (3 pulsanti + GND ciascuno): di solito si usa solo J2 (scelta del 2026-10-19). Nelle scatole dei pulsanti non ci sono 230 V (per questo vanno bene i fili sottili dei cavi PH).
+- Nessuna terminazione 120 Ω a bordo. Un solo morsetto per il bus. Niente pull-up I²C (usa QwiicBus). Ingressi pulsante su due connettori da 4 poli (3 pulsanti + GND ciascuno): di solito si usa solo J3 (scelta del 2026-10-19). Nelle scatole dei pulsanti non ci sono 230 V (per questo vanno bene i fili sottili dei cavi PH).
 - Lavora solo sulla rev C. Prima di rifare piazzamento/sbroglio per richieste ambigue o che toccano i vincoli, fai una domanda breve con le opzioni (l'utente risponde in fretta).
 - Quando cerchi componenti, verifica stock e libreria su lcsc.com e jlcpcb.com/partdetail/Cxxxx e cita le fonti.
 
@@ -77,8 +77,8 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 - **Starved thermal** su pad GND: aggiungi il riferimento a `SOLID_GND` in `design.py`.
 - Fori di montaggio: footprint board-only, esclusi da BOM e CPL; le rule area attorno ai fori vengono esportate nella DSN come keepout.
 - `gen_sch.py` è deterministico (UUID derivati con uuid5): a parità di `design.py` lo schema è identico byte per byte; lo stesso vale per il PCB prodotto da `build_pcb.sh` (generatore di UUID KiCad inizializzato con un seme). Un diff su `.kicad_sch`/`.kicad_pcb` quindi indica modifiche reali. Gli UUID dei simboli stanno in `.comp_uuid.json`: non cancellarlo, collega i simboli dello schema ai footprint del PCB.
-- Lo sbroglio salvato (`nodo503.ses`) corrisponde allo stato attuale (rifatto con `route.sh` il 2026-10-19 per la scheda 55 × 33,5 con J2/J5 JST PH e il pettine J4): `build_pcb.sh` lo reimporta fedelmente.
-- **Footprint sul retro** (`BOTTOM` in `design.py`, oggi vuoto: J4 è tornato un pettine sul lato superiore): `gen_pcb.py` li capovolge con `Flip` **dopo** `board.Add`; chiamare `Flip` su un footprint non ancora aggiunto alla scheda fa andare in crash pcbnew (segmentation fault). Dopo ogni modifica che richiede `route.sh` controlla DRC e anteprime come al solito.
+- Lo sbroglio salvato (`nodo503.ses`) corrisponde allo stato attuale (rifatto con `route.sh` il 2026-10-19 per la scheda 55 × 33,5 con J3/J4 JST PH e il pettine J5): `build_pcb.sh` lo reimporta fedelmente.
+- **Footprint sul retro** (`BOTTOM` in `design.py`, oggi vuoto: J5 è tornato un pettine sul lato superiore): `gen_pcb.py` li capovolge con `Flip` **dopo** `board.Add`; chiamare `Flip` su un footprint non ancora aggiunto alla scheda fa andare in crash pcbnew (segmentation fault). Dopo ogni modifica che richiede `route.sh` controlla DRC e anteprime come al solito.
 - Rete del sandbox cloud: datasheet LCSC e API EasyEDA sono bloccati; le pagine prodotto di lcsc.com e jlcpcb.com/partdetail funzionano con WebFetch. Le pagine JLCPCB mostrano "Extended" anche per i Preferred. Alcuni codici esistono solo nel catalogo JLCPCB e non su LCSC (es. C42400616): verifica sempre entrambi.
 - Elenco ufficiale Basic/Preferred: `scraped/assembly-details.csv` del repo GitHub CDFER/jlcpcb-parts-database (`base` = Basic, `expand` = Preferred). La classificazione usata è in `hardware/jlc_library.json` (aggiungi lì ogni nuovo codice).
 
