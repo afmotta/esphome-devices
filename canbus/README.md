@@ -363,8 +363,8 @@ stops draining, so heartbeats start being refused. After **10 consecutive refuse
 - *Cost:* a few seconds of unavailability per reboot (An-Penta/An-Quad: LEDs restore their
   last state; bridge: queued forwards are lost). A reboot is visible to the health monitor
   only as the node's uptime resetting and, while the bus is down, as `node_lost`.
-- *Unverified:* the reboot lambda (`global_preferences->sync(); App.safe_reboot()`) is
-  YAML-validated only; an ESP32 compile is blocked in the current CI sandbox. Hardware check:
+- *Unverified:* the reboot lambda (`App.safe_reboot()`, which also persists the backoff level
+  through the components' `on_shutdown()`) is YAML-validated only; an ESP32 compile is blocked in the current CI sandbox. Hardware check:
   short CANH to CANL on a running An-Penta for ~1 s (provokes bus-off), restore the bus, confirm
   the log shows the refused-heartbeat run, `rebooting`, and that the node's heartbeat returns
   on the health monitor; then leave the bus disconnected for an hour and confirm reboots

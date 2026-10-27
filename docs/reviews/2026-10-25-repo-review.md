@@ -694,7 +694,7 @@ Servono un componente esterno, oppure un riavvio automatico in caso di `ERR_CAN_
   - battery nativa PASS, yamllint OK;
   - `esphome config` OK su 9 target, con il watchdog presente solo su T-2CAN, An-Penta e An-Quad.
 - **Non verificato:**
-  - compilazione ESP32 dei lambda (`App.safe_reboot()`, `global_preferences->sync()`);
+  - compilazione ESP32 dei lambda (`App.safe_reboot()`);
   - prova al banco: CANH-CANL in corto per circa 1 s su un An-Penta, poi bus scollegato per un'ora controllando che i
     riavvii si diradino (circa 8, 13, 23, 43 min).
 

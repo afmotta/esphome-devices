@@ -65,9 +65,7 @@ interval:
                          (unsigned) tx_health().hb_refused_run, (unsigned) id(tx_wdg_level),
                          (unsigned) tx_watchdog_threshold(next));
                 id(tx_wdg_level) = next;
-            # The globals component queues the new level on its 1 s poll; let it, then force the
-            # flash write before restarting (the periodic preferences sync can be up to 60 s away).
-            - delay: 2s
+            # safe_reboot() runs on_shutdown() on every component: globals stores tx_wdg_level, then
+            # the preferences syncer flushes it to flash.
             - lambda: |-
-                global_preferences->sync();
                 App.safe_reboot();

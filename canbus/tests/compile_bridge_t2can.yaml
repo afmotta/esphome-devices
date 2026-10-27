@@ -13,7 +13,7 @@
 #   - the ${bridge_hf_loop} gate compiles in its OFF form (this board sets it
 #     false; the CANBed fixtures cover the ON form).
 #   - tx_watchdog.yaml (R-17) composes on the TWAI backbone — its reboot lambda
-#     (global_preferences->sync(); App.safe_reboot()) is only compile-checked here.
+#     (App.safe_reboot()) is only compile-checked here.
 #
 # node_id 999 is a scratch value — nothing reserves it, so NEVER flash this to hardware.
 #
