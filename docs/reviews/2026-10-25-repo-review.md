@@ -371,7 +371,7 @@ già state rese locali.
 - **Range ristretti rispetto ai vecchi helper (0–100).** Scelta voluta: le soglie di escalation e de-escalation non possono
   incrociarsi (cascata senza oscillazioni) e il minimo del primo piano resta sotto la soglia di de-escalation (la
   velocità finale non scende sotto il minimo: con minimo >= soglia la cascata non uscirebbe più da Deumidifica/Integrazione).
-  Un valore ripristinato fuori range viene limitato in silenzio. I default 80/40 sostituiscono i 70/30 raccomandati dalle
+  Un valore persistito con il vecchio range viene ripristinato così com'è (il `number` template limita solo le scritture): va reinserito. I default 80/40 sostituiscono i 70/30 raccomandati dalle
   vecchie guide.
 - **Problema risolto.** Prima, con HA giù, le soglie a NaN disattivavano in silenzio la cascata di deumidificazione e i
   ritardi calcolavano `NaN * 60000`.

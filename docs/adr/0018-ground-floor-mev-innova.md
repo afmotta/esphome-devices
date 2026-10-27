@@ -107,8 +107,9 @@ fan-only because the hardware is passive:
   ground-floor MEV gets its own `input_number.ground_floor_mev_minimum_fan_speed` (*amended 2026-10-25,
   review R-08b: now a persisted controller number, `ground_floor_mev_min_fan_speed`, so the floor
   survives HA outages; still per unit. The persisted numbers have narrower ranges than the old
-  helpers (min fan speed 0-50 %, 0-30 % on the first-floor unit) and a restored value outside the
-  range is silently capped*). The
+  helpers (min fan speed 0-50 %, 0-30 % on the first-floor unit) and a value persisted under the old
+  wider range is restored as-is, not clamped (ESPHome's template number clamps only on writes);
+  re-enter it after the upgrade*). The
   air-quality and humidity lower/upper bounds are **shared** with the first-floor unit — those
   are house-wide standards, not per-floor tuning.
 - **Commissioning gate.** `ground_floor_mev_enabled` defaults OFF (RESTORE_DEFAULT_OFF), so a
