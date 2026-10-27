@@ -48,7 +48,7 @@
 #
 # State machine (poll_interval, 10 s by default):
 #   Normal → Active       window open ≥ window_timeout AND guarded PID not OFF
-#                         (remembers the running mode, forces OFF)
+#                         (forces OFF)
 #   Active → Recovering   window closes
 #   Recovering → Normal   closed for recovery_timeout (runs the owner's resume
 #                         script only if the PID is still OFF — a manual/HA
