@@ -68,7 +68,8 @@ REPO_ROOT = ROOT.parent  # repo root (registry/ lives here, elevated out of firm
 # — the ONE place the generator learns them. Home Assistant registers an ESPHome device's API
 # services as `esphome.<device_name, '-' -> '_'>_<service>`, but names its entities after the
 # HA *device* name, which is `friendly_name` when set: `<domain>.<friendly_name slug>_<entity>`.
-# Every HA-side name the generated packages reference is derived from these, never typed out.
+# Every HA-side name the *generated* packages reference is derived from these, never typed out;
+# the hand-written ha_arbitration_automations.yaml is guarded by tests/test_ha_contract.py instead.
 # They are constants (not read from the YAML) so the generator stays hermetic over a temp repo
 # root; tests/test_ha_contract.py pins them to the real device YAML and to the services/entities
 # lighting/packages/buttons.yaml declares, so a rename of either side fails loudly.
@@ -687,6 +688,9 @@ def render_ha_node_health_package(export_nodes) -> str:
         "# A node's state is unknown until its first lost/recovered edge after HA start\n"
         "# (accepted: ADR-0011 keeps per-node state off the ESP32; the fleet aggregates\n"
         "# on the health monitor are authoritative at boot).\n"
+        "# Entity ids follow the device's friendly_name (lighting_controller_*), while API\n"
+        "# services follow device_name (light_controller_*) — intentional, see\n"
+        "# canbus/tests/test_ha_contract.py.\n"
         "# =============================================================================\n\n"
     )
 
