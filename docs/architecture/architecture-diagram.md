@@ -195,9 +195,9 @@ graph TD
     CheckCAN -->|No| CheckHA{HA tier valid?<br/>entity not unavailable AND<br/>HA connected, or within<br/>the 5 min grace}
 
     CheckHA -->|Yes| UseHA[Use Home Assistant reading<br/>Tier 2 - Fallback]
-    CheckHA -->|No| Emergency[Failover returns NaN<br/>immediately - Tier 3 Emergency]
+    CheckHA -->|No| Emergency[Failover returns NaN<br/>within ~20 s of the HA tier going NaN<br/>Tier 3 Emergency]
 
-    Emergency --> PIDZero[ESPHome PID drives its<br/>outputs to 0 at once<br/>valve closed, fancoil off]
+    Emergency --> PIDZero[ESPHome PID drives its<br/>outputs to 0<br/>valve closed, fancoil off]
 
     UseCAN --> Log[Log tier changes<br/>Failover / Recovery]
     UseHA --> Log
@@ -218,10 +218,13 @@ graph TD
 **Failover Tiers:**
 1. **Primary (Best):** CAN sensor-kit measurement, received directly on the controller's CAN interface
 2. **Fallback (Good):** Home Assistant sensor, gated for staleness (review R-04): NaN when HA reports
-   `unavailable`/`unknown`, or after 5 minutes (`ha_staleness_grace_s`) with no state-subscribed API
-   client connected - the grace rides out an HA restart
-3. **Emergency (Degraded):** NaN immediately; the PID zeroes its outputs on a NaN input. There is no
-   "safe shutdown after 5 minutes" timer - the only 5-minute figure is the HA-tier grace above
+   `unavailable`/`unknown` (no grace, even with a client connected), or after 5 minutes (`ha_staleness_grace_s`)
+   with no state-subscribed API client (HA or otherwise) connected - the grace rides out an HA restart;
+   after a boot without HA the tier stays NaN until the first connection
+3. **Emergency (Degraded):** NaN within about 20 s of the HA tier going NaN (one gate poll + one failover poll); the PID zeroes its outputs on a NaN input. There is no
+   shutdown timer - the only 5-minute figure is the HA-tier grace above.
+   Known gap (review R-05): if the sensor dies during an active fancoil/radiant boost, the boost
+   override can keep the radiant valve open (100% cold) until R-05 is fixed
 
 **Recovery:** Automatic transition back to the highest tier that has a valid reading
 

@@ -19,8 +19,6 @@
 #   fan_speed_number               - Number entity ID for fan speed output
 #
 # Optional vars:
-#   min_fan_speed_default          - First-boot value of the minimum fan speed (%)
-#                                    (default: 20; afterwards the persisted value wins)
 #   update_interval                - Final-fan-speed evaluation period (default: 60s;
 #                                    the e2e harness compresses it)
 #
@@ -46,7 +44,6 @@
 # =============================================================================
 
 defaults:
-  min_fan_speed_default: "20"
   update_interval: 60s
 
 number:
@@ -58,7 +55,7 @@ number:
     min_value: 0
     max_value: 50
     step: 5
-    initial_value: ${min_fan_speed_default}
+    initial_value: 20
     restore_value: true
     optimistic: true
     entity_category: config
@@ -92,7 +89,6 @@ sensor:
       float demand = id(${demand_sensor}).state;
       float min_fan = id(${component_id}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       if (isnan(demand)) demand = min_fan;
 
       return std::min(100.0f, std::max(demand, min_fan));
@@ -107,7 +103,6 @@ sensor:
               if (!id(${component_id}_enabled).state) return std::string("Disabled");
               if (id(${alarm_sensor}).state) return std::string("Alarm");
               float min_fan = id(${component_id}_min_fan_speed).state;
-              if (isnan(min_fan)) min_fan = 20.0f;
               return x > min_fan ? std::string("Ventilating") : std::string("Idle");
 
 # Commissioning gate: OFF until ventilation is cleared to run (see header).

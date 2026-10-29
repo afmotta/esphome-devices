@@ -181,7 +181,6 @@ sensor:
       float pm10 = id(${mev_slug}_pm10_demand).state;
       float min_fan = id(${mev_slug}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       float f_voc = isnan(voc) ? min_fan : voc;
       float f_nox = isnan(nox) ? min_fan : nox;
       float f_pm1_0 = isnan(pm1_0) ? min_fan : pm1_0;
@@ -205,7 +204,6 @@ sensor:
       float humidity = id(${mev_slug}_humidity_demand).state;
       float min_fan = id(${mev_slug}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       float f_co2 = isnan(co2) ? min_fan : co2;
       float f_aq = isnan(air_quality) ? min_fan : air_quality;
       float f_hum = isnan(humidity) ? min_fan : humidity;

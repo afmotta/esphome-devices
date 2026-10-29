@@ -314,13 +314,14 @@ conservative paced forwarding (queues buffer bursts; the drain cap meters TX to 
 MCP2515's 3 TX buffers sustain at 125 kbps). A queue drop latches
 `ERR_BRIDGE_QUEUE_OVERFLOW` into `error_flags`, which the shared heartbeat carries until
 reboot. A frame the controller refuses to transmit stays at the head of its queue and is
-retried each tick; after `BRIDGE_TX_ATTEMPTS_MAX` (5, ~50 ms) refusals it is dropped and
+retried each tick; after `BRIDGE_TX_ATTEMPTS_MAX` (about 5 ticks, ~50 ms at the nominal 10 ms tick, ~100 ms where the loop is gated, e.g. T-2CAN) refusals it is dropped and
 `ERR_CAN_TX_FAIL` latches the same sticky way (review R-07).
 
 Every node (and the An-Penta/An-Quad actuators) also reports its own refused sends:
 `ERR_CAN_TX_FAIL` rides the next heartbeat and clears once a heartbeat carrying it was
-accepted (`canbus/protocol/tx_health.h`), so the health monitor's `canbus_node_error` shows
-both the failure and the recovery. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
+accepted by the controller (MCP2515: loaded into a TX buffer, not ACKed; TWAI: queued;
+`canbus/protocol/tx_health.h`), so the health monitor's `canbus_node_error` shows
+both the failure and the recovery. A dead bus only surfaces once the TX buffers stay full. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
 2026.8.0 exposes no bus-off state; a bus-off node shows up as TX failures or `node_lost`.
 
 On the CANBed the forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot.
