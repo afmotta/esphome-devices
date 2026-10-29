@@ -13,8 +13,9 @@
 #
 # All room PIDs share one temperature stub and the default 20.0 degC target, so
 # tests reason in absolute temperatures: 25.0 => +5.0 over target (value < 0),
-# 15.0 => 5.0 under target (value > 0). Gains are the packages' defaults; the
-# deviations are big enough to saturate every PID output at 1.0.
+# 15.0 => 5.0 under target (value > 0). Gains are the packages' defaults (the
+# bedroom passes slightly different ones to prove radiant.yaml forwards them,
+# R-15); the deviations are big enough to saturate every PID output at 1.0.
 #
 # Radiant actuation: every PID output saturates, so the slow PWM is at level 1.0
 # (relay held on) or 0 (relay off) and "actuated" == relay on, "did not actuate"
@@ -309,6 +310,10 @@ packages:
       room_name: "Bedroom"
       temperature_sensor: stub_temperature
       relay_id: bedroom_relay
+      # Non-default tuning: must reach the PID through radiant.yaml (R-15).
+      kp: 0.7
+      ki: 0.004
+      kd: 0.03
   living: !include
     file: ../../packages/components/fancoil.yaml
     vars:

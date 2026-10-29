@@ -40,11 +40,25 @@
 #         seasonal_mode_id: "hp_mode"
 # =============================================================================
 
-# All required/optional vars are passed through implicitly to heat_only_radiant.yaml
-# via ESPHome's substitution inheritance (parent substitutions available in included packages)
+# Required vars (room_slug, room_name, temperature_sensor, relay_id,
+# seasonal_mode_id) reach heat_only_radiant.yaml through ESPHome's substitution
+# inheritance. The optional pwm_period/kp/ki/kd are forwarded explicitly below
+# because the child's own `defaults:` win over a value passed here (R-15). Keep
+# these four defaults equal to heat_only_radiant.yaml's.
+defaults:
+  pwm_period: 60s
+  kp: 0.8
+  ki: 0.005
+  kd: 0.05
+
 packages:
   pid: !include
     file: heat_only_radiant.yaml
+    vars:
+      pwm_period: ${pwm_period}
+      kp: ${kp}
+      ki: ${ki}
+      kd: ${kd}
 
 # Cool-direction gate (R-01): heat and cool both end at the one radiant valve,
 # and the PID does not look at its HEAT/COOL mode when routing a value, so each

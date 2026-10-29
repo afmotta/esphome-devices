@@ -46,7 +46,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ✅ | `449be90`, `2763cdf` |
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
-| [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ⬜ | — |
+| [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ✅ | `5014afd`, `638342f` |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
 | [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ⬜ | — |
@@ -587,6 +587,18 @@ finestra era aperta, un fancoil `boost` torna acceso come raffrescatore permanen
 `pwm_period`, `kp`, `ki` e `kd` passati a `radiant.yaml` vengono ignorati, perché vincono i `defaults:` di
 `heat_only_radiant.yaml`. Oggi il problema è invisibile perché soggiorno e cucina passano i valori di default.
 
+**Fix applicato:** ✅ `5014afd` (`climate: forward pwm_period/kp/ki/kd from radiant.yaml to heat_only_radiant (R-15)`) + `638342f`
+(nota in `climate/CLAUDE.md`).
+
+- `radiant.yaml` ripete i 4 default e li inoltra come `vars` all'include annidato. La duplicazione è voluta e commentata
+  ("keep in sync"): senza, una var omessa non si risolve.
+- **Nessun valore risolto cambia:** la config di climate-control prima e dopo è identica, una volta ordinata.
+- **Propagazione verificata** con valori temporanei poi rimossi:
+  - `camera_nord` via `radiant.yaml`: prima 0.8 / 60 s, dopo 0.91 / 31 s;
+  - `bagno_grande` via `heat_only_radiant.yaml`: valori propagati;
+  - una var omessa risolve il default.
+- e2e `test_radiant_direction.py` **40/40**, con un nuovo caso sulla taratura, e preferenze isolate.
+
 ### R-16 — Primo boot dei PID solo-cool
 
 Un PID con sola `cool_output` (fancoil `boost` e `cool_only`) senza stato salvato parte in COOL al primissimo boot.
@@ -666,3 +678,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-10 | `32b6ea2`, `e2cb259`, `3a0cc0a` | e2e host su ogni PR, lint yamllint/hygiene, pre-commit, isolamento preferenze host | yamllint OK, battery PASS, e2e climate 57/57 |
 | 2026-10-25 | R-05 + R-19 | `504300a`, `342cc1c` | Sensore perso → boost chiuso e valvola chiusa; domanda pompe con override; pompe non più sempre accese | test nativo, e2e host, verify script |
 | 2026-10-25 | R-08a | `0583674` | Ritardo predittivo del boost: NaN/≤0 rifiutato, valori enormi limitati | e2e host 15/15 |
+| 2026-10-25 | R-15 | `5014afd`, `638342f` | Le var di `radiant.yaml` arrivano a PID e PWM | config invariata, e2e host 40/40 |
