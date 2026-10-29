@@ -141,10 +141,17 @@ binary_sensor:
     device_class: running
     icon: "mdi:pump"
     lambda: |-
-      return id(anticamera_radiant_pid_is_active) ||
-             id(bagno_terra_radiant_pid_is_active) ||
-             id(cucina_radiant_pid_is_active) ||
-             id(soggiorno_radiant_pid_is_active);
+      // pid_is_active: the PID is actuating. override_active: the zone valve is
+      // held open by the radiant override (fancoil boost or a manual HA hold),
+      // which has no PID action behind it (R-05).
+      return id(anticamera_radiant_pid_is_active).state ||
+             id(bagno_terra_radiant_pid_is_active).state ||
+             id(cucina_radiant_pid_is_active).state ||
+             id(soggiorno_radiant_pid_is_active).state ||
+             id(anticamera_radiant_override_active).state ||
+             id(bagno_terra_radiant_override_active).state ||
+             id(cucina_radiant_override_active).state ||
+             id(soggiorno_radiant_override_active).state;
 
   - platform: template
     id: ground_floor_fancoil_any_zone_open
@@ -155,9 +162,9 @@ binary_sensor:
       // Include per-room boost states for explicit fancoil pump control during boost
       return id(soggiorno_boost_active) ||
              id(cucina_boost_active) ||
-             id(cucina_fancoil_pid_is_active) ||
-             id(locale_tecnico_fancoil_pid_is_active) ||
-             id(soggiorno_fancoil_pid_is_active);
+             id(cucina_fancoil_pid_is_active).state ||
+             id(locale_tecnico_fancoil_pid_is_active).state ||
+             id(soggiorno_fancoil_pid_is_active).state;
 
 # Max dew point for ground floor radiant cooling protection
 # Excludes Bagno due to shower-induced humidity spikes

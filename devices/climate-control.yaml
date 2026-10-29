@@ -18,6 +18,7 @@ esphome:
     - ../../climate/protocol/can_sensor_receiver.h
     - ../../climate/protocol/ha_tier.h   # HA-tier staleness gate for room_sensors.yaml (R-04) and outdoor.yaml (R-12)
     - ../../climate/protocol/pid_direction.h   # heat/cool direction gating of PID actuators (R-01)
+    - ../../climate/protocol/radiant_override.h   # radiant final stage: override vs PID, NaN stop (R-05)
 
 packages:
   base: !include ../boards/t-connect-pro.yaml

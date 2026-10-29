@@ -56,7 +56,9 @@ and nothing asks them to prove the master is still alive.
   analog `number` has no restore either; the board keeps its last voltage until the first PID write.
   Pumps are switched by an *edge-triggered* handler on a template binary sensor
   (`mixing_pump.yaml`, `direct_pump.yaml`), so they are re-commanded only when that sensor publishes its
-  first value after boot, which is expected but not verified to fire.
+  first value after boot, which is expected but not verified to fire. The wrappers carry a
+  3 min `delayed_off`, so an OFF re-command after boot or on a fault is delayed by up to 3 min; an ON
+  passes through immediately.
 - **Boot loop: not covered.** After `safe_mode: num_attempts` (default 10) failed boots, ESPHome enters
   safe mode, which brings up only the early-priority components (network, OTA) and reboots after
   `reboot_timeout` (default 5 min). Modbus and the control logic do not run in that state, so the boards

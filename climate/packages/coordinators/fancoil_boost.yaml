@@ -65,6 +65,21 @@
 #   - Temperature: delta <= 0 (target reached)
 #   - Humidity:    <= threshold - hysteresis/2 (below dead band)
 #
+# Sensor loss (R-05): while a boost runs the radiant valve is held open by the
+# override (100 %) and the fancoil is in COOL, both of which would otherwise
+# outlive a dead room sensor (the delta is NaN, so "target reached" can never
+# become true). When ${temperature_sensor} goes NaN - the failover chain is in
+# its Emergency tier - the boost therefore ends IMMEDIATELY, through the same
+# no-delay path as the season / commissioning-gate override, and is logged. No
+# boost starts while the temperature is NaN, whichever trigger fires, so a
+# humidity trigger cannot re-arm a boost that the sensor-loss path would
+# immediately cancel. After a reboot the temperature is NaN until the first
+# reading, so a boost restored from flash is cancelled the same way and has to
+# earn its way back through the normal anti-cycling delay.
+# The radiant final stage independently closes the valve for a NaN zone
+# temperature (heat_only_radiant.yaml / radiant_override.h), so the valve is
+# shut even in the instant before this coordinator reacts.
+#
 # Exposes:
 #   select.{zone_slug}_boost_state                    - Boost state selector
 #   switch.{zone_slug}_boost_enabled                   - Commissioning gate (default OFF)
@@ -392,6 +407,8 @@ binary_sensor:
     lambda: |-
       if (!id(${zone_slug}_boost_enabled).state) return false;
       if (!id(${cooling_mode_sensor}).state) return false;
+      // No boost for a zone whose temperature is unknown (sensor-loss stop below)
+      if (isnan(id(${temperature_sensor}).state)) return false;
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Radiant Only") return false;
       float delta = id(${zone_slug}_temp_delta).state;
@@ -412,6 +429,8 @@ binary_sensor:
     lambda: |-
       if (!id(${zone_slug}_boost_enabled).state) return false;
       if (!id(${cooling_mode_sensor}).state) return false;
+      // No boost for a zone whose temperature is unknown (sensor-loss stop below)
+      if (isnan(id(${temperature_sensor}).state)) return false;
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Radiant Only") return false;
       float humidity = id(${humidity_sensor}).state;
@@ -434,6 +453,8 @@ binary_sensor:
     lambda: |-
       if (!id(${zone_slug}_boost_enabled).state) return false;
       if (!id(${cooling_mode_sensor}).state) return false;
+      // No boost for a zone whose temperature is unknown (sensor-loss stop below)
+      if (isnan(id(${temperature_sensor}).state)) return false;
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Radiant Only") return false;
       float output = id(${radiant_pid_cool_sensor}).state;
@@ -487,7 +508,32 @@ binary_sensor:
       - select.set:
           id: ${zone_slug}_boost_state
           option: "Radiant Only"
+      - script.execute: ${zone_slug}_boost_update_idle
       - logger.log:
           format: "${zone_slug}: Boost ended - heating season or gate switched off"
           level: INFO
+          tag: boost
+
+  # Safety (R-05): the room temperature is gone (failover chain in Emergency, or
+  # not yet read after a reboot) while boost is active -> immediate deactivation,
+  # same no-delay path as above. should_end_boost cannot do this: a NaN delta
+  # never satisfies "target reached", which left the zone at 100% radiant
+  # cooling plus fancoil COOL indefinitely. Reads the sensor itself, not the
+  # polled temp_delta, so it reacts within one loop iteration.
+  - platform: template
+    name: "${zone_name} Boost Sensor Lost"
+    id: ${zone_slug}_boost_sensor_lost
+    internal: true
+    lambda: |-
+      auto state = id(${zone_slug}_boost_state).current_option();
+      if (state != "Fancoil Boost") return false;
+      return isnan(id(${temperature_sensor}).state);
+    on_press:
+      - select.set:
+          id: ${zone_slug}_boost_state
+          option: "Radiant Only"
+      - script.execute: ${zone_slug}_boost_update_idle
+      - logger.log:
+          format: "${zone_slug}: Boost ended - room temperature lost (sensor NaN)"
+          level: WARN
           tag: boost

@@ -127,14 +127,25 @@ binary_sensor:
     device_class: running
     icon: "mdi:pump"
     lambda: |-
-      return id(bagno_padronale_radiant_pid_is_active)||
-             id(bagno_grande_radiant_pid_is_active)||
-             id(bagno_ospiti_radiant_pid_is_active)||
-             id(lavanderia_radiant_pid_is_active)||
-             id(camera_nord_radiant_pid_is_active)||
-             id(camera_sud_radiant_pid_is_active)||
-             id(camera_padronale_radiant_pid_is_active)||
-             id(camera_ospiti_radiant_pid_is_active);
+      // pid_is_active: the PID is actuating. override_active: the zone valve is
+      // held open by the radiant override (a manual HA hold; no boost on this
+      // floor), which has no PID action behind it (R-05).
+      return id(bagno_padronale_radiant_pid_is_active).state||
+             id(bagno_grande_radiant_pid_is_active).state||
+             id(bagno_ospiti_radiant_pid_is_active).state||
+             id(lavanderia_radiant_pid_is_active).state||
+             id(camera_nord_radiant_pid_is_active).state||
+             id(camera_sud_radiant_pid_is_active).state||
+             id(camera_padronale_radiant_pid_is_active).state||
+             id(camera_ospiti_radiant_pid_is_active).state||
+             id(bagno_padronale_radiant_override_active).state||
+             id(bagno_grande_radiant_override_active).state||
+             id(bagno_ospiti_radiant_override_active).state||
+             id(lavanderia_radiant_override_active).state||
+             id(camera_nord_radiant_override_active).state||
+             id(camera_sud_radiant_override_active).state||
+             id(camera_padronale_radiant_override_active).state||
+             id(camera_ospiti_radiant_override_active).state;
 
 sensor:
   # Max Humidity for MEV Cascade Control

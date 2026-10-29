@@ -36,8 +36,8 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | PR #67 |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
-| [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | 🔧 parziale | `085bb05`, `a2db85c` |
+| [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | 🔧 parziale (timeout ⏸️ dati da banco) | `50103e2` |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
@@ -50,6 +50,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
 | [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ⬜ | — |
+| [R-19](#r-19--le-pompe-di-circolazione-erano-sempre-accese) | 🔴 | Pompe di circolazione sempre accese (`id(binary_sensor)` è un puntatore) | ✅ | `504300a` |
 
 ---
 
@@ -305,6 +306,29 @@ _Nota da R-01b:_ l'override del boost tiene aperta la valvola radiante scavalcan
 `ground_floor_radiant_any_zone_open` non include `soggiorno_boost_active` e `cucina_boost_active`. Oggi in boost la pompa
 gira comunque, perché il PID radiante è in COOLING; ma il fix di R-05 dovrebbe trattare l'override attivo come domanda
 pompa, oppure aggiungere i `*_boost_active` alla somma.
+
+**Fix applicato:** ✅ `504300a` (`climate: boost/override no longer bypass sensor loss; pump demand sees held valves (R-05)`)
++ `342cc1c` (collegamento alla battery e documentazione).
+
+- **Boost:**
+  - il nuovo binary sensor interno "Boost Sensor Lost" chiude **subito** un boost se la temperatura della zona è NaN,
+    senza ritardo anti-ciclo, sulla stessa via dell'override stagionale, con un log WARN;
+  - nessun trigger (temperatura, umidità, predittivo) può avviare un boost con temperatura NaN;
+  - dopo un reboot un boost ripristinato viene annullato finché il sensore non torna.
+- **Override manuale (HA):** decisione presa di **ignorarlo** quando il sensore è perso. È una comodità sopra il loop,
+  non un bypass di sicurezza; in raffrescamento anche il dew point dipende da quei sensori.
+  - La regola è in `climate/protocol/radiant_override.h` (`final_level`, `holds_open`).
+  - Lo stadio finale chiude la valvola con zona NaN. Lo switch resta com'è e l'hold riprende quando torna il sensore.
+- **Domanda pompe:** il nuovo `${room}_radiant_override_active` entra nelle somme `*_any_zone_open` di piano terra e
+  primo piano, per tutte e 12 le zone radianti. `verify_seasonal_mode_aggregation.py` controlla che ogni zona abbia
+  entrambi gli ingressi.
+- **Umidità:** la sua perdita durante un boost volutamente *non* lo ferma. Il boost serve anche a deumidificare, e il
+  sensore morto è già coperto dal ramo temperatura.
+- **Verificato:**
+  - nuovo test nativo `test_radiant_override.cpp`;
+  - e2e host con preferenze isolate: `test_fancoil_boost.py` e `test_radiant_direction.py` passano (15/15 e 40/40 dopo
+    R-08a e R-15);
+  - mutation check: disattivando il trigger o lo stop NaN, i nuovi test falliscono.
 
 ### R-06 — Doppia azione con binding toggle
 
@@ -583,6 +607,18 @@ Però le priorità dichiarate nei package (e i commenti che le giustificano) non
 **Proposta:** usare ovunque la forma a lista con priorità esplicite e aggiungere un test che controlli il numero e la
 priorità dei trigger nelle config risolte.
 
+### R-19 — Le pompe di circolazione erano sempre accese
+
+_Emersa durante il fix di R-05; risolta in `504300a`._
+
+- **Problema.** Le somme `*_any_zone_open` (`return id(a) || id(b) …`) e i wrapper di `mixing_pump.yaml` e
+  `direct_pump.yaml` (`return id(${sensor_id});`) usavano `id(binary_sensor)`. In un lambda quello è il **puntatore**
+  al sensore, sempre vero, quindi le pompe di circolazione di tutti i piani risultavano sempre richieste.
+- **Fix.** Tutte le espressioni ora leggono `.state`, e `verify_seasonal_mode_aggregation.py` (già nella battery) lo
+  impone.
+- **Verifica.** Il bug è stato visto nel C++ generato dell'harness. La produzione non si può generare qui (PlatformIO
+  bloccato), ma il pattern è identico.
+
 ---
 
 ## Cosa va bene
@@ -619,3 +655,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-12 | `449be90`, `2763cdf` | Gate HA-tier sulla temperatura esterna | e2e host 4/4, `esphome config`, battery PASS |
 | 2026-10-25 | R-08b | `e1d8e68`, `bd32bc6` | Min-fan, soglie e ritardi MEV come numeri locali | e2e host 6/6, `esphome config`, battery PASS |
 | 2026-10-25 | R-10 | `32b6ea2`, `e2cb259`, `3a0cc0a` | e2e host su ogni PR, lint yamllint/hygiene, pre-commit, isolamento preferenze host | yamllint OK, battery PASS, e2e climate 57/57 |
+| 2026-10-25 | R-05 + R-19 | `504300a`, `342cc1c` | Sensore perso → boost chiuso e valvola chiusa; domanda pompe con override; pompe non più sempre accese | test nativo, e2e host, verify script |

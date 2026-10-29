@@ -21,6 +21,7 @@
 #   - pid.yaml (included automatically, must be in same directory)
 #     - pid_sensors.yaml (included by pid.yaml)
 #   - climate/protocol/pid_direction.h (esphome.includes in the entry point)
+#   - climate/protocol/radiant_override.h (esphome.includes in the entry point)
 #
 # Direction gating (R-01): the PID writes through ${room_slug}_radiant_heat_output,
 # which forwards its level to ${room_slug}_radiant_output only while the heat pump
@@ -28,11 +29,32 @@
 # ${room_slug}_radiant_output stays the final stage (override + slow PWM) that
 # other packages (fancoil_boost) write to directly.
 #
+# Override and sensor loss (R-05). The override switch/value pair is how the
+# fancoil_boost coordinator holds the valve open (100 %) and how HA can drive it
+# by hand. It replaces the PID level, but it is a convenience on top of the
+# control loop, NOT a safety bypass: while the zone's temperature is NaN the
+# final stage commands 0 whatever the override says. Reasons: the PID writes 0
+# for a NaN sensor ("sensor lost => shut down") and the override used to win
+# over that; in cooling the dew point comes from the same sensors, so a blind
+# zone held open is a condensation risk nobody is judging. The override switch
+# is left as it is (it is restored across reboots and the sensor is NaN until
+# its first reading), so the valve returns to the override level when the
+# sensor recovers; ${room_slug}_radiant_override_active shows whether the
+# override is really holding the valve. fancoil_boost additionally ends a boost
+# the moment the sensor is lost. The rule lives in climate/protocol/radiant_override.h.
+#
+# Pump demand (R-05). A valve held open by the override has no PID action behind
+# it, so a floor's circulation-pump demand ORs ${room_slug}_radiant_override_active
+# next to ${room_slug}_radiant_pid_is_active for every zone (first-floor.yaml,
+# ground-floor.yaml; scripts/verify_seasonal_mode_aggregation.py checks the sums
+# are complete).
+#
 # Exposes:
 #   climate.{room_slug}_radiant_pid                - PID climate entity
 #   switch.{room_slug}_radiant_override            - Enable/disable output override
 #   number.{room_slug}_radiant_override_value      - Override output value (0-100%)
 #   output.{room_slug}_radiant_output              - Template output (PID or override)
+#   binary_sensor.{room_slug}_radiant_override_active - Override is holding the valve open (pump demand)
 #   output.{room_slug}_radiant_heat_output         - Gated heat-direction output (PID heat_output)
 #   output.{room_slug}_radiant_pwm                 - Slow PWM driving the relay
 #   (plus all pid_sensors entities via pid.yaml)
@@ -97,20 +119,18 @@ number:
     mode: slider
 
 # Template output that respects override flag
-# PID writes here; this decides whether to pass through or use override_value
+# PID writes here; this decides whether to pass through or use override_value,
+# and closes the valve while the zone temperature is NaN (see header, R-05)
 output:
   - platform: template
     id: ${room_slug}_radiant_output
     type: float
     write_action:
       - lambda: |-
-          if (id(${room_slug}_radiant_override).state) {
-            // Override active: use override_value (convert from % to 0-1)
-            id(${room_slug}_radiant_pwm).set_level(id(${room_slug}_radiant_override_value).state / 100.0);
-          } else {
-            // Normal mode: pass through PID output
-            id(${room_slug}_radiant_pwm).set_level(state);
-          }
+          id(${room_slug}_radiant_pwm).set_level(radiant_override::final_level(
+              id(${room_slug}_radiant_override).state,
+              id(${room_slug}_radiant_override_value).state,
+              id(${temperature_sensor}).state, state));
 
   # Heat-direction gate between the PID and the final stage above. Wired to the
   # PID's heat_output; radiant.yaml adds the matching cool-direction gate. The
@@ -135,6 +155,21 @@ output:
 climate:
   - id: !extend ${room_slug}_radiant_pid
     heat_output: ${room_slug}_radiant_heat_output
+
+# Pump demand input: the override (boost or manual) is holding the valve open.
+# Same rule as the final stage; the valve itself is only re-written on the next
+# PID update, so after an override toggle it can lag by one sensor publish.
+binary_sensor:
+  - platform: template
+    id: ${room_slug}_radiant_override_active
+    name: "${room_name} Radiant Override Active"
+    device_class: running
+    entity_category: diagnostic
+    lambda: |-
+      return radiant_override::holds_open(
+          id(${room_slug}_radiant_override).state,
+          id(${room_slug}_radiant_override_value).state,
+          id(${temperature_sensor}).state);
 
 # Seasonal mode handler: automatically switch PID mode based on seasonal mode
 # Heat-only zones are disabled during COOL mode
