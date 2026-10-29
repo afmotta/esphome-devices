@@ -85,4 +85,56 @@ namespace pid_direction
            (action_is_cooling && is_active(Direction::COOL, hp_mode));
   }
 
+  // ---------------------------------------------------------------------------
+  // Integral windup bounds (review R-13)
+  // ---------------------------------------------------------------------------
+  // ESPHome's PIDController::calculate_integral_term_() accumulates
+  // error * dt * ki on EVERY sensor update — "irrespective of current mode"
+  // (pid_climate.cpp update_pid_) — and clamps it to [min_integral, max_integral]
+  // (default -1..1). The accumulator already includes ki, so the bounds are in
+  // OUTPUT units (the actuator span 0..1), independent of ki.
+  //
+  // Symmetric bounds let the direction the heat pump is NOT producing wind up
+  // to a full actuator span: a room above target on a winter afternoon drives
+  // the integral to -1 (cool side, gated shut), and once the room drops below
+  // target the PID output stays <= 0 until the integral has crawled back up,
+  // at ki * error per second. Likewise a cool-only fancoil that is OFF all
+  // winter (room below target) sits at +1 when the season flips.
+  //
+  // The integral may therefore only represent demand in the direction the
+  // water flows right now: HEAT -> [0, limit], COOL -> [-limit, 0]. This needs
+  // no per-loop knowledge: heat-only, cool-only and dual loops all behave
+  // correctly because a loop that cannot act in the active direction is simply
+  // OFF. Its accumulator still tracks the (clamped) error while OFF, and it is
+  // clamped to 0 on the next update after a season flip — the integral of the
+  // old season is dropped without an explicit reset, while a re-published
+  // identical hp_mode (HA, restore) leaves a legitimate integral alone.
+  //
+  // SANITARY_ONLY (or an unknown option / nullptr) produces neither direction
+  // but is not a season of its own; it can be brief and must not wipe the
+  // steady-state offset a loop has learned, so it returns false and the caller
+  // keeps the previous bounds. Trade-off: the shoulder seasons can hold
+  // SANITARY_ONLY for a long time, and the bounds (and integral) of the last
+  // season carry through it, so the first demand-tier intent in the new
+  // direction waits for kp * error to exceed |integral| (at most `limit`). A
+  // SANITARY_ONLY restored at boot runs on the static symmetric
+  // [-limit, limit] bounds, i.e. the pre-fix behaviour, until the first
+  // HEAT/COOL publish.
+  inline bool integral_bounds(const char *hp_mode, float limit, float &min_integral, float &max_integral)
+  {
+    if (is_active(Direction::HEAT, hp_mode))
+    {
+      min_integral = 0.0f;
+      max_integral = limit;
+      return true;
+    }
+    if (is_active(Direction::COOL, hp_mode))
+    {
+      min_integral = -limit;
+      max_integral = 0.0f;
+      return true;
+    }
+    return false;
+  }
+
 } // namespace pid_direction

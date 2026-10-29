@@ -16,6 +16,7 @@
 #   kp                       - Proportional gain (default: 0.8)
 #   ki                       - Integral gain (default: 0.005)
 #   kd                       - Derivative gain (default: 0.05)
+#   integral_limit           - PID integral magnitude, output units (default: 1.0; see pid.yaml)
 #
 # Dependencies:
 #   - heat_only_radiant.yaml (included automatically)
@@ -42,14 +43,18 @@
 
 # Required vars (room_slug, room_name, temperature_sensor, relay_id,
 # seasonal_mode_id) reach heat_only_radiant.yaml through ESPHome's substitution
-# inheritance. The optional pwm_period/kp/ki/kd are forwarded explicitly below
-# because the child's own `defaults:` win over a value passed here (R-15). Keep
-# these four defaults equal to heat_only_radiant.yaml's.
+# inheritance. The optional tuning vars do NOT: heat_only_radiant.yaml's own
+# `defaults:` are merged into the global substitutions first and then win over
+# a value this file's caller passed, so pwm_period/kp/ki/kd/integral_limit set on radiant.yaml
+# were silently ignored (R-15). They are therefore forwarded explicitly below,
+# with the defaults restated here so an omitted var still resolves - keep the
+# five values in sync with heat_only_radiant.yaml.
 defaults:
   pwm_period: 60s
   kp: 0.8
   ki: 0.005
   kd: 0.05
+  integral_limit: 1.0
 
 packages:
   pid: !include
@@ -59,6 +64,7 @@ packages:
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
+      integral_limit: ${integral_limit}
 
 # Cool-direction gate (R-01): heat and cool both end at the one radiant valve,
 # and the PID does not look at its HEAT/COOL mode when routing a value, so each

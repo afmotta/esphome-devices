@@ -386,6 +386,35 @@ namespace
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Integral windup bounds (R-13)
+  // ---------------------------------------------------------------------------
+
+  void test_integral_bounds_follow_the_water()
+  {
+    float lo = 99.0f, hi = 99.0f;
+    assert(pid_direction::integral_bounds("HEAT", 1.0f, lo, hi));
+    assert(close(lo, 0.0f) && close(hi, 1.0f));
+    assert(pid_direction::integral_bounds("COOL", 1.0f, lo, hi));
+    assert(close(lo, -1.0f) && close(hi, 0.0f));
+    // The limit scales the active side only.
+    assert(pid_direction::integral_bounds("HEAT", 0.4f, lo, hi));
+    assert(close(lo, 0.0f) && close(hi, 0.4f));
+    assert(pid_direction::integral_bounds("COOL", 0.4f, lo, hi));
+    assert(close(lo, -0.4f) && close(hi, 0.0f));
+
+    // Not a season: report "keep the old bounds" and leave the outputs alone.
+    lo = 7.0f;
+    hi = 8.0f;
+    for (const char *mode : {"SANITARY_ONLY", "heat", "", "UNKNOWN"})
+    {
+      assert(!pid_direction::integral_bounds(mode, 1.0f, lo, hi));
+      assert(close(lo, 7.0f) && close(hi, 8.0f));
+    }
+    assert(!pid_direction::integral_bounds(nullptr, 1.0f, lo, hi));
+    assert(close(lo, 7.0f) && close(hi, 8.0f));
+  }
+
 } // namespace
 
 int main()
@@ -402,5 +431,6 @@ int main()
   test_season_flip_holds_level_until_next_update();
   test_actuating_follows_the_gate();
   test_actuating_agrees_with_the_sink();
+  test_integral_bounds_follow_the_water();
   return 0;
 }

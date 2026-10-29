@@ -16,7 +16,8 @@
 #   kp                       - Proportional gain (default: 0.8)
 #   ki                       - Integral gain (default: 0.005)
 #   kd                       - Derivative gain (default: 0.05)
-#   (radiant.yaml forwards its own pwm_period/kp/ki/kd to this file, see R-15)
+#   integral_limit           - PID integral magnitude, output units (default: 1.0; see pid.yaml)
+#   (radiant.yaml forwards its own pwm_period/kp/ki/kd/integral_limit to this file, see R-15)
 #
 # Dependencies:
 #   - pid.yaml (included automatically, must be in same directory)
@@ -77,6 +78,7 @@ defaults:
   kp: 0.8
   ki: 0.005
   kd: 0.05
+  integral_limit: 1.0
 
 packages:
   pid: !include
@@ -88,6 +90,7 @@ packages:
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
+      integral_limit: ${integral_limit}
 
 # Override mechanism for boost mode
 # When override is active, PID output is ignored and override_value is used
