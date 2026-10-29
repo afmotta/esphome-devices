@@ -76,6 +76,15 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   ACKed; TWAI: queued) — a dead bus only surfaces once the TX buffers stay full. `error_flags` itself stays sticky-only (the bridge's
   `ERR_BRIDGE_QUEUE_OVERFLOW` / dropped-TX bits). `ERR_CAN_BUS_OFF` is reserved: ESPHome exposes no
   bus-off state.
+- **ESP32 (TWAI) nodes that transmit compose `canbus/packages/tx_watchdog.yaml`** (review R-17):
+  ESPHome's `esp32_can` never recovers from bus-off, so persistent refused heartbeats (10 in a
+  row, doubling backoff per unhelpful reboot, persisted level) trigger `App.safe_reboot()`. The
+  decision is pure logic in `tx_health.h` (natively tested). Compose it per board/entry point —
+  the `bridge-t2can` `PROFILES` row and `lighting/packages/led_can_actuator.yaml` — never via
+  `if profile ==`, and **never on MCP2515 nodes** (hardware recovers by itself; a dead bus would
+  only make them reboot-loop). Receive-only nodes (climate controller, health monitor) cannot go
+  bus-off and don't get it; the lighting controller has no heartbeat and gets a counter, not a
+  reboot. Details and the future direct-recovery fork: `README.md` "Bus-off recovery".
 - **Bridges are ordinary registry rows.** A bridge carries a `node_id` from the same
   allocation space, so it lands in `node_map.h`, `map.json`, and the generated HA
   per-node health entities for free.
@@ -93,7 +102,7 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   `buttons+bridge`. If you touch the add-on board file, `clock:` must match the
   module's actual crystal (ESPHome supports 8/12/16/20 MHz only).
 - **`canbus/packages/`** holds both node-side (`node_core.yaml`, `buttons_8.yaml`,
-  `button.yaml`, `sensor_kit.yaml`, `bridge.yaml`) and gateway-side (`health.yaml` —
+  `button.yaml`, `sensor_kit.yaml`, `bridge.yaml`, `tx_watchdog.yaml`) and gateway-side (`health.yaml` —
   transport health) packages
   since Phase 6a merged them. Since the ADR-0015 split, `health.yaml` composes
   onto its own device, `devices/health-monitor.yaml` (Waveshare ESP32-S3-RS485-CAN),

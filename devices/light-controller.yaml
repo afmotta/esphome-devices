@@ -73,6 +73,7 @@ packages:
 esphome:
   includes:
     - ../canbus/protocol/canbus_protocol.h
+    - ../canbus/protocol/tx_health.h   # refused CAT_OUTPUT sends counted for the "CAN TX Refused" diagnostic (R-17)
     - ../canbus/protocol/node_map.h   # GENERATED central node_id -> room/board/name map (ADR-0007)
     - ../canbus/protocol/ha_arbitration.h   # ha_ready + pending-ACK pure logic (ADR-0003)
     - ../canbus/protocol/bindings.h   # GENERATED binding-manifest hash + fallback table (ADR-0009 §3)

@@ -121,7 +121,8 @@ inline constexpr uint8_t ERR_CAN_TX_FAIL = 0x01;
 // twai_handle_ (protected, `final`) — nor does it ever start bus-off recovery. Reporting it
 // would need a custom external component. Bus-off is not invisible, though: its effect
 // surfaces as ERR_CAN_TX_FAIL (buffers/queue never drain), and a node that is off the bus
-// cannot heartbeat at all, so the gateway's node_lost covers it. The value stays allocated so
+// cannot heartbeat at all, so the gateway's node_lost covers it. TWAI nodes that transmit
+// reboot themselves out of it (tx_watchdog.yaml, tx_health.h, review R-17). The value stays allocated so
 // the wire meaning is fixed if a component ever exposes the state.
 inline constexpr uint8_t ERR_CAN_BUS_OFF = 0x02;
 // Segment bridge only (ADR-0005): the store-and-forward queue dropped frames.

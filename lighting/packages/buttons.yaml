@@ -16,7 +16,7 @@
 #
 # Requires from the composing entry point:
 #   esphome.includes: canbus_protocol.h, node_map.h, ha_arbitration.h,
-#     bindings.h, binding_actuation.h, relay_store.h
+#     bindings.h, binding_actuation.h, tx_health.h, relay_store.h
 #   api encryption (this file only adds services/automations to the api block)
 #   lighting/packages/relay_bank.yaml composed alongside this file — it
 #     creates relay_0..relay_31 and each channel self-registers into
@@ -149,6 +149,16 @@ sensor:
     entity_category: diagnostic
     accuracy_decimals: 0
     update_interval: never
+  # CAT_OUTPUT commands the TWAI controller refused (fallback path only; R-17). This controller
+  # has no heartbeat to carry ERR_CAN_TX_FAIL and deliberately no reboot watchdog (see
+  # lighting/CLAUDE.md), so a bus-off here surfaces as this counter climbing during HA-down
+  # fallback actuation. Counts since boot.
+  - platform: template
+    id: can_tx_refused_sensor
+    name: "CAN TX Refused"
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
 
 interval:
   # Sweep pending ACKs; each expired event fires its (log-only) fallback exactly once.
@@ -179,7 +189,9 @@ interval:
   # to the extraction's cosmetic-only-diff rule.
   - interval: 5s
     then:
-      - lambda: 'id(fallback_events_sensor).publish_state((float) id(fallback_events));'
+      - lambda: |-
+          id(fallback_events_sensor).publish_state((float) id(fallback_events));
+          id(can_tx_refused_sensor).publish_state((float) tx_health().failures);
 
 canbus:
   - id: !extend can0

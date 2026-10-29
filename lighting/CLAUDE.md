@@ -74,12 +74,19 @@ authored yet (ADR-0013 open item 4, pending the lighting circuit inventory).
   binding by `target_kind`: a `relay` target drives the local `Switch*`; an
   `output` target (ADR-0020) sends a `CAT_OUTPUT` command over `can0` to a remote
   actuator node (an An-Penta strip). CAN TX is non-blocking, so it fires inline
-  (no queue). Not natively tested (needs real esphome objects).
+  (no queue). A refused send is counted in `tx_health().failures`, published by
+  `buttons.yaml` as the diagnostic sensor "CAN TX Refused". Not natively tested
+  (needs real esphome objects).
+  **No TX reboot watchdog here (R-17), on purpose:** this controller sends on CAN only in
+  the HA-down fallback path and has no heartbeat, so there is no continuous signal to tell
+  bus-off from an idle bus, and a reboot costs seconds of relay-bank (Modbus master) control
+  plus the HA link. A climbing counter is the diagnostic; recovery is a manual reboot.
 - `packages/led_can_actuator.yaml` — the CAN-actuator behaviour shared by both
   QuinLED LED boards (ADR-0020/ADR-0021): `can0` (esp32_can on the board's two
   transceiver GPIOs) with an `on_frame` that applies `CAT_OUTPUT`
   `MSG_OUT_SET_CHANNEL` commands addressed to its node_id to `tw1`/`tw2`, plus a
-  `CAT_STATUS` heartbeat. Board-neutral — the transceiver pins come from the entry
+  `CAT_STATUS` heartbeat and the TX watchdog (`canbus/packages/tx_watchdog.yaml`, R-17:
+  reboots it if the TWAI bus stays off). Board-neutral — the transceiver pins come from the entry
   point via `can_tx_pin`/`can_rx_pin` — so the An-Penta (`devices/an-penta-1.yaml`,
   QWIIC-header transceiver) and the An-Quad (`devices/an-quad-1.yaml`, expansion-
   header transceiver) compose the one file. This is the *receiving* actuator side,

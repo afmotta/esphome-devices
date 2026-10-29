@@ -324,6 +324,58 @@ accepted by the controller (MCP2515: loaded into a TX buffer, not ACKed; TWAI: q
 both the failure and the recovery. A dead bus only surfaces once the TX buffers stay full. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
 2026.8.0 exposes no bus-off state; a bus-off node shows up as TX failures or `node_lost`.
 
+### Bus-off recovery (review R-17)
+
+ESPHome 2026.8.0's `esp32_can` never calls `twai_initiate_recovery`, so an **ESP32 (TWAI)**
+node that goes bus-off (TEC > 255) stays off the bus until it is rebooted. Who is exposed:
+
+| Node | CAN controller | Transmits? | Exposure | Handling |
+|---|---|---|---|---|
+| T-2CAN bridge (`bridge-t2can`) | TWAI backbone + MCP2515 zone | heartbeat, forwarding | yes (backbone) | `tx_watchdog.yaml` via the `PROFILES` row |
+| An-Penta / An-Quad | TWAI | heartbeat | yes | `tx_watchdog.yaml` via `led_can_actuator.yaml` |
+| Lighting controller (T-Connect Pro) | TWAI | CAT_OUTPUT fallback only | yes, but no heartbeat to judge by | no watchdog; `CAN TX Refused` diagnostic counter (`lighting/CLAUDE.md`) |
+| Climate controller, health monitor | TWAI | never | **none** | bus-off needs TEC > 255 and TEC only counts the node's *own* transmit errors; a receive-only node ACKs frames but never transmits, so it can reach error-passive (REC) at worst, never bus-off |
+| CANBed RP2040 nodes, CANBed bridges | MCP2515 | yes | none to fix | the MCP2515 leaves bus-off by itself in hardware (128 x 11 recessive bits); "TX refused" there means a dead bus that a reboot cannot repair, so they must **not** reboot on it |
+
+**TX watchdog** (`canbus/packages/tx_watchdog.yaml`, decision in `canbus/protocol/tx_health.h`,
+natively tested). The bus-off itself is invisible, but its effect is not: the TWAI TX queue
+stops draining, so heartbeats start being refused. After **10 consecutive refused heartbeats**
+(5 min at the 30 s cadence) the node logs an ERROR and calls `App.safe_reboot()`.
+
+- *Why 10:* a transient full queue (burst, momentarily busy bus) refuses a heartbeat or two
+  and clears in milliseconds; ten 30 s-spaced refusals in a row cannot be that. It is also long
+  enough for a person to fix a cable or power-cycle the segment without the node rebooting
+  underneath them. Only heartbeats count, so a bridge's dead *zone* side (MCP2515) can never
+  reboot it, and a refused button frame does not either.
+- *Why a delay before the first refusal:* `twai_transmit()` succeeds while the TX queue (5 +
+  1 hardware slot) has room, so after the bus dies a node needs ~6 heartbeats to fill it. First
+  reboot is therefore ~16 heartbeats (8 min) after the bus died.
+- *Backoff, because walled-in nodes must not reboot-loop:* every reboot that did not bring the
+  bus back doubles the threshold (10, 20, 40, 80 heartbeats; capped), so a node on a genuinely
+  dead bus reboots at most about every **43 min**, and only the first few reboots are close
+  together. The level is a `restore_value` global (it has to survive the reboot it causes; one
+  flash write per reboot) and is cleared only after **12 consecutive accepted heartbeats** —
+  more than the TWAI queue depth, so a dead bus cannot fake recovery. There is deliberately no
+  "give up" state: a node that is still bus-off after the wiring was repaired must still get
+  its next reboot.
+- *Idle bus counts as dead:* a lone transmitter with no ACKing peer (gateway and other nodes
+  down, or a bench unit) stays error-passive but its TX queue fills all the same, so it reboots
+  on the same backoff schedule; an LED actuator re-runs its light setup on each reboot.
+- *Cost:* a few seconds of unavailability per reboot (An-Penta/An-Quad: LEDs restore their
+  last state; bridge: queued forwards are lost). A reboot is visible to the health monitor
+  only as the node's uptime resetting and, while the bus is down, as `node_lost`.
+- *Unverified:* the reboot lambda (`App.safe_reboot()`, which also persists the backoff level
+  through the components' `on_shutdown()`) is YAML-validated only; an ESP32 compile is blocked in the current CI sandbox. Hardware check:
+  short CANH to CANL on a running An-Penta for ~1 s (provokes bus-off), restore the bus, confirm
+  the log shows the refused-heartbeat run, `rebooting`, and that the node's heartbeat returns
+  on the health monitor; then leave the bus disconnected for an hour and confirm reboots
+  space out (~8, ~13, ~23, ~43 min).
+
+**Direct TWAI recovery (future work, NOT enabled).** `esp32_can` never recovers a bus-off
+controller, and the TWAI handle is a protected member of a `final` class, so recovering in
+place would need a local fork in the style of `libs/esphome_overrides/ethernet/`. The TX
+watchdog above is the interim handling; the idea is parked in `TODO.md`.
+
 On the CANBed the forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot.
 ESPHome's `mcp2515` polls RX from `loop()` and the component phase is normally gated to
 ~16-20 ms, while the controller holds only 2 RX buffers — at 125 kbps that window can see
