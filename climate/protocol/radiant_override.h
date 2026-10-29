@@ -29,8 +29,9 @@
 // are open. A valve held open by an override has no PID action behind it, so
 // the floor demand sums need holds_open() as a second input per zone
 // (`${room_slug}_radiant_override_active`, exposed by heat_only_radiant.yaml).
-// holds_open() is derived from final_level() so the demand can never disagree
-// with what the valve is commanded to do.
+// holds_open() is derived from final_level(), so demand uses the same rule as
+// the valve command. The valve is only re-written on the next PID update, so
+// after an override toggle it can lag by up to one sensor publish interval.
 //
 // Pure helper code with no ESPHome dependency, so it is native-testable
 // (climate/tests/test_radiant_override.cpp).

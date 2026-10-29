@@ -145,6 +145,8 @@ pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.p
 
 Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per room in the floor files (`climate/rooms/first_floor/first-floor.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`) and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5). Ground-floor rooms have no air-quality CAN kit registered yet, so their MEV's air-quality channel floors at minimum fan until the kits arrive; its humidity channel is live already (room humidity is sensed) (ADR-0018).
 
+**HA-tier staleness (R-04)**: the Home Assistant fallback tier of `room_sensors.yaml` reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been connected for `ha_staleness_grace_s` (default 300 s; rule in `climate/protocol/ha_tier.h`). Until CAN nodes exist, 12 of the 13 zones depend only on this tier, so an HA outage longer than the grace puts those zones in Emergency (PID outputs 0) — relay/analog/MEV actuation stays autonomous, but without room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs` sessions on `--no-states` during outage tests: a plain session counts as an HA connection.
+
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
 - MEV polling: 30 seconds (`climate/mev_modbus.yaml` / `climate/mev_innova_modbus.yaml` default)
@@ -170,6 +172,11 @@ de-escalation thresholds and delays — are persisted controller `number`s (`<me
 `_escalation_threshold`, `_deescalation_threshold`, `_escalation_delay`, `_deescalation_delay`;
 review R-08b), not Home Assistant helpers, so they survive HA outages. Only the demand lower/upper
 bounds still come from HA `input_number`s (`climate/home-assistant/mev_helpers.yaml`).
+Ranges are deliberately narrow: first-floor min fan speed 0-30 % (ground floor 0-50 %), escalation threshold
+50-100 %, de-escalation threshold 35-50 %, delays 1-120 min. The first-floor minimum (max 30) stays below the
+de-escalation threshold (min 35) because the final fan speed is floored at the minimum: otherwise the cascade could
+never de-escalate. Widen one range only together with the other (ADR-0018, R-08b). A value persisted under an older,
+wider range is restored as-is (template numbers clamp only on writes), so re-enter it.
 
 Two constraints drive the phase order and are easy to get wrong:
 
@@ -346,12 +353,12 @@ Room temperature/humidity control data is **not** on this bus — it is CAN-prim
 Defaults live in the component packages (`climate/packages/components/`); the table is what the code
 ships, not a recommendation to retune. Zones normally just inherit these defaults.
 Note that `radiant.yaml`'s own `kp`/`ki`/`kd`/`pwm_period` vars are currently ignored — the
-`defaults:` of `heat_only_radiant.yaml` win (review R-15), so change radiant gains there.
+`defaults:` of `heat_only_radiant.yaml` win (review R-15), so change radiant gains there; that edit applies to every radiant zone. Zones that include `heat_only_radiant.yaml` directly (the heat-only bathrooms and laundry) and fancoil/mixing-valve zones still take their gains from the zone `vars:`.
 
 | Loop | Package | Kp | Ki | Kd | Notes |
 |------|---------|----|----|----|-------|
 | Radiant floor/ceiling (slow) | `heat_only_radiant.yaml` (used by `radiant.yaml`) | 0.8 | 0.005 | 0.05 | sane tuning range roughly Kp 0.5–1.0, Ki 0.001–0.01, Kd 0.01–0.1 |
-| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them (Kp ~0.1–0.5), not toward 1.0+ |
+| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them, not toward 1.0+ (a starting window of roughly Kp 0.1–0.5 is a suggestion, not a validated range) |
 | Floor mixing valve | `mixing_pump.yaml` | 0.2 | 0.01 | 0.0 | |
 
 **One gain set per actuator.** Since R-01 each actuator has a single PID whose heat and cool outputs are
@@ -363,8 +370,10 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
   wrong season the gated actuator stays at 0, the room never responds and the tune never completes.
 - The autotuner assumes an output swing of -1..+1, but on a loop with both a heat and a cool output the
   gated opposite half-cycle only closes the valve, so the real swing is 0..1 and the estimated gains
-  come out about 2x too high: **halve `kp`/`ki`/`kd`** on dual-output loops (radiant, `heat_cool`
-  fancoils). Heat-only and cool-only loops already model 0..1 correctly.
+  come out about 2x too high: **halve `kp`/`ki`/`kd`** only on dual-output loops: radiant zones on `radiant.yaml` and `heat_cool`
+  fancoils. Do **not** halve heat-only loops (the bathroom/laundry zones on `heat_only_radiant.yaml`) or
+  cool-only loops: they already model 0..1 correctly. The 2x factor is derived from the comments in
+  `pid_autotune.yaml`, not bench-verified (verify at bring-up).
 - The PID must not be OFF. `boost` fancoils sit OFF until the boost coordinator starts them, so set the
   fancoil PID to COOL by hand before pressing the button.
 - For zones with a fancoil or boost coordinator use `pid_autotune_with_fancoil.yaml` (ends boost and

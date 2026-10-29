@@ -263,11 +263,8 @@ def validate(parsed: dict, valid_node_ids: set, actuator_node_ids: set = None) -
 def advisories(parsed: dict) -> list:
     """Return non-fatal advice about a VALID manifest; the caller prints it, nothing here fails.
 
-    One advisory per `op: toggle` binding. ADR-0003's ack window (ack_timeout_ms, 500 ms) can
-    apply a toggle twice: HA toggles on the click, its ACK is late, the gateway's fallback
-    toggles too, and the net effect is nothing visible. on/off are idempotent, so the same
-    double delivery is harmless. The timeout itself needs bench data (ADR-0003 open item 2), so
-    the manifest author is steered to on/off instead (see registry/bindings.yaml's header).
+    One advisory per `op: toggle` binding; rationale in ADR-0003 (double-action window) and
+    the registry/bindings.yaml header.
     Order follows the manifest and the text is deterministic.
     """
     out = []
@@ -277,8 +274,9 @@ def advisories(parsed: dict) -> list:
         target = f"relay {b['relay']}" if "relay" in b else f"output {b.get('output')}"
         out.append(
             f"binding node {b.get('node_id')} button {b.get('button')} ({target}) uses op: toggle - "
-            "the ADR-0003 double-action window (ack_timeout_ms) can apply a toggle twice "
-            "(HA toggles, then the late fallback toggles) with no visible effect; prefer op: on or op: off"
+            "the ADR-0003 ack_timeout_ms fallback window may apply a toggle twice "
+            "(HA toggles, then a late fallback toggles) with no visible effect; the timeout is "
+            "unmeasured (ADR-0003 open item 2), so prefer op: on or op: off"
         )
     return out
 
