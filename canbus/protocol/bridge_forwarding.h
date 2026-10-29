@@ -61,11 +61,13 @@ inline constexpr std::size_t BRIDGE_QUEUE_MAX = 32;
 // 200 frames/s per direction — under the 3 TX buffers and ~1 ms/frame the
 // MCP2515 (the weaker TX side) can sustain, and far above expected load.
 inline constexpr std::size_t BRIDGE_DRAIN_MAX = 2;
-// TX attempts per frame before it is dropped. One attempt per 10 ms tick, so a frame is
-// held ~50 ms: ~50 frame times at 125 kbps, long enough to ride out a transient buffer-busy
-// spell (arbitration loss against a busy segment) yet short enough that a genuinely dead
-// segment is declared (dropped_tx -> heartbeat flag) within a heartbeat's worth of traffic
-// instead of silently backing the queue up to overflow.
+// TX attempts per frame before it is dropped. One attempt per tick, so a frame is held
+// about 5 ticks (~50 ms at the nominal 10 ms tick, ~100 ms where the loop is gated, e.g. T-2CAN):
+// ~50+ frame times at 125 kbps, long enough to ride out a transient buffer-busy spell
+// (arbitration loss against a busy segment) yet short enough that a genuinely dead segment
+// is declared (dropped_tx -> heartbeat flag) within a heartbeat's worth of traffic instead
+// of silently backing the queue up to overflow. The flip side, accepted: a dead egress
+// leaves up to BRIDGE_QUEUE_MAX stale events queued, delivered late once it recovers.
 inline constexpr uint8_t BRIDGE_TX_ATTEMPTS_MAX = 5;
 
 // Queue a received frame for the other segment. Oversize frames (> 8 data
@@ -110,14 +112,16 @@ struct BridgeDrainResult
 // acceptance, and `forwarded` counts only accepted frames.
 //
 // A refused frame STAYS at the front: it is retried on the next tick, which preserves FIFO
-// order (event sequence intact, same reason overflow drops the newest) and never exceeds
-// the one-attempt-per-tick pacing — a retry storm into already-busy TX buffers would be
-// the exact overrun the drain cap exists to prevent. The rest of the tick is skipped
-// (head-of-line blocking): the frames behind it face the same busy buffers. After
-// BRIDGE_TX_ATTEMPTS_MAX refusals the frame is dropped (dropped_tx) and draining carries
-// on with the next one — a dead segment must surface as a counted loss, not as a queue
-// that wedges forever behind one frame. The O(n) front-erase is trivially cheap at these
-// sizes (same trade as ha_arbitration.h).
+// order (event sequence intact, same reason overflow drops the newest) and keeps retries
+// paced at one tick apart — a retry storm into already-busy TX buffers would be the exact
+// overrun the drain cap exists to prevent. A refusal always ends that direction's tick
+// (head-of-line blocking), including the one that drops the frame: the frames behind it
+// face the same busy buffers and are tried on the next tick. That bounds a direction to at
+// most ONE refused attempt per tick, which matters because a refused twai_transmit_v2 on
+// the T-2CAN backbone blocks the main loop for its enqueue timeout. After
+// BRIDGE_TX_ATTEMPTS_MAX refusals the frame is dropped (dropped_tx) — a dead segment must
+// surface as a counted loss, not as a queue that wedges forever behind one frame. The O(n)
+// front-erase is trivially cheap at these sizes (same trade as ha_arbitration.h).
 template <typename Send>
 inline BridgeDrainResult bridge_drain_send(std::vector<BridgeFrame> &q, BridgeStats &stats,
                                            Send &&send, std::size_t max_frames = BRIDGE_DRAIN_MAX)
@@ -138,6 +142,7 @@ inline BridgeDrainResult bridge_drain_send(std::vector<BridgeFrame> &q, BridgeSt
     stats.dropped_tx++;
     r.dropped++;
     q.erase(q.begin());
+    break;   // a refusal always ends this direction's tick
   }
   return r;
 }

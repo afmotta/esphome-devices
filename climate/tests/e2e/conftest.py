@@ -14,6 +14,7 @@ import os
 import socket
 import subprocess
 import tempfile
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -46,6 +47,29 @@ def _compile(config: Path) -> Path:
     return binary
 
 
+def _spawn(binary: Path, workdir: str) -> subprocess.Popen:
+    # The host platform does NOT keep preferences in cwd: it uses
+    # $ESPHOME_PREFDIR, else ~/.esphome/prefs/<name>.prefs, shared by every
+    # run (and every checkout) of the same harness. Point it at the fresh
+    # workdir so restore_value state cannot leak between tests or runs.
+    env = {**os.environ, "ESPHOME_PREFDIR": workdir}
+    return subprocess.Popen(
+        [str(binary)], cwd=workdir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+
+
+async def _wait_for_api() -> None:
+    """Wait for the API server to accept connections."""
+    async with asyncio.timeout(10):
+        while True:
+            try:
+                _, writer = await asyncio.open_connection("127.0.0.1", API_PORT)
+                writer.close()
+                return
+            except OSError:
+                await asyncio.sleep(0.05)
+
+
 @dataclass
 class Harness:
     client: APIClient
@@ -53,6 +77,7 @@ class Harness:
     _entities: dict[str, object] = field(default_factory=dict)
     _services: dict[str, object] = field(default_factory=dict)
     _changed: asyncio.Event = field(default_factory=asyncio.Event)
+    restart: Callable[[], Awaitable[None]] | None = None  # installed by run_harness: reboot the device
 
     async def start(self) -> None:
         await self.client.connect(login=True)
@@ -145,28 +170,28 @@ async def run_harness():
         else:
             probe.close()
             pytest.fail(f"API port {API_PORT} is already in use; stop the other harness binary first")
-        # The host platform does NOT keep preferences in cwd: it uses
-        # $ESPHOME_PREFDIR, else ~/.esphome/prefs/<name>.prefs, shared by every
-        # run (and every checkout) of the same harness. Point it at the fresh
-        # workdir so restore_value state cannot leak between tests or runs.
-        env = {**os.environ, "ESPHOME_PREFDIR": workdir}
-        proc = subprocess.Popen(
-            [str(binary)], cwd=workdir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        processes.append(proc)
-        # Wait for the API server to accept connections.
-        async with asyncio.timeout(10):
-            while True:
-                try:
-                    reader, writer = await asyncio.open_connection("127.0.0.1", API_PORT)
-                    writer.close()
-                    break
-                except OSError:
-                    await asyncio.sleep(0.05)
+        current = _spawn(binary, workdir)
+        processes.append(current)
+        await _wait_for_api()
         client = APIClient("127.0.0.1", API_PORT, password=None)
         clients.append(client)
         harness = Harness(client=client)
         await harness.start()
+
+        async def restart() -> None:
+            # Same binary, working directory and environment (notably
+            # ESPHOME_PREFDIR), so restore_value state is what the new run sees.
+            nonlocal current
+            await client.disconnect()
+            current.terminate()
+            current.wait(timeout=5)
+            current = _spawn(binary, workdir)
+            processes.append(current)
+            await _wait_for_api()
+            harness.states.clear()
+            await harness.start()
+
+        harness.restart = restart
         return harness
 
     yield _run
