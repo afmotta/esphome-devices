@@ -104,7 +104,7 @@ int main()
     assert(ts.tx_failed == 1 && bridge_error_flags(ts, BridgeStats{}) == ERR_NONE);
   }
 
-  // --- TX failure past the retry bound: dropped, counted, draining moves on ---
+  // --- TX failure past the retry bound: dropped, counted, next frame goes on the next tick ---
   {
     std::vector<BridgeFrame> dq;
     BridgeStats ds{};
@@ -121,11 +121,15 @@ int main()
       assert(r.failed == 1 && r.dropped == 0 && r.sent == 0 && dq.size() == 2);
     }
     assert(ds.dropped_tx == 0 && bridge_error_flags(ds, BridgeStats{}) == ERR_NONE);
-    // Final attempt: frame 10 is given up on, and frame 11 behind it is sent the same tick.
+    // Final attempt: frame 10 is given up on, but the refusal still ends the tick -
+    // frame 11 stays queued and goes out on the next tick.
     auto r = bridge_drain_send(dq, ds, dead_head);
     assert(attempts_on_10 == (int) BRIDGE_TX_ATTEMPTS_MAX);
-    assert(r.failed == 1 && r.dropped == 1 && r.sent == 1);
-    assert(ds.dropped_tx == 1 && ds.tx_failed == BRIDGE_TX_ATTEMPTS_MAX && ds.forwarded == 1);
+    assert(r.failed == 1 && r.dropped == 1 && r.sent == 0);
+    assert(ds.dropped_tx == 1 && ds.tx_failed == BRIDGE_TX_ATTEMPTS_MAX && ds.forwarded == 0);
+    assert(dq.size() == 1 && dq.front().can_id == 11);
+    r = bridge_drain_send(dq, ds, dead_head);
+    assert(r.sent == 1 && r.failed == 0 && ds.forwarded == 1);
     assert(dq.empty());
     // Sticky ERR_CAN_TX_FAIL, from either direction, distinct from the overflow bit.
     assert(bridge_error_flags(ds, BridgeStats{}) == ERR_CAN_TX_FAIL);

@@ -90,6 +90,8 @@ jobs:
       # Same pins as climate/tests/pyproject.toml (esphome is pinned deliberately).
       - name: Install ESPHome + e2e deps (repo pins)
         run: pip install "esphome==2026.8.0" pytest pytest-asyncio aioesphomeapi
+      - name: Generate CI dummy secrets
+        run: bash scripts/ci-dummy-secrets.sh
       - name: Cache PlatformIO (host/native toolchain)
         uses: actions/cache@v4
         with:

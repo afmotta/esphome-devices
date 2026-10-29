@@ -760,6 +760,30 @@ def test_map_export_derives_frozen_sensors_field_from_profile():
         "bridge-t2can"]
 
 
+def _run_with_binding_op(op):
+    nodes_csv = "node_id,floor,room,board,location,profile,room_slug\n100,0,7,0,Hall,buttons,\n"
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        (repo_root / "registry" / "bindings.yaml").write_text(
+            "schema_version: 1\nbindings:\n"
+            f"  - node_id: 100\n    button: 0\n    relay: 0\n    op: {op}\n"
+        )
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        return code, stderr
+
+
+def test_generator_warns_on_toggle_binding_only():
+    # R-06: the advisory is wired into write_exports, goes to stderr, and never fails the run.
+    code, stderr = _run_with_binding_op("toggle")
+    assert code == 0, stderr
+    warnings = [ln for ln in stderr.splitlines() if ln.startswith("WARNING:")]
+    assert len(warnings) == 1 and "op: toggle" in warnings[0], stderr
+    code, stderr = _run_with_binding_op("on")
+    assert code == 0, stderr
+    assert "WARNING:" not in stderr, stderr
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:

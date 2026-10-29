@@ -48,12 +48,6 @@ packages:
   # Shared, board-neutral package (ADR-0021) — the same one the An-Penta composes.
   can: !include ../lighting/packages/led_can_actuator.yaml
 
-# Protocol header for the CAN actuator lambdas (led_can_actuator.yaml). Flattened into src/ by
-# ESPHome; the package references it by flat filename.
-esphome:
-  includes:
-    - ../canbus/protocol/canbus_protocol.h
-
 # --- Autonomy when Home Assistant is down -----------------------------------
 # The board file's api: block sets the encryption key; these keys merge onto it
 # (package api: blocks merge, as light-controller.yaml relies on). By default a
