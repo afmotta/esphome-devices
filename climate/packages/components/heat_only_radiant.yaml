@@ -16,7 +16,8 @@
 #   kp                       - Proportional gain (default: 0.8)
 #   ki                       - Integral gain (default: 0.005)
 #   kd                       - Derivative gain (default: 0.05)
-#   (radiant.yaml forwards its own pwm_period/kp/ki/kd to this file, see R-15)
+#   integral_limit           - PID integral magnitude, output units (default: 1.0; see pid.yaml)
+#   (radiant.yaml forwards its own pwm_period/kp/ki/kd/integral_limit to this file, see R-15)
 #
 # Dependencies:
 #   - pid.yaml (included automatically, must be in same directory)
@@ -77,6 +78,7 @@ defaults:
   kp: 0.8
   ki: 0.005
   kd: 0.05
+  integral_limit: 1.0
 
 packages:
   pid: !include
@@ -88,6 +90,7 @@ packages:
       kp: ${kp}
       ki: ${ki}
       kd: ${kd}
+      integral_limit: ${integral_limit}
 
 # Override mechanism for boost mode
 # When override is active, PID output is ignored and override_value is used
@@ -158,7 +161,8 @@ climate:
     heat_output: ${room_slug}_radiant_heat_output
 
 # Pump demand input: the override (boost or manual) is holding the valve open.
-# Same rule as the final stage, so demand can never disagree with the valve.
+# Same rule as the final stage; the valve itself is only re-written on the next
+# PID update, so after an override toggle it can lag by one sensor publish.
 binary_sensor:
   - platform: template
     id: ${room_slug}_radiant_override_active

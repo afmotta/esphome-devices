@@ -95,6 +95,9 @@ ethernet:
 # (it ignores Ethernet), so with the default 15 min a missing or unreachable AP
 # would reboot a controller that is perfectly healthy on Ethernet. WiFi is only the
 # fallback here; its absence must never reboot the controller.
+# Trade-off: if Ethernet hangs and the AP is also unreachable, nothing reboots the
+# board (the W5500 has no watchdog). Accepted: autonomous actuation matters more
+# than self-recovery of the network link.
 wifi:
   reboot_timeout: 0s
   ssid: !secret wifi_ssid

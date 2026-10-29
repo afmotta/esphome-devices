@@ -46,22 +46,29 @@ indica quale livello è attualmente attivo, così non devi indovinare — vedi
 delle entità.
 
 **Importante — cosa significa davvero "bloccato in Emergenza":** Il livello
-Emergenza scatta **immediatamente**, nel momento in cui sia la lettura
-primaria che quella secondaria diventano non valide — non c'è alcun periodo
-di attesa incorporato nella logica del sensore stesso. 🟢 VERIFICATO (letto
+Emergenza scatta non appena sia la lettura primaria che quella secondaria diventano
+non valide — non c'è alcun timer incorporato nella logica del sensore
+stesso, solo il ritardo di polling (entro circa 20 s: un ciclo del gate più
+uno del failover). 🟢 VERIFICATO (letto
 direttamente dal codice del componente di failover,
 `climate/packages/components/failover_sensor.yaml`). Il controller PID della
 stanza non vede allora alcuna lettura utilizzabile e porta le proprie uscite
-a 0 **subito** (valvola chiusa, fancoil spento) — non esiste da nessuna parte
-un timer di "spegnimento di sicurezza dopo 5 minuti"; i vecchi documenti del
-progetto che lo dicevano erano errati. L'unica cifra di 5 minuti riguarda il
+a 0 (valvola chiusa, fancoil spento) — non esiste da nessuna parte
+un timer di spegnimento. L'unica cifra di 5 minuti riguarda il
 lato Home Assistant: il livello secondario è dichiarato non disponibile
-quando Home Assistant è disconnesso dal controller da 5 minuti (una grazia
-che copre un riavvio di HA), così un ultimo valore congelato non viene mai
-usato indefinitamente. 🔵 PROGETTATO — coperto da test automatici, non ancora
+quando nessun client API con sottoscrizione agli stati (Home Assistant o
+altro) è connesso al controller da 5 minuti (una grazia che copre un riavvio
+di HA; dopo un avvio senza HA il livello resta non disponibile fino alla
+prima connessione), così un ultimo valore congelato non viene mai usato
+indefinitamente. Una singola entità che segnala `unavailable` mentre un
+client è connesso diventa non disponibile senza grazia. 🔵 PROGETTATO — coperto da test automatici, non ancora
 provato su banco sul controller reale. Nota: una sessione `esphome logs`
 lasciata aperta conta come connessione a Home Assistant e mantiene vivo il
 livello secondario durante un'interruzione; usa `esphome logs --no-states`.
+
+**Limite noto (review R-05):** se il sensore muore durante un boost attivo di
+fancoil/radiante, l'override del boost può tenere aperta la valvola radiante
+(100% freddo) finché R-05 non è risolto.
 
 **Cause probabili:**
 
@@ -122,8 +129,8 @@ valori piccoli — vedi i valori predefiniti in
 - Guadagni troppo prudenti (causa più comune di risposta lenta/superamento
   del target per correzione troppo debole).
 - Auto-taratura eseguita nella stagione sbagliata, o risultato applicato
-  senza dimezzarlo (vedi la sezione Soluzione) — sui cicli con uscita sia di
-  caldo sia di freddo i guadagni risultano circa il doppio del necessario.
+  senza dimezzarlo (vedi la sezione Soluzione) — sui cicli a doppia
+  uscita (non le zone radianti solo-caldo) i guadagni risultano circa il doppio del necessario.
 
 **Passi diagnostici:**
 
@@ -144,8 +151,10 @@ valori piccoli — vedi i valori predefiniti in
    (`climate/packages/components/pid_autotune.yaml`) esiste apposta per
    evitare di indovinare i guadagni a mano — eseguilo prima di modificare i
    numeri manualmente. Eseguilo nella stagione in cui il ciclo lavora davvero;
-   sui cicli con uscita sia di caldo sia di freddo dimezza i guadagni che
-   riporta; per un fancoil `boost`, metti prima a mano il suo PID in COOL
+   sui cicli a doppia uscita (zone radianti su `radiant.yaml`, fancoil
+   caldo+freddo) dimezza i guadagni che riporta (non per le zone radianti
+   solo-caldo; il fattore 2 deriva dai commenti del codice, non è verificato
+   al banco — controllalo alla messa in servizio); per un fancoil `boost`, metti prima a mano il suo PID in COOL
    (normalmente resta OFF finché non lo avvia il boost).
 2. **Se tarifichi a mano, parti prudente**: guadagno proporzionale (Kp)
    basso, guadagni integrale/derivativo (Ki/Kd) molto bassi, poi aumenta

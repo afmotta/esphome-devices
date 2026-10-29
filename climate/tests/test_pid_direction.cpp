@@ -390,31 +390,6 @@ namespace
   // Integral windup bounds (R-13)
   // ---------------------------------------------------------------------------
 
-  // The accumulator of ESPHome 2026.8.0's PIDController::calculate_integral_term_
-  // (esphome/components/pid/pid_controller.cpp), deadband off: add error*dt*ki,
-  // then clamp to [min, max]. ki is inside the accumulator, so bounds are in
-  // output units.
-  struct Integrator
-  {
-    float acc = 0.0f;
-    float lo = -1.0f; // ESPHome's defaults
-    float hi = 1.0f;
-    void step(float error, float dt, float ki)
-    {
-      acc += error * dt * ki;
-      acc = std::min(std::max(acc, lo), hi);
-    }
-    void apply_season(const char *hp_mode, float limit)
-    {
-      float l, h;
-      if (pid_direction::integral_bounds(hp_mode, limit, l, h))
-      {
-        lo = l;
-        hi = h;
-      }
-    }
-  };
-
   void test_integral_bounds_follow_the_water()
   {
     float lo = 99.0f, hi = 99.0f;
@@ -440,53 +415,6 @@ namespace
     assert(close(lo, 7.0f) && close(hi, 8.0f));
   }
 
-  // A room above target all afternoon in HEAT season, then below target: the
-  // old symmetric bounds left the integral at -1 (output <= 0 for minutes);
-  // the HEAT bounds keep it at 0 so the P term heats at once.
-  void test_no_winter_windup_on_the_gated_cool_side()
-  {
-    const float kp = 0.8f, ki = 0.005f, dt = 10.0f;
-    for (bool bounded : {false, true})
-    {
-      Integrator i;
-      if (bounded)
-        i.apply_season("HEAT", 1.0f);
-      for (int n = 0; n < 6 * 3600 / 10; n++) // six hours, 2 degC over target
-        i.step(-2.0f, dt, ki);
-      assert(close(i.acc, bounded ? 0.0f : -1.0f));
-      // Room drops 0.5 degC below target.
-      const float output = kp * 0.5f + i.acc;
-      if (bounded)
-        assert(output > 0.0f);
-      else
-        assert(output < 0.0f); // the bug: still no heat
-    }
-  }
-
-  // The active direction keeps its full range (limit), and the integral of the
-  // previous season is gone one update after the flip, without a reset call.
-  void test_active_side_keeps_its_range_and_flip_drops_the_old_season()
-  {
-    const float ki = 0.005f;
-    Integrator i;
-    i.apply_season("HEAT", 1.0f);
-    for (int n = 0; n < 1000; n++) // cold room for a long time
-      i.step(+3.0f, 10.0f, ki);
-    assert(close(i.acc, 1.0f)); // saturates at the limit, not beyond
-
-    i.apply_season("HEAT", 1.0f); // identical re-publish: nothing is wiped
-    i.step(0.0f, 10.0f, ki);
-    assert(close(i.acc, 1.0f));
-
-    i.apply_season("SANITARY_ONLY", 1.0f); // keeps the bounds, keeps the integral
-    i.step(0.0f, 10.0f, ki);
-    assert(close(i.acc, 1.0f));
-
-    i.apply_season("COOL", 1.0f);
-    i.step(0.0f, 10.0f, ki); // next sensor update
-    assert(close(i.acc, 0.0f));
-  }
-
 } // namespace
 
 int main()
@@ -504,7 +432,5 @@ int main()
   test_actuating_follows_the_gate();
   test_actuating_agrees_with_the_sink();
   test_integral_bounds_follow_the_water();
-  test_no_winter_windup_on_the_gated_cool_side();
-  test_active_side_keeps_its_range_and_flip_drops_the_old_season();
   return 0;
 }

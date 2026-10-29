@@ -42,21 +42,27 @@ which tier is currently active, so you don't have to guess — see
 [Everyday Monitoring](../monitoring.md) for the exact entity-naming pattern.
 
 **Important — what "stuck in Emergency" actually means:** The Emergency tier
-switches over **immediately**, the moment both the primary and secondary
-readings go bad — there is no waiting period built into the sensor logic
-itself. 🟢 VERIFIED (read directly from the failover component's code,
+switches over as soon as both the primary and secondary readings go bad —
+there is no timer built into the sensor logic itself, only the polling delay
+(within about 20 s: one gate poll plus one failover poll). 🟢 VERIFIED (read directly from the failover component's code,
 `climate/packages/components/failover_sensor.yaml`). The room's PID
-controller then sees no usable reading and drops its outputs to 0 **right
-away** (valve closed, fancoil off) — there is no "safe shutdown after 5
-minutes" timer anywhere; older project documents that said so were wrong.
+controller then sees no usable reading and drops its outputs to 0
+(valve closed, fancoil off) — there is no shutdown timer anywhere.
 The only 5-minute figure is on the Home Assistant side: the secondary tier
-is declared unavailable once Home Assistant has been disconnected from the
-controller for 5 minutes (a grace period that rides out an HA restart),
-so a frozen last value is never used indefinitely. 🔵 DESIGNED — covered by
+is declared unavailable once no state-subscribed API client (Home Assistant
+or otherwise) has been connected to the controller for 5 minutes (a grace
+period that rides out an HA restart; after a boot without HA the tier stays
+unavailable until the first connection), so a frozen last value is never
+used indefinitely. A single entity reporting `unavailable` while a client is
+connected goes unavailable with no grace. 🔵 DESIGNED — covered by
 automated tests, not yet bench-tested on the real controller. Note: an
 `esphome logs` session left open counts as a Home Assistant connection and
 keeps the secondary tier alive during an outage; use
 `esphome logs --no-states`.
+
+**Known gap (review R-05):** if the sensor dies during an active
+fancoil/radiant boost, the boost override can keep the radiant valve open
+(100% cold) until R-05 is fixed.
 
 **Likely causes:**
 
@@ -113,8 +119,8 @@ defaults on [Routine Maintenance](../maintenance-tasks.md)). 🔵 DESIGNED
 - Gains too conservative (most common cause of sluggish response/overshoot
   from a slow correction).
 - Auto-tune run in the wrong season, or its result applied without halving
-  (see the Fix section) — the gains come out about twice too high on loops
-  that have both a heat and a cool output.
+  (see the Fix section) — on dual-output loops (not heat-only radiant zones)
+  the gains come out about twice too high.
 
 **Diagnostic steps:**
 
@@ -132,8 +138,10 @@ defaults on [Routine Maintenance](../maintenance-tasks.md)). 🔵 DESIGNED
 1. **Use auto-tune first.** The auto-tune component
    (`climate/packages/components/pid_autotune.yaml`) exists specifically to
    avoid hand-guessing gains — run it before manually adjusting numbers.
-   Run it in the season the loop actually works in; on loops that have both
-   a heat and a cool output, halve the gains it reports; and for a `boost`
+   Run it in the season the loop actually works in; on dual-output loops
+   (radiant zones on `radiant.yaml`, heat-and-cool fancoils), halve the gains it reports
+   (not for heat-only radiant zones; the 2x factor is derived from code comments, not
+   bench-verified — check at bring-up); and for a `boost`
    fancoil, set its PID to COOL by hand first (it normally sits OFF until
    the boost starts it).
 2. **If tuning by hand, start conservative**: low proportional gain (Kp),

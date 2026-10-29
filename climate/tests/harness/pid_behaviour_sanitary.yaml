@@ -1,0 +1,14 @@
+# =============================================================================
+# Harness variant: pid_behaviour.yaml with hp_mode starting in SANITARY_ONLY on a
+# first boot (R-16). The compiled binary is separate (name derives from the
+# file stem, see conftest.compile_harness).
+# =============================================================================
+
+substitutions:
+  initial_hp_mode: SANITARY_ONLY
+
+esphome:
+  name: t-pid-behaviour-sanitary
+
+packages:
+  base: !include pid_behaviour.yaml
