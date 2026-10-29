@@ -21,10 +21,12 @@
 #   - heat_only_radiant.yaml (included automatically)
 #     - pid.yaml (included by heat_only_radiant)
 #       - pid_sensors.yaml (included by pid)
+#   - climate/protocol/pid_direction.h (esphome.includes in the entry point)
 #
 # Exposes:
 #   (all entities from heat_only_radiant.yaml, plus:)
 #   climate.{room_slug}_radiant_pid - Extended with cool_output
+#   output.{room_slug}_radiant_cool_output - Gated cool-direction output (PID cool_output)
 #
 # Example:
 #   packages:
@@ -44,9 +46,23 @@ packages:
   pid: !include
     file: heat_only_radiant.yaml
 
+# Cool-direction gate (R-01): heat and cool both end at the one radiant valve,
+# and the PID does not look at its HEAT/COOL mode when routing a value, so each
+# direction forwards only while the heat pump produces matching water (see
+# climate/protocol/pid_direction.h). Without this, a room above target in winter
+# opened its valve in proportion to the overheating.
+output:
+  - platform: template
+    id: ${room_slug}_radiant_cool_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(${room_slug}_radiant_output).set_level(pid_direction::gated_level(
+              pid_direction::Direction::COOL, id(${seasonal_mode_id}).current_option().c_str(), state));
+
 climate:
   - id: !extend ${room_slug}_radiant_pid
-    cool_output: ${room_slug}_radiant_output
+    cool_output: ${room_slug}_radiant_cool_output
 
 # Seasonal mode handler: override heat_only_radiant's handler to support
 # both HEAT and COOL modes (heat_only_radiant only supports HEAT)

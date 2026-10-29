@@ -1,0 +1,282 @@
+# =============================================================================
+# Test harness: PID heat/cool direction gating (R-01)
+#
+# Composes the REAL actuator packages (heat_only_radiant, radiant, mixing_pump,
+# fancoil in all three roles) on the host platform with every hardware input
+# stubbed, so a test can drive room/supply temperature and the heat pump mode
+# (hp_mode) through API actions and check that no actuator ever moves in the
+# wrong direction:
+#   - temperature sources   -> two template sensors (rooms, mixing-valve supply)
+#   - seasonal mode         -> template select with the production options
+#   - relays (radiant zone) -> optimistic template switches counting turn-ons
+#   - 0-10V channels        -> template outputs mirrored into level sensors
+#
+# All room PIDs share one temperature stub and the default 20.0 degC target, so
+# tests reason in absolute temperatures: 25.0 => +5.0 over target (value < 0),
+# 15.0 => 5.0 under target (value > 0). Gains are the packages' defaults; the
+# deviations are big enough to saturate every PID output at 1.0.
+#
+# Radiant actuation: every PID output saturates, so the slow PWM is at level 1.0
+# (relay held on) or 0 (relay off) and "actuated" == relay on, "did not actuate"
+# == relay never turned on. Both slow_pwm outputs restart their cycle on every
+# write: the host platform's millis() is machine uptime and an unrestarted
+# slow_pwm walks its period start up from 0 one period per loop() iteration,
+# which holds the relay OFF for minutes-to-hours on a long-running machine.
+#
+# Pump demand: the packages' `<pid>_is_active` binary sensors (what the floor
+# pump-demand sensors OR together) are exercised as published; the tests check
+# they follow the same hp_mode gate as the valves.
+#
+# Roles under test (room_slug => package):
+#   bath     heat_only_radiant.yaml
+#   bedroom  radiant.yaml (heat + cool)
+#   living   fancoil.yaml, fancoil_role: boost       (boost select stubbed)
+#   techroom fancoil.yaml, fancoil_role: cool_only
+#   attic    fancoil.yaml, fancoil_role: heat_cool
+#   mix      mixing_pump.yaml (supply-temperature valve PID)
+# =============================================================================
+
+substitutions:
+  # Production defines this once in devices/climate-control.yaml and the
+  # packages inherit it; the harness does the same (mixing_pump.yaml has no
+  # per-call-site var for it).
+  seasonal_mode_id: hp_mode
+
+esphome:
+  name: t-radiant-direction
+  # Same header the entry point lists in esphome.includes (paths are relative
+  # to this file's directory).
+  includes:
+    - ../../protocol/pid_direction.h
+
+host:
+
+logger:
+  level: DEBUG
+
+api:
+  actions:
+    - action: set_temperature
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: stub_temperature
+            state: !lambda "return value;"
+    - action: set_supply_temperature
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: dallas_stub
+            state: !lambda "return value;"
+    - action: set_hp_mode
+      variables:
+        value: string
+      then:
+        - select.set:
+            id: hp_mode
+            option: !lambda "return value;"
+    # Stand-in for the fancoil_boost coordinator's set_action: it alone puts
+    # the boost-role fancoil into COOL (and back to OFF).
+    - action: boost_start
+      then:
+        - select.set:
+            id: living_boost_state
+            option: "Fancoil Boost"
+        - climate.control:
+            id: living_fancoil_pid
+            mode: COOL
+    - action: boost_stop
+      then:
+        - select.set:
+            id: living_boost_state
+            option: "Radiant Only"
+        - climate.control:
+            id: living_fancoil_pid
+            mode: "OFF"
+
+# Seasonal mode select with the production options (seasonal_mode.yaml).
+# Starts SANITARY_ONLY (no heating/cooling water): nothing may actuate until a
+# test picks a season.
+select:
+  - platform: template
+    id: hp_mode
+    name: "Heat Pump Mode"
+    options:
+      - "HEAT"
+      - "COOL"
+      - "SANITARY_ONLY"
+    initial_option: "SANITARY_ONLY"
+    optimistic: true
+  # The boost coordinator's state select, which the boost-role seasonal handler
+  # reads (fancoil_role_boost.yaml: boost_state_select_id default).
+  - platform: template
+    id: living_boost_state
+    name: "Living Boost State"
+    options:
+      - "Radiant Only"
+      - "Fancoil Boost"
+    initial_option: "Radiant Only"
+    optimistic: true
+
+# Radiant zone relays: the final actuator of the two radiant rooms. Counting
+# turn-ons catches even a brief wrong-direction pulse.
+globals:
+  - id: bath_relay_ons
+    type: int
+    initial_value: "0"
+  - id: bedroom_relay_ons
+    type: int
+    initial_value: "0"
+
+switch:
+  - platform: template
+    id: bath_relay
+    name: "Bath Relay"
+    optimistic: true
+    turn_on_action:
+      - lambda: "id(bath_relay_ons) += 1;"
+  - platform: template
+    id: bedroom_relay
+    name: "Bedroom Relay"
+    optimistic: true
+    turn_on_action:
+      - lambda: "id(bedroom_relay_ons) += 1;"
+  - platform: template
+    id: mix_pump
+    name: "Mix Pump"
+    optimistic: true
+
+binary_sensor:
+  # mixing_pump.yaml's pump trigger input
+  - platform: template
+    id: mix_demand
+    internal: true
+
+sensor:
+  - platform: template
+    id: stub_temperature
+    internal: true
+  # Replaces the Dallas supply sensor of mixing_pump.yaml (removed below): the
+  # valve PID reads this id.
+  - id: !remove dallas_stub
+  - platform: template
+    id: dallas_stub
+    internal: true
+
+  - platform: template
+    id: bath_relay_on_count
+    name: "Bath Relay On Count"
+    lambda: "return id(bath_relay_ons);"
+    update_interval: 100ms
+    filters:
+      - delta: 0.5
+  - platform: template
+    id: bedroom_relay_on_count
+    name: "Bedroom Relay On Count"
+    lambda: "return id(bedroom_relay_ons);"
+    update_interval: 100ms
+    filters:
+      - delta: 0.5
+
+  # Levels written to the 0-10V channels (the last write of a PID update is the
+  # effective one, see climate/protocol/pid_direction.h).
+  - platform: template
+    id: valve_level
+    name: "Valve Level"
+  - platform: template
+    id: living_fan_level
+    name: "Living Fan Level"
+  - platform: template
+    id: techroom_fan_level
+    name: "Techroom Fan Level"
+  - platform: template
+    id: attic_fan_level
+    name: "Attic Fan Level"
+
+output:
+  - id: !extend bath_radiant_pwm
+    restart_cycle_on_state_change: true
+  - id: !extend bedroom_radiant_pwm
+    restart_cycle_on_state_change: true
+  - platform: template
+    id: valve_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: valve_level
+          state: !lambda "return state;"
+  - platform: template
+    id: living_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: living_fan_level
+          state: !lambda "return state;"
+  - platform: template
+    id: techroom_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: techroom_fan_level
+          state: !lambda "return state;"
+  - platform: template
+    id: attic_fan_out
+    type: float
+    write_action:
+      - sensor.template.publish:
+          id: attic_fan_level
+          state: !lambda "return state;"
+
+# Packages under test.
+packages:
+  bath: !include
+    file: ../../packages/components/heat_only_radiant.yaml
+    vars:
+      room_slug: bath
+      room_name: "Bath"
+      temperature_sensor: stub_temperature
+      relay_id: bath_relay
+      pwm_period: 1s
+  bedroom: !include
+    file: ../../packages/components/radiant.yaml
+    vars:
+      room_slug: bedroom
+      room_name: "Bedroom"
+      temperature_sensor: stub_temperature
+      relay_id: bedroom_relay
+  living: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: living
+      room_name: "Living"
+      temperature_sensor: stub_temperature
+      output_id: living_fan_out
+      fancoil_role: boost
+  techroom: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: techroom
+      room_name: "Techroom"
+      temperature_sensor: stub_temperature
+      output_id: techroom_fan_out
+      fancoil_role: cool_only
+  attic: !include
+    file: ../../packages/components/fancoil.yaml
+    vars:
+      room_slug: attic
+      room_name: "Attic"
+      temperature_sensor: stub_temperature
+      output_id: attic_fan_out
+      fancoil_role: heat_cool
+  mix: !include
+    file: ../../packages/components/mixing_pump.yaml
+    vars:
+      area_slug: mix
+      area_name: "Mix"
+      dallas_address: stub
+      one_wire_bus_id: unused_one_wire_bus
+      output_id: valve_out
+      sensor_id: mix_demand
+      relay_id: mix_pump

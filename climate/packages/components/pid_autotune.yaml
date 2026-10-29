@@ -14,6 +14,22 @@
 #       pid_autotune_with_fancoil.yaml instead — it disables interference
 #       sources before starting the autotune procedure.
 #
+# Direction gating (R-01): the PID's outputs only actuate in the direction the
+# heat pump is producing (climate/protocol/pid_direction.h), and the autotuner
+# drives the PID output between -1 (cool) and +1 (heat) as usual:
+#   - Run it in the season the loop actually works in (hp_mode HEAT for a
+#     heating loop, COOL for a cooling one). In the wrong season the actuator
+#     stays at 0, the room never responds, and the tune never completes.
+#   - Tune dual-output radiant loops (heat_output AND cool_output) in HEAT: the
+#     gated cool half-cycle only closes the valve (output 0), so the real swing
+#     is 0..1, not -1..+1, and the autotuner's gain estimate comes out about
+#     2x too high (relay amplitude d = (max-min)/2, 1 assumed vs 0.5 real);
+#     halve kp/ki/kd. Heat-only and cool-only loops already model 0..1
+#     correctly. The same holds for a heat_cool fancoil.
+#   - The PID must not be OFF (the seasonal handler leaves it OFF in other
+#     modes). `boost` fancoils sit OFF until the boost coordinator starts them:
+#     set the fancoil PID to COOL by hand before pressing the button.
+#
 # Example:
 #   packages:
 #     autotune: !include

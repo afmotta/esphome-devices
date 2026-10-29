@@ -25,6 +25,13 @@
 #
 # Note: Use pid_autotune.yaml for zones WITHOUT fancoils or boost coordinators.
 #
+# Direction gating (R-01): this tunes the room's radiant PID, which only
+# actuates in the heat pump's current direction (climate/protocol/pid_direction.h).
+# Run it in HEAT: the dual radiant loop's cool half-cycle only closes the
+# valve, so the swing is 0..1 rather than -1..+1 and the gains come out about
+# 2x too high (see pid_autotune.yaml); in COOL season the same PID is the
+# cooling loop and has the same 0..1 swing.
+#
 # Example:
 #   packages:
 #     autotune: !include

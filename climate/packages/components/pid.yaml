@@ -26,7 +26,7 @@
 #   sensor.{circuit_slug}_pid_error          - PID error signal (via pid_sensors)
 #   sensor.{circuit_slug}_pid_heat           - Heat output 0-1 (via pid_sensors)
 #   sensor.{circuit_slug}_pid_cool           - Cool output 0-1 (via pid_sensors)
-#   binary_sensor.{circuit_slug}_pid_is_active  - Whether PID is actively controlling
+#   binary_sensor.{circuit_slug}_pid_is_active  - Whether PID is actuating (action matches hp_mode; pump demand)
 #
 # Example:
 #   packages:

@@ -36,6 +36,7 @@ packages:
     file: ../../packages/components/fancoil.yaml
     vars:
       output_id: analog_output_3
+      fancoil_role: boost # cooling boost on top of radiant; only fancoil_boost_coordinator starts it
 
   fancoil_boost_coordinator: !include
     file: ../../packages/coordinators/fancoil_boost.yaml

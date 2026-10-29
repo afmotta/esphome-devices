@@ -24,3 +24,4 @@ packages:
     file: ../../packages/components/fancoil.yaml
     vars:
       output_id: analog_output_6
+      fancoil_role: heat_cool # "Heating: Fancoil" + "Cooling: Fancoil"

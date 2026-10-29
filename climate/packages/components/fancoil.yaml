@@ -4,11 +4,32 @@
 #            seasonal mode integration. Uses lower PID gains than radiant
 #            systems due to fancoils' faster thermal response.
 #
+# Role (R-01): `fancoil_role` states what the fancoil is FOR in its room and
+# has no default, so every call site must say it. It selects which PID outputs
+# exist (fancoil_role_<role>.yaml, included below) and who may switch the PID on:
+#   boost      - cooling-only boost layer on top of radiant (soggiorno, cucina).
+#                The fancoil_boost coordinator alone sets COOL; the seasonal
+#                handler only ever turns the PID OFF, so the
+#                {zone}_boost_enabled commissioning gate cannot be bypassed.
+#   cool_only  - standalone cooling (locale tecnico): COOL while the heat pump
+#                produces chilled water, OFF otherwise.
+#   heat_cool  - standalone heating and cooling (sottotetto): HEAT / COOL /
+#                OFF following the heat pump mode.
+#
+# Direction gating: ESPHome's PID routes a positive value to heat_output and a
+# negative one to cool_output regardless of its HEAT/COOL mode, so a fancoil
+# with only cool_output ran whenever the room was too WARM, even in winter. The
+# cool output here (and the heat output of `heat_cool`) is a gated template
+# output that forwards to ${output_id} only while the heat pump produces
+# matching water (climate/protocol/pid_direction.h). Roles without heating wire
+# NO heat_output, so the PID never reports "heating" for them.
+#
 # Required vars:
 #   room_slug                - Room identifier for entity IDs (e.g., "living_room")
 #   room_name                - Human-readable room name (e.g., "Living Room")
 #   temperature_sensor       - Temperature sensor ID (e.g., sensor.living_room_temp)
 #   output_id                - Output entity for fancoil control (e.g., analog 0-10V DAC)
+#   fancoil_role             - boost | cool_only | heat_cool (see above; no default)
 #   seasonal_mode_id         - ID of the seasonal mode select entity (e.g., "hp_mode")
 #
 # Optional vars:
@@ -19,9 +40,13 @@
 # Dependencies:
 #   - pid.yaml (included automatically, must be in same directory)
 #     - pid_sensors.yaml (included by pid)
+#   - fancoil_role_${fancoil_role}.yaml (heat output + seasonal handler)
+#   - climate/protocol/pid_direction.h (esphome.includes in the entry point)
 #
 # Exposes:
 #   climate.{room_slug}_fancoil_pid              - PID climate entity
+#   output.{room_slug}_fancoil_cool_output       - Gated cool-direction output
+#   output.{room_slug}_fancoil_heat_output       - Gated heat output (heat_cool only)
 #   (plus all pid_sensors entities via pid.yaml)
 #
 # Example:
@@ -33,6 +58,7 @@
 #         room_name: "Living Room"
 #         temperature_sensor: sensor.living_room_temp
 #         output_id: fancoil_dac_living_room
+#         fancoil_role: boost
 #         seasonal_mode_id: "hp_mode"
 # =============================================================================
 
@@ -52,22 +78,21 @@ packages:
       ki: ${ki}
       kd: ${kd}
 
+  # Role-specific part: heat output (heat_cool only) + seasonal mode handler.
+  # A missing/misspelt fancoil_role fails the config (undefined substitution /
+  # file not found) instead of silently picking a direction.
+  role: !include
+    file: fancoil_role_${fancoil_role}.yaml
+
+output:
+  - platform: template
+    id: ${room_slug}_fancoil_cool_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(${output_id}).set_level(pid_direction::gated_level(
+              pid_direction::Direction::COOL, id(${seasonal_mode_id}).current_option().c_str(), state));
+
 climate:
   - id: !extend ${room_slug}_fancoil_pid
-    cool_output: ${output_id}
-
-# Seasonal mode handler: automatically switch PID mode based on seasonal mode
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - lambda: |-
-            auto call = id(${room_slug}_fancoil_pid).make_call();
-            if (x == "COOL") {
-              call.set_mode(climate::CLIMATE_MODE_COOL);
-            } else if (x == "HEAT") {
-              call.set_mode(climate::CLIMATE_MODE_HEAT);
-            } else {
-              call.set_mode(climate::CLIMATE_MODE_OFF);
-            }
-            call.perform();
+    cool_output: ${room_slug}_fancoil_cool_output
