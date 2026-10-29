@@ -185,7 +185,9 @@ sensor:
       then:
         - if:
             condition:
-              lambda: "return id(hp_mode_summer).state;"
+              # A NaN minimum (every member room's dew point lost) must not reach
+              # the valve PID: it keeps its last valid setpoint instead.
+              lambda: "return id(hp_mode_summer).state && !std::isnan(id(ground_floor_supply_temp_minimum).state);"
             then:
               - climate.control:
                   id: ground_floor_radiant_mixing_valve_pid
@@ -207,7 +209,21 @@ sensor:
       float dew_point = id(ground_floor_max_dew_point).state;
       float margin = id(ground_floor_radiant_safe_margin).state;
       if (std::isnan(dew_point) || std::isnan(margin)) return NAN;
-      return dew_point + margin;
+      // The max combination skips NaN sources, so a room whose humidity went
+      // unavailable would silently drop out and could lower the minimum. Never
+      // lower it while a member room has no dew point (R-04 review).
+      // `held` is a ratchet seeded only by an all-valid pass: it is inactive until the
+      // first one after boot/OTA, and while any member is NaN the minimum never drops
+      // below the last all-valid value. The room list must match the `sources` of the
+      // max dew point sensor.
+      static float held = NAN;
+      float minimum = dew_point + margin;
+      if (std::isnan(id(soggiorno_dew_point).state) || std::isnan(id(cucina_dew_point).state) || std::isnan(id(anticamera_dew_point).state)) {
+        if (!std::isnan(held) && held > minimum) return held;
+        return minimum;
+      }
+      held = minimum;
+      return minimum;
     update_interval: 30s
 
   # Max humidity across ground floor rooms for boost decisions

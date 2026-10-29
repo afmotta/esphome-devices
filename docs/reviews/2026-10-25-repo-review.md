@@ -4,7 +4,7 @@
 |-------|--------|
 | **Data** | 2026-10-25 |
 | **Baseline** | `main` @ `9d0bc28` (Upgrade ESPHome to 2026.8.0, ADR-0022) |
-| **Branch dei fix** | `claude/repo-review-fixes` |
+| **Branch dei fix** | uno per issue, es. `claude/fix-r02-reboot-timeouts` |
 | **Autore** | AI Assistant (Claude Code), su richiesta di Alberto |
 | **Scopo** | Review completa (firmware, logiche, testing, documentazione) e registro vivo di issue e fix |
 
@@ -33,13 +33,13 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | ID | Sev. | Titolo | Stato | Fix |
 |----|------|--------|-------|-----|
 | [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | ✅ | `1472a90`, `ed4d157` |
-| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | `5b53b0d` |
+| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | PR #67 |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
-| [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ✅ | `504300a`, `342cc1c` |
+| [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | 🔧 parziale | `085bb05`, `a2db85c` |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | 🔧 parziale (timeout ⏸️ dati da banco) | `50103e2` |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
-| [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ✅ | `0583674`, `e1d8e68`, `bd32bc6` |
+| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ✅ (resta `assert()` nei test C++) | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11`, `32b6ea2`, `e2cb259`, `3a0cc0a` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
@@ -150,10 +150,10 @@ avevano già `reboot_timeout: 0s`. Anche `wifi: reboot_timeout` (default 15 min)
 si connette, e il watchdog WiFi **ignora Ethernet** (confermato sul sorgente, vedi sotto): con l'AP
 spento un controller sano su Ethernet si riavvierebbe comunque.
 
-**Correzione prevista.** `api: reboot_timeout: 0s` sui tre controller; `wifi: reboot_timeout: 0s` sulle
+**Correzione prevista.** `api: reboot_timeout: 0s` su t-connect-pro e waveshare-s3-rs485-can (An-Penta/An-Quad già a 0s); `wifi: reboot_timeout: 0s` sulle
 board dual-interface (Ethernet primaria).
 
-**Fix applicato:** ✅ `5b53b0d` — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
+**Fix applicato:** ✅ PR #67 — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
 
 | Board | `api: reboot_timeout` | `wifi: reboot_timeout` | Device |
 |-------|----------------------|------------------------|--------|
@@ -169,7 +169,10 @@ board dual-interface (Ethernet primaria).
 - **Scelta per le board solo WiFi** (health monitor, An-Quad, S1 Pro): il reboot WiFi resta al default perché,
   senza Ethernet, è il percorso di recupero da uno stack WiFi bloccato.
 - **Verificato:** `esphome config` valido sui 5 entry point, con i valori risolti indicati in tabella.
-- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento.
+- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento;
+  conferma sul campo che il watchdog WiFi ignora Ethernet (controller sano su Ethernet con AP spento >15 min non si
+  riavvia); Ethernet giù + AP giù: nessun auto-recupero atteso (trade-off accettato, vedi commento in
+  `boards/t-connect-pro.yaml`).
 - **Non toccate:** le board legacy senza consumer (`a6`, `a16`, `waveshare-s3`).
 
 ---
@@ -215,7 +218,7 @@ automazioni HA.
   1. ricaricare il package `ha_manifest_package.yaml`;
   2. sostituire l'automazione ACK;
   3. eliminare le vecchie automazioni orfane `canbus_gateway_*`;
-  4. controllare che `binary_sensor.light_controller_ha_ready` diventi `on` entro circa 5 s.
+  4. controllare che `binary_sensor.lighting_controller_ha_ready` diventi `on` entro circa 5 s. Se il controller era già stato adottato in HA con un nome precedente, gli entity id restano quelli della prima registrazione (HA non li rinomina): verificare in Impostazioni > Entità e rinominare `binary_sensor.lighting_controller_ha_ready` / `sensor.lighting_controller_fallback_events` (o rimuovere e riaggiungere il dispositivo) prima di fidarsi degli alert.
 
 ---
 
@@ -260,14 +263,15 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
     wrap di `millis()`, scadenza che sopravvive a un wrap completo); aggiunto alla battery.
   - Nuovo harness host `climate/tests/harness/room_sensors.yaml`, che include `room_sensors.yaml` reale.
   - `climate/tests/e2e/test_room_sensors.py`: un finto HA risponde alla sottoscrizione agli stati. Coperti: valore
-    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA", disconnessione oltre la grazia → NaN.
-  - Aggiunti al job CI su `main` e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
+    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA" (temperatura e umidità), disconnessione oltre la
+    grazia → NaN, e a riconnessione senza stato da HA il grezzo azzerato mantiene Emergency/NaN (temperatura e umidità).
+  - Aggiunti a un job CI host su ogni PR e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
 - **Verificato:**
   - battery nativa PASS in un worktree isolato sul commit;
   - `esphome config` OK su climate-control, sui due harness climate, su light-controller e health-monitor;
   - l'API scelta esiste in 2026.8.0.
-- **Non verificato qui** (PlatformIO bloccato): la compilazione ESP32 per il device.
-- **e2e eseguito in seguito** su un binario host costruito localmente (`esphome compile --only-generate` + g++):
+- **Non verificato qui** (PlatformIO bloccato): la compilazione ESP32 per il device, che gira in CI su `main`.
+- **e2e eseguito in locale (ora anche in CI sulle PR)** su un binario host costruito localmente (`esphome compile --only-generate` + g++):
   **4/4 PASS**, stabile su 3 esecuzioni. Mutation check:
   - con un tracker che non scade mai, `test_disconnect_past_grace_is_nan_then_recovers` fallisce;
   - con la grazia a 0, `test_disconnect_within_grace_keeps_value` fallisce;
@@ -279,6 +283,13 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
   aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
 - **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
   È trascurabile per la temperatura ambiente.
+- **Minimo di mandata per piano:** `ground_floor_supply_temp_minimum` e `first_floor_supply_temp_minimum` mantengono il valore
+  precedente (mai più basso) finché il punto di rugiada di una stanza membro è NaN, perché il `max` della `combination`
+  scarta le sorgenti NaN e altrimenti la stanza uscirebbe dalla protezione.
+- **Conseguenza operativa:** finché le altre 12 zone non hanno un nodo CAN, un blackout di HA oltre la grazia
+  (`ha_staleness_grace_s`, 300 s) porta tutte e 12 in Emergency (uscite PID a 0); la grazia è la leva da regolare.
+  Anche le entità che HA riporta `unavailable`/`unknown` mentre si riavvia valgono NaN subito, per scelta (tenere
+  l'ultimo valore è il congelamento che R-04 elimina).
 - **Interazione con R-05:** l'override del radiante scavalca ancora il NaN, quindi R-05 resta necessaria.
 
 ---
@@ -340,9 +351,9 @@ HA parte inoltre *prima* di eseguire l'azione. Preferire on/off nei binding e al
 
 Il bridge ignora il ritorno di `send_data` (`canbus/packages/bridge.yaml:135,138`): un frame fallito
 viene contato come "forwarded". `ERR_CAN_TX_FAIL` / `ERR_CAN_BUS_OFF` non vengono mai impostati da
-alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del bridge.
+alcun firmware: l'evento `node_error` (classe maintenance, logbook: ADR-0011) scatta solo per l'overflow del bridge.
 
-**Fix applicato:** ✅ `085bb05` (`canbus: report CAN TX failures instead of losing them silently (R-07)`) + `a2db85c`
+**Fix applicato:** 🔧 parziale — `ERR_CAN_BUS_OFF` è rimandato a R-17; `085bb05` (`canbus: report CAN TX failures instead of losing them silently (R-07)`) + `a2db85c`
 (collegamento alla battery e documentazione).
 
 - **Bridge:**
@@ -350,7 +361,7 @@ alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del
     controller lo accetta.
   - Un frame rifiutato resta in testa e viene ritentato al tick successivo, mantenendo l'ordine FIFO e il ritmo di
     10 ms che protegge i 3 buffer TX dell'MCP2515.
-  - Dopo 5 tentativi (circa 50 ms) il frame viene scartato e conteggiato in `dropped_tx`, con `ERR_CAN_TX_FAIL`
+  - Dopo circa 5 tick (circa 50 ms al tick nominale di 10 ms, circa 100 ms dove il loop è limitato, es. T-2CAN) il frame viene scartato e conteggiato in `dropped_tx`, con `ERR_CAN_TX_FAIL`
     **permanente**, accanto a `ERR_BRIDGE_QUEUE_OVERFLOW`.
 - **Nodi** (`canbus/protocol/tx_health.h`, nuovo):
   - ogni invio rifiutato (bottoni, sensor kit, bridge, heartbeat, attuatori An-Penta/An-Quad) attiva `ERR_CAN_TX_FAIL`
@@ -358,7 +369,7 @@ alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del
   - il flag si azzera solo quando un heartbeat che lo portava è stato accettato. Così HA vede sia il guasto sia il
     recupero;
   - viene aggiunto in OR al momento dell'heartbeat, non in `error_flags`, così non interferisce con i bit permanenti.
-- **`ERR_CAN_BUS_OFF`** resta riservato: ESPHome 2026.8.0 non espone lo stato di bus-off (`mcp2515` e `esp32_can` sono
+- **`ERR_CAN_BUS_OFF`** resta riservato (rimandato a [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32)): ESPHome 2026.8.0 non espone lo stato di bus-off (`mcp2515` e `esp32_can` sono
   classi `final` con helper protetti). È documentato accanto alla costante.
 - **Gateway lighting:** un `CAT_OUTPUT` di fallback rifiutato ora produce un log di errore.
 - **Test:**
@@ -388,11 +399,16 @@ già state rese locali.
 
   | Entità | Range | Default | Unità MEV |
   |---|---|---|---|
-  | `<mev>_min_fan_speed` | 0–50 % | 20 | entrambe |
+  | `<mev>_min_fan_speed` | 0–50 % (primo piano: 0–30 %) | 20 | entrambe |
   | `<mev>_escalation_threshold` | 50–100 % | 80 | primo piano |
-  | `<mev>_deescalation_threshold` | 10–50 % | 40 | primo piano |
+  | `<mev>_deescalation_threshold` | 35–50 % | 40 | primo piano |
   | `<mev>_escalation_delay` | 1–120 min | 10 | primo piano |
   | `<mev>_deescalation_delay` | 1–120 min | 15 | primo piano |
+- **Range ristretti rispetto ai vecchi helper (0–100).** Scelta voluta: le soglie di escalation e de-escalation non possono
+  incrociarsi (cascata senza oscillazioni) e il minimo del primo piano resta sotto la soglia di de-escalation (la
+  velocità finale non scende sotto il minimo: con minimo >= soglia la cascata non uscirebbe più da Deumidifica/Integrazione).
+  Un valore persistito con il vecchio range viene ripristinato così com'è (il `number` template limita solo le scritture): va reinserito. I default 80/40 sostituiscono i 70/30 raccomandati dalle
+  vecchie guide.
 - **Problema risolto.** Prima, con HA giù, le soglie a NaN disattivavano in silenzio la cascata di deumidificazione e i
   ritardi calcolavano `NaN * 60000`.
 - **Lato HA:**
@@ -423,7 +439,7 @@ già state rese locali.
 Se il master si blocca, i relè Modbus mantengono l'ultimo stato (valvole/pompe accese). Valutare un
 watchdog o un timeout lato scheda relè.
 
-**Proposta:** `710f088` — `docs/adr/0024-actuator-fail-safe-on-controller-loss.md`, stato **Proposed**. Nessun firmware è cambiato:
+**Proposta:** `docs/adr/0024-actuator-fail-safe-on-controller-loss.md`, stato **Proposed**. Nessun firmware è cambiato:
 la decisione spetta al proprietario.
 
 - **Già coperto da ESPHome** (verificato sul sorgente 2026.8.0): un loop bloccato. Il task watchdog lo riavvia in circa 5 s.
@@ -434,18 +450,13 @@ la decisione spetta al proprietario.
   
   In tutti questi casi le schede **mantengono l'ultimo stato**: i relè hanno `restore_mode: DISABLED` e al boot non viene
   scritto nulla.
-- **Cosa offrono le schede:** la Relay 32CH ha comandi **flash-on/flash-off temporizzati** (FC `0x05`, registri
-  `0x0200`–`0x021F` e `0x0400`–`0x041F`, unità di 100 ms).
-  - Fonti: estratti del wiki Waveshare e misure di terzi su una scheda sorella. Il sito Waveshare non era raggiungibile
-    dal sandbox, quindi non è una lettura diretta.
-  - Non è stato trovato alcun timeout per perdita di comunicazione, né sulla Relay 32CH né sulla Analog 8CH (B).
-- **Raccomandazione:**
-  - un relè di riserva ri-armato con flash-on ogni 15 s (impulso di 60 s), con il contatto in serie
-    all'alimentazione delle pompe e dei contatti SG-Ready: un "dead-man" che ferma le pompe entro 60 s se il master tace;
-  - mitigazioni firmware: stato sicuro al boot, `watchdog_timeout` esplicito, allarmi per scheda offline;
-  - come ripiego, un contattore con watchdog esterno.
-- **Da verificare al banco prima di decidere:** 11 punti elencati nell'ADR. I primi quattro sono decisivi: comportamento
-  del flash-on, ri-armo senza "click", rilascio a controller spento, stato delle bobine dopo il power-cycle della scheda.
+- **Cosa offrono le schede:** la Relay 32CH ha comandi **flash-on/flash-off temporizzati**; nessun timeout per perdita
+  di comunicazione trovato su nessuna delle due schede. Fonti e livello di fiducia: nell'ADR.
+- **Raccomandazione (dettagli nell'ADR-0024):** un relè di riserva ri-armato con flash-on ogni 15 s (impulso di 60 s)
+  che comanda un contattore in serie all'alimentazione delle **sole pompe** (SG-Ready escluso), come "dead-man"; ripiego:
+  contattore con watchdog esterno. Fermare le pompe protegge dal funzionamento fuori controllo, non dal gelo: vedi i
+  prerequisiti dell'ADR (O9).
+- **Da verificare al banco prima di decidere:** il gate dell'ADR (O1–O5, O7, O9; O6 e O8 per il boot sicuro).
 
 ### R-10 — Lacune di testing
 
@@ -495,6 +506,10 @@ la decisione spetta al proprietario.
     - **tutti e 6 gli e2e climate passano con preferenze isolate: 1+4+4+6+34+8.**
   - **Da verificare in CI:** la cache PlatformIO del nuovo job e il primo run reale.
 - **Ancora aperto:** `assert()` nudo nei test C++ (minore).
+- **Restano aperti:**
+  - compile ed e2e (tranne room_sensors) solo su push a `main`, non sulle PR;
+  - `assert()` nudo nei test C++;
+  - nessun pre-commit né yamllint.
 
 ### R-11 — Drift della documentazione
 
@@ -507,9 +522,9 @@ la decisione spetta al proprietario.
 **Fix applicato:** ✅ `2f56444` (`docs: fix documentation drift, split out CHANGELOG.md (R-11)`) + `633025f` (istruzioni Copilot).
 
 - **`CLAUDE.md` alla radice:**
-  - versione 1.20;
+  - versione 1.22 (le voci 1.20/1.21 di R-02/R-04 sono nel `CHANGELOG.md`);
   - range degli ADR 0001…0023, con la nota che lo 0019 non è mai esistito (numero saltato, assente dalla storia git);
-  - il changelog è spostato in **`CHANGELOG.md`**, con una nuova voce 1.20 per i fix R-01–R-04 e R-10;
+  - il changelog è spostato in **`CHANGELOG.md`**, con una voce 1.22 per R-11 (e per le note su R-01, R-03, R-10) accanto alle voci 1.20/1.21 di R-02/R-04;
   - sezione "Failover Architecture" riscritta: tier HA → NaN su `unavailable` o dopo 5 min, Emergency → PID a 0
     **subito**. Non esiste più alcuno "spegnimento dopo 5 minuti".
 - **`climate/CLAUDE.md`, Appendice D:** guadagni allineati al codice (radiante 0.8/0.005/0.05, fancoil 0.2/0.01/0.05,
@@ -534,6 +549,11 @@ _Emersa durante il fix di R-04._
   staleness. Un valore esterno congelato alimenta la compensazione climatica e la media a 24 h del seasonal mode.
 - **Impatto.** Non c'è rischio di condensa, perché la protezione dew point usa i sensori delle stanze. Il fix è
   lo stesso: rimuovere il filtro e aggiungere un `HaTierTracker`.
+- **Altri sensori `homeassistant` valutati e lasciati com'erano:**
+  - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
+  - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
+  - Le soglie MEV: vedi R-08.
+
 **Fix applicato:** ✅ `449be90` (`climate: make the outdoor-temperature HA tier go NaN when HA is gone (R-12)`) + `2763cdf`
 (collegamento a battery e CI).
 
@@ -548,11 +568,6 @@ _Emersa durante il fix di R-04._
   - e2e host `test_outdoor.py`: **4/4**, rieseguito anche da me. Con un gate sempre aperto il caso "oltre la grazia"
     fallisce, come previsto.
   - `esphome config` OK su climate-control e sull'harness; battery nativa PASS.
-
-- **Altri sensori `homeassistant` valutati e lasciati com'erano:**
-  - `window_guard.yaml`: con HA giù il guard si degrada in un no-op, come previsto dal design.
-  - I limiti di `proportional_demand_sensor`: sono dati di configurazione.
-  - Le soglie MEV: vedi R-08.
 
 _Le issue R-13–R-16 sono emerse durante il fix di R-01._
 
@@ -672,18 +687,18 @@ _Emersa durante il fix di R-05; risolta in `504300a`._
 
 ## Registro dei fix
 
-_Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/repo-review-fixes`._
+_Le voci vengono aggiunte man mano che i fix sono committati (un branch per issue)._
 
 | Data | Issue | Commit | Sintesi | Verifica |
 |------|-------|--------|---------|----------|
-| 2026-10-25 | R-02 | `5b53b0d` | `api`/`wifi` `reboot_timeout: 0s` sui controller autonomi | `esphome config` ×5; hardware da fare al bring-up |
-| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
-| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e in CI |
+| 2026-10-25 | R-02 | PR #67 | vedi la sezione R-02 | vedi la sezione R-02 |
+| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×5, battery nativa PASS |
+| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e locale 4/4 + CI |
 | 2026-10-25 | R-01 | `1472a90` | Uscite PID gated su `hp_mode`, ruoli fancoil, sottotetto riscalda | test nativo, e2e host 20/20, `esphome config` ×5, battery PASS |
 | 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
 | 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |
 | 2026-10-25 | R-11 | `2f56444`, `633025f` | Drift documentazione, `CHANGELOG.md`, istruzioni Copilot | review diff (docs) |
-| 2026-10-25 | R-09 | `710f088` | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
+| 2026-10-25 | R-09 | ADR-0024 | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
 | 2026-10-25 | R-07 | `085bb05`, `a2db85c` | Errori TX CAN segnalati (bridge con retry limitato, nodi con `tx_health.h`) | test nativi, battery PASS, `esphome config` ×10 |
 | 2026-10-25 | R-06 (parz.) | `50103e2` | Avviso del generatore per ogni binding `toggle` | test Python, battery PASS |
 | 2026-10-25 | R-12 | `449be90`, `2763cdf` | Gate HA-tier sulla temperatura esterna | e2e host 4/4, `esphome config`, battery PASS |

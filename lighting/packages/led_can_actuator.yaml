@@ -21,15 +21,17 @@
 # slice is the general actuator-command layer (ADR-0020 §1); any board that exposes tw1/tw2 reuses it.
 #
 # Requires from the composing entry point (devices/an-penta-1.yaml, devices/an-quad-1.yaml):
-#   esphome.includes: ../canbus/protocol/canbus_protocol.h   (tx_health.h is added by this package)
+#   (no esphome.includes needed, but the entry point must live directly in devices/: this package
+#   includes ../canbus/protocol/*.h relative to it)
 #   substitutions: node_id (this actuator's CAN node_id), can_tx_pin, can_rx_pin
 #   light ids tw1, tw2 (the cwww strips)
 # =============================================================================
 
 esphome:
   includes:
-    # Relative to the entry point's directory (devices/), like the entry point's own
-    # canbus_protocol.h include — see "Requires" above.
+    # Relative to the entry point's directory (devices/): ESPHome resolves esphome.includes
+    # against the top-level file, so every entry point composing this package lives there.
+    - ../canbus/protocol/canbus_protocol.h
     - ../canbus/protocol/tx_health.h
 
 substitutions:

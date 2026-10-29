@@ -161,7 +161,8 @@ climate:
     heat_output: ${room_slug}_radiant_heat_output
 
 # Pump demand input: the override (boost or manual) is holding the valve open.
-# Same rule as the final stage, so demand can never disagree with the valve.
+# Same rule as the final stage; the valve itself is only re-written on the next
+# PID update, so after an override toggle it can lag by one sensor publish.
 binary_sensor:
   - platform: template
     id: ${room_slug}_radiant_override_active
