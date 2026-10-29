@@ -260,6 +260,27 @@ def validate(parsed: dict, valid_node_ids: set, actuator_node_ids: set = None) -
     return errors
 
 
+def advisories(parsed: dict) -> list:
+    """Return non-fatal advice about a VALID manifest; the caller prints it, nothing here fails.
+
+    One advisory per `op: toggle` binding; rationale in ADR-0003 (double-action window) and
+    the registry/bindings.yaml header.
+    Order follows the manifest and the text is deterministic.
+    """
+    out = []
+    for b in parsed.get("bindings") or []:
+        if b.get("op") != "toggle":
+            continue
+        target = f"relay {b['relay']}" if "relay" in b else f"output {b.get('output')}"
+        out.append(
+            f"binding node {b.get('node_id')} button {b.get('button')} ({target}) uses op: toggle - "
+            "the ADR-0003 ack_timeout_ms fallback window may apply a toggle twice "
+            "(HA toggles, then a late fallback toggles) with no visible effect; the timeout is "
+            "unmeasured (ADR-0003 open item 2), so prefer op: on or op: off"
+        )
+    return out
+
+
 def canonical_hash(parsed: dict) -> str:
     """SHA-256 over the canonical manifest structure, truncated to 16 hex chars.
 

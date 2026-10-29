@@ -22,7 +22,8 @@
 #                An-Penta LED strip driven over the bus when HA is down. The target must be an
 #                external-actuator node in nodes.csv (profile led-penta).
 # Either way a single click degrades to on/off/toggle only; prefer op: on/off over toggle (the
-# ADR-0003 double-action window can bounce a toggle).
+# ADR-0003 double-action window can bounce a toggle). generate_nodes.py prints a non-fatal
+# WARNING for every `op: toggle` binding as a reminder; it changes neither the output nor the hash.
 #
 # Hand-edited and reviewed by git diff. Run tools/generate_nodes.py after any change: it
 # validates every binding against nodes.csv and stamps the new hash into protocol/bindings.h.
