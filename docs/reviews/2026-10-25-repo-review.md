@@ -4,7 +4,7 @@
 |-------|--------|
 | **Data** | 2026-10-25 |
 | **Baseline** | `main` @ `9d0bc28` (Upgrade ESPHome to 2026.8.0, ADR-0022) |
-| **Branch dei fix** | `claude/repo-review-fixes` |
+| **Branch dei fix** | uno per issue, es. `claude/fix-r02-reboot-timeouts` |
 | **Autore** | AI Assistant (Claude Code), su richiesta di Alberto |
 | **Scopo** | Review completa (firmware, logiche, testing, documentazione) e registro vivo di issue e fix |
 
@@ -33,7 +33,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | ID | Sev. | Titolo | Stato | Fix |
 |----|------|--------|-------|-----|
 | [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | ✅ | `1472a90`, `ed4d157` |
-| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | `5b53b0d` |
+| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | PR #67 |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
@@ -147,10 +147,10 @@ avevano già `reboot_timeout: 0s`. Anche `wifi: reboot_timeout` (default 15 min)
 si connette, e il watchdog WiFi **ignora Ethernet** (confermato sul sorgente, vedi sotto): con l'AP
 spento un controller sano su Ethernet si riavvierebbe comunque.
 
-**Correzione prevista.** `api: reboot_timeout: 0s` sui tre controller; `wifi: reboot_timeout: 0s` sulle
+**Correzione prevista.** `api: reboot_timeout: 0s` su t-connect-pro e waveshare-s3-rs485-can (An-Penta/An-Quad già a 0s); `wifi: reboot_timeout: 0s` sulle
 board dual-interface (Ethernet primaria).
 
-**Fix applicato:** ✅ `5b53b0d` — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
+**Fix applicato:** ✅ PR #67 — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
 
 | Board | `api: reboot_timeout` | `wifi: reboot_timeout` | Device |
 |-------|----------------------|------------------------|--------|
@@ -166,7 +166,10 @@ board dual-interface (Ethernet primaria).
 - **Scelta per le board solo WiFi** (health monitor, An-Quad, S1 Pro): il reboot WiFi resta al default perché,
   senza Ethernet, è il percorso di recupero da uno stack WiFi bloccato.
 - **Verificato:** `esphome config` valido sui 5 entry point, con i valori risolti indicati in tabella.
-- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento.
+- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento;
+  conferma sul campo che il watchdog WiFi ignora Ethernet (controller sano su Ethernet con AP spento >15 min non si
+  riavvia); Ethernet giù + AP giù: nessun auto-recupero atteso (trade-off accettato, vedi commento in
+  `boards/t-connect-pro.yaml`).
 - **Non toccate:** le board legacy senza consumer (`a6`, `a16`, `waveshare-s3`).
 
 ---
@@ -212,7 +215,7 @@ automazioni HA.
   1. ricaricare il package `ha_manifest_package.yaml`;
   2. sostituire l'automazione ACK;
   3. eliminare le vecchie automazioni orfane `canbus_gateway_*`;
-  4. controllare che `binary_sensor.light_controller_ha_ready` diventi `on` entro circa 5 s.
+  4. controllare che `binary_sensor.lighting_controller_ha_ready` diventi `on` entro circa 5 s. Se il controller era già stato adottato in HA con un nome precedente, gli entity id restano quelli della prima registrazione (HA non li rinomina): verificare in Impostazioni > Entità e rinominare `binary_sensor.lighting_controller_ha_ready` / `sensor.lighting_controller_fallback_events` (o rimuovere e riaggiungere il dispositivo) prima di fidarsi degli alert.
 
 ---
 
@@ -257,14 +260,15 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
     wrap di `millis()`, scadenza che sopravvive a un wrap completo); aggiunto alla battery.
   - Nuovo harness host `climate/tests/harness/room_sensors.yaml`, che include `room_sensors.yaml` reale.
   - `climate/tests/e2e/test_room_sensors.py`: un finto HA risponde alla sottoscrizione agli stati. Coperti: valore
-    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA", disconnessione oltre la grazia → NaN.
-  - Aggiunti al job CI su `main` e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
+    numerico → tier "HA", `unavailable` → Emergency, disconnessione breve → resta "HA" (temperatura e umidità), disconnessione oltre la
+    grazia → NaN, e a riconnessione senza stato da HA il grezzo azzerato mantiene Emergency/NaN (temperatura e umidità).
+  - Aggiunti a un job CI host su ogni PR e alla battery completa; l'harness è aggiunto anche al gate `esphome config` della CI.
 - **Verificato:**
   - battery nativa PASS in un worktree isolato sul commit;
   - `esphome config` OK su climate-control, sui due harness climate, su light-controller e health-monitor;
   - l'API scelta esiste in 2026.8.0.
-- **Non verificato qui** (PlatformIO bloccato): la compilazione ESP32 per il device.
-- **e2e eseguito in seguito** su un binario host costruito localmente (`esphome compile --only-generate` + g++):
+- **Non verificato qui** (PlatformIO bloccato): la compilazione ESP32 per il device, che gira in CI su `main`.
+- **e2e eseguito in locale (ora anche in CI sulle PR)** su un binario host costruito localmente (`esphome compile --only-generate` + g++):
   **4/4 PASS**, stabile su 3 esecuzioni. Mutation check:
   - con un tracker che non scade mai, `test_disconnect_past_grace_is_nan_then_recovers` fallisce;
   - con la grazia a 0, `test_disconnect_within_grace_keeps_value` fallisce;
@@ -276,6 +280,13 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
   aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
 - **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
   È trascurabile per la temperatura ambiente.
+- **Minimo di mandata per piano:** `ground_floor_supply_temp_minimum` e `first_floor_supply_temp_minimum` mantengono il valore
+  precedente (mai più basso) finché il punto di rugiada di una stanza membro è NaN, perché il `max` della `combination`
+  scarta le sorgenti NaN e altrimenti la stanza uscirebbe dalla protezione.
+- **Conseguenza operativa:** finché le altre 12 zone non hanno un nodo CAN, un blackout di HA oltre la grazia
+  (`ha_staleness_grace_s`, 300 s) porta tutte e 12 in Emergency (uscite PID a 0); la grazia è la leva da regolare.
+  Anche le entità che HA riporta `unavailable`/`unknown` mentre si riavvia valgono NaN subito, per scelta (tenere
+  l'ultimo valore è il congelamento che R-04 elimina).
 - **Interazione con R-05:** l'override del radiante scavalca ancora il NaN, quindi R-05 resta necessaria.
 
 ---
@@ -357,7 +368,7 @@ la decisione spetta al proprietario.
 - **Verifica locale indipendente** dopo tutti i fix, su binari host costruiti con g++: failover 1/1, room_sensors 4/4,
   fancoil_boost 8/8, radiant_direction 34/34.
 - **Restano aperti:**
-  - compile ed e2e solo su push a `main`, non sulle PR;
+  - compile ed e2e (tranne room_sensors) solo su push a `main`, non sulle PR;
   - `assert()` nudo nei test C++;
   - nessun pre-commit né yamllint.
 
@@ -372,9 +383,9 @@ la decisione spetta al proprietario.
 **Fix applicato:** ✅ `2f56444` (`docs: fix documentation drift, split out CHANGELOG.md (R-11)`) + `633025f` (istruzioni Copilot).
 
 - **`CLAUDE.md` alla radice:**
-  - versione 1.20;
+  - versione 1.22 (le voci 1.20/1.21 di R-02/R-04 sono nel `CHANGELOG.md`);
   - range degli ADR 0001…0023, con la nota che lo 0019 non è mai esistito (numero saltato, assente dalla storia git);
-  - il changelog è spostato in **`CHANGELOG.md`**, con una nuova voce 1.20 per i fix R-01–R-04 e R-10;
+  - il changelog è spostato in **`CHANGELOG.md`**, con una voce 1.22 per R-11 (e per le note su R-01, R-03, R-10) accanto alle voci 1.20/1.21 di R-02/R-04;
   - sezione "Failover Architecture" riscritta: tier HA → NaN su `unavailable` o dopo 5 min, Emergency → PID a 0
     **subito**. Non esiste più alcuno "spegnimento dopo 5 minuti".
 - **`climate/CLAUDE.md`, Appendice D:** guadagni allineati al codice (radiante 0.8/0.005/0.05, fancoil 0.2/0.01/0.05,
@@ -446,13 +457,13 @@ Se in quel momento `hp_mode` è già COOL, il fancoil potrebbe partire prima che
 
 ## Registro dei fix
 
-_Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/repo-review-fixes`._
+_Le voci vengono aggiunte man mano che i fix sono committati (un branch per issue)._
 
 | Data | Issue | Commit | Sintesi | Verifica |
 |------|-------|--------|---------|----------|
-| 2026-10-25 | R-02 | `5b53b0d` | `api`/`wifi` `reboot_timeout: 0s` sui controller autonomi | `esphome config` ×5; hardware da fare al bring-up |
-| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
-| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e in CI |
+| 2026-10-25 | R-02 | PR #67 | vedi la sezione R-02 | vedi la sezione R-02 |
+| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×5, battery nativa PASS |
+| 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e locale 4/4 + CI |
 | 2026-10-25 | R-01 | `1472a90` | Uscite PID gated su `hp_mode`, ruoli fancoil, sottotetto riscalda | test nativo, e2e host 20/20, `esphome config` ×5, battery PASS |
 | 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
 | 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |
