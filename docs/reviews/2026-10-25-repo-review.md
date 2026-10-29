@@ -157,7 +157,7 @@ automazioni HA.
   1. ricaricare il package `ha_manifest_package.yaml`;
   2. sostituire l'automazione ACK;
   3. eliminare le vecchie automazioni orfane `canbus_gateway_*`;
-  4. controllare che `binary_sensor.light_controller_ha_ready` diventi `on` entro circa 5 s.
+  4. controllare che `binary_sensor.lighting_controller_ha_ready` diventi `on` entro circa 5 s. Se il controller era già stato adottato in HA con un nome precedente, gli entity id restano quelli della prima registrazione (HA non li rinomina): verificare in Impostazioni > Entità e rinominare `binary_sensor.lighting_controller_ha_ready` / `sensor.lighting_controller_fallback_events` (o rimuovere e riaggiungere il dispositivo) prima di fidarsi degli alert.
 
 ---
 
@@ -310,5 +310,5 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | Data | Issue | Commit | Sintesi | Verifica |
 |------|-------|--------|---------|----------|
 | 2026-10-25 | R-02 | PR #67 | vedi la sezione R-02 | vedi la sezione R-02 |
-| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×4, battery nativa PASS |
+| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×5, battery nativa PASS |
 | 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e locale 4/4 + CI |
