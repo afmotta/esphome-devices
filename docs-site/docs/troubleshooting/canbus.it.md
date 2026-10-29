@@ -226,7 +226,7 @@ invece di scomparire silenziosamente. I frame che il bridge non riesce a
 trasmettere dopo vari tentativi impostano allo stesso modo, in modo
 permanente, `ERR_CAN_TX_FAIL`. Anche i nodi normali segnalano
 `ERR_CAN_TX_FAIL` quando un loro invio viene rifiutato; su un nodo si
-azzera da solo appena un heartbeat passa, quindi un `canbus_node_error` che
+azzera da solo appena il controller accetta un heartbeat, quindi un `canbus_node_error` che
 va e viene indica un tratto di bus instabile. 🔵 PROGETTATO
 
 Se il controller CAN di un nodo basato su ESP32 (il bridge T-2CAN e i

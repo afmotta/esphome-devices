@@ -186,6 +186,13 @@ sono parametri passati al momento dell'inclusione, non nascosti nella logica
 condivisa del componente. Cerca il blocco `vars:` che accompagna l'inclusione del
 pacchetto PID di quella zona.
 
+!!! warning "Limite noto (review R-15): le zone radianti ignorano le var dei guadagni"
+    Per le zone che usano `radiant.yaml`, le var `kp`/`ki`/`kd`/`pwm_period` della zona sono
+    attualmente ignorate. I guadagni radianti si cambiano in
+    `climate/packages/components/heat_only_radiant.yaml` (`defaults:`) e la modifica vale per
+    **tutte** le zone radianti. I guadagni di fancoil e valvola miscelatrice, e delle zone che
+    includono direttamente `heat_only_radiant.yaml`, restano nelle `vars:` della zona.
+
 **Valori predefiniti nel codice** (quelli che il sistema usa se una zona non li sovrascrive):
 
 | Sistema | Kp | Ki | Kd |
@@ -203,9 +210,11 @@ tara una volta, nella stagione in cui il ciclo lavora davvero.
 di più, più rapidamente, rispetto a indovinare dai numeri sopra. Tara a mano
 solo se il risultato non traccia ancora bene. Tre avvertenze sull'auto-taratura:
 eseguila nella stagione propria del ciclo (nella stagione sbagliata l'attuatore resta
-chiuso e la taratura non finisce mai); sui cicli con uscita sia di caldo sia di freddo
-(radiante, fancoil caldo+freddo) **dimezza i guadagni riportati**, perché l'escursione
-reale dell'uscita è 0..1 e non -1..+1 come assume il tuner; e per un fancoil `boost`
+chiuso e la taratura non finisce mai); sui cicli a doppia uscita
+(zone radianti su `radiant.yaml` e fancoil caldo+freddo) **dimezza i guadagni riportati**, perché l'escursione
+reale dell'uscita è 0..1 e non -1..+1 come assume il tuner (non dimezzare le zone radianti
+solo-caldo — bagni e lavanderia — né i cicli solo-freddo; il fattore 2 deriva dai commenti
+del codice del tuner e non è verificato al banco: controllalo alla messa in servizio); e per un fancoil `boost`
 metti prima a mano il suo PID in COOL, perché normalmente resta OFF finché non lo
 avvia il coordinatore del boost.
 

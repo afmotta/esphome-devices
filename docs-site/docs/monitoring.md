@@ -39,11 +39,11 @@ Each room's climate control doesn't read a single sensor directly — it reads a
 The three tiers, in priority order:
 
 1. **Primary (labeled "CAN")** — the room's own CAN bus sensor kit, read directly by the climate controller.
-2. **Secondary (labeled "HA")** — a fallback reading pulled from Home Assistant instead, used only when the CAN reading is unavailable. It counts as unavailable when Home Assistant reports the entity `unavailable`/`unknown`, or when Home Assistant itself has been disconnected from the controller for more than 5 minutes (a short grace that covers an HA restart) — so a frozen last value is never served indefinitely.
-3. **Emergency** — no valid reading from either source. The abstracted value becomes invalid (mathematically "NaN," not-a-number) the moment both sources fail — 🟢 there is no built-in delay in this component before that happens. The room's PID controller reacts to that invalid reading by dropping its outputs to 0 right away (valve closed, fancoil off), so the room is simply not heated or cooled until a source returns.
+2. **Secondary (labeled "HA")** — a fallback reading pulled from Home Assistant instead, used only when the CAN reading is unavailable. It counts as unavailable when Home Assistant reports the entity `unavailable`/`unknown`, or when no state-subscribed API client (Home Assistant or otherwise) has been connected to the controller for more than 5 minutes (a short grace that covers an HA restart; after a boot without HA the tier stays invalid until the first connection). A single entity reporting `unavailable` while a client is connected goes invalid with no grace — so a frozen last value is never served indefinitely.
+3. **Emergency** — no valid reading from either source. The abstracted value becomes invalid (mathematically "NaN," not-a-number) as soon as both sources fail — 🟢 there is no built-in timer in this component, only the polling delay: within about 20 s (one gate poll plus one failover poll, 10 s each) of the HA tier going invalid. The room's PID controller reacts to that invalid reading by dropping its outputs to 0 (valve closed, fancoil off), so the room is simply not heated or cooled until a source returns. **Known gap (review R-05):** if the sensor dies during an active fancoil/radiant boost, the boost override can keep the radiant valve open (100% cold) until R-05 is fixed.
 
     !!! note "About the '5 minutes'"
-        Older project documentation described the Emergency tier as "a safe shutdown after 5 minutes." That was wrong, and it is now resolved: the failover and the PID react **immediately**; the only 5-minute figure is the Home Assistant tier's grace period described above (the time without a Home Assistant connection before that tier is declared unavailable). ✅ Resolved by review item R-04; 🔵 not yet bench-tested on the real controller (see the [Confidence Ledger](reference/confidence-ledger.md)). Tip: an `esphome logs` session left open counts as a Home Assistant connection and keeps the HA tier alive during an outage — use `esphome logs --no-states`.
+        There is no "safe shutdown after 5 minutes" timer: the failover and the PID react as described above, and the only 5-minute figure is the Home Assistant tier's grace period (the time without a state-subscribed connection before that tier is declared unavailable). 🔵 Not yet bench-tested on the real controller (see the [Confidence Ledger](reference/confidence-ledger.md)). Tip: an `esphome logs` session left open counts as a Home Assistant connection and keeps the HA tier alive during an outage — use `esphome logs --no-states`.
 
 Each room exposes a diagnostic **"Active Sensor Tier"** text entity in Home Assistant reporting which tier is currently supplying its data, following the pattern `{room}_temp_abstracted_sensor_tier` (for example, `soggiorno_temp_abstracted_sensor_tier` for the living room). There's a matching one for humidity.
 
@@ -78,6 +78,9 @@ esphome logs <entry-point-file.yaml>
 ```
 
 For example, `esphome logs devices/locals/climate-control.yaml` for the climate controller, or `esphome logs devices/light-controller.yaml` for the lighting controller. (See [Getting Started](setup.md) if you don't yet have a working ESPHome install to run this command.)
+
+!!! warning "Log sessions and Home Assistant outages"
+    A plain `esphome logs` session subscribes to entity states, so the climate controller counts it as a Home Assistant connection and keeps the last room-sensor values alive during an HA outage instead of falling back to Emergency. Use `esphome logs --no-states <file>` for a session that must not count, and close log sessions when testing an HA outage or failover.
 
 ### Turning on verbose Modbus logging
 

@@ -17,7 +17,7 @@ Covers the documented state machine contract:
                  The valve itself closes at once (final stage), not tested here
 
 The harness compresses min_time_in_state to 2 s (prod: 600 s) and the
-sensor-loss grace to 1 s (prod: 120 s). The radiant
+sensor-loss grace to 3 s (prod: 120 s). The radiant
 PID target is 24.0 C, so absolute temps map to deltas: 26.0 => +2.0.
 With humidity threshold 60 and hysteresis 5, boost activates above 62.5
 and may deactivate at or below 57.5.
@@ -191,8 +191,8 @@ async def test_disabling_gate_during_boost_drops_to_radiant(run_harness):
     await h.wait_for(FANCOIL, lambda s: s.mode == ClimateMode.OFF)
 
 
-GRACE = 1.0  # sensor_lost_grace in the harness (prod default 120 s)
-MARGIN = 1.0  # scheduling slack on top of the grace
+GRACE = 3.0  # sensor_lost_grace in the harness (prod default 120 s)
+MARGIN = 2.0  # scheduling slack on top of the grace
 
 
 async def test_sensor_loss_ends_boost_after_the_grace(run_harness):
@@ -252,7 +252,7 @@ async def test_a_reading_back_inside_the_grace_keeps_the_boost(run_harness):
     assert h.states[STATE].state == "Fancoil Boost"
     assert h.states[OVERRIDE_SWITCH].state is True
 
-    # A second loss gets a full grace of its own: 0.6 s of it (the earlier 0.6 s
+    # A second loss gets a full grace of its own: 1.8 s of it (the earlier 1.8 s
     # would add up past one grace if the timer had not been reset) leaves the
     # boost running ...
     await h.call("set_temperature", value=NAN)

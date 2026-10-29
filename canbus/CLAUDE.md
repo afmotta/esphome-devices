@@ -68,9 +68,12 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   transmitter** — a profile package reports by OR-ing its `ERR_*` bit in, and never
   adds a second `CAT_STATUS` interval. One node_id, one heartbeat.
 - **Node-side TX failures are reported, never just logged** (review R-07). Wrap every node
-  `send_data()` result in `tx_health_track()` (`canbus/protocol/tx_health.h`); the heartbeat ORs
+  `send_data()` result in `tx_health_track()` (`canbus/protocol/tx_health.h`; the battery counts
+  `send_data(` call sites in `canbus/packages` and `lighting/packages` and fails any file with more
+  of them than `tx_health_track(`/`tx_health_heartbeat_sent(` wraps); the heartbeat ORs
   `tx_health_flags()` in at send time, so `ERR_CAN_TX_FAIL` reaches the health monitor and clears
-  once an accepted heartbeat has carried it. `error_flags` itself stays sticky-only (the bridge's
+  once the controller has accepted a heartbeat carrying it (MCP2515: loaded into a TX buffer, not
+  ACKed; TWAI: queued) — a dead bus only surfaces once the TX buffers stay full. `error_flags` itself stays sticky-only (the bridge's
   `ERR_BRIDGE_QUEUE_OVERFLOW` / dropped-TX bits). `ERR_CAN_BUS_OFF` is reserved: ESPHome exposes no
   bus-off state.
 - **ESP32 (TWAI) nodes that transmit compose `canbus/packages/tx_watchdog.yaml`** (review R-17):
