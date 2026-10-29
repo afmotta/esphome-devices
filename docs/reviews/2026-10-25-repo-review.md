@@ -34,7 +34,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 |----|------|--------|-------|-----|
 | [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | 🔧 | — |
 | [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | PR #67 |
-| [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | 🔧 | — |
+| [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | 🔧 | — |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
@@ -131,7 +131,32 @@ sbagliato.
 contratto che incrocia `device_name`, servizi dichiarati in `lighting/packages/buttons.yaml` e
 automazioni HA.
 
-**Fix applicato:** _in lavorazione_
+**Fix applicato:** ✅ `2aeb15e` — `canbus: call the light controller's real HA service names (R-03)`
+
+- **Unica fonte del nome.** `canbus/tools/generate_nodes.py` ha la costante `LIGHTING_DEVICE_NAME = "light-controller"`,
+  da cui derivano `LIGHTING_HA_SLUG` e `LIGHTING_SERVICE_PREFIX`. Da lì vengono generati l'id e l'action dell'heartbeat e
+  gli entity id del package di health, il cui output resta identico byte per byte. È una costante e non una lettura dello
+  YAML, così il generatore resta ermetico anche nei test che usano repo temporanei; il contratto la lega al file reale.
+- **Package rigenerato.** `ha_manifest_package.yaml` ora chiama `esphome.light_controller_ha_readiness_heartbeat`
+  (id `light_controller_readiness_heartbeat`).
+- **Automazione ACK** (`ha_arbitration_automations.yaml`, mantenuta a mano): action `esphome.light_controller_ha_ack_event`,
+  id `light_controller_ack_button_events`, header aggiornato.
+- **Nuovo test di contratto `canbus/tests/test_ha_contract.py`** (solo stdlib, 5 test). Legge i file reali e verifica che:
+  - il `device_name` in `devices/light-controller.yaml` coincida con la costante del generatore;
+  - i servizi dichiarati in `lighting/packages/buttons.yaml` corrispondano alle action del package (renderizzato e su
+    disco) e dell'automazione ACK;
+  - gli entity id `HA Ready` e `Fallback Events` corrispondano a quelli usati dal package di health;
+  - non resti alcun `canbus_gateway`.
+  
+  È stato provato anche in negativo: fallisce se si ripristina il vecchio nome o si rinomina l'entità. Il test era stato
+  aggiunto alla battery nativa, che è anche il job `native` della CI (`scripts/verification-battery.sh`), e a `canbus/CLAUDE.md`.
+- **Verificato:** tutti i test Python passano (18 + 47 + 6 + 5). `verification-battery.sh --native-only` passa per intero,
+  idempotenza del generatore compresa.
+- **Azione una tantum lato HA** (gli id delle automazioni cambiano; il sistema è pre-live, quindi è accettabile):
+  1. ricaricare il package `ha_manifest_package.yaml`;
+  2. sostituire l'automazione ACK;
+  3. eliminare le vecchie automazioni orfane `canbus_gateway_*`;
+  4. controllare che `binary_sensor.lighting_controller_ha_ready` diventi `on` entro circa 5 s. Se il controller era già stato adottato in HA con un nome precedente, gli entity id restano quelli della prima registrazione (HA non li rinomina): verificare in Impostazioni > Entità e rinominare `binary_sensor.lighting_controller_ha_ready` / `sensor.lighting_controller_fallback_events` (o rimuovere e riaggiungere il dispositivo) prima di fidarsi degli alert.
 
 ---
 
@@ -227,3 +252,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | Data | Issue | Commit | Sintesi | Verifica |
 |------|-------|--------|---------|----------|
 | 2026-10-25 | R-02 | PR #67 | vedi la sezione R-02 | vedi la sezione R-02 |
+| 2026-10-25 | R-03 | `2aeb15e` | Nomi servizi HA derivati dal `device_name` + test di contratto | test Python ×5, battery nativa PASS |
