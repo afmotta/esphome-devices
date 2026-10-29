@@ -1,0 +1,36 @@
+# pre-commit hooks for esphome-devices.
+#
+# Install once per clone:
+#   pip install pre-commit && pre-commit install
+# Run everything on demand:
+#   pre-commit run --all-files
+#
+# Mirrors the CI `lint` job (yamllint + repo hygiene) and runs the fast stdlib/native
+# subset of the verification battery (~5 s; needs python3 and g++ on PATH). The slow
+# gates - generator idempotence, `esphome config/compile`, host e2e - stay in CI and in
+# `bash scripts/verification-battery.sh` (see climate/CLAUDE.md).
+repos:
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        # Same config as CI; --strict makes warnings fail too.
+        args: [--strict, -c, .yamllint]
+
+  - repo: local
+    hooks:
+      - id: repo-hygiene
+        name: repo hygiene (no tracked secrets or build artifacts)
+        entry: python3 scripts/check_repo_hygiene.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: verification-battery-fast
+        name: "verification battery (--fast, python + native tests)"
+        # --fast = --native-only without the generator-idempotence step, which needs a
+        # clean tree and so cannot run against staged-but-uncommitted changes.
+        entry: bash scripts/verification-battery.sh --fast
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -7,14 +7,20 @@
 # Usage (from anywhere — the script locates the repo root):
 #   bash scripts/verification-battery.sh                 # full battery
 #   bash scripts/verification-battery.sh --native-only   # esphome-free subset
+#   bash scripts/verification-battery.sh --fast          # --native-only minus the
+#                                                        # generator idempotence step
+#                                                        # (the pre-commit hook; works
+#                                                        # with a dirty tree)
 #
 # --native-only runs only the python + native C++ tests and the generator
 # idempotence check, loudly skipping every step that needs the `esphome` CLI:
-# the ESPHome config/compile gates and the Climate package failover e2e (whose fixture
-# compiles a host-platform harness). Use it when ESPHome is not installed.
+# the ESPHome config/compile gates and the Climate host e2e suite (whose fixtures
+# compile host-platform harnesses; CI runs it as the PR-gating `climate-e2e` job).
+# Use it when ESPHome is not installed.
 # ESPHome pin for full runs: esphome==2026.8.0 (climate/tests/pyproject.toml's
-# deliberate pin, >= the repo entry points' 2026.8.0 floor). The Climate package e2e
-# step additionally needs pytest, pytest-asyncio, and aioesphomeapi.
+# deliberate pin, >= the repo entry points' 2026.8.0 floor). The Climate e2e
+# step (the whole climate/tests/e2e directory, run serially — the harnesses share
+# API port 6053) additionally needs pytest, pytest-asyncio, and aioesphomeapi.
 #
 # NOTE — the "generator idempotence" step regenerates every generated artifact
 # and then asserts `git diff --exit-code canbus climate registry`, so the TRACKED
@@ -34,13 +40,15 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 usage() {
-  sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 NATIVE_ONLY=0
+FAST=0
 for arg in "$@"; do
   case "$arg" in
     --native-only) NATIVE_ONLY=1 ;;
+    --fast) NATIVE_ONLY=1; FAST=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "error: unknown argument '$arg' (try --help)" >&2; exit 2 ;;
   esac
@@ -191,7 +199,11 @@ run_step "native: climate test_pid_direction.cpp" \
   cxx_run climate_pid_direction -Iclimate/protocol climate/tests/test_pid_direction.cpp
 
 # ── Generator idempotence (needs clean canbus/climate/registry paths) ──────────
-run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
+if [ "$FAST" -eq 1 ]; then
+  skip_step "generator idempotence: regenerate + git diff --exit-code" "--fast; needs a clean tree"
+else
+  run_step "generator idempotence: regenerate + git diff --exit-code" idempotence_check
+fi
 
 # ── ESPHome gates + Climate package e2e (skipped under --native-only) ───────
 if [ "$NATIVE_ONLY" -eq 1 ]; then
@@ -202,12 +214,7 @@ if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "esphome compile canbus/tests/compile_bridge_t2can.yaml"    "--native-only"
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
-  skip_step "pytest climate/tests/e2e/test_failover_sensor.py"              "--native-only"
-  skip_step "pytest climate/tests/e2e/test_room_sensors.py"                 "--native-only"
-  skip_step "pytest climate/tests/e2e/test_radiant_direction.py"            "--native-only"
-  skip_step "pytest climate/tests/e2e/test_fancoil_boost.py"                "--native-only"
-  skip_step "pytest climate/tests/e2e/test_outdoor.py"                      "--native-only"
-  skip_step "pytest climate/tests/e2e/test_mev_ventilation.py"              "--native-only"
+  skip_step "pytest climate/tests/e2e (host harness builds)" "--native-only; needs esphome + pytest"
 else
   run_step "esphome config climate/tests/compile_can_sensor_receiver.yaml" \
     esphome config climate/tests/compile_can_sensor_receiver.yaml
@@ -223,18 +230,9 @@ else
     esphome config devices/locals/climate-control.yaml
   run_step "esphome compile devices/locals/climate-control.yaml" \
     esphome compile devices/locals/climate-control.yaml
-  run_step "pytest climate/tests/e2e/test_failover_sensor.py" \
-    python3 -m pytest climate/tests/e2e/test_failover_sensor.py
-  run_step "pytest climate/tests/e2e/test_room_sensors.py" \
-    python3 -m pytest climate/tests/e2e/test_room_sensors.py
-  run_step "pytest climate/tests/e2e/test_radiant_direction.py" \
-    python3 -m pytest climate/tests/e2e/test_radiant_direction.py
-  run_step "pytest climate/tests/e2e/test_fancoil_boost.py" \
-    python3 -m pytest climate/tests/e2e/test_fancoil_boost.py
-  run_step "pytest climate/tests/e2e/test_outdoor.py" \
-    python3 -m pytest climate/tests/e2e/test_outdoor.py
-  run_step "pytest climate/tests/e2e/test_mev_ventilation.py" \
-    python3 -m pytest climate/tests/e2e/test_mev_ventilation.py
+  # Serial on purpose: every harness binds API port 6053 (no pytest -n).
+  run_step "pytest climate/tests/e2e (host harness builds)" \
+    python3 -m pytest climate/tests/e2e
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

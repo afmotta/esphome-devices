@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 import socket
 import subprocess
 import tempfile
@@ -47,8 +48,13 @@ def _compile(config: Path) -> Path:
 
 
 def _spawn(binary: Path, workdir: str) -> subprocess.Popen:
+    # The host platform does NOT keep preferences in cwd: it uses
+    # $ESPHOME_PREFDIR, else ~/.esphome/prefs/<name>.prefs, shared by every
+    # run (and every checkout) of the same harness. Point it at the fresh
+    # workdir so restore_value state cannot leak between tests or runs.
+    env = {**os.environ, "ESPHOME_PREFDIR": workdir}
     return subprocess.Popen(
-        [str(binary)], cwd=workdir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        [str(binary)], cwd=workdir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
 
 
@@ -150,9 +156,9 @@ async def run_harness():
 
     async def _run(name: str) -> Harness:
         binary = await asyncio.to_thread(_compile, HARNESS_DIR / f"{name}.yaml")
-        # Fresh working directory per run: the host platform persists
-        # preferences (e.g. select restore_value) to a file in cwd, and
-        # tests must not inherit state from previous runs.
+        # Fresh working directory per run, also used as the preferences dir
+        # (see ESPHOME_PREFDIR below): tests must not inherit restore_value
+        # state from previous tests or runs.
         workdir = tempfile.mkdtemp(prefix=f"climate-e2e-{name}-")
         # Every harness binds the fixed API port. If something already listens
         # there (a stale binary, a parallel run), the client would silently talk

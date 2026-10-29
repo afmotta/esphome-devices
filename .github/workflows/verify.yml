@@ -18,6 +18,22 @@ jobs:
       - name: Run native verification battery
         run: bash scripts/verification-battery.sh --native-only
 
+  # Same checks as the yamllint + repo-hygiene hooks in .pre-commit-config.yaml.
+  lint:
+    name: YAML lint + repo hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install yamllint
+        run: pip install "yamllint==1.37.1"
+      - name: yamllint (config in .yamllint)
+        run: yamllint --strict -c .yamllint .
+      - name: Repo hygiene
+        run: python3 scripts/check_repo_hygiene.py
+
   esphome-config:
     name: ESPHome config gates
     runs-on: ubuntu-latest
@@ -57,35 +73,35 @@ jobs:
             echo "::endgroup::"
           done
 
-  # Host-platform e2e: the harness builds the real room_sensors.yaml and ha_tier.h
-  # as a local Linux binary (no ESP32-S3 toolchain), so it is cheap enough to run on
-  # every PR. `esphome config` above never compiles lambdas; this does. The
-  # `esphome: includes` wiring in devices/climate-control.yaml is still only
-  # compiled on main (esphome-compile below).
-  climate-room-sensors-e2e:
-    name: Climate room-sensors HA-tier e2e (host)
+  # Host-platform e2e: each harness compiles to a plain Linux binary (no ESP32
+  # toolchain), so this is cheap enough to gate every PR as well as pushes to main.
+  # Every harness binds the fixed native-API port 6053 and conftest.py fails fast if
+  # it is busy, so pytest must run serially — never add `-n`/xdist here. A new e2e
+  # file under climate/tests/e2e/ is picked up automatically.
+  climate-e2e:
+    name: Climate host e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+      # Same pins as climate/tests/pyproject.toml (esphome is pinned deliberately).
       - name: Install ESPHome + e2e deps (repo pins)
-        run: pip install "esphome==2026.8.0" "pytest>=8.0" "pytest-asyncio>=0.23" "aioesphomeapi>=32.0.0"
+        run: pip install "esphome==2026.8.0" pytest pytest-asyncio aioesphomeapi
       - name: Generate CI dummy secrets
         run: bash scripts/ci-dummy-secrets.sh
-      - name: Cache PlatformIO host toolchain
+      - name: Cache PlatformIO (host/native toolchain)
         uses: actions/cache@v4
         with:
           path: ~/.platformio
           key: pio-host-${{ runner.os }}-esphome-2026.8.0
-      - name: Climate room-sensors HA-tier e2e
-        run: python3 -m pytest climate/tests/e2e/test_room_sensors.py
+      - name: Climate e2e (host harnesses)
+        run: python3 -m pytest climate/tests/e2e
 
-  # Full compiles + the Climate failover e2e are heavy (ESP32-S3 esp-idf build),
-  # so they gate pushes to main rather than every PR iteration.
+  # Full ESP32/RP2040 compiles are heavy (esp-idf build), so they gate pushes to
+  # main rather than every PR iteration. (The host e2e runs in `climate-e2e` above.)
   esphome-compile:
     name: ESPHome compile gates (main)
     if: github.event_name == 'push'
@@ -96,8 +112,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install ESPHome + e2e deps (repo pins)
-        run: pip install "esphome==2026.8.0" pytest pytest-asyncio aioesphomeapi
+      - name: Install ESPHome (repo pin)
+        run: pip install "esphome==2026.8.0"
       - name: Generate CI dummy secrets
         run: bash scripts/ci-dummy-secrets.sh
       - name: Cache PlatformIO toolchains
@@ -124,13 +140,3 @@ jobs:
         run: esphome compile canbus/tests/compile_bridge_t2can.yaml
       - name: Compile climate controller
         run: esphome compile devices/locals/climate-control.yaml
-      - name: Climate failover e2e
-        run: python3 -m pytest climate/tests/e2e/test_failover_sensor.py
-      - name: Climate PID direction e2e
-        run: python3 -m pytest climate/tests/e2e/test_radiant_direction.py
-      - name: Climate fancoil-boost e2e
-        run: python3 -m pytest climate/tests/e2e/test_fancoil_boost.py
-      - name: Climate outdoor HA-tier e2e
-        run: python3 -m pytest climate/tests/e2e/test_outdoor.py
-      - name: Climate MEV ventilation e2e
-        run: python3 -m pytest climate/tests/e2e/test_mev_ventilation.py

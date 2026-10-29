@@ -41,7 +41,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
-| [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
+| [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ✅ (resta `assert()` nei test C++) | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11`, `32b6ea2`, `e2cb259`, `3a0cc0a` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ✅ | `449be90`, `2763cdf` |
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
@@ -49,6 +49,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ⬜ | — |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
+| [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ⬜ | — |
 
 ---
 
@@ -446,6 +447,32 @@ la decisione spetta al proprietario.
   - `conftest.py` fallisce subito se la porta API 6053 è già occupata, invece di collegarsi al binario sbagliato.
 - **Verifica locale indipendente** dopo tutti i fix, su binari host costruiti con g++: failover 1/1, room_sensors 4/4,
   fancoil_boost 8/8, radiant_direction 34/34.
+- **Seconda tranche:** `32b6ea2`, `e2cb259` (subagente) + `3a0cc0a`.
+  - **`climate-e2e`**, un nuovo job CI su **ogni PR e push**, esegue `pytest climate/tests/e2e` (tutti i file, in serie,
+    perché ogni harness usa la porta 6053). Gli step e2e per file sono rimossi dal job di compilazione, che resta solo su
+    `main`.
+  - Nella battery l'e2e diventa un unico step su tutta la directory.
+  - **`lint`**, nuovo job su PR e push: `yamllint --strict -c .yamllint .` più `check_repo_hygiene.py`.
+    - `.yamllint` è tarato perché il repo attuale passi. Sono disattivate le regole di stile `line-length`,
+      `document-start`, `comments`, `comments-indentation`, `braces`, `commas`, `new-line-at-end-of-file`, mentre `truthy`
+      è allentata.
+    - Nessun errore YAML reale è stato trovato.
+  - **`.pre-commit-config.yaml`** esegue yamllint, hygiene e `verification-battery.sh --fast`, una nuova modalità: è
+    `--native-only` senza il controllo di idempotenza, quindi funziona anche su un albero modificato, in circa 5 s. Per
+    installarlo: `pip install pre-commit && pre-commit install`.
+  - **Isolamento delle preferenze host** (`3a0cc0a`): `conftest.py` diceva che una cwd nuova isolava lo stato, ma l'host
+    platform salva le preferenze in `$ESPHOME_PREFDIR`, altrimenti in `~/.esphome/prefs/<nome>.prefs`, file condivisi tra
+    esecuzioni, checkout e agenti.
+    - Lo stato `restore_value` passava da un test all'altro: `test_radiant_direction` falliva 6/34 dopo altre
+      esecuzioni, e `test_fancoil_boost` passava solo grazie a un OFF ereditato che mascherava R-16.
+    - Ora ogni test usa `ESPHOME_PREFDIR` sulla propria workdir. L'harness boost fissa il PID fancoil a OFF al boot,
+      salvo un boost in replay, come nel ruolo `boost`.
+  - **Verificato:**
+    - yamllint `--strict` OK, battery `--fast` e `--native-only` PASS, workflow con i job
+      `native`/`lint`/`esphome-config`/`climate-e2e`/`esphome-compile`;
+    - **tutti e 6 gli e2e climate passano con preferenze isolate: 1+4+4+6+34+8.**
+  - **Da verificare in CI:** la cache PlatformIO del nuovo job e il primo run reale.
+- **Ancora aperto:** `assert()` nudo nei test C++ (minore).
 - **Restano aperti:**
   - compile ed e2e (tranne room_sensors) solo su push a `main`, non sulle PR;
   - `assert()` nudo nei test C++;
@@ -538,6 +565,24 @@ _Emersa durante il fix di R-07._ `esp32_can` (ESPHome 2026.8.0) non chiama mai `
 che va in bus-off non torna sul bus senza un riavvio: riguarda health monitor, An-Penta, An-Quad e il bridge T-2CAN.
 Servono un componente esterno, oppure un riavvio automatico in caso di `ERR_CAN_TX_FAIL` persistente.
 
+### R-18 — Merge silenzioso degli on_boot dei package
+
+_Emersa durante R-10._ In ESPHome 2026.8.0, quando più package dichiarano `esphome: on_boot:` le regole di merge sono:
+
+- **Forma a mappa:** tutti gli hook diventano **un solo trigger**. Le azioni `then` si concatenano e sopravvive una sola
+  `priority`.
+  - climate-control: un unico trigger a -100;
+  - bridge T-2CAN: il reset dell'MCP2515 a 800, `node_core` a 200 e `bridge` a 190 diventano un trigger a 190.
+- **Forma a lista:** le voci (`- priority: …`) si concatenano come trigger separati, come nel lighting controller.
+- **Forme miste:** un lato viene **scartato**. Nell'harness boost una lista nel file principale ha fatto sparire l'hook
+  -100 del coordinatore.
+
+Oggi l'effetto in produzione è innocuo: sulla T-2CAN il reset precede comunque il setup dell'MCP2515, che è a -100.
+Però le priorità dichiarate nei package (e i commenti che le giustificano) non corrispondono a quelle effettive.
+
+**Proposta:** usare ovunque la forma a lista con priorità esplicite e aggiungere un test che controlli il numero e la
+priorità dei trigger nelle config risolte.
+
 ---
 
 ## Cosa va bene
@@ -573,3 +618,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-06 (parz.) | `50103e2` | Avviso del generatore per ogni binding `toggle` | test Python, battery PASS |
 | 2026-10-25 | R-12 | `449be90`, `2763cdf` | Gate HA-tier sulla temperatura esterna | e2e host 4/4, `esphome config`, battery PASS |
 | 2026-10-25 | R-08b | `e1d8e68`, `bd32bc6` | Min-fan, soglie e ritardi MEV come numeri locali | e2e host 6/6, `esphome config`, battery PASS |
+| 2026-10-25 | R-10 | `32b6ea2`, `e2cb259`, `3a0cc0a` | e2e host su ogni PR, lint yamllint/hygiene, pre-commit, isolamento preferenze host | yamllint OK, battery PASS, e2e climate 57/57 |
