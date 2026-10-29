@@ -3,7 +3,9 @@
 # Purpose:   fancoil_role "heat_cool": a standalone fancoil that both heats and
 #            cools its room (sottotetto). Adds the gated HEAT-direction output
 #            to the PID (fancoil.yaml already adds the cool one) and switches
-#            the PID mode with the heat pump: HEAT / COOL / OFF.
+#            the PID mode with the heat pump: HEAT / COOL / OFF. The mapping
+#            lives in one script, run on every hp_mode change and once at boot
+#            (R-16).
 #
 # Uses the vars and substitutions of fancoil.yaml (room_slug, output_id,
 # seasonal_mode_id); not meant to be included on its own.
@@ -24,18 +26,17 @@ climate:
   - id: !extend ${room_slug}_fancoil_pid
     heat_output: ${room_slug}_fancoil_heat_output
 
-# Seasonal mode handler: the PID follows the heat pump (SANITARY_ONLY => OFF)
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - lambda: |-
-            auto call = id(${room_slug}_fancoil_pid).make_call();
-            if (x == "COOL") {
-              call.set_mode(climate::CLIMATE_MODE_COOL);
-            } else if (x == "HEAT") {
-              call.set_mode(climate::CLIMATE_MODE_HEAT);
-            } else {
-              call.set_mode(climate::CLIMATE_MODE_OFF);
-            }
-            call.perform();
+script:
+  # The PID follows the heat pump: HEAT / COOL / OFF (SANITARY_ONLY => OFF).
+  - id: ${room_slug}_fancoil_sync_mode
+    then:
+      - lambda: |-
+          auto call = id(${room_slug}_fancoil_pid).make_call();
+          if (id(${seasonal_mode_id}).current_option() == "COOL") {
+            call.set_mode(climate::CLIMATE_MODE_COOL);
+          } else if (id(${seasonal_mode_id}).current_option() == "HEAT") {
+            call.set_mode(climate::CLIMATE_MODE_HEAT);
+          } else {
+            call.set_mode(climate::CLIMATE_MODE_OFF);
+          }
+          call.perform();

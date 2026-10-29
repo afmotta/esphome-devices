@@ -41,6 +41,9 @@
 #                                  last transition; stamped only while the time
 #                                  source is valid, restored across reboots
 #                                  (default: ${zone_slug}_last_mode_change_epoch)
+#   sensor_lost_grace            - How long ${temperature_sensor} must stay NaN
+#                                  during a boost before the boost ends
+#                                  (default: 120s; see "Sensor loss" below)
 #   time_id                      - Time component id used for epoch stamping
 #                                  (default: sntp_time; the test harness
 #                                  provides a host-clock time under this id)
@@ -72,18 +75,24 @@
 # Sensor loss (R-05): while a boost runs the radiant valve is held open by the
 # override (100 %) and the fancoil is in COOL, both of which would otherwise
 # outlive a dead room sensor (the delta is NaN, so "target reached" can never
-# become true). When ${temperature_sensor} goes NaN - the failover chain is in
-# its Emergency tier - the boost therefore ends IMMEDIATELY, through the same
-# no-delay path as the season / commissioning-gate override, and is logged. No
-# boost starts while the temperature is NaN, whichever trigger fires, so a
-# humidity trigger cannot re-arm a boost that the sensor-loss path would
-# immediately cancel. After a reboot the temperature is NaN until the first
-# reading, so a boost restored from flash is cancelled the same way and has to
-# earn its way back through the normal anti-cycling delay.
-# The radiant final stage independently closes the valve for a NaN zone
-# temperature (heat_only_radiant.yaml / radiant_override.h), so the valve is
-# shut even in the instant before this coordinator reacts.
-#
+# become true). When ${temperature_sensor} stays NaN - the failover chain is in
+# its Emergency tier - for ${sensor_lost_grace}, the boost therefore ends,
+# through the same no-delay path as the season / commissioning-gate override,
+# and is logged. No boost STARTS while the temperature is NaN, whichever
+# trigger fires (no grace there), so a humidity trigger cannot re-arm a boost
+# that the sensor-loss path would cancel.
+# Why a grace and not an immediate stop: the actuators are already safe the
+# instant the reading goes NaN - the radiant final stage closes the valve
+# (heat_only_radiant.yaml / radiant_override.h, whatever the override says) and
+# ESPHome's PID writes 0 on a NaN input - so the boost STATE only decides what
+# happens when the sensor returns. After a reboot the temperature is NaN until
+# the first reading (CAN tier: first frame; HA tier: closed until an HA client
+# connects); stopping at once would cancel every boost restored from flash.
+# With the grace a restored boost survives a reboot whose first reading arrives
+# in time, while a real loss still ends the boost after ${sensor_lost_grace}
+# (it is then back on the normal anti-cycling path). The grace is a
+# delayed_on filter: it restarts from zero for every loss, and a reading that
+# comes back inside it cancels the pending stop.
 # Exposes:
 #   select.{zone_slug}_boost_state                    - Boost state selector
 #   switch.{zone_slug}_boost_enabled                   - Commissioning gate (default OFF)
@@ -133,6 +142,7 @@ defaults:
   saturated_output_threshold: 0.95
   diagnostics_update_interval: 30s
   predictive_max_minutes: 120
+  sensor_lost_grace: 120s
   boost_active_global: ${zone_slug}_boost_active
   last_mode_change_time_global: ${zone_slug}_last_mode_change_time
   last_mode_change_epoch_global: ${zone_slug}_last_mode_change_epoch
@@ -530,6 +540,13 @@ binary_sensor:
       if (state != "Fancoil Boost") return false;
       return !id(${cooling_mode_sensor}).state ||
              !id(${zone_slug}_boost_enabled).state;
+    # In the first loop after a boot the season input may still read its initial
+    # "false" (has_state() is already true then, so it cannot be told apart from
+    # a real "season ended"), which would cancel a boost replayed from flash.
+    # The input is re-evaluated within a loop or two; a short delayed_on lets
+    # that correction cancel the pending stop (the falling edge passes through).
+    filters:
+      - delayed_on: 500ms
     on_press:
       - select.set:
           id: ${zone_slug}_boost_state
@@ -540,12 +557,19 @@ binary_sensor:
           level: INFO
           tag: boost
 
-  # Safety (R-05): the room temperature is gone (failover chain in Emergency, or
-  # not yet read after a reboot) while boost is active -> immediate deactivation,
-  # same no-delay path as above. should_end_boost cannot do this: a NaN delta
-  # never satisfies "target reached", which left the zone at 100% radiant
-  # cooling plus fancoil COOL indefinitely. Reads the sensor itself, not the
-  # polled temp_delta, so it reacts within one loop iteration.
+  # Safety (R-05): the room temperature has been gone for ${sensor_lost_grace}
+  # (failover chain in Emergency, or no reading since a reboot) while boost is
+  # active -> deactivation, same no-delay path as above. should_end_boost cannot
+  # do this: a NaN delta never satisfies "target reached", which left the zone
+  # at 100% radiant cooling plus fancoil COOL indefinitely. Reads the sensor
+  # itself, not the polled temp_delta.
+  # The actuators do not wait for this: the radiant final stage closes the valve
+  # and the PIDs write 0 as soon as the reading is NaN. The grace only keeps a
+  # boost restored from flash alive across the boot-time NaN (see the header).
+  # delayed_on (binary_sensor/filter.cpp, DelayedOnFilter::new_value): a rising
+  # edge arms a timeout, a falling edge cancels it and passes the false through;
+  # Filter::input de-duplicates, so the template's per-loop republish of the
+  # same value does not re-arm the timer.
   - platform: template
     name: "${zone_name} Boost Sensor Lost"
     id: ${zone_slug}_boost_sensor_lost
@@ -554,6 +578,8 @@ binary_sensor:
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Fancoil Boost") return false;
       return isnan(id(${temperature_sensor}).state);
+    filters:
+      - delayed_on: ${sensor_lost_grace}
     on_press:
       - select.set:
           id: ${zone_slug}_boost_state

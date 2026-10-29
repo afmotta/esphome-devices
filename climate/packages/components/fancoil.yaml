@@ -16,6 +16,18 @@
 #   heat_cool  - standalone heating and cooling (sottotetto): HEAT / COOL /
 #                OFF following the heat pump mode.
 #
+# Boot state (R-16): the role file defines the script
+# ${room_slug}_fancoil_sync_mode (the PID mode its role wants for the current
+# hp_mode); this file runs it on every hp_mode change and once at boot (see the
+# hooks at the bottom). Resulting boot mode: boost => OFF unless the boost
+# coordinator replays a restored boost; cool_only => COOL iff hp_mode COOL;
+# heat_cool => HEAT / COOL / OFF with hp_mode.
+# A reboot therefore discards a manual or HA-set fancoil PID mode and returns
+# to this role/hp_mode mapping (as an hp_mode change already does); the window
+# guard re-asserts OFF if the window is still open. A restored boost surviving
+# the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s
+# staleness grace exceeds the coordinator's sensor_lost_grace.
+#
 # Direction gating: ESPHome's PID routes a positive value to heat_output and a
 # negative one to cool_output regardless of its HEAT/COOL mode, so a fancoil
 # with only cool_output ran whenever the room was too WARM, even in winter. The
@@ -100,3 +112,28 @@ output:
 climate:
   - id: !extend ${room_slug}_fancoil_pid
     cool_output: ${room_slug}_fancoil_cool_output
+
+select:
+  - id: !extend ${seasonal_mode_id}
+    on_value:
+      then:
+        - script.execute: ${room_slug}_fancoil_sync_mode
+
+# Boot sync (R-16). The seasonal select's restore publishes (and so fires the
+# handler above) in its setup (priority HARDWARE), BEFORE the PID's own setup()
+# (DATA), whose restore_state_() then overwrites that mode -- and with no saved
+# state (first boot, or a new PID after a firmware change) a PID with a
+# cool_output starts in COOL regardless of hp_mode. Re-running the sync once
+# everything is set up makes the boot mode deterministic.
+#
+# Written as a MAPPING at priority -100, exactly like fancoil_boost.yaml's
+# boot hook: ESPHome merges package `on_boot:` mappings into ONE trigger (the
+# `then` lists concatenate, one `priority` survives), whereas a list-form
+# on_boot replaces a mapping-form one (or is replaced by it) and silently
+# drops a hook (R-18). Do not change the priority or the form without changing
+# the coordinator's too.
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: ${room_slug}_fancoil_sync_mode

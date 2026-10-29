@@ -125,7 +125,8 @@ Fancoils declare a required `fancoil_role`: `boost` (cooling boost, only the
 
 **The radiant override is a convenience, never a safety bypass** (review R-05). The final stage
 (`climate/protocol/radiant_override.h`) forces the valve closed whenever the zone temperature is NaN,
-whatever the override says, and a NaN temperature ends a running boost immediately. A floor's pump
+whatever the override says, and a NaN temperature that persists for `sensor_lost_grace` (default 120 s)
+ends a running boost — the grace lets a boost restored from flash survive the boot-time NaN (R-16). A floor's pump
 demand is `*_radiant_pid_is_active || *_radiant_override_active` for every radiant zone — read with
 **`.state`**: `id(binary_sensor)` in a lambda is the sensor *pointer* (always true), which is how the
 pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.py` enforces both.
@@ -139,6 +140,18 @@ the integral has decayed to 0 (~200 s per unit of error at ki 0.005, mirror in C
 seasonal-mode coordinators reading `*_pid_is_active` see — and after a long SANITARY_ONLY the
 previous season's bounds still apply (a SANITARY_ONLY restored at boot runs symmetric bounds);
 both are bounded by `integral_limit`. Rationale: `pid_direction::integral_bounds`.
+
+**Fancoil boot state is owned by the role** (review R-16). Each `fancoil_role_*.yaml` maps `hp_mode`
+to the PID mode in one script (`${room_slug}_fancoil_sync_mode`); `fancoil.yaml` runs it from the select's
+`on_value` *and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package
+`on_boot` mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
+The hook order against the boost coordinator's replay only matters for a restored boost under a non-COOL
+`hp_mode`: the final PID mode (OFF or COOL) then depends on which runs last, but it never actuates (the cool
+output is gated on `hp_mode`) and the coordinator's season override ends the boost.
+A reboot discards a manual or HA-set fancoil PID mode and returns to the role/`hp_mode` mapping (as an
+`hp_mode` change already does); the window guard re-asserts OFF if the window is still open. A restored boost
+surviving the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s staleness grace exceeds
+`sensor_lost_grace`.
 
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 

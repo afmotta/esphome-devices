@@ -329,8 +329,9 @@ details, and polling intervals):
 3. **Emergency**: the failover returns NaN **immediately** once both tiers are NaN — it has no timer of its
    own. ESPHome's PID answers a NaN input by driving its outputs to 0 at once (`pid_climate.cpp`); there is
    no separate "safe shutdown after 5 minutes". The only 5-minute figure is the HA-tier grace above.
-   The radiant override cannot bypass it: a NaN zone forces the valve closed and ends a boost at once
-   (review R-05).
+   The radiant override cannot bypass it: a NaN zone forces the valve closed at once, and a NaN that persists
+   for `sensor_lost_grace` (default 120 s) ends a boost; the grace lets a boost restored from flash survive the
+   boot-time NaN (reviews R-05, R-16).
 
 **Automatic Recovery**: the failover switches back to the highest tier that has a valid reading again
 (CAN preferred, then HA).

@@ -13,6 +13,18 @@
 # be cut short (the coordinator would not restart it). When the season really
 # ends the coordinator's own season override ends the boost.
 #
+# Boot (R-16): the PID's first-boot default is COOL (it has only a cool_output)
+# and its restore overwrites what the handler did before the PID's setup, so a
+# fancoil could come up cooling with no boost, behind the commissioning gate.
+# The same handler is therefore re-run once at boot (fancoil.yaml): OFF unless
+# a boost is restored as running while hp_mode is COOL, in which case it leaves
+# the PID alone and the coordinator's boot replay (also priority -100, merged
+# into the same trigger) owns it. The two hooks' order matters only when the
+# restored boost meets a hp_mode that is not COOL: the final PID mode (OFF or
+# COOL) then depends on which runs last, but it never actuates -- the cool
+# output is gated on hp_mode -- and the coordinator's season override ends the
+# boost. With hp_mode COOL the result is the same in either order.
+#
 # Optional vars:
 #   boost_state_select_id    - The boost coordinator's select (default:
 #                              ${room_slug}_boost_state)
@@ -24,13 +36,14 @@
 defaults:
   boost_state_select_id: ${room_slug}_boost_state
 
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - lambda: |-
-            if (x == "COOL" && id(${boost_state_select_id}).current_option() == "Fancoil Boost")
-              return;
-            auto call = id(${room_slug}_fancoil_pid).make_call();
-            call.set_mode(climate::CLIMATE_MODE_OFF);
-            call.perform();
+script:
+  # Never turns the PID on; see above for the one case it leaves alone.
+  - id: ${room_slug}_fancoil_sync_mode
+    then:
+      - lambda: |-
+          if (id(${seasonal_mode_id}).current_option() == "COOL" &&
+              id(${boost_state_select_id}).current_option() == "Fancoil Boost")
+            return;
+          auto call = id(${room_slug}_fancoil_pid).make_call();
+          call.set_mode(climate::CLIMATE_MODE_OFF);
+          call.perform();

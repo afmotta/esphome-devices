@@ -13,6 +13,7 @@
 #   - diagnostics_update_interval: 100ms (temp delta poll; prod default 30s)
 #   - condition binary sensors need no compression: template binary sensors
 #     are evaluated every loop() iteration
+#   - sensor_lost_grace: 3s          (NaN-temperature boost stop grace; prod 120s)
 #   - predictive delay is runtime-controlled via set_predictive_minutes
 #     (fractional minutes work: 0.05 = 3 s); its clamp is compressed to
 #     0.1 min = 6 s (predictive_max_minutes; prod default 120)
@@ -225,3 +226,4 @@ packages:
       min_time_in_state_seconds: 2
       diagnostics_update_interval: 100ms
       predictive_max_minutes: 0.1   # 6 s: lets a test observe the clamp
+      sensor_lost_grace: 3s         # sensor-loss stop grace (R-05; prod default 120s)

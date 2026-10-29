@@ -3,21 +3,23 @@
 # Purpose:   fancoil_role "cool_only": a standalone fancoil that only cools
 #            (locale tecnico, "Heating: None"). No heat output is wired, so the
 #            PID never reports "heating" for it; the PID is COOL while the heat
-#            pump produces chilled water and OFF in every other mode.
+#            pump produces chilled water and OFF in every other mode. The
+#            mapping lives in one script, run on every hp_mode change and once
+#            at boot (R-16).
 #
 # Uses the vars and substitutions of fancoil.yaml (room_slug,
 # seasonal_mode_id); not meant to be included on its own.
 # =============================================================================
 
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - lambda: |-
-            auto call = id(${room_slug}_fancoil_pid).make_call();
-            if (x == "COOL") {
-              call.set_mode(climate::CLIMATE_MODE_COOL);
-            } else {
-              call.set_mode(climate::CLIMATE_MODE_OFF);
-            }
-            call.perform();
+script:
+  # Bring the PID to the mode this role wants for the current hp_mode.
+  - id: ${room_slug}_fancoil_sync_mode
+    then:
+      - lambda: |-
+          auto call = id(${room_slug}_fancoil_pid).make_call();
+          if (id(${seasonal_mode_id}).current_option() == "COOL") {
+            call.set_mode(climate::CLIMATE_MODE_COOL);
+          } else {
+            call.set_mode(climate::CLIMATE_MODE_OFF);
+          }
+          call.perform();
