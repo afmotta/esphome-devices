@@ -81,10 +81,6 @@ lovelace:
 | GF Fancoil Humidity Threshold | `input_number.ground_floor_fancoil_humidity_threshold` | 50 | 80 | 1 | % |
 | GF Predictive Boost Minutes | `input_number.ground_floor_predictive_boost_minutes` | 5 | 60 | 5 | min |
 | First Floor Safe Margin | `input_number.first_floor_safe_margin` | 0.5 | 3.0 | 0.1 | °C |
-| MEV Escalation Fan Threshold | `input_number.mev_escalation_fan_threshold` | 50 | 100 | 5 | % |
-| MEV Deescalation Fan Threshold | `input_number.mev_deescalation_fan_threshold` | 10 | 50 | 5 | % |
-| MEV Minimum Fan Speed | `input_number.mev_minimum_fan_speed` | 0 | 50 | 5 | % |
-| MEV Escalation Delay Minutes | `input_number.mev_escalation_delay_minutes` | 1 | 30 | 1 | min |
 
 **Recommended Starting Values**:
 - Ground Floor Safe Margin: **1.0°C**
@@ -92,10 +88,6 @@ lovelace:
 - GF Humidity Threshold: **60%**
 - GF Predictive Boost Minutes: **20 min**
 - First Floor Safe Margin: **1.0°C**
-- MEV Escalation Fan Threshold: **70%**
-- MEV Deescalation Fan Threshold: **30%**
-- MEV Minimum Fan Speed: **20%**
-- MEV Escalation Delay: **10 min**
 
 **Via YAML (Alternative)**:
 
@@ -147,42 +139,6 @@ input_number:
     step: 0.1
     initial: 1.0
     unit_of_measurement: "°C"
-    mode: box
-
-  mev_escalation_fan_threshold:
-    name: MEV Escalation Fan Threshold
-    min: 50
-    max: 100
-    step: 5
-    initial: 70
-    unit_of_measurement: "%"
-    mode: box
-
-  mev_deescalation_fan_threshold:
-    name: MEV Deescalation Fan Threshold
-    min: 10
-    max: 50
-    step: 5
-    initial: 30
-    unit_of_measurement: "%"
-    mode: box
-
-  mev_minimum_fan_speed:
-    name: MEV Minimum Fan Speed
-    min: 0
-    max: 50
-    step: 5
-    initial: 20
-    unit_of_measurement: "%"
-    mode: box
-
-  mev_escalation_delay_minutes:
-    name: MEV Escalation Delay Minutes
-    min: 1
-    max: 30
-    step: 1
-    initial: 10
-    unit_of_measurement: "min"
     mode: box
 ```
 

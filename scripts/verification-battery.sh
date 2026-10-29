@@ -207,6 +207,7 @@ if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "pytest climate/tests/e2e/test_radiant_direction.py"            "--native-only"
   skip_step "pytest climate/tests/e2e/test_fancoil_boost.py"                "--native-only"
   skip_step "pytest climate/tests/e2e/test_outdoor.py"                      "--native-only"
+  skip_step "pytest climate/tests/e2e/test_mev_ventilation.py"              "--native-only"
 else
   run_step "esphome config climate/tests/compile_can_sensor_receiver.yaml" \
     esphome config climate/tests/compile_can_sensor_receiver.yaml
@@ -232,6 +233,8 @@ else
     python3 -m pytest climate/tests/e2e/test_fancoil_boost.py
   run_step "pytest climate/tests/e2e/test_outdoor.py" \
     python3 -m pytest climate/tests/e2e/test_outdoor.py
+  run_step "pytest climate/tests/e2e/test_mev_ventilation.py" \
+    python3 -m pytest climate/tests/e2e/test_mev_ventilation.py
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

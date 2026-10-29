@@ -75,7 +75,8 @@ packages:
       demand_sensor: ${mev_slug}_max_demand
       alarm_sensor: ${mev_slug}_alarm_active
       fan_speed_number: ${mev_slug}_fan_speed
-      min_fan_speed_entity: "input_number.ground_floor_mev_minimum_fan_speed"
+      # The minimum fan speed is a local persisted number declared by the
+      # controller package (R-08b), independent of the first-floor unit's.
 
 # Modbus bus member for the Innova unit (reads/writes bound below).
 modbus_controller:

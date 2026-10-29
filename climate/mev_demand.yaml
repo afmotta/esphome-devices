@@ -20,10 +20,16 @@
 #   humidity_sensor: Sensor ID for humidity input
 #
 # Depends on (must exist in merged config):
-#   ${mev_slug}_min_fan_speed - Minimum fan speed HA import. When this file is
-#     composed through climate/mev_modbus.yaml, it is declared by
-#     climate/packages/coordinators/mev_ventilation.yaml with component_id=${mev_slug}.
-#     Standalone consumers must declare an equivalent sensor before using this package.
+#   ${mev_slug}_min_fan_speed - Minimum fan speed (local persisted number, R-08b).
+#     When this file is composed through climate/mev_modbus.yaml or
+#     climate/mev_innova_modbus.yaml, it is declared by the controller package
+#     (coordinators/mev_ventilation*.yaml) with component_id=${mev_slug}.
+#     Standalone consumers must declare an equivalent sensor or number before
+#     using this package.
+#
+# The proportional-demand BOUNDS (lower/upper per channel) are still imported
+# from HA input_numbers (climate/home-assistant/mev_helpers.yaml); with HA down
+# every channel degrades to the flat 20% fallback of proportional_demand_sensor.yaml.
 #
 # Exposes:
 #   sensor.${mev_slug}_max_demand         - MAX of CO2/Air Quality/Humidity demands (0-100%)
@@ -175,7 +181,6 @@ sensor:
       float pm10 = id(${mev_slug}_pm10_demand).state;
       float min_fan = id(${mev_slug}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       float f_voc = isnan(voc) ? min_fan : voc;
       float f_nox = isnan(nox) ? min_fan : nox;
       float f_pm1_0 = isnan(pm1_0) ? min_fan : pm1_0;
@@ -199,7 +204,6 @@ sensor:
       float humidity = id(${mev_slug}_humidity_demand).state;
       float min_fan = id(${mev_slug}_min_fan_speed).state;
 
-      if (isnan(min_fan)) min_fan = 20.0f;
       float f_co2 = isnan(co2) ? min_fan : co2;
       float f_aq = isnan(air_quality) ? min_fan : air_quality;
       float f_hum = isnan(humidity) ? min_fan : humidity;

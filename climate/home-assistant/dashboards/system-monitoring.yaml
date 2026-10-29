@@ -311,7 +311,9 @@ sections:
   # ===========================================================================
   # Safe margins and boost thresholds live ON the controller since CLIMATE C2
   # (persisted template numbers, HA-tunable) — no longer HA input_numbers.
-  # MEV bounds remain HA input_numbers (climate/home-assistant/mev_helpers.yaml).
+  # MEV minimum fan speed and cascade thresholds/delays are controller numbers too
+  # (R-08b); only the MEV demand bounds remain HA input_numbers
+  # (climate/home-assistant/mev_helpers.yaml).
   - type: grid
     title: System Configuration
     columns: 2
@@ -342,17 +344,17 @@ sections:
         icon: mdi:shield-half-full
 
       - type: tile
-        entity: input_number.mev_escalation_fan_threshold
+        entity: number.climate_control_mev_primo_piano_escalation_fan_threshold
         name: MEV Escalation Threshold
         icon: mdi:fan-alert
 
       - type: tile
-        entity: input_number.mev_minimum_fan_speed
+        entity: number.climate_control_mev_primo_piano_minimum_fan_speed
         name: MEV Min Fan Speed
         icon: mdi:fan-speed-1
 
       - type: tile
-        entity: input_number.mev_escalation_delay_minutes
+        entity: number.climate_control_mev_primo_piano_escalation_delay
         name: MEV Escalation Delay
         icon: mdi:timer
 

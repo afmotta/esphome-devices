@@ -58,7 +58,7 @@ packages:
       pm10_sensor: ${pm10_sensor}
       humidity_sensor: ${humidity_sensor}
 
-  # HVAC MEV controller: HA imports, final fan speed, humidity cascade state machine
+  # HVAC MEV controller: local tuning numbers, final fan speed, humidity cascade state machine
   controller: !include
     file: packages/coordinators/mev_ventilation.yaml
     vars:
@@ -73,11 +73,8 @@ packages:
       integration_switch: ${mev_slug}_integration
       alarm_sensor: ${mev_slug}_alarm_active
       fan_speed_number: ${mev_slug}_fan_speed
-      min_fan_speed_entity: "input_number.mev_minimum_fan_speed"
-      escalation_threshold_entity: "input_number.mev_escalation_fan_threshold"
-      deescalation_threshold_entity: "input_number.mev_deescalation_fan_threshold"
-      escalation_delay_entity: "input_number.mev_escalation_delay_minutes"
-      deescalation_delay_entity: "input_number.mev_deescalation_delay_minutes"
+      # Minimum fan speed, cascade thresholds and delays are local persisted
+      # numbers declared by the controller package (R-08b), not HA helpers.
 
 # ============================================================================
 # Modbus Controller Setup

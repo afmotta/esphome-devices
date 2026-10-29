@@ -1,0 +1,157 @@
+# =============================================================================
+# Test harness: MEV ventilation coordinators (local tuning numbers, R-08b)
+#
+# Compiles for the `host` platform and runs BOTH real coordinators unmodified,
+# side by side, with every input stubbed:
+#   - mev_ventilation.yaml           (component_id "mev_casc": first-floor shape,
+#                                     with the humidity cascade)
+#   - mev_ventilation_fan_only.yaml  (component_id "mev_fan":  ground-floor shape)
+# Stubs: demand sensor, alarm binary sensor, fan-speed number (the output the
+# coordinator writes) and, for the cascade, the humidity/rate/lower-bound
+# sensors, the cooling-season binary sensor and the dehumidifier/integration
+# switches. The pytest driver (tests/e2e/test_mev_ventilation.py) drives them
+# through the api actions below.
+#
+# Deliberately NO Home Assistant: the point of R-08b is that the minimum fan
+# speed, the cascade thresholds and the delays are local persisted numbers, so
+# the final-fan-speed rule and the cascade work with HA absent (they used to be
+# `homeassistant` sensors that read NaN).
+#
+# Time compression: only the final-fan-speed evaluation period (update_interval,
+# an optional var of both coordinators): 200 ms instead of 60 s. The cascade
+# delays are minutes (min 1), so the tests cover the cascade's *start*
+# ("Escalating (Dehum)") rather than waiting out the delay.
+#
+# Used by all three test layers:
+#   esphome config  tests/harness/mev_ventilation.yaml   (validate)
+#   esphome compile tests/harness/mev_ventilation.yaml   (compile check)
+#   pytest tests/e2e/test_mev_ventilation.py             (behavior)
+# =============================================================================
+
+esphome:
+  name: t-mev-ventilation
+
+host:
+
+logger:
+  level: DEBUG
+
+api:
+  actions:
+    - action: set_casc_demand
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: stub_casc_demand
+            state: !lambda "return value;"
+    - action: set_fan_demand
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: stub_fan_demand
+            state: !lambda "return value;"
+    - action: set_casc_alarm
+      variables:
+        value: bool
+      then:
+        - binary_sensor.template.publish:
+            id: stub_casc_alarm
+            state: !lambda "return value;"
+    - action: set_fan_alarm
+      variables:
+        value: bool
+      then:
+        - binary_sensor.template.publish:
+            id: stub_fan_alarm
+            state: !lambda "return value;"
+    - action: set_casc_humidity_rate
+      variables:
+        value: float
+      then:
+        - sensor.template.publish:
+            id: stub_casc_humidity_rate
+            state: !lambda "return value;"
+
+sensor:
+  - platform: template
+    id: stub_casc_demand
+    internal: true
+  - platform: template
+    id: stub_fan_demand
+    internal: true
+  - platform: template
+    id: stub_casc_humidity
+    internal: true
+  - platform: template
+    id: stub_casc_humidity_rate
+    internal: true
+  - platform: template
+    id: stub_casc_humidity_lower
+    internal: true
+
+binary_sensor:
+  - platform: template
+    id: stub_casc_alarm
+    internal: true
+  - platform: template
+    id: stub_fan_alarm
+    internal: true
+  - platform: template
+    id: stub_cooling_mode
+    internal: true
+
+switch:
+  - platform: template
+    id: stub_dehumidifier
+    internal: true
+    optimistic: true
+  - platform: template
+    id: stub_integration
+    internal: true
+    optimistic: true
+
+# The outputs the coordinators write (the real ones drive the 0-10V DAC).
+number:
+  - platform: template
+    id: stub_casc_fan_speed
+    name: "Cascade Fan Output"
+    min_value: 0
+    max_value: 100
+    step: 1
+    optimistic: true
+  - platform: template
+    id: stub_fan_fan_speed
+    name: "Fan Only Fan Output"
+    min_value: 0
+    max_value: 100
+    step: 1
+    optimistic: true
+
+packages:
+  cascade: !include
+    file: ../../packages/coordinators/mev_ventilation.yaml
+    vars:
+      component_id: mev_casc
+      component_name: "MEV Cascade"
+      demand_sensor: stub_casc_demand
+      humidity_sensor: stub_casc_humidity
+      humidity_rate_sensor: stub_casc_humidity_rate
+      humidity_lower_sensor: stub_casc_humidity_lower
+      cooling_mode_sensor: stub_cooling_mode
+      dehumidifier_switch: stub_dehumidifier
+      integration_switch: stub_integration
+      alarm_sensor: stub_casc_alarm
+      fan_speed_number: stub_casc_fan_speed
+      update_interval: 200ms
+
+  fan_only: !include
+    file: ../../packages/coordinators/mev_ventilation_fan_only.yaml
+    vars:
+      component_id: mev_fan
+      component_name: "MEV Fan Only"
+      demand_sensor: stub_fan_demand
+      alarm_sensor: stub_fan_alarm
+      fan_speed_number: stub_fan_fan_speed
+      update_interval: 200ms

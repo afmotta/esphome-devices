@@ -160,6 +160,17 @@ controller comes up idle:
 | `first_floor_mev_enabled` | **OFF** | Fan forced to 0; humidity cascade released to "Fan Only" |
 | `ground_floor_mev_enabled` | **OFF** | Fan forced to 0 (passive enthalpic unit; CO2/air-quality + humidity demand, no cascade) |
 
+MEV tuning values — minimum fan speed (both units) and the first-floor cascade's escalation/
+de-escalation thresholds and delays — are persisted controller `number`s (`<mev_slug>_min_fan_speed`,
+`_escalation_threshold`, `_deescalation_threshold`, `_escalation_delay`, `_deescalation_delay`;
+review R-08b), not Home Assistant helpers, so they survive HA outages. Only the demand lower/upper
+bounds still come from HA `input_number`s (`climate/home-assistant/mev_helpers.yaml`).
+Ranges are deliberately narrow: first-floor min fan speed 0-30 % (ground floor 0-50 %), escalation threshold
+50-100 %, de-escalation threshold 35-50 %, delays 1-120 min. The first-floor minimum (max 30) stays below the
+de-escalation threshold (min 35) because the final fan speed is floored at the minimum: otherwise the cascade could
+never de-escalate. Widen one range only together with the other (ADR-0018, R-08b). A value persisted under an older,
+wider range is restored as-is (template numbers clamp only on writes), so re-enter it.
+
 Two constraints drive the phase order and are easy to get wrong:
 
 - **`hp_mode` mirrors the source, it does not command it.** The heat pump produces
