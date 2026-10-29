@@ -6,7 +6,8 @@
 // HA-tier staleness gate (R-04) — when may the Home Assistant sensor value count?
 // =============================================================================
 //
-// Tier 2 of the room-sensor failover (climate/room_sensors.yaml) is a
+// Tier 2 of the room-sensor failover (climate/room_sensors.yaml, R-04) and of
+// the outdoor-temperature failover (climate/outdoor.yaml, R-12) is a
 // `homeassistant` sensor. That platform has no staleness of its own: when the API
 // connection to HA drops it keeps publishing nothing and the sensor keeps its last
 // value forever, so the PID, the dew-point protection and the fancoil boost would
