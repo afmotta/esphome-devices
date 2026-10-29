@@ -23,6 +23,7 @@ packages:
     vars:
       ha_window_sensor_id: "binary_sensor.cucina_window"
       guarded_pid_id: cucina_fancoil_pid
+      resume_script_id: cucina_fancoil_resume_mode  # re-derived from the boost state, not a snapshot
 
   pid_radiant: !include
     file: ../../packages/components/radiant.yaml

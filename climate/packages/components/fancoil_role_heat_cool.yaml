@@ -27,6 +27,11 @@ climate:
     heat_output: ${room_slug}_fancoil_heat_output
 
 script:
+  # What the window guard calls when a window closes: this role's wanted mode
+  # is a pure function of hp_mode, so resuming is the same as syncing (R-14).
+  - id: ${room_slug}_fancoil_resume_mode
+    then:
+      - script.execute: ${room_slug}_fancoil_sync_mode
   # The PID follows the heat pump: HEAT / COOL / OFF (SANITARY_ONLY => OFF).
   - id: ${room_slug}_fancoil_sync_mode
     then:

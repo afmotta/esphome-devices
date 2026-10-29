@@ -25,6 +25,10 @@
 # output is gated on hp_mode -- and the coordinator's season override ends the
 # boost. With hp_mode COOL the result is the same in either order.
 #
+# Window guard (R-14): window_guard.yaml resumes the fancoil through
+# ${room_slug}_fancoil_resume_mode, which (unlike the sync) may turn it on, but
+# only while a boost is running.
+#
 # Optional vars:
 #   boost_state_select_id    - The boost coordinator's select (default:
 #                              ${room_slug}_boost_state)
@@ -46,4 +50,22 @@ script:
             return;
           auto call = id(${room_slug}_fancoil_pid).make_call();
           call.set_mode(climate::CLIMATE_MODE_OFF);
+          call.perform();
+
+  # What the window guard calls when a window closes (R-14): the mode this
+  # fancoil's owner wants NOW, which unlike the sync above may be COOL -- the
+  # guard turned a running boost's fancoil OFF and must give it back. COOL only
+  # while a boost is running in COOL season; otherwise OFF. Re-derived, never
+  # a snapshot: a boost that ended (or whose gate closed) while the window was
+  # open must not come back as a permanent cooler.
+  - id: ${room_slug}_fancoil_resume_mode
+    then:
+      - lambda: |-
+          auto call = id(${room_slug}_fancoil_pid).make_call();
+          if (id(${seasonal_mode_id}).current_option() == "COOL" &&
+              id(${boost_state_select_id}).current_option() == "Fancoil Boost") {
+            call.set_mode(climate::CLIMATE_MODE_COOL);
+          } else {
+            call.set_mode(climate::CLIMATE_MODE_OFF);
+          }
           call.perform();

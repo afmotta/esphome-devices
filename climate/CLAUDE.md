@@ -153,6 +153,10 @@ A reboot discards a manual or HA-set fancoil PID mode and returns to the role/`h
 surviving the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s staleness grace exceeds
 `sensor_lost_grace`.
 
+**The window guard hands the fancoil back to its owner** (review R-14): it takes a required
+`resume_script_id` and, after recovery, runs the role's `${room_slug}_fancoil_resume_mode` (boost: COOL
+only if the boost is still running and `hp_mode` is COOL) instead of restoring a snapshot.
+
 **Mode Synchronization**: All zones switch between heat/cool modes simultaneously via the `hp_mode` `seasonal_mode` coordinator (a software `select` entity, not a Modbus register — see `climate/packages/coordinators/seasonal_mode.yaml`).
 
 ## Modbus Communication Architecture

@@ -23,6 +23,7 @@ packages:
     vars:
       ha_window_sensor_id: "binary_sensor.soggiorno_window"
       guarded_pid_id: soggiorno_fancoil_pid
+      resume_script_id: soggiorno_fancoil_resume_mode  # re-derived from the boost state, not a snapshot
 
   radiant: !include
     file: ../../packages/components/radiant.yaml

@@ -27,9 +27,11 @@
 #   mix      mixing_pump.yaml (supply-temperature valve PID, dual loop)
 #   living   the production soggiorno composition: radiant.yaml + fancoil.yaml
 #            (fancoil_role: boost) + the REAL fancoil_boost.yaml coordinator
-#            (R-16 boot state, R-14 window guard). The activation triggers are
-#            inert (their threshold inputs stay unset); tests start/stop boosts through
-#            the API actions below, which drive the real boost select
+#            (R-16 boot state), plus the real window_guard.yaml (R-14; its
+#            HA contact is replaced by a template sensor, timings compressed).
+#            The activation triggers are inert (their threshold inputs stay
+#            unset); tests start/stop boosts through the API actions below,
+#            which drive the real boost select
 #            (set_action and boot replay included). The boost-enabled gate keeps
 #            its production default (OFF) until a test opens it: with it OFF a
 #            running boost is dropped to "Radiant Only" at once.
@@ -111,6 +113,14 @@ api:
               - switch.turn_on: living_boost_enabled
             else:
               - switch.turn_off: living_boost_enabled
+    # The living window contact (an HA binary sensor in production).
+    - action: set_window
+      variables:
+        value: bool
+      then:
+        - binary_sensor.template.publish:
+            id: living_window_sensor
+            state: !lambda "return value;"
     # A manual HA change of the living fancoil mode.
     - action: living_fancoil_mode
       variables:
@@ -147,6 +157,11 @@ switch:
     optimistic: true
 
 binary_sensor:
+  # Stands in for window_guard.yaml's `homeassistant` contact (same id).
+  - id: !remove living_window_sensor
+  - platform: template
+    id: living_window_sensor
+    internal: true
   # mixing_pump.yaml's pump trigger input
   - platform: template
     id: mix_demand
@@ -320,6 +335,18 @@ packages:
       temperature_sensor: stub_temperature
       output_id: living_fan_out
       fancoil_role: boost
+  living_window_guard: !include
+    file: ../../packages/components/window_guard.yaml
+    vars:
+      room_slug: living
+      room_name: "Living"
+      ha_window_sensor_id: binary_sensor.living_window
+      guarded_pid_id: living_fancoil_pid
+      resume_script_id: living_fancoil_resume_mode
+      # Time compression (production: 180 s / 60 s / 10 s)
+      window_timeout: 1
+      recovery_timeout: 1
+      poll_interval: 100ms
   living_boost: !include
     file: ../../packages/coordinators/fancoil_boost.yaml
     vars:
