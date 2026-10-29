@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.21 |
+| **Version** | 1.22 |
 | **Last Updated** | October 26, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
@@ -56,16 +56,16 @@ durable design knowledge — architecture, ADRs, contracts, design notes — liv
 ### System Capabilities
 
 - **Multi-zone climate control**: 13 independently controlled temperature zones across 3 floors
-- **Dual-mode operation**: Radiant floor heating/cooling + fancoil units
+- **Dual-mode operation**: Radiant floor heating/cooling + fancoil units. Each actuator has one PID whose heat and cool outputs are *separate* template outputs gated on the heat pump's mode (`hp_mode`: HEAT → heat only, COOL → cool only, SANITARY_ONLY → neither; `climate/protocol/pid_direction.h`, review R-01), so a PID can only actuate in the direction the water actually flows. Fancoils declare a `fancoil_role` (`boost`, `cool_only`, `heat_cool`)
 - **Hybrid radiant + fancoil cooling ("base + boost")**: radiant floor/ceiling provides efficient baseline comfort; fancoils activate as a responsive boost layer when radiant cannot meet demand — evaluated independently per room (`climate/packages/coordinators/fancoil_boost.yaml`)
 - **Advanced PID control**: Precise temperature management with auto-tuning
-- **Autonomous dew-point protection**: ESPHome-native dew-point calculation enforces a safety minimum on radiant-cooling supply water (dew point + 2 °C) even when Home Assistant is offline
+- **Autonomous dew-point protection**: ESPHome-native dew-point calculation enforces a safety minimum on radiant-cooling supply water (dew point + 2 °C) on the controller itself; it needs valid room readings, so a room whose dew point is NaN (CAN and HA tiers both gone) leaves the floor's supply minimum holding its previous value (`climate/room_sensors.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`)
 - **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
 - **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
 - **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
-- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant; room-sensor *data* specifically depends on the CAN→HA failover chain (`climate/room_sensors.yaml`)
+- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain (`climate/room_sensors.yaml`), and until CAN nodes exist an HA outage (no state-subscribed API client) over 300 s puts 12 of 13 zones in Emergency (PID outputs 0)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
-- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency shutdown)
+- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency: NaN, PID outputs 0)
 
 ### Building Layout
 
@@ -187,7 +187,7 @@ esphome-devices/
 │                              #   ⚠ tracks the repo's pinned ESPHome (2026.8.0) — re-verify on every upgrade
 │
 ├── docs/                      # Project knowledge base and guides
-│   ├── adr/                    # Architecture Decision Records (ADR-0001…0017, the "why")
+│   ├── adr/                    # Architecture Decision Records (the "why"; `docs/adr/` is the single index)
 │   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
 │   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
 │   ├── design-notes/          # Entity-naming convention, canbus implementation rules
@@ -319,13 +319,20 @@ details, and polling intervals):
 
 ### Failover Architecture
 
-**2-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `climate/room_sensors.yaml`):
+**3-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `climate/room_sensors.yaml`):
 
 1. **Primary**: CAN sensor-kit measurement (received directly on the controller's own CAN interface)
-2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness: it reads NaN when HA reports `unavailable`/`unknown` or when no state-subscribed API client has been connected for 300 s (`climate/protocol/ha_tier.h`, R-04)
-3. **Emergency**: Return NAN → the PID outputs drop to 0 immediately (the 300 s is the HA-tier grace before the HA tier itself reads NaN, not a shutdown delay)
+2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness (R-04): the HA tier
+   reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
+   connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
+   rides out an HA restart). For room sensors a frozen last value is never served indefinitely (other HA inputs such as outdoor temperature are not yet gated: R-12, R-08).
+3. **Emergency**: the failover returns NaN **immediately** once both tiers are NaN — it has no timer of its
+   own. ESPHome's PID answers a NaN input by driving its outputs to 0 at once (`pid_climate.cpp`); there is
+   no separate "safe shutdown after 5 minutes". The only 5-minute figure is the HA-tier grace above.
+   (Known gap, review R-05: the radiant boost override still bypasses the NaN-driven zero.)
 
-**Automatic Recovery**: System automatically switches back to HA when its sensor recovers.
+**Automatic Recovery**: the failover switches back to the highest tier that has a valid reading again
+(CAN preferred, then HA).
 
 ---
 
@@ -504,7 +511,7 @@ external_components:
 | `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
 | `climate/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `climate/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
-| `climate/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
+| `climate/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
 | `climate/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 | [Maintenance Guide](https://afmotta.github.io/esphome-devices/) (`docs-site/`) | Practical, non-expert-oriented operations/troubleshooting/hardware-replacement site (EN + IT), deployed via GitHub Pages |
 
@@ -514,7 +521,7 @@ external_components:
 |------|---------|
 | `docs/architecture/ARCHITECTURE-SPINE.md` | Architectural invariants (AD-1…AD-10) — the current authority |
 | `docs/architecture/architecture-diagram.md` | Mermaid diagrams of system topology and data flows |
-| `docs/adr/` | Architecture Decision Records (ADR-0001…0019) — the reasoning behind decisions |
+| `docs/adr/` | Architecture Decision Records — the reasoning behind decisions |
 | `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
 | `docs/design-notes/entity-naming.md` | Entity ID naming convention |
 | `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
@@ -552,7 +559,7 @@ external_components:
 
 - **No Hardcoded Secrets**: Always use `!secret` references
 - **Sensor Failover**: Always implement failover for critical sensors
-- **Emergency Shutdown**: Include safe shutdown logic for failures
+- **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
 - **Testing**: Never skip testing on critical climate control code
 - **Version Control**: Commit working states frequently
 - **OTA Safety**: Test OTA updates on non-production boards first
@@ -604,7 +611,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
    `docs/architecture/architecture-diagram.md` (topology and data flows)
-2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0019)
+2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (see the directory listing for the full set)
 3. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
 4. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 
@@ -620,7 +627,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check failover logs in Home Assistant
 - Ensure the CAN sensor-kit path (Tier 1) is available and updating
 - Verify Home Assistant sensors (Tier 2) are arriving when CAN drops out
-- Monitor emergency shutdown triggers
+- Monitor for zones sitting in Emergency (all sensor tiers NaN)
 
 Climate-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
 sensor-address appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
@@ -635,30 +642,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 ## Changelog
 
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| 2026-10-26 | 1.21 | Made the HA fallback tier of the room-sensor failover go **NaN** when HA is gone (R-04, `docs/reviews/2026-10-25-repo-review.md`): `filter_out: nan` removed from the room `homeassistant` sensors (so `unavailable`/`unknown` reach the failover), and the failover reads `*_temp_ha_gated`/`*_humidity_ha_gated` sensors that return NaN after `ha_staleness_grace_s` (300 s) without a state-subscribed API client (`climate/protocol/ha_tier.h`). Until CAN nodes exist, an HA outage beyond the grace puts 12 of 13 zones in Emergency (PID outputs 0). Floor supply-water minimums hold their previous value while a room's dew point is NaN. Room-sensors e2e now runs on PRs | AI Assistant |
-| 2026-10-26 | 1.20 | Disabled the API and WiFi **reboot watchdogs** on the autonomous controllers (R-02, `docs/reviews/2026-10-25-repo-review.md`): `api: reboot_timeout: 0s` on `boards/t-connect-pro.yaml` (climate + lighting controllers) and `boards/waveshare-s3-rs485-can.yaml` (health monitor), and `wifi: reboot_timeout: 0s` on the Ethernet-primary `boards/t-connect-pro.yaml` and `boards/an-penta-plus.yaml` — the default 15 min no-API-client reboot was wiping PID integrals, boost timers and arbitration state every quarter hour during a Home Assistant outage, and the WiFi watchdog ignores Ethernet. WiFi-only boards keep the default WiFi reboot as their recovery path. Accepted trade-off: Ethernet hung + AP unreachable no longer self-recovers. Hardware verification owed at bring-up | AI Assistant |
-| 2026-08-21 | 1.19 | Standardized on the **onboard-screen build** for both T-Connect Pro controllers and retired the screen-less and GitHub-remote variants (ADR-0023). The display + touch UI are now composed by the core entry points (`devices/climate-control.yaml`, `devices/light-controller.yaml`), so every build has the panel; deleted `devices/locals/climate-control-touch.yaml`, `devices/light-controller-touch.yaml`, and `devices/remotes/climate-control.yaml` (the GitHub-pull deployment couldn't carry the local `ethernet` fork — `external_components: type: local` — anyway). With no screen-less build left, the display always co-claims the W5500's SPI pads, so **`shared_spi_pins` was removed** and `allow_other_uses: true` hardcoded in `boards/t-connect-pro.yaml` + `boards/t-connect-pro-display.yaml` (the PR-review simplification, now valid). The now-unused `github_username`/`github_pat` secrets were dropped from the template + CI dummy secrets; CI's validate list drops the two `-touch` entries. **Config-validated**: `esphome config` passes on both consolidated builds (the climate run logs the fork's shared-SPI INFO line); demonstrated that hardcoding `allow_other_uses: true` without the display fails, which is why the screen-less variants had to go first. Still owed on the next flash: the ADR-0016 hardware bring-up check. | AI Assistant |
-| 2026-08-20 | 1.18 | Upgraded ESPHome to **2026.8.0** and **merged Ethernet + WiFi into one config per board** using the new multi-interface `network:` component (ADR-0022). The mutually-exclusive `enable_ethernet` toggle, the `network_package` indirection, and all the swappable network packages (the `*-ethernet.yaml`/`*-wifi.yaml` board files plus the Gen-1 shared `wifi.yaml`) are gone: every board that had both interfaces — `boards/t-connect-pro.yaml`, `boards/an-penta-plus.yaml`, and the legacy/unused `a6.yaml`/`a16.yaml`/`waveshare-s3.yaml` relay boards — now declares both `ethernet:` and `wifi:` inline with `network: priority: [ethernet, wifi]` (Ethernet preferred, automatic WiFi failover); entry points (`climate-control`, `light-controller`, `an-penta-1`) drop the toggle, and the now-redundant `devices/locals/climate-control-touch-wifi.yaml` was deleted (the base touch build already falls back to WiFi). Per-interface `ethernet_info`/`wifi_info` sensors coexist with qualified IP-address names. **Ethernet fork re-verified** (mandatory per the upgrade procedure): `libs/esphome_overrides/ethernet/` rebased onto upstream 2026.8.0 by diffing and re-applying only the two `LOCAL FORK` changes (`.h`/`rp2.cpp` are now byte-identical to upstream); the rebase adopts upstream's multi-interface support (dropped ethernet↔wifi `CONFLICTS_WITH`, added the `network: priority:` coexistence validation), which the merge depends on. **2026.8.0 breaking changes applied**: sen6x `voc`/`nox` → `voc_index`/`nox_index` (`devices/wall-sensor.yaml`, `canbus/packages/sensor_kit.yaml`); modbus `command_throttle` removed in favour of the hub's `turnaround_time` (`climate/mev_modbus.yaml`, `climate/mev_innova_modbus.yaml`, `docs/change_waveshare_relay_address.yaml`); addressable-LED `rgb_order` → `channel_colors` (`boards/s1-pro-multi-sense.yaml`, `boards/waveshare-s3.yaml`); the legacy a16's deprecated ethernet `clk_mode` → `clk:` block. The three legacy boards (a6/a16/waveshare-s3) have no device consumer or CI coverage, so their merge is structural only. Version pins bumped to 2026.8.0 across CI (`.github/workflows/verify.yml`), `climate/tests/pyproject.toml`, `scripts/verification-battery.sh`, and the active-board `min_version` floors. **Not hardware-verified** (no ESPHome CLI in-env, controllers pre-live): the ADR-0016 shared-SPI bring-up check and the dual-interface failover are owed on the next flash. YAML well-formedness checked on all edited configs; the rebased fork `py_compile`s | AI Assistant |
-| 2026-08-14 | 1.17 | Added the QuinLED-An-Quad as a second lighting LED-strip controller and **CAN actuator node** (ADR-0021), a 4-channel, WiFi-only sibling of the An-Penta-Plus that **reuses ADR-0020's `CAT_OUTPUT` slice unchanged**. Board scaffolding (`boards/an-quad.yaml`; classic ESP32, four raw LEDC channels on GPIO16/17/5/19) and a lighting entry point (`devices/an-quad-1.yaml`) composing two `cwww` tunable-white strips over the four channels; WiFi + HA for normal control (`api: reboot_timeout: 0s`). Because the board has **no Ethernet PHY**, WiFi is declared **inline** in the board file — no `-wifi`/`-ethernet` split, no `network_package` indirection, no `enable_ethernet` toggle (the swappable-network pattern only earns its keep on the An-Penta-Plus, which has both). The HA-down fallback joins the house bus via an external SN65HVD230 transceiver on the An-Quad's spare expansion-header GPIOs (not a QWIIC header — the An-Quad has none), **GPIO22 (tx) / GPIO23 (rx), confirmed from the schematic**, isolated as `aux_gpio_1`/`aux_gpio_2` substitutions. The actuator YAML was **generalized**: `an_penta_can.yaml` → board-neutral `lighting/packages/led_can_actuator.yaml`, now composed by **both** `devices/an-penta-1.yaml` and `devices/an-quad-1.yaml` (they differed only in comments; board specifics — pins, channel wiring — live in the entry points). First-class registry node (node 103, new external-actuator profile `led-quad` beside `led-penta` in `generate_nodes.py` — reserves node_id + `node_map`/`map.json`/health, generates no node YAML). No protocol/binding/dispatch change — the `CAT_OUTPUT` slice, `BindingEntry`, and gateway fallback are reused verbatim; empty-manifest hash `d66767448ba37b2f` unchanged. Both actuator entry points (`an-penta-1`, `an-quad-1`) were added to CI's `esphome config` validate list + `ci-dummy-secrets.sh`, closing the gap where the An-Penta (ADR-0020) had no CI config-validation. Registry artifacts regenerate cleanly; native/Python battery passes (esphome CLI not available in-env for the local compile) | AI Assistant |
-| 2026-08-11 | 1.16 | Added the QuinLED-An-Penta-Plus as a lighting LED-strip controller and integrated it as a **CAN actuator node** (ADR-0020). Board scaffolding (`boards/an-penta-plus.yaml` + `-ethernet`/`-wifi`; classic ESP32 + LAN8720, five raw LEDC channels, QWIIC expansion header) and a lighting entry point (`devices/an-penta-1.yaml`) composing two `cwww` tunable-white strips; it keeps WiFi + HA for normal control (`api: reboot_timeout: 0s` so it survives HA outages). The **HA-down fallback goes over a dedicated CAN channel, not HTTP**: the protocol's reserved `CAT_OUTPUT` slice is realized (`MSG_OUT_SET_CHANNEL` in `canbus_protocol.h`); the An-Penta joins the house bus via an external SN65HVD230 transceiver on the QWIIC header and applies OUTPUT commands to its strips (`lighting/packages/an_penta_can.yaml`), as a first-class registry node (node 102, new **external-actuator** profile `led-penta` in `generate_nodes.py` — reserves node_id + `node_map`/`map.json`/health, generates no node YAML). The binding manifest gains a first-class `output: <node>/<channel>` target beside `relay:` (frozen-additive `BindingEntry`: `target_kind`/`target_node_id`/`channel` — SPEC + drift test updated; empty-manifest hash `d66767448ba37b2f` unchanged), and the gateway fallback (`fire_binding_fallback`) sends a `CAT_OUTPUT` frame on `can0` instead of driving a relay. **Supersedes the withdrawn HTTP approach** (relay-id-32 overload, `web_server` POST). Protocol/binding/dispatch logic natively tested; both devices' firmware compiles | AI Assistant |
-| 2026-08-07 | 1.15 | Removed the BMAD framework and all its tooling (`_bmad/`, the `bmad-*` skills, the OpenCode `.opencode/` and Copilot `.github/agents/`+`.github/chatmodes/` integrations) and consolidated the generated artifacts into a leaner knowledge base under `docs/`: unified ADRs 0001–0017 into `docs/adr/`, the architecture spine + diagram into `docs/architecture/`, the two frozen contracts into `docs/contracts/`, and the entity-naming + canbus implementation rules into `docs/design-notes/`; dropped the process history (completion reports, testing checklists, sprint/workflow status, retros, review passes, per-story files, phase specs, migration metas) and the superseded Oct-2025 PRD/architecture docs. Both `_bmad-output/` trees are gone. Also retired the **epic** organizing concept: the epics index/file is gone, its durable feature knowledge folded into System Capabilities, and the forward-going epic-prefixed commit convention replaced with plain system-prefixed commits (`canbus:`/`lighting:`/`climate:`); historical "Epic N" mentions in git history and ADR prose are left as-is. Repointed all cross-references (this file, the three system `CLAUDE.md`s, `docs-site` doc-map/confidence-ledger, canbus README/runbooks, dashboards) | AI Assistant |
-| 2026-08-04 | 1.14 | ADR-0017: node composition is now driven by a single-valued `profile` column in `registry/nodes.csv` (`buttons` / `buttons+sensors` / `sensors` / `bridge` / `buttons+bridge`), replacing the `sensors` boolean — making "bridge AND sensors" unrepresentable rather than merely rejected (ADR-0005 single-purpose forwarders). `base_node.yaml` split into `node_core.yaml` + `buttons_8.yaml` so a bridge instantiates no button GPIOs; new `canbus/packages/bridge.yaml` + `boards/canbed-rp2040-can1.yaml` run the segment bridge on the fleet node board (CANBed RP2040 + a second MCP2515, CS GPIO8); `buttons+bridge` covers the boxes where a segment splits at a button box — buttons are the one sanctioned co-tenant of a forwarder, the sensor kit stays excluded. `map.json` keeps its frozen `nodes[].sensors` field, now derived, and adds `profile`. Amended same-day after a sourcing survey: the **LilyGO T-2CAN is restored as the preferred bridge board** (`boards/lilygo-t-2can.yaml`, profile `bridge-t2can`) with the CANBed + add-on kept as second source — 3.3 V raw-SPI MCP2515 modules turn out to be near-unobtainable at a supported crystal, making the cost saving nominal; `node_core.yaml` became board-agnostic so a profile selects its own MCU, and `canbus/archive/` is gone | AI Assistant |
-| 2026-07-27 | 1.13 | Lighting panel brought to the climate panel's shape, so the two screens on identical hardware read as one system: read-only "Home" glance tab in large type (was "Status", a stack of default-size labels), the Buttons tab rebuilt from a single last-event line into the last 8 presses as aligned four-column rows (node/btn/gesture/age) fed by a header-accessor ring in `lighting/packages/ui/touch_ui_format.h`, the 32 hand-written relay cells collapsed into `relay_cell.yaml`/`relay_refresh.yaml` fragments that carry on/off via LVGL `checked` (so the OFF fill comes from the shared theme), an always-visible status strip with alarm precedence (manifest mismatch outranks HA-down) and a liveness pulse, and the 2 s refresh skipped while LVGL is paused. ALL OFF now iterates `relay_store()` instead of 32 named ids. Strip fills added to the shared palette in `packages/ui/dark_theme.yaml`; stale "runs WiFi" header in `devices/light-controller-touch.yaml` corrected | AI Assistant |
-| 2026-07-26 | 1.12 | Climate touch UI reworked: shared LVGL dark theme extracted to `packages/ui/dark_theme.yaml` and adopted by both panels (a tabview covers the screen, so `lvgl: bg_color:` alone never made either panel dark — the tabview's own `tab_style`/`content_style` and a `theme:` block are what do it); zone rows rebuilt as four aligned columns (name/temp/target/state) from `climate/packages/ui/zone_row.yaml` + `zone_refresh.yaml` with semantic colour for heat/cool/idle and for degraded sensor tiers; tap-to-select zone rows; always-visible status strip on the LVGL top layer carrying alarms and a liveness pulse; two-column Home tab; 2 s refresh now skipped while LVGL is paused. Panel entry points consolidated: the four `t-connect-pro-debug*.yaml` bring-up builds deleted (their diagnosis preserved in ADR-0016 §Verification) and the fork's mandatory upgrade check repointed at `devices/locals/climate-control-touch.yaml`, whose new liveness dot makes it a better regression target; the WiFi touch variant committed rather than left as untracked WIP | AI Assistant |
-| 2026-07-26 | 1.11 | ADR-0016: W5500 Ethernet and the onboard display now share ONE SPI controller (`spi2`), arbitrated by their CS lines, via a local fork of the core `ethernet` component in `libs/esphome_overrides/` — the previous two-controller arrangement was electrically impossible and the panel never rendered. Both touch builds keep Ethernet (lighting's forced WiFi override removed); panels idle asleep via LVGL `on_idle`. Added the mandatory fork re-verification step to the ESPHome upgrade procedure | AI Assistant |
-| 2026-07-16 | 1.10 | Upgraded ESPHome to 2026.7.0 (pins in CI/`climate/tests/pyproject.toml`, floors in `boards/t-connect-pro.yaml` and new `boards/canbed-rp2040.yaml` `min_version`); pinned explicit modbus hub timing (250ms/100ms) against the 2026.7.0 default change; renamed `rp2040:` → `rp2:` | AI Assistant |
-| 2026-07-12 | 1.9 | Renamed the active application system from `hvac/` to `climate/`, updated active tooling/docs to use `CLIMATE-Epic` for future work, and left historical implementation artifacts under their original names | AI Assistant |
-| 2026-07-12 | 1.8 | Folded the Vesta package boundary back into the monorepo: climate packages now live under `climate/packages/`, shared Modbus I/O drivers under top-level `packages/devices/modbus-io/`, and active architecture/docs no longer treat Vesta as an extractable library | AI Assistant |
-| 2026-07-12 | 1.7 | Raised the T-Connect Pro HVAC support floor to ESPHome 2026.6.5 after verifying the repo uses external Modbus slave devices but no ESPHome `modbus_server` blocks; updated version references accordingly | AI Assistant |
-| 2026-07-11 | 1.6 | HVAC-1.4: `climate/room_sensors.yaml` flipped to CAN-primary/HA-secondary/Emergency failover (was HA-primary/UDP-secondary); updated failover-order bullets, the Failover Architecture section, and Best Practices/Troubleshooting sensor-failover language accordingly | AI Assistant |
-| 2026-07-11 | 1.5 | ADR-0014 P6 hardware docs sweep: Hardware table rewritten to the standardized family (LilyGO T-Connect Pro + Waveshare Relay 32CH + Analog Output 8CH (B)); retired all Gen-1 controller/slave-board and Modbus-room-sensor claims; corrected autonomy story (single Modbus master; room sensors HA→UDP→Emergency); deleted the orphaned Gen-1 and ESP32-S3-POE board files and updated all references; ESPHome floor 2026.5.0 | AI Assistant |
-| 2026-07-07 | 1.4 | Migration Phase 6b: rewrote Repository Structure to the actual four-system tree (canbus/lighting/climate/vesta + top-level registry/devices); removed the "predates restructure" note; moved HVAC-only rules (entity-ID convention, PID architecture, Modbus/relay appendices, HVAC Common Tasks) to `climate/CLAUDE.md` per AD-10 (root is the map, not the rules) | AI Assistant |
-| 2026-07-05 | 1.3 | Corrected climate-control status from "production/active, live" to pre-live; controller hardware swap under consideration | AI Assistant |
-| 2026-07-05 | 1.2 | Merged afmotta/canbus as canbus/ subtree; documented two-subsystem layout and epic namespacing | AI Assistant |
-| 2026-03-23 | 1.1 | Updated repo structure for Vesta extraction, added entity ID naming convention, updated file references for Epics 18-20 | AI Assistant |
-| 2026-01-23 | 1.0 | Initial CLAUDE.md creation | AI Assistant |
+Version history lives in [`CHANGELOG.md`](CHANGELOG.md) (newest first). Add a row there, and bump the version in the table at the top, whenever this guide or the architecture it describes changes materially.
 
 ---
 

@@ -6,6 +6,11 @@
 
 This document provides visual representations of the system architecture, data flows, and key interactions using Mermaid diagrams.
 
+> **Historical content.** Apart from section 4 (kept current), these diagrams date from the Oct-2025 Gen-1
+> design (KC868 master/slave boards, Modbus room sensors, master heartbeat) that ADR-0014 retired. The
+> current topology is one T-Connect Pro controller as sole Modbus master, room sensors via CAN with a Home
+> Assistant fallback; see `docs/architecture/ARCHITECTURE-SPINE.md` and `climate/CLAUDE.md`.
+
 ## 1. System Overview - RS485 Bus Topology
 
 ```mermaid
@@ -177,39 +182,51 @@ sequenceDiagram
 
 ## 4. Sensor Failover Decision Tree
 
+_Current (CAN → HA → Emergency; `climate/room_sensors.yaml`, `climate/packages/components/failover_sensor.yaml`,
+`climate/protocol/ha_tier.h`)._
+
 ```mermaid
 graph TD
     Start[PID Controller<br/>Needs Temperature]
-    
-    Start --> CheckModbus{Local Room Sensor<br/>Available?<br/>Registers 400-407}
-    
-    CheckModbus -->|Yes - Data Fresh<br/>Age < 30s| UseModbus[Use Room Sensor<br/>Best Accuracy<br/>Direct Room Control]
-    CheckModbus -->|No - Timeout| CheckHA{Home Assistant<br/>Sensor Available?<br/>sensor.termometro_*}
-    
-    CheckHA -->|Yes - HA Online| UseHA[Use HA Sensor<br/>Fallback Mode<br/>Proven Reliability]
-    CheckHA -->|No - HA Offline| Emergency[Return NAN<br/>Emergency Shutdown<br/>After 5 Minutes]
-    
-    UseModbus --> MonitorHealth[Monitor Sensor Health<br/>Log: 'Using Modbus Sensor']
-    UseHA --> MonitorHealth
-    Emergency --> MonitorHealth
-    
-    MonitorHealth --> Recovery{Sensor Recovered?}
-    Recovery -->|Modbus Back Online| AutoRecover[Automatic Recovery<br/>Switch to Modbus<br/>Log Event]
-    Recovery -->|Still Offline| Continue[Continue Current Mode]
-    
+
+    Start --> CheckCAN{CAN sensor kit<br/>has a value?}
+
+    CheckCAN -->|Yes| UseCAN[Use CAN reading<br/>Tier 1 - Primary]
+    CheckCAN -->|No| CheckHA{HA tier valid?<br/>entity not unavailable AND<br/>HA connected, or within<br/>the 5 min grace}
+
+    CheckHA -->|Yes| UseHA[Use Home Assistant reading<br/>Tier 2 - Fallback]
+    CheckHA -->|No| Emergency[Failover returns NaN<br/>within ~20 s of the HA tier going NaN<br/>Tier 3 Emergency]
+
+    Emergency --> PIDZero[ESPHome PID drives its<br/>outputs to 0<br/>valve closed, fancoil off]
+
+    UseCAN --> Log[Log tier changes<br/>Failover / Recovery]
+    UseHA --> Log
+    PIDZero --> Log
+
+    Log --> Recovery{Higher tier valid again?}
+    Recovery -->|Yes| AutoRecover[Automatic recovery<br/>to the highest valid tier]
+    Recovery -->|No| Continue[Continue current tier]
+
     style Start fill:#e1f5e1
-    style UseModbus fill:#4caf50,color:#fff
+    style UseCAN fill:#4caf50,color:#fff
     style UseHA fill:#ff9800,color:#fff
     style Emergency fill:#f44336,color:#fff
+    style PIDZero fill:#f44336,color:#fff
     style AutoRecover fill:#2196f3,color:#fff
 ```
 
 **Failover Tiers:**
-1. **Primary (Best):** Local Modbus room sensor - Fastest, most accurate
-2. **Fallback (Good):** Home Assistant sensor - Proven, reliable
-3. **Emergency (Degraded):** NAN → Safe shutdown after 5 minutes
+1. **Primary (Best):** CAN sensor-kit measurement, received directly on the controller's CAN interface
+2. **Fallback (Good):** Home Assistant sensor, gated for staleness (review R-04): NaN when HA reports
+   `unavailable`/`unknown` (no grace, even with a client connected), or after 5 minutes (`ha_staleness_grace_s`)
+   with no state-subscribed API client (HA or otherwise) connected - the grace rides out an HA restart;
+   after a boot without HA the tier stays NaN until the first connection
+3. **Emergency (Degraded):** NaN within about 20 s of the HA tier going NaN (one gate poll + one failover poll); the PID zeroes its outputs on a NaN input. There is no
+   shutdown timer - the only 5-minute figure is the HA-tier grace above.
+   Known gap (review R-05): if the sensor dies during an active fancoil/radiant boost, the boost
+   override can keep the radiant valve open (100% cold) until R-05 is fixed
 
-**Recovery:** Automatic transition back to Modbus when sensor recovers
+**Recovery:** Automatic transition back to the highest tier that has a valid reading
 
 ---
 

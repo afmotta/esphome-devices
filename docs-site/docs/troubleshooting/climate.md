@@ -30,7 +30,9 @@ temperature (and humidity) has up to three tiers, tried in order:
 1. **Primary** — the CAN bus sensor reading, received directly by the
    controller. This is used whenever it has a real value.
 2. **Secondary** — a Home Assistant sensor, used only when the primary is
-   unavailable.
+   unavailable. It is treated as unavailable when Home Assistant reports the
+   entity `unavailable`/`unknown`, or when Home Assistant has been
+   disconnected from the controller for more than 5 minutes.
 3. **Emergency** — used when *both* of the above are unavailable. The system
    publishes no usable number (internally, "not a number" / NaN) for that
    room's temperature.
@@ -40,17 +42,27 @@ which tier is currently active, so you don't have to guess — see
 [Everyday Monitoring](../monitoring.md) for the exact entity-naming pattern.
 
 **Important — what "stuck in Emergency" actually means:** The Emergency tier
-switches over **immediately**, the moment both the primary and secondary
-readings go bad — there is no waiting period built into the sensor logic
-itself. 🟢 VERIFIED (read directly from the failover component's code,
-`climate/packages/components/failover_sensor.yaml`). You may see other
-project documents mention a "5 minute" delay before a safe shutdown — that
-figure describes an assumption about how the downstream temperature-control
-loop is expected to behave when it's fed no usable reading for a while, not
-a timer that exists in this sensor-failover code. Treat any such delay as
-🔵 DESIGNED/unverified, and don't rely on there being a grace period at the
-sensor level: if both sensor tiers go bad, the room's control loop sees a
-missing reading right away.
+switches over as soon as both the primary and secondary readings go bad —
+there is no timer built into the sensor logic itself, only the polling delay
+(within about 20 s: one gate poll plus one failover poll). 🟢 VERIFIED (read directly from the failover component's code,
+`climate/packages/components/failover_sensor.yaml`). The room's PID
+controller then sees no usable reading and drops its outputs to 0
+(valve closed, fancoil off) — there is no shutdown timer anywhere.
+The only 5-minute figure is on the Home Assistant side: the secondary tier
+is declared unavailable once no state-subscribed API client (Home Assistant
+or otherwise) has been connected to the controller for 5 minutes (a grace
+period that rides out an HA restart; after a boot without HA the tier stays
+unavailable until the first connection), so a frozen last value is never
+used indefinitely. A single entity reporting `unavailable` while a client is
+connected goes unavailable with no grace. 🔵 DESIGNED — covered by
+automated tests, not yet bench-tested on the real controller. Note: an
+`esphome logs` session left open counts as a Home Assistant connection and
+keeps the secondary tier alive during an outage; use
+`esphome logs --no-states`.
+
+**Known gap (review R-05):** if the sensor dies during an active
+fancoil/radiant boost, the boost override can keep the radiant valve open
+(100% cold) until R-05 is fixed.
 
 **Likely causes:**
 
@@ -90,11 +102,15 @@ sensor hardware fault — see
 temperature instead of settling, or responds too slowly/too aggressively to
 setpoint changes.
 
-**Background:** Each zone uses a PID controller (a standard three-term
-control-loop algorithm) with **separate gain settings for heating and
-cooling mode** — retuning one mode does not affect the other. Radiant floor
-systems are slow (they need gentle, patient gains); fancoils are fast
-(they can use more aggressive gains). 🔵 DESIGNED
+**Background:** Each zone actuator (radiant valve, fancoil) uses a PID
+controller (a standard three-term control-loop algorithm) with **one set of
+gains**. Heating and cooling share it: the controller's heat and cool outputs
+are separate and are only let through in the direction the heat pump is
+actually producing (`hp_mode`), so the PID cannot, for example, open a
+radiant valve for cooling during the heating season. Radiant floor systems
+are slow (they need gentle, patient gains); fancoils are fast (they use a
+higher proportional gain but are tuned around small values — see the
+defaults on [Routine Maintenance](../maintenance-tasks.md)). 🔵 DESIGNED
 
 **Likely causes:**
 
@@ -102,14 +118,17 @@ systems are slow (they need gentle, patient gains); fancoils are fast
   oscillation).
 - Gains too conservative (most common cause of sluggish response/overshoot
   from a slow correction).
-- Heat-mode and cool-mode gains confused for each other (tuning one when the
-  problem is actually in the other mode).
+- Auto-tune run in the wrong season, or its result applied without halving
+  (see the Fix section) — on dual-output loops (not heat-only radiant zones)
+  the gains come out about twice too high.
 
 **Diagnostic steps:**
 
 1. Confirm which mode (heat or cool) the zone is actually in when the
    problem occurs — `hp_mode` (see the seasonal-mode section below) governs
-   this, and each mode has its own independent gains.
+   this: a PID only drives its actuator in the direction `hp_mode` allows
+   (HEAT lets the heat output through, COOL the cool output, SANITARY_ONLY
+   neither), so a zone that does nothing in the wrong season is expected.
 2. Watch the zone's behavior over a full heating/cooling cycle, not just a
    few minutes — radiant floors respond over hours, so short-term "swings"
    may just be normal slow settling.
@@ -119,12 +138,18 @@ systems are slow (they need gentle, patient gains); fancoils are fast
 1. **Use auto-tune first.** The auto-tune component
    (`climate/packages/components/pid_autotune.yaml`) exists specifically to
    avoid hand-guessing gains — run it before manually adjusting numbers.
+   Run it in the season the loop actually works in; on dual-output loops
+   (radiant zones on `radiant.yaml`, heat-and-cool fancoils), halve the gains it reports
+   (not for heat-only radiant zones; the 2x factor is derived from code comments, not
+   bench-verified — check at bring-up); and for a `boost`
+   fancoil, set its PID to COOL by hand first (it normally sits OFF until
+   the boost starts it).
 2. **If tuning by hand, start conservative**: low proportional gain (Kp),
    very low integral/derivative gains (Ki/Kd), then increase gradually while
    watching for stability. It's much easier to nudge a sluggish loop up than
    to calm down an oscillating one.
-3. Adjust only the gain set for the mode you're actually seeing the problem
-   in (heat vs. cool are independent).
+3. Change one gain at a time, and re-check in the season the problem
+   appears in — heat and cool share one gain set, so a change affects both.
 
 **When to escalate:** Persistent oscillation despite conservative,
 auto-tuned gains suggests a mechanical problem (e.g. a stuck valve, a pump

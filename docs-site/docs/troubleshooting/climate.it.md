@@ -32,7 +32,9 @@ temperatura (e umidità) di stanza ha fino a tre livelli, provati in ordine:
 1. **Primario** — la lettura del sensore via bus CAN, ricevuta direttamente
    dal controller. Usato ogni volta che ha un valore reale.
 2. **Secondario** — un sensore di Home Assistant, usato solo quando il
-   primario non è disponibile.
+   primario non è disponibile. È considerato non disponibile quando Home
+   Assistant segnala l'entità `unavailable`/`unknown`, oppure quando Home
+   Assistant è disconnesso dal controller da più di 5 minuti.
 3. **Emergenza** — usato quando *entrambi* i precedenti non sono
    disponibili. Il sistema non pubblica alcun numero utilizzabile
    (internamente, "non un numero" / NaN) per la temperatura di quella
@@ -44,20 +46,29 @@ indica quale livello è attualmente attivo, così non devi indovinare — vedi
 delle entità.
 
 **Importante — cosa significa davvero "bloccato in Emergenza":** Il livello
-Emergenza scatta **immediatamente**, nel momento in cui sia la lettura
-primaria che quella secondaria diventano non valide — non c'è alcun periodo
-di attesa incorporato nella logica del sensore stesso. 🟢 VERIFICATO (letto
+Emergenza scatta non appena sia la lettura primaria che quella secondaria diventano
+non valide — non c'è alcun timer incorporato nella logica del sensore
+stesso, solo il ritardo di polling (entro circa 20 s: un ciclo del gate più
+uno del failover). 🟢 VERIFICATO (letto
 direttamente dal codice del componente di failover,
-`climate/packages/components/failover_sensor.yaml`). Potresti trovare in
-altri documenti del progetto un riferimento a un ritardo di "5 minuti" prima
-di uno spegnimento di sicurezza — quella cifra descrive un'ipotesi su come
-ci si aspetta che si comporti il ciclo di controllo della temperatura a
-valle quando riceve per un po' una lettura non utilizzabile, non un timer
-che esiste in questo codice di failover del sensore. Tratta un simile
-ritardo come 🔵 PROGETTATO/non verificato, e non fare affidamento
-sull'esistenza di un periodo di grazia a livello del sensore: se entrambi i
-livelli del sensore diventano non validi, il ciclo di controllo della
-stanza vede subito una lettura mancante.
+`climate/packages/components/failover_sensor.yaml`). Il controller PID della
+stanza non vede allora alcuna lettura utilizzabile e porta le proprie uscite
+a 0 (valvola chiusa, fancoil spento) — non esiste da nessuna parte
+un timer di spegnimento. L'unica cifra di 5 minuti riguarda il
+lato Home Assistant: il livello secondario è dichiarato non disponibile
+quando nessun client API con sottoscrizione agli stati (Home Assistant o
+altro) è connesso al controller da 5 minuti (una grazia che copre un riavvio
+di HA; dopo un avvio senza HA il livello resta non disponibile fino alla
+prima connessione), così un ultimo valore congelato non viene mai usato
+indefinitamente. Una singola entità che segnala `unavailable` mentre un
+client è connesso diventa non disponibile senza grazia. 🔵 PROGETTATO — coperto da test automatici, non ancora
+provato su banco sul controller reale. Nota: una sessione `esphome logs`
+lasciata aperta conta come connessione a Home Assistant e mantiene vivo il
+livello secondario durante un'interruzione; usa `esphome logs --no-states`.
+
+**Limite noto (review R-05):** se il sensore muore durante un boost attivo di
+fancoil/radiante, l'override del boost può tenere aperta la valvola radiante
+(100% freddo) finché R-05 non è risolto.
 
 **Cause probabili:**
 
@@ -99,12 +110,17 @@ entrambi strutturalmente a posto (bus sano, HA raggiungibile) e la lettura
 temperatura target invece di stabilizzarsi, oppure risponde troppo
 lentamente/troppo aggressivamente ai cambi di setpoint.
 
-**Contesto:** Ogni zona usa un controllore PID (un algoritmo standard di
-controllo a tre termini) con **impostazioni di guadagno separate per la
-modalità riscaldamento e per la modalità raffrescamento** — ritarare una
-modalità non influisce sull'altra. I sistemi a pavimento radiante sono
-lenti (hanno bisogno di guadagni delicati e pazienti); i fancoil sono
-veloci (possono usare guadagni più aggressivi). 🔵 PROGETTATO
+**Contesto:** Ogni attuatore di zona (valvola radiante, fancoil) usa un
+controllore PID (un algoritmo standard di controllo a tre termini) con **un
+solo set di guadagni**. Riscaldamento e raffrescamento lo condividono: le
+uscite di caldo e freddo del controllore sono separate e vengono lasciate
+passare solo nella direzione che la pompa di calore sta davvero producendo
+(`hp_mode`), quindi il PID non può, per esempio, aprire una valvola radiante
+per raffrescare durante la stagione di riscaldamento. I sistemi a pavimento
+radiante sono lenti (hanno bisogno di guadagni delicati e pazienti); i fancoil
+sono veloci (usano un guadagno proporzionale più alto ma si tarano attorno a
+valori piccoli — vedi i valori predefiniti in
+[Manutenzione ordinaria](../maintenance-tasks.md)). 🔵 PROGETTATO
 
 **Cause probabili:**
 
@@ -112,15 +128,18 @@ veloci (possono usare guadagni più aggressivi). 🔵 PROGETTATO
   di oscillazione).
 - Guadagni troppo prudenti (causa più comune di risposta lenta/superamento
   del target per correzione troppo debole).
-- Guadagni di modalità riscaldamento e raffrescamento confusi tra loro
-  (taratura di una modalità quando il problema è in realtà nell'altra).
+- Auto-taratura eseguita nella stagione sbagliata, o risultato applicato
+  senza dimezzarlo (vedi la sezione Soluzione) — sui cicli a doppia
+  uscita (non le zone radianti solo-caldo) i guadagni risultano circa il doppio del necessario.
 
 **Passi diagnostici:**
 
 1. Conferma in quale modalità (riscaldamento o raffrescamento) si trova
    davvero la zona quando si presenta il problema — `hp_mode` (vedi la
-   sezione sulla modalità stagionale sotto) governa questo, e ogni modalità
-   ha i propri guadagni indipendenti.
+   sezione sulla modalità stagionale sotto) governa questo: un PID pilota il
+   proprio attuatore solo nella direzione consentita da `hp_mode` (HEAT lascia
+   passare l'uscita di caldo, COOL quella di freddo, SANITARY_ONLY nessuna),
+   quindi una zona che non fa nulla nella stagione sbagliata è normale.
 2. Osserva il comportamento della zona per un ciclo completo di
    riscaldamento/raffrescamento, non solo per pochi minuti — i pavimenti
    radianti rispondono nell'arco di ore, quindi "oscillazioni" di breve
@@ -131,13 +150,19 @@ veloci (possono usare guadagni più aggressivi). 🔵 PROGETTATO
 1. **Usa prima l'auto-taratura.** Il componente di auto-taratura
    (`climate/packages/components/pid_autotune.yaml`) esiste apposta per
    evitare di indovinare i guadagni a mano — eseguilo prima di modificare i
-   numeri manualmente.
+   numeri manualmente. Eseguilo nella stagione in cui il ciclo lavora davvero;
+   sui cicli a doppia uscita (zone radianti su `radiant.yaml`, fancoil
+   caldo+freddo) dimezza i guadagni che riporta (non per le zone radianti
+   solo-caldo; il fattore 2 deriva dai commenti del codice, non è verificato
+   al banco — controllalo alla messa in servizio); per un fancoil `boost`, metti prima a mano il suo PID in COOL
+   (normalmente resta OFF finché non lo avvia il boost).
 2. **Se tarifichi a mano, parti prudente**: guadagno proporzionale (Kp)
    basso, guadagni integrale/derivativo (Ki/Kd) molto bassi, poi aumenta
    gradualmente osservando la stabilità. È molto più facile spingere verso
    l'alto un ciclo lento che calmare uno che oscilla.
-3. Regola solo il set di guadagni della modalità in cui si presenta
-   realmente il problema (riscaldamento e raffrescamento sono indipendenti).
+3. Cambia un guadagno alla volta e ricontrolla nella stagione in cui compare
+   il problema — riscaldamento e raffrescamento condividono un solo set di
+   guadagni, quindi una modifica vale per entrambi.
 
 **Quando rivolgersi a un tecnico:** Un'oscillazione persistente nonostante
 guadagni prudenti e auto-tarati suggerisce un problema meccanico (es. una
