@@ -39,9 +39,11 @@
 #      this NaN and keep the last good value.
 #   2. No HA-capable API client for longer than `ha_staleness_grace_s` -> the gated
 #      sensor reads NaN (rule: climate/protocol/ha_tier.h, tested natively). The
-#      grace rides out an HA restart (~1-2 min). It is connection liveness, NOT
-#      "time since the last update": HA only pushes state *changes*, so a stable
-#      room temperature would wrongly expire.
+#      grace covers only a missing client (e.g. an HA restart's connection gap),
+#      NOT entities that HA reports as `unavailable`/`unknown` while it starts up:
+#      those hit rule 1 and read NaN (Emergency) until HA publishes a real value.
+#      It is connection liveness, NOT "time since the last update": HA only pushes
+#      state *changes*, so a stable room temperature would wrongly expire.
 # Which "connected" check: `is_connected_with_state_subscription()` (the C++ twin of
 # `api.connected: state_subscription_only: true`), not plain `is_connected()`.
 # Plain is_connected() is true for ANY client, including one that only called an
@@ -51,6 +53,9 @@
 # states by default (use `--no-states` for a log session that must not count), so a
 # laptop log session left open during an HA outage keeps the last value alive; the
 # API has no per-connection "subscribed to HA states" accessor to be stricter.
+# Timing: the grace counts from the last HA-capable client's disconnect. From the
+# HA outage itself the tier takes up to ~7 min to read NaN (dead-link detection
+# ~90 s + grace 300 s + up to two 10 s polling stages).
 # When the grace expires the raw sensor is also reset to NaN, so a reconnect cannot
 # briefly re-expose the old value before HA pushes the fresh state.
 #

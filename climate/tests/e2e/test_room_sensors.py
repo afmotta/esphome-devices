@@ -122,17 +122,22 @@ async def test_disconnect_within_grace_keeps_value(run_harness):
     h, ha, ids = await _start(run_harness)
 
     ha.push(TEMP_ENTITY, "21.5")
+    ha.push(HUMIDITY_ENTITY, "48.0")
     await h.wait_for(ids["temp_tier"], lambda s: s.state == "HA")
+    await h.wait_for(ids["humidity_tier"], lambda s: s.state == "HA")
     await _reset_nan_latch(h, ids)
 
-    # An HA restart shorter than the grace period must not trip Emergency.
+    # An HA restart shorter than the grace period must not trip Emergency. A quarter
+    # of the grace leaves room for reconnect latency on a loaded runner.
     await h.disconnect()
-    await asyncio.sleep(GRACE_S / 2)
+    await asyncio.sleep(GRACE_S / 4)
     await h.reconnect()
     ha.attach()
 
     await h.wait_for(ids["temp_tier"], lambda s: s.state == "HA")
     await h.wait_for_value(ids["temp"], 21.5)
+    await h.wait_for(ids["humidity_tier"], lambda s: s.state == "HA")
+    await h.wait_for_value(ids["humidity"], 48.0)
     nan_seen = await h.wait_for(ids["nan_seen"], lambda s: True)
     assert nan_seen.state is False, "temperature went NaN during a disconnect shorter than the grace"
 
@@ -154,9 +159,21 @@ async def test_disconnect_past_grace_is_nan_then_recovers(run_harness):
     nan_seen = await h.wait_for(ids["nan_seen"], lambda s: True)
     assert nan_seen.state is True, "HA tier kept its frozen value after the grace period"
 
-    # HA comes back: it answers the resubscription and the tier recovers.
+    # Reconnected and subscribed to states (the gate is open again), but HA answers
+    # with no state: only the reset of the raw sensors on expiry can explain
+    # Emergency/NaN here. If they still held the frozen 21.5 / 48.0 the tiers would
+    # read HA. Humidity is checked too: it feeds the dew-point protection.
+    ha.entity_states.clear()
     ha.attach()
+    await h.wait_for(ids["temp_tier"], lambda s: s.state == "Emergency")
+    await h.wait_for_value(ids["temp"], NAN)
+    await h.wait_for(ids["humidity_tier"], lambda s: s.state == "Emergency")
+    await h.wait_for_value(ids["humidity"], NAN)
+
+    # HA publishes different values: the tier follows them, not the pre-outage ones.
+    ha.push(TEMP_ENTITY, "22.0")
+    ha.push(HUMIDITY_ENTITY, "50.0")
     await h.wait_for(ids["temp_tier"], lambda s: s.state == "HA")
-    await h.wait_for_value(ids["temp"], 21.5)
+    await h.wait_for_value(ids["temp"], 22.0)
     await h.wait_for(ids["humidity_tier"], lambda s: s.state == "HA")
-    await h.wait_for_value(ids["humidity"], 48.0)
+    await h.wait_for_value(ids["humidity"], 50.0)
