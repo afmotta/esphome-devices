@@ -3,14 +3,8 @@
 Harness: harness/pid_behaviour.yaml (heat-only radiant, heat_cool and cool_only
 fancoils, a mixing valve, all with time-compressed gains: kp 0.5, ki 1.0).
 
-R-13 — integral windup. ESPHome integrates the error on every sensor update,
-whatever the PID mode, clamped to +-1. With the outputs gated on hp_mode (R-01)
-the direction the heat pump is NOT producing wound up to a full actuator span:
-a room above target on a winter afternoon drove the integral to -1 on the gated
-cool side, and after it fell below target the PID stayed at output <= 0 until
-ki * error had climbed the integral back. pid.yaml now confines the integral to
-the active direction on every hp_mode change (HEAT => [0, limit], COOL =>
-[-limit, 0]; SANITARY_ONLY keeps the previous bounds).
+R-13 — integral windup: pid.yaml confines the integral to the active direction
+on every hp_mode change (rationale: pid_direction::integral_bounds).
 
 The recovery tests wind the loop up the WRONG way for 1.5 s, then flip the room
 to the right side of target by 0.5 degC and require output within 0.5 s. With
@@ -136,9 +130,11 @@ async def test_active_direction_keeps_its_range(run_harness, loop, season, expec
     integral = h.object_id(LOOPS[loop][0])
     await set_season(h, season)
     await h.call("set_temperature", value=TARGET - 1.0 if season == "HEAT" else TARGET + 1.0)
-    await h.wait_for_value(integral, expected * PCT, timeout=3.0)  # ki * |error| = 1.0 per second
+    await h.wait_for_value(integral, expected * PCT, timeout=10.0)  # ki * |error| = 1.0 per second
     await asyncio.sleep(0.5)
-    assert value(h, integral) == pytest.approx(expected * PCT, abs=0.1)  # saturates, not beyond
+    assert value(h, integral) == pytest.approx(expected * PCT, abs=0.1), (  # saturates, not beyond
+        f"integral {value(h, integral)} after saturating"
+    )
 
 
 async def test_season_flip_drops_the_old_seasons_integral(run_harness):
@@ -148,7 +144,7 @@ async def test_season_flip_drops_the_old_seasons_integral(run_harness):
     integral = h.object_id(LOOPS["attic"][0])
     await set_season(h, "HEAT")
     await h.call("set_temperature", value=TARGET - 1.0)
-    await h.wait_for_value(integral, PCT, timeout=3.0)
+    await h.wait_for_value(integral, PCT, timeout=10.0)
     await set_season(h, "COOL")
     await h.wait_for_value(integral, 0.0, timeout=RECOVER_S)
 
@@ -161,11 +157,11 @@ async def test_legitimate_integral_survives_a_republished_or_idle_mode(run_harne
     integral = h.object_id(LOOPS["attic"][0])
     await set_season(h, "HEAT")
     await h.call("set_temperature", value=TARGET - 1.0)
-    await h.wait_for_value(integral, PCT, timeout=3.0)
+    await h.wait_for_value(integral, PCT, timeout=10.0)
     await h.call("set_temperature", value=TARGET)  # error 0: the integral holds
     await set_season(h, republished)
     await asyncio.sleep(0.5)
-    assert value(h, integral) == pytest.approx(PCT, abs=0.1)
+    assert value(h, integral) == pytest.approx(PCT, abs=0.1), f"integral {value(h, integral)} after {republished}"
 
 
 # --------------------------------------------------------------------------

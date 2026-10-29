@@ -113,7 +113,13 @@ namespace pid_direction
   // SANITARY_ONLY (or an unknown option / nullptr) produces neither direction
   // but is not a season of its own; it can be brief and must not wipe the
   // steady-state offset a loop has learned, so it returns false and the caller
-  // keeps the previous bounds.
+  // keeps the previous bounds. Trade-off: the shoulder seasons can hold
+  // SANITARY_ONLY for a long time, and the bounds (and integral) of the last
+  // season carry through it, so the first demand-tier intent in the new
+  // direction waits for kp * error to exceed |integral| (at most `limit`). A
+  // SANITARY_ONLY restored at boot runs on the static symmetric
+  // [-limit, limit] bounds, i.e. the pre-fix behaviour, until the first
+  // HEAT/COOL publish.
   inline bool integral_bounds(const char *hp_mode, float limit, float &min_integral, float &max_integral)
   {
     if (is_active(Direction::HEAT, hp_mode))
