@@ -57,6 +57,33 @@ jobs:
             echo "::endgroup::"
           done
 
+  # Host-platform e2e: the harness builds the real room_sensors.yaml and ha_tier.h
+  # as a local Linux binary (no ESP32-S3 toolchain), so it is cheap enough to run on
+  # every PR. `esphome config` above never compiles lambdas; this does. The
+  # `esphome: includes` wiring in devices/climate-control.yaml is still only
+  # compiled on main (esphome-compile below).
+  climate-room-sensors-e2e:
+    name: Climate room-sensors HA-tier e2e (host)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ESPHome + e2e deps (repo pins)
+        run: pip install "esphome==2026.8.0" "pytest>=8.0" "pytest-asyncio>=0.23" "aioesphomeapi>=32.0.0"
+      - name: Generate CI dummy secrets
+        run: bash scripts/ci-dummy-secrets.sh
+      - name: Cache PlatformIO host toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-host-${{ runner.os }}-esphome-2026.8.0
+      - name: Climate room-sensors HA-tier e2e
+        run: python3 -m pytest climate/tests/e2e/test_room_sensors.py
+
   # Full compiles + the Climate failover e2e are heavy (ESP32-S3 esp-idf build),
   # so they gate pushes to main rather than every PR iteration.
   esphome-compile:
@@ -99,8 +126,6 @@ jobs:
         run: esphome compile devices/locals/climate-control.yaml
       - name: Climate failover e2e
         run: python3 -m pytest climate/tests/e2e/test_failover_sensor.py
-      - name: Climate room-sensors HA-tier e2e
-        run: python3 -m pytest climate/tests/e2e/test_room_sensors.py
       - name: Climate PID direction e2e
         run: python3 -m pytest climate/tests/e2e/test_radiant_direction.py
       - name: Climate fancoil-boost e2e
