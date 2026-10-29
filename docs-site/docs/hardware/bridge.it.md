@@ -37,7 +37,8 @@ messo alla prova con un guasto hardware reale.
 Esiste anche un segnale di auto-diagnosi: se il bridge ha mai scartato frame perché il
 suo buffer interno si è riempito, blocca un flag di errore
 (`ERR_BRIDGE_QUEUE_OVERFLOW`) nel proprio heartbeat che resta impostato finché il
-bridge non viene spento e riacceso — quindi un bridge in difficoltà ma non
+bridge non viene spento e riacceso (i frame non trasmessi dopo ripetuti tentativi
+impostano allo stesso modo `ERR_CAN_TX_FAIL`) — quindi un bridge in difficoltà ma non
 completamente guasto dovrebbe essere visibile nella sua diagnostica invece di
 degradarsi silenziosamente. Poiché un bridge è una normale riga del registro, compare
 anche nelle entità di salute per-nodo di Home Assistant esattamente come un nodo: se

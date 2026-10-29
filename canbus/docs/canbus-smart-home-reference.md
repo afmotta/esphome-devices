@@ -84,6 +84,8 @@ Byte 2:   Error flags (0x00 = healthy, 0x01 = CAN TX fail,
 Byte 3–4: Uptime in hours (uint16 LE; 0xFFFF = "at least 65535 h")
 ```
 
+`0x01` (`ERR_CAN_TX_FAIL`) clears on a node once a heartbeat carrying it was accepted by the controller; on a segment bridge it also latches until reboot once a forwarded frame was dropped after the retry cap, so it never clears there — read `canbus_node_error` with that difference in mind.
+
 Heartbeats carry no button state — momentary buttons have no state (hard rule); buttons emit events only.
 
 **Sensor measurement** (CAT_SENSOR, 8 bytes, ADR-0006):
@@ -131,7 +133,7 @@ canbus/                       # flattened out of firmware/ (Phase 6a); the gatew
 │   └── check_registry_pushed.py # ADR-0009 push-discipline gate (run before gateway reflash)
 ├── tests/
 │   ├── test_protocol.cpp    # native round-trip test for canbus_protocol.h
-│   ├── test_ha_arbitration.cpp / test_node_health.cpp / test_bridge_forwarding.cpp
+│   ├── test_ha_arbitration.cpp / test_node_health.cpp / test_bridge_forwarding.cpp / test_tx_health.cpp
 │   │                        # native tests for the pure-logic headers
 │   ├── test_bindings_contract.cpp # drift test for the frozen bindings.h consumer contract
 │   ├── test_bindings.py / test_generate_exports.py / test_push_gate.py # Python (stdlib-only)

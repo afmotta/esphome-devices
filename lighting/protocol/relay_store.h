@@ -85,8 +85,14 @@ inline void fire_binding_fallback(uint16_t node_id, uint8_t button)
                (unsigned) b->channel, bus == nullptr ? "no CAN bus registered" : "unrecognized op");
       return;
     }
-    bus->send_data(can_id(CAT_OUTPUT, b->target_node_id), true,
-                   output_payload(b->channel, out_op));
+    // The gateway has no heartbeat of its own to carry an error flag, so a refused
+    // command is surfaced in the log (ESPHome's canbus already WARNs the raw error).
+    if (bus->send_data(can_id(CAT_OUTPUT, b->target_node_id), true,
+                       output_payload(b->channel, out_op)) != esphome::canbus::ERROR_OK) {
+      ESP_LOGE("arb", "FALLBACK output: node=%u btn=%u -> target=%u ch=%u CAN TX refused, command lost",
+               (unsigned) node_id, (unsigned) button, (unsigned) b->target_node_id,
+               (unsigned) b->channel);
+    }
     return;
   }
 

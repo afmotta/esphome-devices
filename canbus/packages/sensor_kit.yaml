@@ -75,7 +75,8 @@ script:
                    meas, raw, (long) value, status);
           auto err = id(can0).send_data(can_id(CAT_SENSOR, ${node_id}), true,
               sensor_payload(meas, value, status));
-          if (err != canbus::ERROR_OK) {
+          // A refused measurement is a lost frame: latch ERR_CAN_TX_FAIL for the next heartbeat.
+          if (!tx_health_track(tx_health(), err == canbus::ERROR_OK)) {
             ESP_LOGW("sensor", "node ${node_id} meas=%u TX failed (err=%d), frame dropped",
                 meas, (int) err);
           }

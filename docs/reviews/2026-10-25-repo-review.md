@@ -38,7 +38,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
-| [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ⬜ | — |
+| [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | 🔧 parziale | `085bb05`, `a2db85c` |
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
@@ -48,6 +48,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-14](#r-14--window-guard-riaccende-un-fancoil-boost) | 🟠 | Il window guard riaccende un fancoil `boost` fuori dal coordinatore | ⬜ | — |
 | [R-15](#r-15--var-di-radiantyaml-ignorate) | 🟡 | `pwm_period`/`kp`/`ki`/`kd` passati a `radiant.yaml` ignorati | ⬜ | — |
 | [R-16](#r-16--primo-boot-dei-pid-solo-cool) | 🟡 | Al primo boot i PID solo-cool partono in COOL | ⬜ | — |
+| [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ⬜ | — |
 
 ---
 
@@ -313,7 +314,39 @@ HA parte inoltre *prima* di eseguire l'azione. Preferire on/off nei binding e al
 
 Il bridge ignora il ritorno di `send_data` (`canbus/packages/bridge.yaml:135,138`): un frame fallito
 viene contato come "forwarded". `ERR_CAN_TX_FAIL` / `ERR_CAN_BUS_OFF` non vengono mai impostati da
-alcun firmware: la classe di alert "node_error" funziona solo per l'overflow del bridge.
+alcun firmware: l'evento `node_error` (classe maintenance, logbook: ADR-0011) scatta solo per l'overflow del bridge.
+
+**Fix applicato:** 🔧 parziale — `ERR_CAN_BUS_OFF` è rimandato a R-17; `085bb05` (`canbus: report CAN TX failures instead of losing them silently (R-07)`) + `a2db85c`
+(collegamento alla battery e documentazione).
+
+- **Bridge:**
+  - `bridge_drain_send()` riceve l'esito di `send_data()`: un frame esce dalla coda e conta come `forwarded` solo se il
+    controller lo accetta.
+  - Un frame rifiutato resta in testa e viene ritentato al tick successivo, mantenendo l'ordine FIFO e il ritmo di
+    10 ms che protegge i 3 buffer TX dell'MCP2515.
+  - Dopo circa 5 tick (circa 50 ms al tick nominale di 10 ms, circa 100 ms dove il loop è limitato, es. T-2CAN) il frame viene scartato e conteggiato in `dropped_tx`, con `ERR_CAN_TX_FAIL`
+    **permanente**, accanto a `ERR_BRIDGE_QUEUE_OVERFLOW`.
+- **Nodi** (`canbus/protocol/tx_health.h`, nuovo):
+  - ogni invio rifiutato (bottoni, sensor kit, bridge, heartbeat, attuatori An-Penta/An-Quad) attiva `ERR_CAN_TX_FAIL`
+    sul prossimo heartbeat;
+  - il flag si azzera solo quando un heartbeat che lo portava è stato accettato. Così HA vede sia il guasto sia il
+    recupero;
+  - viene aggiunto in OR al momento dell'heartbeat, non in `error_flags`, così non interferisce con i bit permanenti.
+- **`ERR_CAN_BUS_OFF`** resta riservato (rimandato a [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32)): ESPHome 2026.8.0 non espone lo stato di bus-off (`mcp2515` e `esp32_can` sono
+  classi `final` con helper protetti). È documentato accanto alla costante.
+- **Gateway lighting:** un `CAT_OUTPUT` di fallback rifiutato ora produce un log di errore.
+- **Test:**
+  - nuovo `canbus/tests/test_tx_health.cpp`, aggiunto alla battery;
+  - `test_bridge_forwarding.cpp` esteso: ordine dei retry, scarto dopo il limite, flag permanente, cadenza.
+- **Verificato:**
+  - battery nativa PASS;
+  - `esphome config` OK su 4 fixture, 2 nodi generati, An-Penta, An-Quad, light-controller e health-monitor;
+  - i lambda sono stati compilati anche contro un mock host.
+- **Non verificato:** compilazione ESP32/RP2040 e comportamento reale del retry sul bus.
+- **Limiti noti:**
+  - Sull'MCP2515 "OK" significa "caricato in un buffer TX", non "ricevuto": un bus morto emerge solo quando i 3 buffer
+    restano occupati.
+  - Il `CAT_OUTPUT` di fallback resta fire-and-forget: se si perde, ora viene loggato, ma non ritentato.
 
 ### R-08 — NaN nei timer e soglie da HA
 
@@ -438,6 +471,12 @@ finestra era aperta, un fancoil `boost` torna acceso come raffrescatore permanen
 Un PID con sola `cool_output` (fancoil `boost` e `cool_only`) senza stato salvato parte in COOL al primissimo boot.
 Se in quel momento `hp_mode` è già COOL, il fancoil potrebbe partire prima che l'handler stagionale lo spenga.
 
+### R-17 — Nessun recovery da bus-off sui nodi ESP32
+
+_Emersa durante il fix di R-07._ `esp32_can` (ESPHome 2026.8.0) non chiama mai `twai_initiate_recovery`. Un nodo ESP32
+che va in bus-off non torna sul bus senza un riavvio: riguarda health monitor, An-Penta, An-Quad e il bridge T-2CAN.
+Servono un componente esterno, oppure un riavvio automatico in caso di `ERR_CAN_TX_FAIL` persistente.
+
 ---
 
 ## Cosa va bene
@@ -469,3 +508,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |
 | 2026-10-25 | R-11 | `2f56444`, `633025f` | Drift documentazione, `CHANGELOG.md`, istruzioni Copilot | review diff (docs) |
 | 2026-10-25 | R-09 | ADR-0024 | ADR-0024 *Proposed*: fail-safe attuatori (dead-man su alimentazione pompe) | ricerca; verifiche al banco da fare |
+| 2026-10-25 | R-07 | `085bb05`, `a2db85c` | Errori TX CAN segnalati (bridge con retry limitato, nodi con `tx_health.h`) | test nativi, battery PASS, `esphome config` ×10 |

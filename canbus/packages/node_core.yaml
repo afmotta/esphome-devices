@@ -38,11 +38,16 @@
 #    id(error_flags) — see bridge.yaml. The ERR_* bits in canbus_protocol.h are
 #    disjoint, so they compose in the single heartbeat byte. Never add a second
 #    CAT_STATUS interval in a profile package: one node_id, one heartbeat.
+#    error_flags holds STICKY bits only. The one non-sticky bit, ERR_CAN_TX_FAIL from
+#    this node's own refused sends, lives in tx_health.h and is OR-ed in below at
+#    heartbeat time; profile packages feed it by wrapping their send_data() results in
+#    tx_health_track() (button.yaml, bridge.yaml).
 # =============================================================================
 
 esphome:
   includes:
     - ../protocol/canbus_protocol.h
+    - ../protocol/tx_health.h
   on_boot:
     priority: 200
     then:
@@ -78,5 +83,8 @@ interval:
           uint64_t ms = ((uint64_t) id(uptime_rollovers) << 32) | now;
           uint64_t hours = ms / 3600000ULL;
           uint16_t uptime_h = hours > 65535ULL ? 65535 : (uint16_t) hours;
-          id(can0).send_data(can_id(CAT_STATUS, ${node_id}), true,
-                             heartbeat_payload(uptime_h, id(error_flags)));
+          // Flags are fixed before the send so exactly what was reported is what gets cleared.
+          const uint8_t flags = id(error_flags) | tx_health_flags(tx_health());
+          auto err = id(can0).send_data(can_id(CAT_STATUS, ${node_id}), true,
+                                        heartbeat_payload(uptime_h, flags));
+          tx_health_heartbeat_sent(tx_health(), err == canbus::ERROR_OK);

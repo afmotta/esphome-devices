@@ -197,7 +197,11 @@ as chaos across the entire house.
 If the bridge ever has to drop frames because its internal queue filled up,
 it latches an `ERR_BRIDGE_QUEUE_OVERFLOW` marker in its own heartbeat, which
 stays set until the bridge is power-cycled — so a transient overload leaves
-a visible trace instead of silently going away. 🔵 DESIGNED
+a visible trace instead of silently going away. Frames the bridge could not
+transmit after several retries latch `ERR_CAN_TX_FAIL` the same sticky way.
+Ordinary nodes report `ERR_CAN_TX_FAIL` too when one of their own sends is
+refused; on a node it clears by itself once the controller accepts a heartbeat, so a
+`canbus_node_error` that comes and goes points at a flaky bus segment. 🔵 DESIGNED
 
 **Likely causes:**
 

@@ -67,6 +67,15 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   **`error_flags` is the shared contribution point with `node_core.yaml` as its sole
   transmitter** — a profile package reports by OR-ing its `ERR_*` bit in, and never
   adds a second `CAT_STATUS` interval. One node_id, one heartbeat.
+- **Node-side TX failures are reported, never just logged** (review R-07). Wrap every node
+  `send_data()` result in `tx_health_track()` (`canbus/protocol/tx_health.h`; the battery counts
+  `send_data(` call sites in `canbus/packages` and `lighting/packages` and fails any file with more
+  of them than `tx_health_track(`/`tx_health_heartbeat_sent(` wraps); the heartbeat ORs
+  `tx_health_flags()` in at send time, so `ERR_CAN_TX_FAIL` reaches the health monitor and clears
+  once the controller has accepted a heartbeat carrying it (MCP2515: loaded into a TX buffer, not
+  ACKed; TWAI: queued) — a dead bus only surfaces once the TX buffers stay full. `error_flags` itself stays sticky-only (the bridge's
+  `ERR_BRIDGE_QUEUE_OVERFLOW` / dropped-TX bits). `ERR_CAN_BUS_OFF` is reserved: ESPHome exposes no
+  bus-off state.
 - **Bridges are ordinary registry rows.** A bridge carries a `node_id` from the same
   allocation space, so it lands in `node_map.h`, `map.json`, and the generated HA
   per-node health entities for free.
@@ -109,6 +118,7 @@ g++ -std=c++17 -Wall -Wextra canbus/tests/test_protocol.cpp -o /tmp/proto && /tm
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_ha_arbitration.cpp -o /tmp/arb && /tmp/arb
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_node_health.cpp -o /tmp/health && /tmp/health
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_bridge_forwarding.cpp -o /tmp/bridge && /tmp/bridge
+g++ -std=c++17 -Wall -Wextra canbus/tests/test_tx_health.cpp -o /tmp/txh && /tmp/txh
 g++ -std=c++17 -Wall -Wextra canbus/tests/test_bindings_contract.cpp -o /tmp/bcontract && /tmp/bcontract
 
 # Lighting's fallback-actuation pure logic (needs -I flags: it includes canbus'

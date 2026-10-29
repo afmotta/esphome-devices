@@ -131,6 +131,35 @@ logger_level_check() {
   fi
 }
 
+# Every node-side send_data() must feed tx_health (review R-07): a package that sends
+# without it brings back the silent-loss bug. The gate counts non-comment call sites per
+# file: each send_data( must be matched by a tx_health_track( / tx_health_heartbeat_sent(
+# call, so an extra bare send in an already-wrapped file is still caught.
+# Count-based by design, a best-effort convention guard and not a proof: it does not bind a
+# wrap to its send (real sites use `auto err = send_data(...)` and a separate
+# `tx_health_track(..., err == ...)`), so an unrelated wrap can cancel a bare send; multi-line
+# /* */ blocks are not stripped and a bare // inside a string literal (not a URL's ://) still
+# hides the rest of its line.
+tx_health_wrap_check() {
+  local f code sends wraps offenders=""
+  for f in $(git ls-files canbus/packages lighting/packages); do
+    # drop full-line YAML comments, single-line /* */ and // comments (a URL's :// is not one),
+    # then count call sites
+    code="$(grep -v -E '^[[:space:]]*#' "$f" \
+      | sed -E -e 's:/\*[^*]*\*/::g' -e 's:(^|[^:])//.*$:\1:' || true)"
+    sends="$(printf '%s\n' "$code" | grep -o -E 'send_data[[:space:]]*\(' | wc -l | tr -d ' ' || true)"
+    wraps="$(printf '%s\n' "$code" | grep -o -E 'tx_health_(track|heartbeat_sent)[[:space:]]*\(' | wc -l | tr -d ' ' || true)"
+    if [ "${sends:-0}" -gt "${wraps:-0}" ]; then
+      offenders="$offenders $f(send_data=$sends,wrapped=$wraps)"
+    fi
+  done
+  if [ -n "$offenders" ]; then
+    echo "send_data() not matched by tx_health_track()/tx_health_heartbeat_sent() in:$offenders"
+    echo "Wrap the result in tx_health_track() (see canbus/CLAUDE.md, review R-07)."
+    return 1
+  fi
+}
+
 echo "verification battery — repo: $REPO_ROOT"
 [ "$NATIVE_ONLY" -eq 1 ] && echo "mode: --native-only (esphome-dependent steps are SKIPPED)"
 echo
@@ -138,6 +167,7 @@ echo
 # ── Python tests (stdlib-only) ──────────────────────────────────────────────
 run_step "hygiene: no tracked secrets or build artifacts" python3 scripts/check_repo_hygiene.py
 run_step "hygiene: deployable logger levels are configurable" logger_level_check
+run_step "canbus: every send_data() feeds tx_health" tx_health_wrap_check
 run_step "climate: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py
 run_step "python: canbus/tests/test_generate_exports.py"  python3 canbus/tests/test_generate_exports.py
@@ -149,6 +179,7 @@ run_step "native: canbus test_protocol.cpp"          cxx_run proto     canbus/te
 run_step "native: canbus test_ha_arbitration.cpp"    cxx_run arb       canbus/tests/test_ha_arbitration.cpp
 run_step "native: canbus test_node_health.cpp"       cxx_run health    canbus/tests/test_node_health.cpp
 run_step "native: canbus test_bridge_forwarding.cpp" cxx_run bridge    canbus/tests/test_bridge_forwarding.cpp
+run_step "native: canbus test_tx_health.cpp"        cxx_run txhealth  canbus/tests/test_tx_health.cpp
 run_step "native: canbus test_bindings_contract.cpp" cxx_run bcontract canbus/tests/test_bindings_contract.cpp
 run_step "native: lighting test_binding_actuation.cpp" \
   cxx_run act -Icanbus/protocol -Ilighting/protocol lighting/tests/test_binding_actuation.cpp
