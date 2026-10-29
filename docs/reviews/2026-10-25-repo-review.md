@@ -41,7 +41,7 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ⬜ | — |
 | [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer (`predictive_minutes`) e min-fan MEV da HA | ⬜ | — |
 | [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⬜ | — |
-| [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ⬜ | — |
+| [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | 🔧 parziale | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | 🔧 parziale | `1472a90` (sezione PID) |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ⬜ | — |
 | [R-13](#r-13--windup-dellintegrale-pid) | 🟠 | Windup dell'integrale PID (nessun `min/max_integral`) | ⬜ | — |
@@ -267,7 +267,15 @@ l'API non ha un client connesso da oltre un periodo di grazia. Test nativo della
   - battery nativa PASS in un worktree isolato sul commit;
   - `esphome config` OK su climate-control, sui due harness climate, su light-controller e health-monitor;
   - l'API scelta esiste in 2026.8.0.
-- **Non verificato qui** (PlatformIO bloccato): la compilazione per il device, che girerà in CI su `main`. L'e2e è girato in locale su un binario host (4/4, stabile su 3 esecuzioni) e ora gira anche in CI sulle PR.
+- **Non verificato qui** (PlatformIO bloccato): la compilazione ESP32 per il device, che gira in CI su `main`.
+- **e2e eseguito in locale (ora anche in CI sulle PR)** su un binario host costruito localmente (`esphome compile --only-generate` + g++):
+  **4/4 PASS**, stabile su 3 esecuzioni. Mutation check:
+  - con un tracker che non scade mai, `test_disconnect_past_grace_is_nan_then_recovers` fallisce;
+  - con la grazia a 0, `test_disconnect_within_grace_keeps_value` fallisce;
+  - rimettendo `filter_out: nan`, `test_unavailable_ha_state_is_emergency` fallisce.
+
+  Il ramo `: NAN` di `ha_tier_gate` è coperto solo dal test nativo, perché a runtime è ridondante con il reset a NaN del
+  sensore grezzo.
 - **Rischio residuo documentato:** anche `esphome logs` si sottoscrive agli stati per default. Una sessione di log lasciata
   aperta durante un blackout di HA mantiene vivo il valore; per evitarlo usare `--no-states`.
 - **Latenza:** un cambio di valore da HA arriva al PID con fino a ~20 s di ritardo (gate a 10 s più failover a 10 s).
@@ -327,6 +335,23 @@ watchdog o un timeout lato scheda relè.
 - Manca un test di contratto servizi API ↔ automazioni HA (R-03).
 - I test C++ usano `assert()` nudo (nessun messaggio, spariscono con `-DNDEBUG`).
 - `CLAUDE.md` cita hook pre-commit inesistenti; nessun yamllint.
+
+**Progressi** (fix parziale):
+- **Nuovi test aggiunti con i fix:**
+  - contratto servizi API ↔ automazioni HA: `test_ha_contract.py` (R-03);
+  - test nativi `test_ha_tier.cpp` (R-04) e `test_pid_direction.cpp` (R-01);
+  - e2e host `test_room_sensors.py` (R-04) e `test_radiant_direction.py` (R-01), che coprono il comportamento della
+    composizione climate reale.
+- **`bf1aa11`:**
+  - `test_fancoil_boost.py` è ora nella CI su `main` e nella battery: 8/8, stabile su 4 esecuzioni;
+  - il suo harness entra nel gate `esphome config` della CI;
+  - `conftest.py` fallisce subito se la porta API 6053 è già occupata, invece di collegarsi al binario sbagliato.
+- **Verifica locale indipendente** dopo tutti i fix, su binari host costruiti con g++: failover 1/1, room_sensors 4/4,
+  fancoil_boost 8/8, radiant_direction 34/34.
+- **Restano aperti:**
+  - compile ed e2e (tranne room_sensors) solo su push a `main`, non sulle PR;
+  - `assert()` nudo nei test C++;
+  - nessun pre-commit né yamllint.
 
 ### R-11 — Drift della documentazione
 
@@ -400,3 +425,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-04 | `ad79881` | Tier HA → NaN su `unavailable` o assenza di HA oltre 5 min | test nativo, `esphome config` ×5, battery PASS; e2e locale 4/4 + CI |
 | 2026-10-25 | R-01 | `1472a90` | Uscite PID gated su `hp_mode`, ruoli fancoil, sottotetto riscalda | test nativo, e2e host 20/20, `esphome config` ×5, battery PASS |
 | 2026-10-25 | R-01b | `ed4d157` | Domanda pompe = attuazione gated (`is_active`) | test nativi, e2e host 34/34, battery PASS |
+| 2026-10-25 | R-10 (parz.) | `bf1aa11` | e2e fancoil-boost in CI/battery; guard porta API in `conftest.py` | e2e host 8/8 ×4; tutti gli e2e climate PASS |

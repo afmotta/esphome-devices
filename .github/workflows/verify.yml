@@ -47,7 +47,8 @@ jobs:
             canbus/tests/compile_bridge_t2can.yaml \
             climate/tests/compile_can_sensor_receiver.yaml \
             climate/tests/harness/room_sensors.yaml \
-            climate/tests/harness/radiant_direction.yaml
+            climate/tests/harness/radiant_direction.yaml \
+            climate/tests/harness/fancoil_boost.yaml
           do
             echo "::group::esphome config $f"
             esphome config "$f" >/dev/null
@@ -125,3 +126,5 @@ jobs:
         run: python3 -m pytest climate/tests/e2e/test_failover_sensor.py
       - name: Climate PID direction e2e
         run: python3 -m pytest climate/tests/e2e/test_radiant_direction.py
+      - name: Climate fancoil-boost e2e
+        run: python3 -m pytest climate/tests/e2e/test_fancoil_boost.py
