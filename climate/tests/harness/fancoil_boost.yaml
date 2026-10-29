@@ -14,7 +14,8 @@
 #   - condition binary sensors need no compression: template binary sensors
 #     are evaluated every loop() iteration
 #   - predictive delay is runtime-controlled via set_predictive_minutes
-#     (fractional minutes work: 0.05 = 3 s)
+#     (fractional minutes work: 0.05 = 3 s); its clamp is compressed to
+#     0.1 min = 6 s (predictive_max_minutes; prod default 120)
 #
 # The radiant PID target temperature is fixed at 24.0 °C, so tests reason in
 # absolute temperatures: 26.0 => delta +2.0, 23.0 => delta -1.0.
@@ -223,3 +224,4 @@ packages:
       predictive_minutes_sensor: stub_predictive_minutes
       min_time_in_state_seconds: 2
       diagnostics_update_interval: 100ms
+      predictive_max_minutes: 0.1   # 6 s: lets a test observe the clamp

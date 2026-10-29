@@ -423,7 +423,16 @@ già state rese locali.
 - **Azione una tantum lato HA:** cancellare `input_number.mev_minimum_fan_speed`, `ground_floor_mev_minimum_fan_speed`,
   `mev_escalation_fan_threshold`, `mev_deescalation_fan_threshold`, `mev_escalation_delay_minutes` e
   `mev_deescalation_delay_minutes`, ed eventualmente reinserire i valori personalizzati sui numeri del controller.
-- **`predictive_minutes` (R-08a):** in lavorazione con R-05.
+**Fix R-08a:** ✅ `0583674` — `climate: refuse a NaN/non-positive predictive boost delay, clamp a huge one (R-08a)`
+
+- Lo script predittivo si arma solo se `isfinite(minutes) && minutes > 0`; altrimenti logga un WARN e non parte. È stato
+  scelto di rifiutare invece di usare un default, per non introdurre una latenza di boost che l'operatore non ha impostato.
+- Il ritardo è limitato a `[0, predictive_max_minutes]`, nuova var con default 120, coerente con il range del numero di
+  produzione.
+- Gli altri ritardi del coordinatore moltiplicano un intero noto a compile time, quindi non serve una protezione.
+- I ritardi MEV (`state * 60000`) usano ora numeri locali con range 1–120 min (R-08b): non possono più essere NaN.
+- e2e `test_fancoil_boost.py` **15/15** (5 nuovi casi), con preferenze isolate. Ripristinando il codice vecchio, i 5 nuovi
+  casi falliscono.
 
 ### R-09 — Fail-safe hardware dei relè
 
@@ -656,3 +665,4 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-08b | `e1d8e68`, `bd32bc6` | Min-fan, soglie e ritardi MEV come numeri locali | e2e host 6/6, `esphome config`, battery PASS |
 | 2026-10-25 | R-10 | `32b6ea2`, `e2cb259`, `3a0cc0a` | e2e host su ogni PR, lint yamllint/hygiene, pre-commit, isolamento preferenze host | yamllint OK, battery PASS, e2e climate 57/57 |
 | 2026-10-25 | R-05 + R-19 | `504300a`, `342cc1c` | Sensore perso → boost chiuso e valvola chiusa; domanda pompe con override; pompe non più sempre accese | test nativo, e2e host, verify script |
+| 2026-10-25 | R-08a | `0583674` | Ritardo predittivo del boost: NaN/≤0 rifiutato, valori enormi limitati | e2e host 15/15 |

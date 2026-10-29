@@ -6,6 +6,8 @@ Covers the documented state machine contract:
     1. Reactive temp:     delta > threshold
     2. Reactive humidity: humidity > threshold + hysteresis/2
     3. Predictive:        radiant saturated AND above target AND not cooling down
+  Predictive delay input (R-08): a NaN / non-positive minutes value never arms
+                 the trigger; a huge one is clamped (harness clamp: 6 s)
   Anti-cycling:  the timer cancels if the condition clears before it elapses
   Deactivation (AND logic): delta <= 0 AND humidity <= threshold - hysteresis/2
   Season override: leaving cooling season ends boost immediately (no delay)
@@ -243,3 +245,49 @@ async def test_no_boost_starts_while_the_temperature_is_lost(run_harness):
     await asyncio.sleep(4)
     assert h.states[STATE].state == "Radiant Only"
     assert h.states[AUTOMATION].state == "Idle"
+
+
+async def _saturate(h):
+    """Predictive stimulus: reactive trigger out of reach, radiant saturated, room above target."""
+    await h.call("set_temp_threshold", value=5.0)
+    await h.call("set_temperature", value=26.0)
+    await h.call("set_radiant_cool_output", value=0.96)
+
+
+@pytest.mark.parametrize("minutes", [NAN, 0.0, -5.0, float("inf")])
+async def test_predictive_not_armed_for_an_invalid_delay(run_harness, minutes):
+    """NaN / zero / negative / infinite minutes used to become an undefined uint32 delay.
+
+    The trigger must refuse to arm (no "Activating (predictive)", no boost) and
+    must arm again once the value is sane and the trigger is re-asserted.
+    """
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)
+    await h.call("set_predictive_minutes", value=minutes)
+    await _saturate(h)
+
+    # Past the harness clamp (6 s) and the anti-cycling delay: any armed
+    # delay, however it was computed, would have fired by now.
+    await asyncio.sleep(8)
+    assert h.states[STATE].state == "Radiant Only"
+    assert h.states[AUTOMATION].state == "Idle"
+    assert h.states[OVERRIDE_SWITCH].state is False
+
+    # Recovery: valid minutes, trigger released and asserted again (on_press).
+    await h.call("set_predictive_minutes", value=0.05)
+    await h.call("set_radiant_cool_output", value=0.0)
+    await asyncio.sleep(0.3)
+    await h.call("set_radiant_cool_output", value=0.96)
+    await h.wait_for(AUTOMATION, lambda s: s.state == "Activating (predictive)")
+    await h.wait_for(STATE, lambda s: s.state == "Fancoil Boost", timeout=6)
+
+
+async def test_predictive_delay_is_clamped(run_harness):
+    """999 minutes would be ~16 h; the (compressed) clamp caps it at 6 s."""
+    h = await run_harness("fancoil_boost")
+    await setup_zone(h, cooling=True)  # leaves predictive minutes at 999
+    await _saturate(h)
+    await h.wait_for(AUTOMATION, lambda s: s.state == "Activating (predictive)")
+    await asyncio.sleep(3)
+    assert h.states[STATE].state == "Radiant Only"  # still waiting, not yet clamped out
+    await h.wait_for(STATE, lambda s: s.state == "Fancoil Boost", timeout=8)

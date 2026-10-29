@@ -25,6 +25,10 @@
 #   min_time_in_state_seconds    - Anti-cycling minimum (default: 600 = 10 min)
 #   humidity_hysteresis          - Dead band around humidity threshold (default: 5.0)
 #   saturated_output_threshold   - PID output level = "saturated" (default: 0.95)
+#   predictive_max_minutes       - Upper clamp of the predictive delay, in
+#                                  minutes (default: 120, the range of the
+#                                  production number; a NaN or non-positive
+#                                  ${predictive_minutes_sensor} is never armed)
 #   diagnostics_update_interval  - Poll rate of the temp delta / radiant output
 #                                  diagnostic sensors (default: 30s; tests
 #                                  compress this)
@@ -128,6 +132,7 @@ defaults:
   humidity_hysteresis: 5.0
   saturated_output_threshold: 0.95
   diagnostics_update_interval: 30s
+  predictive_max_minutes: 120
   boost_active_global: ${zone_slug}_boost_active
   last_mode_change_time_global: ${zone_slug}_last_mode_change_time
   last_mode_change_epoch_global: ${zone_slug}_last_mode_change_epoch
@@ -333,21 +338,42 @@ script:
           level: INFO
           tag: boost
 
-  # Predictive activation: saturation duration delay then boost
+  # Predictive activation: saturation duration delay then boost.
+  # ${predictive_minutes_sensor} is a runtime float (an HA-editable number in
+  # production), and an ESPHome delay lambda returns uint32_t: NaN converts to an
+  # undefined value and a negative to ~49 days' worth of milliseconds, either
+  # of which can fire the boost at once or never (R-08). So the script refuses
+  # to arm for a NaN / non-positive value (the reactive triggers still work),
+  # and clamps a huge one to ${predictive_max_minutes}.
   - id: ${zone_slug}_activate_boost_predictive
     mode: restart
     then:
-      - text_sensor.template.publish:
-          id: ${zone_slug}_boost_automation_state
-          state: "Activating (predictive)"
-      - delay: !lambda "return id(${predictive_minutes_sensor}).state * 60000;"
-      - select.set:
-          id: ${zone_slug}_boost_state
-          option: "Fancoil Boost"
-      - logger.log:
-          format: "${zone_slug}: Predictive boost transition complete"
-          level: INFO
-          tag: boost
+      - if:
+          condition:
+            lambda: |-
+              float minutes = id(${predictive_minutes_sensor}).state;
+              return std::isfinite(minutes) && minutes > 0.0f;
+          then:
+            - text_sensor.template.publish:
+                id: ${zone_slug}_boost_automation_state
+                state: "Activating (predictive)"
+            - delay: !lambda |-
+                float minutes = id(${predictive_minutes_sensor}).state;
+                if (!(minutes > 0.0f)) minutes = 0.0f;  // changed since the check: fail short, not undefined
+                if (minutes > ${predictive_max_minutes}) minutes = ${predictive_max_minutes};
+                return (uint32_t) (minutes * 60000.0f);
+            - select.set:
+                id: ${zone_slug}_boost_state
+                option: "Fancoil Boost"
+            - logger.log:
+                format: "${zone_slug}: Predictive boost transition complete"
+                level: INFO
+                tag: boost
+          else:
+            - logger.log:
+                format: "${zone_slug}: Predictive boost not armed - predictive minutes is NaN or not positive"
+                level: WARN
+                tag: boost
 
   # Deactivation: anti-cycling delay then radiant only
   - id: ${zone_slug}_deactivate_boost
