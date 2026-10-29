@@ -4,7 +4,7 @@
 |-------|--------|
 | **Data** | 2026-10-25 |
 | **Baseline** | `main` @ `9d0bc28` (Upgrade ESPHome to 2026.8.0, ADR-0022) |
-| **Branch dei fix** | `claude/repo-review-fixes` |
+| **Branch dei fix** | uno per issue, es. `claude/fix-r02-reboot-timeouts` |
 | **Autore** | AI Assistant (Claude Code), su richiesta di Alberto |
 | **Scopo** | Review completa (firmware, logiche, testing, documentazione) e registro vivo di issue e fix |
 
@@ -32,10 +32,10 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 
 | ID | Sev. | Titolo | Stato | Fix |
 |----|------|--------|-------|-----|
-| [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | ⬜ | — |
-| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ⬜ | — |
-| [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ⬜ | — |
-| [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ⬜ | — |
+| [R-01](#r-01--il-pid-pilota-la-valvola-con-errore-in-valore-assoluto) | 🔴 | Il PID pilota la valvola con \|errore\| (heat/cool sulla stessa uscita) | 🔧 | — |
+| [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | PR #67 |
+| [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | 🔧 | — |
+| [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | 🔧 | — |
 | [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN; boost bloccato | ⬜ | — |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | ⬜ | — |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ⬜ | — |
@@ -85,13 +85,33 @@ raffrescamento / caldo+freddo). Test nativo della regola + e2e host.
 `"No clients; rebooting"`. Senza HA il controller climate si riavvia ogni 15 minuti, perdendo integrali
 PID, timer di boost e stato di arbitraggio — in contrasto con l'autonomia dichiarata. An-Penta/An-Quad
 avevano già `reboot_timeout: 0s`. Anche `wifi: reboot_timeout` (default 15 min) riavvia se il WiFi non
-si connette e il codice non sembra considerare Ethernet: con l'AP spento, un controller su Ethernet
-probabilmente si riavvia comunque (da confermare al bring-up).
+si connette, e il watchdog WiFi **ignora Ethernet** (confermato sul sorgente, vedi sotto): con l'AP
+spento un controller sano su Ethernet si riavvierebbe comunque.
 
-**Correzione prevista.** `api: reboot_timeout: 0s` sui tre controller; `wifi: reboot_timeout: 0s` sulle
+**Correzione prevista.** `api: reboot_timeout: 0s` su t-connect-pro e waveshare-s3-rs485-can (An-Penta/An-Quad già a 0s); `wifi: reboot_timeout: 0s` sulle
 board dual-interface (Ethernet primaria).
 
-**Fix applicato:** _in lavorazione_
+**Fix applicato:** ✅ PR #67 — `boards: disable API/WiFi reboot timeouts on autonomous controllers (R-02)`
+
+| Board | `api: reboot_timeout` | `wifi: reboot_timeout` | Device |
+|-------|----------------------|------------------------|--------|
+| `boards/t-connect-pro.yaml` | `0s` (nuovo) | `0s` (nuovo) | climate-control, light-controller |
+| `boards/waveshare-s3-rs485-can.yaml` | `0s` (nuovo) | 15min (default, voluto) | health-monitor |
+| `boards/an-penta-plus.yaml` | `0s` (già in `devices/an-penta-1.yaml`) | `0s` (nuovo) | an-penta-1 |
+| `boards/an-quad.yaml` | `0s` (già in `devices/an-quad-1.yaml`) | 15min (default, voluto) | an-quad-1 |
+
+- **Verifica sul sorgente ESPHome 2026.8.0:** `api_server.cpp:151-155` riavvia con "No clients; rebooting".
+  In `wifi_component.cpp`, `last_connected_` è scritto solo al setup (r. 650) e in
+  `WIFI_COMPONENT_STATE_STA_CONNECTED` (r. 825); il componente wifi non ha riferimenti a ethernet e
+  `network: priority:` influenza solo la setup priority. Quindi il watchdog WiFi non tiene conto di Ethernet.
+- **Scelta per le board solo WiFi** (health monitor, An-Quad, S1 Pro): il reboot WiFi resta al default perché,
+  senza Ethernet, è il percorso di recupero da uno stack WiFi bloccato.
+- **Verificato:** `esphome config` valido sui 5 entry point, con i valori risolti indicati in tabella.
+- **Da verificare su hardware al bring-up:** controller acceso per più di 15 min con HA spento e con l'AP spento;
+  conferma sul campo che il watchdog WiFi ignora Ethernet (controller sano su Ethernet con AP spento >15 min non si
+  riavvia); Ethernet giù + AP giù: nessun auto-recupero atteso (trade-off accettato, vedi commento in
+  `boards/t-connect-pro.yaml`).
+- **Non toccate:** le board legacy senza consumer (`a6`, `a16`, `waveshare-s3`).
 
 ---
 
@@ -202,4 +222,8 @@ watchdog o un timeout lato scheda relè.
 
 ## Registro dei fix
 
-_Le voci vengono aggiunte man mano che i fix sono committati sul branch `claude/repo-review-fixes`._
+_Le voci vengono aggiunte man mano che i fix sono committati (un branch per issue)._
+
+| Data | Issue | Commit | Sintesi | Verifica |
+|------|-------|--------|---------|----------|
+| 2026-10-25 | R-02 | PR #67 | vedi la sezione R-02 | vedi la sezione R-02 |

@@ -100,7 +100,11 @@ ethernet:
     pin: 17
   phy_addr: 0
 
+# reboot_timeout: 0s — WiFi is only the fallback behind Ethernet and its watchdog
+# ignores Ethernet, so an unreachable AP must not reboot the board (same rationale
+# and trade-off as boards/t-connect-pro.yaml, R-02).
 wifi:
+  reboot_timeout: 0s
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 

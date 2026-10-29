@@ -38,7 +38,13 @@ logger:
   level: ${logger_level}
 
 # Enable Home Assistant API
+#
+# reboot_timeout: 0s — both consumers (climate and lighting controllers) must keep
+# running with Home Assistant down. The 15 min default reboots a device that has had
+# no API client for that long, which would wipe PID integrals, boost timers and
+# arbitration state every quarter hour during an HA outage.
 api:
+  reboot_timeout: 0s
   encryption:
     key: ${encryption_key}
 
@@ -85,7 +91,15 @@ ethernet:
   interrupt_pin: GPIO9
   reset_pin: GPIO48
 
+# reboot_timeout: 0s — ESPHome's WiFi watchdog only tracks WiFi's own connection
+# (it ignores Ethernet), so with the default 15 min a missing or unreachable AP
+# would reboot a controller that is perfectly healthy on Ethernet. WiFi is only the
+# fallback here; its absence must never reboot the controller.
+# Trade-off: if Ethernet hangs and the AP is also unreachable, nothing reboots the
+# board (the W5500 has no watchdog). Accepted: autonomous actuation matters more
+# than self-recovery of the network link.
 wifi:
+  reboot_timeout: 0s
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
