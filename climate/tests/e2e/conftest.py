@@ -71,6 +71,33 @@ class Harness:
         """Invoke an api action defined in the harness yaml."""
         await self.client.execute_service(self._services[action], kwargs)
 
+    def object_id(self, name: str) -> str:
+        """Look an entity up by its display name.
+
+        The device derives object ids from the name (parentheses and spaces are
+        mangled), so tests that include real packages ask for the id instead of
+        hard-coding it.
+        """
+        for entity in self._entities.values():
+            if entity.name == name:
+                return entity.object_id
+        raise KeyError(f"no entity named {name!r}")
+
+    async def disconnect(self) -> None:
+        """Drop the API connection (the device stays up)."""
+        await self.client.disconnect()
+
+    async def reconnect(self) -> None:
+        """Open a new API connection and resubscribe to entity states.
+
+        Entity keys are stable across connections, so the maps built in start()
+        stay valid. Anything the test subscribed to beyond states (e.g. the
+        Home Assistant state subscription) must be redone by the caller.
+        """
+        self.states.clear()  # drop pre-disconnect values so waits can't match stale ones
+        await self.client.connect(login=True)
+        self.client.subscribe_states(self._on_state)
+
     async def wait_for(self, object_id: str, predicate, timeout: float = DEFAULT_TIMEOUT):
         """Wait until the entity's state satisfies predicate; return the state."""
         async with asyncio.timeout(timeout):

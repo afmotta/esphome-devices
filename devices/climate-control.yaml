@@ -16,6 +16,7 @@ esphome:
     - ../../canbus/protocol/canbus_protocol.h
     - ../../climate/protocol/generated_can_sensor_routes.h
     - ../../climate/protocol/can_sensor_receiver.h
+    - ../../climate/protocol/ha_tier.h   # HA-tier staleness gate for room_sensors.yaml (R-04)
 
 packages:
   base: !include ../boards/t-connect-pro.yaml

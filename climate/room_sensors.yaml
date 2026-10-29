@@ -7,6 +7,12 @@
 #   - ha_temperature_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_temperature")
 #   - ha_humidity_sensor_id: HA entity ID (e.g., "sensor.room_soggiorno_humidity")
 #
+# Optional vars:
+#   - ha_staleness_grace_s: Seconds the HA tier stays valid after the last HA-capable
+#     API client disconnected (default: 300; see "HA tier staleness" below)
+#   - sensor_update_interval: Evaluation period of the HA-tier gate and the failover
+#     (default: 10s; the e2e harness compresses it)
+#
 # Exposes:
 #   - sensor.{zone}_temp_abstracted: Temperature for PID controllers
 #   - text_sensor.{zone}_temp_abstracted_sensor_tier: Active tier ("CAN", "HA", or "Emergency")
@@ -20,6 +26,39 @@
 #   | NaN        | Valid      | Tier 2 (HA)          | HA value         |
 #   | NaN        | NaN        | Tier 3 (Emergency)   | NaN              |
 #
+# "HA Sensor" above is the *gated* HA value (`${room_slug}_temp_ha_gated` /
+# `_humidity_ha_gated`), not the raw `homeassistant` sensor -- see below.
+#
+# HA tier staleness (R-04): the raw `homeassistant` sensor has no staleness of its
+# own -- when the API link to HA drops it keeps its last value forever, which would
+# freeze the PIDs, the dew-point protection and the fancoil boost on a stale
+# reading. 12 of 13 zones have no CAN node yet and rely on this tier alone. Two
+# rules, both resolving to NaN (= Emergency, PID outputs drop to 0 immediately):
+#   1. HA reports `unavailable`/`unknown` -> the raw sensor publishes NaN. There is
+#      deliberately no `filter_out: nan` on it: that filter used to swallow exactly
+#      this NaN and keep the last good value.
+#   2. No HA-capable API client for longer than `ha_staleness_grace_s` -> the gated
+#      sensor reads NaN (rule: climate/protocol/ha_tier.h, tested natively). The
+#      grace covers only a missing client (e.g. an HA restart's connection gap),
+#      NOT entities that HA reports as `unavailable`/`unknown` while it starts up:
+#      those hit rule 1 and read NaN (Emergency) until HA publishes a real value.
+#      It is connection liveness, NOT "time since the last update": HA only pushes
+#      state *changes*, so a stable room temperature would wrongly expire.
+# Which "connected" check: `is_connected_with_state_subscription()` (the C++ twin of
+# `api.connected: state_subscription_only: true`), not plain `is_connected()`.
+# Plain is_connected() is true for ANY client, including one that only called an
+# action or read logs. The subscription flag is set by the SubscribeStates request,
+# which Home Assistant's integration always sends, so clients that never subscribe
+# to states stop counting as HA. Residual gap: `esphome logs` also subscribes to
+# states by default (use `--no-states` for a log session that must not count), so a
+# laptop log session left open during an HA outage keeps the last value alive; the
+# API has no per-connection "subscribed to HA states" accessor to be stricter.
+# Timing: the grace counts from the last HA-capable client's disconnect. From the
+# HA outage itself the tier takes up to ~7 min to read NaN (dead-link detection
+# ~90 s + grace 300 s + up to two 10 s polling stages).
+# When the grace expires the raw sensor is also reset to NaN, so a reconnect cannot
+# briefly re-expose the old value before HA pushes the fresh state.
+#
 # Note: the `${room_slug}_temp_can`/`${room_slug}_humidity_can` sensors are
 # declared statically below, once per room, so this failover always has a
 # valid id to reference. They are published by
@@ -31,6 +70,10 @@
 # canbus/tools/generate_nodes.py's STATIC_CAN_SENSOR_TARGET_SUFFIXES for why
 # that would be a duplicate-id compile error.
 # ============================================================================
+
+defaults:
+  ha_staleness_grace_s: "300"
+  sensor_update_interval: "10s"
 
 sensor:
   - platform: template
@@ -101,19 +144,63 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
+  # Raw HA readings. No `filter_out: nan`: `unavailable`/`unknown` must reach the
+  # failover as NaN (see "HA tier staleness" in the header). Consumers read the
+  # *_ha_gated sensors below, never these.
   - platform: homeassistant
     entity_id: ${ha_temperature_sensor_id}
     id: ${room_slug}_temp_ha
     internal: true
-    filters:
-      - filter_out: nan
 
   - platform: homeassistant
     entity_id: ${ha_humidity_sensor_id}
     id: ${room_slug}_humidity_ha
     internal: true
-    filters:
-      - filter_out: nan
+
+  # Gated HA tier: the raw value while an HA-capable client is (or within the grace
+  # was) connected, NaN otherwise. Polled, not event-driven, so staleness is detected
+  # even when HA never sends anything again. Each lambda owns its tracker.
+  - platform: template
+    id: ${room_slug}_temp_ha_gated
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+    update_interval: ${sensor_update_interval}
+    lambda: |-
+      static HaTierTracker tracker;
+      const bool ha_client = api::global_api_server != nullptr &&
+                             api::global_api_server->is_connected_with_state_subscription();
+      const float raw = id(${room_slug}_temp_ha).state;
+      const float gated = ha_tier_gate(tracker, ha_client, millis(),
+                                       (uint32_t) ${ha_staleness_grace_s} * 1000U, raw);
+      if (tracker.expired && !std::isnan(raw)) {
+        ESP_LOGW("ha_tier", "[${room_slug}] temperature: no HA client for >${ha_staleness_grace_s}s, HA tier -> NaN");
+        id(${room_slug}_temp_ha).publish_state(NAN);
+      }
+      return gated;
+
+  - platform: template
+    id: ${room_slug}_humidity_ha_gated
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    accuracy_decimals: 2
+    internal: true
+    update_interval: ${sensor_update_interval}
+    lambda: |-
+      static HaTierTracker tracker;
+      const bool ha_client = api::global_api_server != nullptr &&
+                             api::global_api_server->is_connected_with_state_subscription();
+      const float raw = id(${room_slug}_humidity_ha).state;
+      const float gated = ha_tier_gate(tracker, ha_client, millis(),
+                                       (uint32_t) ${ha_staleness_grace_s} * 1000U, raw);
+      if (tracker.expired && !std::isnan(raw)) {
+        ESP_LOGW("ha_tier", "[${room_slug}] humidity: no HA client for >${ha_staleness_grace_s}s, HA tier -> NaN");
+        id(${room_slug}_humidity_ha).publish_state(NAN);
+      }
+      return gated;
 
   # ============================================================================
   # ABSTRACTED SENSOR (2-Tier Failover Logic: CAN → HA → Emergency)
@@ -127,10 +214,11 @@ packages:
       unit_of_measurement: "°C"
       device_class: temperature
       primary_sensor: ${room_slug}_temp_can
-      secondary_sensor: ${room_slug}_temp_ha
+      secondary_sensor: ${room_slug}_temp_ha_gated
       internal: "false"
       primary_tier_label: "CAN"
       secondary_tier_label: "HA"
+      update_interval: ${sensor_update_interval}
   humidity_failover: !include
     file: packages/components/failover_sensor.yaml
     vars:
@@ -139,10 +227,11 @@ packages:
       unit_of_measurement: "%"
       device_class: humidity
       primary_sensor: ${room_slug}_humidity_can
-      secondary_sensor: ${room_slug}_humidity_ha
+      secondary_sensor: ${room_slug}_humidity_ha_gated
       internal: "false"
       primary_tier_label: "CAN"
       secondary_tier_label: "HA"
+      update_interval: ${sensor_update_interval}
 
   # ============================================================================
   # DEW POINT (native ESPHome 2026.3+ sensor)
