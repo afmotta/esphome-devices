@@ -27,15 +27,17 @@
 #   mix      mixing_pump.yaml (supply-temperature valve PID, dual loop)
 #   living   the production soggiorno composition: radiant.yaml + fancoil.yaml
 #            (fancoil_role: boost) + the REAL fancoil_boost.yaml coordinator
-#            (R-16 boot state), plus the real window_guard.yaml (R-14;
-#            its HA contact is replaced by a template sensor, timings compressed). The activation triggers are
-#            inert (their threshold inputs stay unset); tests start/stop boosts through
-#            the API actions below, which drive the real boost select
+#            (R-16 boot state), plus the real window_guard.yaml (R-14; its
+#            HA contact is replaced by a template sensor, timings compressed).
+#            The activation triggers are inert (their threshold inputs stay
+#            unset); tests start/stop boosts through the API actions below,
+#            which drive the real boost select
 #            (set_action and boot replay included). The boost-enabled gate keeps
 #            its production default (OFF) until a test opens it: with it OFF a
 #            running boost is dropped to "Radiant Only" at once.
 #
-# Boot state (R-16): hp_mode restores (initial COOL) and the tests run the
+# Boot state (R-16): hp_mode restores (initial ${initial_hp_mode}, COOL unless a
+# variant file says otherwise) and the tests run the
 # binary against a private ESPHOME_PREFDIR, so a fresh boot really has no
 # saved PID state, while a restart reuses the previous run's.
 # =============================================================================
@@ -44,6 +46,9 @@ substitutions:
   # Production defines this once in devices/climate-control.yaml and the
   # packages inherit it.
   seasonal_mode_id: hp_mode
+  # hp_mode on a FIRST boot (no saved state). The variants pid_behaviour_heat /
+  # pid_behaviour_sanitary override it to exercise the R-16 non-COOL boot.
+  initial_hp_mode: COOL
 
 esphome:
   name: t-pid-behaviour
@@ -133,7 +138,7 @@ select:
       - "HEAT"
       - "COOL"
       - "SANITARY_ONLY"
-    initial_option: "COOL"
+    initial_option: ${initial_hp_mode}
     optimistic: true
     restore_value: true
 
@@ -330,18 +335,6 @@ packages:
       temperature_sensor: stub_temperature
       output_id: living_fan_out
       fancoil_role: boost
-  # fancoil_boost.yaml's cooling-season input: production derives it from
-  # hp_mode (hp_mode_summer), and so does the stub -- the coordinator ends a
-  # running boost the moment this reads false. A package listed BEFORE the
-  # coordinator, so the stub is evaluated first in the first loop and a
-  # replayed boost is not seen against its initial "false".
-  cooling_stub:
-    binary_sensor:
-      - platform: template
-        id: stub_cooling_mode
-        internal: true
-        lambda: |-
-          return id(hp_mode).current_option() == "COOL";
   living_window_guard: !include
     file: ../../packages/components/window_guard.yaml
     vars:
@@ -378,3 +371,16 @@ packages:
       # first reading, which the restart tests publish (or deliberately
       # withhold, to watch the grace expire) after the API connects.
       sensor_lost_grace: 5s
+  # fancoil_boost.yaml's cooling-season input: production derives it from
+  # hp_mode (hp_mode_summer), and so does the stub -- the coordinator ends a
+  # running boost the moment this reads false. Listed AFTER the coordinator,
+  # as in production (the room packages precede seasonal_mode): in the first
+  # loop the season override still sees no state and must not cancel a
+  # replayed boost against the sensor's initial "false".
+  cooling_stub:
+    binary_sensor:
+      - platform: template
+        id: stub_cooling_mode
+        internal: true
+        lambda: |-
+          return id(hp_mode).current_option() == "COOL";

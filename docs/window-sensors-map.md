@@ -46,7 +46,11 @@ All other rooms are radiant-only and intentionally have no window guard.
     vars:
       ha_window_sensor_id: "binary_sensor.<room>_window"
       guarded_pid_id: <room>_fancoil_pid
+      resume_script_id: <room>_fancoil_resume_mode
 ```
+
+The room must also include `fancoil.yaml` with a `fancoil_role`: that package
+defines `<room>_fancoil_resume_mode`.
 
 4. Add the room to the table above.
 5. Verify: open the window (or toggle a mock `input_boolean`-backed template

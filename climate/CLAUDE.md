@@ -134,16 +134,25 @@ pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.p
 **PID integral confined to the active direction** (review R-13). `pid.yaml` re-bounds every PID's
 integral on each `hp_mode` change via `pid_direction::integral_bounds()`: HEAT → `[0, limit]`,
 COOL → `[-limit, 0]`, SANITARY_ONLY keeps the previous bounds (`integral_limit` var, default 1.0,
-output units). Without it the gated direction wound up a full actuator span.
+output units). Without it the gated direction wound up a full actuator span. Side effects: the
+first demand-tier intent in the new direction is delayed — in HEAT `is_cooling` only appears once
+the integral has decayed to 0 (~200 s per unit of error at ki 0.005, mirror in COOL), which the
+seasonal-mode coordinators reading `*_pid_is_active` see — and after a long SANITARY_ONLY the
+previous season's bounds still apply (a SANITARY_ONLY restored at boot runs symmetric bounds);
+both are bounded by `integral_limit`. Rationale: `pid_direction::integral_bounds`.
 
 **Fancoil boot state is owned by the role** (review R-16). Each `fancoil_role_*.yaml` maps `hp_mode`
-to the PID mode in one script (`${room_slug}_fancoil_sync_mode`), run from the select's `on_value`
-*and* from its own `esphome: on_boot` **list entry at priority -100**. `fancoil_boost.yaml`'s boot replay is a
-separate entry at -110, so it runs after the role sync and has the last word on a restored boost (the boost role's
-sync leaves a running boost alone, so the order is safe either way; the distinct priority just keeps the result
-independent of package order). `on_boot` is **always list-form with an explicit `priority:`** — package mappings
-merge into one trigger with a single surviving priority and mixing forms drops a hook (review R-18; enforced by
-`scripts/check_on_boot_form.py`).
+to the PID mode in one script (`${room_slug}_fancoil_sync_mode`); `fancoil.yaml` runs it from the select's
+`on_value` *and* from an `esphome: on_boot` **list entry at priority -100**. `fancoil_boost.yaml`'s boot replay is
+a separate entry at -110, so it runs after the role sync and has the last word on a restored boost. `on_boot` is
+**always list-form with an explicit `priority:`** — package mappings merge into one trigger with a single surviving
+priority and mixing forms drops a hook (review R-18; enforced by `scripts/check_on_boot_form.py`). Against a restored
+boost under a non-COOL `hp_mode` the final PID mode (OFF or COOL) depends on that order, but it never actuates (the
+cool output is gated on `hp_mode`) and the coordinator's season override ends the boost.
+A reboot discards a manual or HA-set fancoil PID mode and returns to the role/`hp_mode` mapping (as an
+`hp_mode` change already does); the window guard re-asserts OFF if the window is still open. A restored boost
+surviving the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s staleness grace exceeds
+`sensor_lost_grace`.
 
 **The window guard hands the fancoil back to its owner** (review R-14): it takes a required
 `resume_script_id` and, after recovery, runs the role's `${room_slug}_fancoil_resume_mode` (boost: COOL
@@ -163,6 +172,8 @@ only if the boost is still running and `hp_mode` is COOL) instead of restoring a
 | MEV ground floor (Innova HRP DOMO 60 HX) | `0x11` | Passive enthalpic HRV; CO2/air-quality + humidity ventilation demand, fan-only (no cascade), see `climate/mev_innova_modbus.yaml` (ADR-0018) |
 
 Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per room in the floor files (`climate/rooms/first_floor/first-floor.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`) and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5). Ground-floor rooms have no air-quality CAN kit registered yet, so their MEV's air-quality channel floors at minimum fan until the kits arrive; its humidity channel is live already (room humidity is sensed) (ADR-0018).
+
+**HA-tier staleness (R-04)**: the Home Assistant fallback tier of `room_sensors.yaml` reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been connected for `ha_staleness_grace_s` (default 300 s; rule in `climate/protocol/ha_tier.h`). Until CAN nodes exist, 12 of the 13 zones depend only on this tier, so an HA outage longer than the grace puts those zones in Emergency (PID outputs 0) — relay/analog/MEV actuation stays autonomous, but without room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs` sessions on `--no-states` during outage tests: a plain session counts as an HA connection.
 
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
@@ -189,6 +200,11 @@ de-escalation thresholds and delays — are persisted controller `number`s (`<me
 `_escalation_threshold`, `_deescalation_threshold`, `_escalation_delay`, `_deescalation_delay`;
 review R-08b), not Home Assistant helpers, so they survive HA outages. Only the demand lower/upper
 bounds still come from HA `input_number`s (`climate/home-assistant/mev_helpers.yaml`).
+Ranges are deliberately narrow: first-floor min fan speed 0-30 % (ground floor 0-50 %), escalation threshold
+50-100 %, de-escalation threshold 35-50 %, delays 1-120 min. The first-floor minimum (max 30) stays below the
+de-escalation threshold (min 35) because the final fan speed is floored at the minimum: otherwise the cascade could
+never de-escalate. Widen one range only together with the other (ADR-0018, R-08b). A value persisted under an older,
+wider range is restored as-is (template numbers clamp only on writes), so re-enter it.
 
 Two constraints drive the phase order and are easy to get wrong:
 
@@ -371,7 +387,7 @@ both files' defaults in sync).
 | Loop | Package | Kp | Ki | Kd | Notes |
 |------|---------|----|----|----|-------|
 | Radiant floor/ceiling (slow) | `heat_only_radiant.yaml` (used by `radiant.yaml`) | 0.8 | 0.005 | 0.05 | sane tuning range roughly Kp 0.5–1.0, Ki 0.001–0.01, Kd 0.01–0.1 |
-| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them (Kp ~0.1–0.5), not toward 1.0+ |
+| Fancoil (fast) | `fancoil.yaml` | 0.2 | 0.01 | 0.05 | already the "fast system" values; tune around them, not toward 1.0+ (a starting window of roughly Kp 0.1–0.5 is a suggestion, not a validated range) |
 | Floor mixing valve | `mixing_pump.yaml` | 0.2 | 0.01 | 0.0 | |
 
 **One gain set per actuator.** Since R-01 each actuator has a single PID whose heat and cool outputs are
@@ -383,8 +399,10 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
   wrong season the gated actuator stays at 0, the room never responds and the tune never completes.
 - The autotuner assumes an output swing of -1..+1, but on a loop with both a heat and a cool output the
   gated opposite half-cycle only closes the valve, so the real swing is 0..1 and the estimated gains
-  come out about 2x too high: **halve `kp`/`ki`/`kd`** on dual-output loops (radiant, `heat_cool`
-  fancoils). Heat-only and cool-only loops already model 0..1 correctly.
+  come out about 2x too high: **halve `kp`/`ki`/`kd`** only on dual-output loops: radiant zones on `radiant.yaml` and `heat_cool`
+  fancoils. Do **not** halve heat-only loops (the bathroom/laundry zones on `heat_only_radiant.yaml`) or
+  cool-only loops: they already model 0..1 correctly. The 2x factor is derived from the comments in
+  `pid_autotune.yaml`, not bench-verified (verify at bring-up).
 - The PID must not be OFF. `boost` fancoils sit OFF until the boost coordinator starts them, so set the
   fancoil PID to COOL by hand before pressing the button.
 - For zones with a fancoil or boost coordinator use `pid_autotune_with_fancoil.yaml` (ends boost and

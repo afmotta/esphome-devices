@@ -24,6 +24,7 @@
 # service below is esphome.light_controller_ha_ack_event. A wrong name fails silently
 # (ha_ready never goes true, every press takes the local fallback);
 # canbus/tests/test_ha_contract.py pins it to the real device_name and declared services.
+# (Entity ids differ on purpose: they follow friendly_name, e.g. lighting_controller_*.)
 # =============================================================================
 
 - id: light_controller_ack_button_events

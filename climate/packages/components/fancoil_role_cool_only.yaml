@@ -29,27 +29,3 @@ script:
             call.set_mode(climate::CLIMATE_MODE_OFF);
           }
           call.perform();
-
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - script.execute: ${room_slug}_fancoil_sync_mode
-
-# Boot sync (R-16). The seasonal select's restore publishes (and so fires the
-# handler above) in its setup (priority HARDWARE), BEFORE the PID's own setup()
-# (DATA), whose restore_state_() then overwrites that mode -- and with no saved
-# state (first boot, or a new PID after a firmware change) a PID with only a
-# cool_output starts in COOL regardless of hp_mode. Re-running the handler once
-# everything is set up makes the boot mode deterministic.
-#
-# Written in LIST form with an explicit priority (review R-18): each entry is
-# its own trigger, so the -100 here is the priority this hook really runs at.
-# (A mapping-form on_boot would be merged with every other package's mapping
-# into one trigger with a single surviving priority, and mixed with a list it
-# would silently drop a hook; scripts/check_on_boot_form.py forbids it.)
-esphome:
-  on_boot:
-    - priority: -100
-      then:
-        - script.execute: ${room_slug}_fancoil_sync_mode

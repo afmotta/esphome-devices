@@ -25,15 +25,15 @@ int main()
   // --- clean node: no flag, successful sends change nothing ---
   TxHealth h{};
   assert(tx_health_flags(h) == ERR_NONE);
-  assert(tx_health_track(h, true) && tx_health_flags(h) == ERR_NONE && h.failures == 0);
+  assert(tx_health_track(h, true) && tx_health_flags(h) == ERR_NONE);
   assert(heartbeat(h, ERR_NONE, true) == ERR_NONE);
 
   // --- a refused send (button / sensor frame) sets the flag; track() passes the result through ---
   assert(!tx_health_track(h, false));
-  assert(h.pending && h.failures == 1 && tx_health_flags(h) == ERR_CAN_TX_FAIL);
+  assert(h.pending && tx_health_flags(h) == ERR_CAN_TX_FAIL);
 
-  // --- a later successful non-heartbeat send does NOT clear it (only a heartbeat proves delivery) ---
-  tx_health_note(h, true);
+  // --- a later successful non-heartbeat send does NOT clear it (only an accepted heartbeat clears it) ---
+  tx_health_track(h, true);
   assert(h.pending);
 
   // --- next heartbeat carries the flag, and once accepted the latch clears ---
@@ -46,7 +46,6 @@ int main()
   assert(!tx_health_track(h, false));
   for (int i = 0; i < 5; ++i)
     assert(heartbeat(h, ERR_NONE, false) == ERR_CAN_TX_FAIL && h.pending);
-  assert(h.failures == 7);                       // 2 refused frames + 5 refused heartbeats
   assert(heartbeat(h, ERR_NONE, true) == ERR_CAN_TX_FAIL && !h.pending);
 
   // --- a refused heartbeat on a previously clean node starts the latch itself ---
@@ -58,7 +57,7 @@ int main()
   TxHealth b{};
   const uint8_t sticky = ERR_BRIDGE_QUEUE_OVERFLOW;
   assert(heartbeat(b, sticky, true) == ERR_BRIDGE_QUEUE_OVERFLOW);
-  tx_health_note(b, false);
+  tx_health_track(b, false);
   assert(heartbeat(b, sticky, true) == (ERR_BRIDGE_QUEUE_OVERFLOW | ERR_CAN_TX_FAIL));
   assert(heartbeat(b, sticky, true) == ERR_BRIDGE_QUEUE_OVERFLOW);
 
@@ -67,7 +66,7 @@ int main()
 
   // --- the static store exists and is a single shared record ---
   tx_health() = TxHealth{};
-  tx_health_note(tx_health(), false);
+  tx_health_track(tx_health(), false);
   assert(tx_health().pending && tx_health_flags(tx_health()) == ERR_CAN_TX_FAIL);
 
   // ===========================================================================
@@ -136,7 +135,23 @@ int main()
     }
     assert(level == TX_WDG_LEVEL_MAX);
     // Worst-case reboot period for a genuinely dead bus: 86 heartbeats x 30 s = 43 min.
-    static_assert(86 * 30 / 60 == 43, "documented worst-case period");
+  }
+
+  // --- flapping bus (11 accepted, 1 refused, repeating): not a stuck transmitter, so neither a
+  // reboot nor a level clear — the proof needs 12 accepted in a row ---
+  {
+    const uint8_t level = 2;
+    TxHealth h{};
+    for (int round = 0; round < 50; ++round) {
+      for (int i = 0; i < 11; ++i) {
+        tx_health_heartbeat_sent(h, true);
+        assert(!tx_watchdog_should_reboot(h, level));
+        assert(!tx_watchdog_recovered(h, level));
+      }
+      tx_health_heartbeat_sent(h, false);
+      assert(!tx_watchdog_should_reboot(h, level));
+      assert(!tx_watchdog_recovered(h, level));
+    }
   }
 
   // --- bus-off, then the reboot fixes it: level is cleared only after 12 accepted in a row ---

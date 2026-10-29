@@ -417,13 +417,6 @@ are **not** HA helpers: they are persisted `number` entities on the controller
 tuned from the controller device and kept across HA outages. Only the demand bounds remain
 HA helpers (`climate/home-assistant/mev_helpers.yaml`).
 
-**YAML Configuration Alternative** (add to `configuration.yaml`):
-
-```yaml
-input_number:
-  # Copy the above YAML format here
-```
-
 ---
 
 ## Entity Naming Reference

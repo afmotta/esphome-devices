@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.20 |
-| **Last Updated** | October 25, 2026 |
+| **Version** | 1.22 |
+| **Last Updated** | October 26, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -59,13 +59,13 @@ durable design knowledge — architecture, ADRs, contracts, design notes — liv
 - **Dual-mode operation**: Radiant floor heating/cooling + fancoil units. Each actuator has one PID whose heat and cool outputs are *separate* template outputs gated on the heat pump's mode (`hp_mode`: HEAT → heat only, COOL → cool only, SANITARY_ONLY → neither; `climate/protocol/pid_direction.h`, review R-01), so a PID can only actuate in the direction the water actually flows. Fancoils declare a `fancoil_role` (`boost`, `cool_only`, `heat_cool`)
 - **Hybrid radiant + fancoil cooling ("base + boost")**: radiant floor/ceiling provides efficient baseline comfort; fancoils activate as a responsive boost layer when radiant cannot meet demand — evaluated independently per room (`climate/packages/coordinators/fancoil_boost.yaml`)
 - **Advanced PID control**: Precise temperature management with auto-tuning
-- **Autonomous dew-point protection**: ESPHome-native dew-point calculation enforces a safety minimum on radiant-cooling supply water (dew point + 2 °C) even when Home Assistant is offline
+- **Autonomous dew-point protection**: ESPHome-native dew-point calculation enforces a safety minimum on radiant-cooling supply water (dew point + 2 °C) on the controller itself; it needs valid room readings, so a room whose dew point is NaN (CAN and HA tiers both gone) leaves the floor's supply minimum holding its previous value (`climate/room_sensors.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`)
 - **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
 - **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
 - **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
-- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02); room-sensor *data* specifically depends on the CAN→HA failover chain (`climate/room_sensors.yaml`)
+- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain (`climate/room_sensors.yaml`), and until CAN nodes exist an HA outage (no state-subscribed API client) over 300 s puts 12 of 13 zones in Emergency (PID outputs 0)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
-- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency shutdown)
+- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency: NaN, PID outputs 0)
 
 ### Building Layout
 
@@ -187,7 +187,7 @@ esphome-devices/
 │                              #   ⚠ tracks the repo's pinned ESPHome (2026.8.0) — re-verify on every upgrade
 │
 ├── docs/                      # Project knowledge base and guides
-│   ├── adr/                    # Architecture Decision Records (ADR-0001…0023, the "why"; no ADR-0019)
+│   ├── adr/                    # Architecture Decision Records (the "why"; `docs/adr/` is the single index)
 │   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
 │   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
 │   ├── design-notes/          # Entity-naming convention, canbus implementation rules
@@ -347,12 +347,13 @@ details, and polling intervals):
 2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness (R-04): the HA tier
    reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
    connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
-   rides out an HA restart). A frozen last value is never served indefinitely.
+   rides out an HA restart). For room sensors a frozen last value is never served indefinitely (other HA inputs such as outdoor temperature are not yet gated: R-12, R-08).
 3. **Emergency**: the failover returns NaN **immediately** once both tiers are NaN — it has no timer of its
    own. ESPHome's PID answers a NaN input by driving its outputs to 0 at once (`pid_climate.cpp`); there is
    no separate "safe shutdown after 5 minutes". The only 5-minute figure is the HA-tier grace above.
-   The radiant override cannot bypass it: a NaN zone forces the valve closed and ends a boost at once
-   (review R-05).
+   The radiant override cannot bypass it: a NaN zone forces the valve closed at once, and a NaN that persists
+   for `sensor_lost_grace` (default 120 s) ends a boost; the grace lets a boost restored from flash survive the
+   boot-time NaN (reviews R-05, R-16).
 
 **Automatic Recovery**: the failover switches back to the highest tier that has a valid reading again
 (CAN preferred, then HA).
@@ -542,7 +543,7 @@ external_components:
 | `boards/t-connect-pro.yaml` | Shared controller board (both entry points, ADR-0014) |
 | `climate/packages/coordinators/fancoil_boost.yaml` | Radiant+fancoil boost coordination |
 | `climate/packages/coordinators/mev_ventilation.yaml` | MEV ventilation control |
-| `climate/packages/components/failover_sensor.yaml` | 2-tier sensor failover logic |
+| `climate/packages/components/failover_sensor.yaml` | 3-tier sensor failover logic |
 | `climate/mev_modbus.yaml` | MEV Modbus device driver (project-specific) |
 | [Maintenance Guide](https://afmotta.github.io/esphome-devices/) (`docs-site/`) | Practical, non-expert-oriented operations/troubleshooting/hardware-replacement site (EN + IT), deployed via GitHub Pages |
 
@@ -552,7 +553,7 @@ external_components:
 |------|---------|
 | `docs/architecture/ARCHITECTURE-SPINE.md` | Architectural invariants (AD-1…AD-10) — the current authority |
 | `docs/architecture/architecture-diagram.md` | Mermaid diagrams of system topology and data flows |
-| `docs/adr/` | Architecture Decision Records (ADR-0001…0023; there is no ADR-0019 — the number was skipped and never committed) — the reasoning behind decisions |
+| `docs/adr/` | Architecture Decision Records — the reasoning behind decisions |
 | `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
 | `docs/design-notes/entity-naming.md` | Entity ID naming convention |
 | `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
@@ -590,7 +591,7 @@ external_components:
 
 - **No Hardcoded Secrets**: Always use `!secret` references
 - **Sensor Failover**: Always implement failover for critical sensors
-- **Emergency Shutdown**: Include safe shutdown logic for failures
+- **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
 - **Testing**: Never skip testing on critical climate control code
 - **Version Control**: Commit working states frequently
 - **OTA Safety**: Test OTA updates on non-production boards first
@@ -642,7 +643,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 
 1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
    `docs/architecture/architecture-diagram.md` (topology and data flows)
-2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (ADR-0001…0023; no ADR-0019)
+2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (see the directory listing for the full set)
 3. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
 4. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 
@@ -658,7 +659,7 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Check failover logs in Home Assistant
 - Ensure the CAN sensor-kit path (Tier 1) is available and updating
 - Verify Home Assistant sensors (Tier 2) are arriving when CAN drops out
-- Monitor emergency shutdown triggers
+- Monitor for zones sitting in Emergency (all sensor tiers NaN)
 
 Climate-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
 sensor-address appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
@@ -673,7 +674,7 @@ sensor-address appendices and PID tuning guidelines are documented in `climate/C
 
 ## Changelog
 
-Version history lives in [`CHANGELOG.md`](CHANGELOG.md) (newest first); this file is at version **1.20**. Add a row there, and bump the version in the table at the top, whenever this guide or the architecture it describes changes materially.
+Version history lives in [`CHANGELOG.md`](CHANGELOG.md) (newest first). Add a row there, and bump the version in the table at the top, whenever this guide or the architecture it describes changes materially.
 
 ---
 

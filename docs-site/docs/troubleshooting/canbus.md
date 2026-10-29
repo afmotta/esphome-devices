@@ -200,7 +200,7 @@ stays set until the bridge is power-cycled — so a transient overload leaves
 a visible trace instead of silently going away. Frames the bridge could not
 transmit after several retries latch `ERR_CAN_TX_FAIL` the same sticky way.
 Ordinary nodes report `ERR_CAN_TX_FAIL` too when one of their own sends is
-refused; on a node it clears by itself once a heartbeat gets through, so a
+refused; on a node it clears by itself once the controller accepts a heartbeat, so a
 `canbus_node_error` that comes and goes points at a flaky bus segment. 🔵 DESIGNED
 
 If the CAN controller of an ESP32-based node (the T-2CAN bridge, the An-Penta
@@ -208,7 +208,7 @@ and An-Quad LED controllers) falls off the bus after a serious electrical
 fault, it cannot rejoin by itself. These nodes watch for that: if their
 heartbeat is refused for about 5 minutes in a row they restart themselves.
 If the bus stays dead they back off (restarts get further apart, up to about
-45 minutes), so a node on a broken cable restarts occasionally rather than
+43 minutes), so a node on a broken cable restarts occasionally rather than
 constantly. Seeing such a node's uptime reset while its segment is down is
 this, not a power problem. The CANBed nodes recover in hardware and never
 restart for this. 🔵 DESIGNED

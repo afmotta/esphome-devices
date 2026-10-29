@@ -314,13 +314,14 @@ conservative paced forwarding (queues buffer bursts; the drain cap meters TX to 
 MCP2515's 3 TX buffers sustain at 125 kbps). A queue drop latches
 `ERR_BRIDGE_QUEUE_OVERFLOW` into `error_flags`, which the shared heartbeat carries until
 reboot. A frame the controller refuses to transmit stays at the head of its queue and is
-retried each tick; after `BRIDGE_TX_ATTEMPTS_MAX` (5, ~50 ms) refusals it is dropped and
+retried each tick; after `BRIDGE_TX_ATTEMPTS_MAX` (about 5 ticks, ~50 ms at the nominal 10 ms tick, ~100 ms where the loop is gated, e.g. T-2CAN) refusals it is dropped and
 `ERR_CAN_TX_FAIL` latches the same sticky way (review R-07).
 
 Every node (and the An-Penta/An-Quad actuators) also reports its own refused sends:
 `ERR_CAN_TX_FAIL` rides the next heartbeat and clears once a heartbeat carrying it was
-accepted (`canbus/protocol/tx_health.h`), so the health monitor's `canbus_node_error` shows
-both the failure and the recovery. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
+accepted by the controller (MCP2515: loaded into a TX buffer, not ACKed; TWAI: queued;
+`canbus/protocol/tx_health.h`), so the health monitor's `canbus_node_error` shows
+both the failure and the recovery. A dead bus only surfaces once the TX buffers stay full. `ERR_CAN_BUS_OFF` is reserved and never sent — ESPHome
 2026.8.0 exposes no bus-off state; a bus-off node shows up as TX failures or `node_lost`.
 
 ### Bus-off recovery (review R-17)
@@ -357,55 +358,23 @@ stops draining, so heartbeats start being refused. After **10 consecutive refuse
   more than the TWAI queue depth, so a dead bus cannot fake recovery. There is deliberately no
   "give up" state: a node that is still bus-off after the wiring was repaired must still get
   its next reboot.
+- *Idle bus counts as dead:* a lone transmitter with no ACKing peer (gateway and other nodes
+  down, or a bench unit) stays error-passive but its TX queue fills all the same, so it reboots
+  on the same backoff schedule; an LED actuator re-runs its light setup on each reboot.
 - *Cost:* a few seconds of unavailability per reboot (An-Penta/An-Quad: LEDs restore their
   last state; bridge: queued forwards are lost). A reboot is visible to the health monitor
   only as the node's uptime resetting and, while the bus is down, as `node_lost`.
-- *Unverified:* the reboot lambda (`global_preferences->sync(); App.safe_reboot()`) is
-  YAML-validated only; an ESP32 compile is blocked in the current CI sandbox. Hardware check:
+- *Unverified:* the reboot lambda (`App.safe_reboot()`, which also persists the backoff level
+  through the components' `on_shutdown()`) is YAML-validated only; an ESP32 compile is blocked in the current CI sandbox. Hardware check:
   short CANH to CANL on a running An-Penta for ~1 s (provokes bus-off), restore the bus, confirm
   the log shows the refused-heartbeat run, `rebooting`, and that the node's heartbeat returns
   on the health monitor; then leave the bus disconnected for an hour and confirm reboots
   space out (~8, ~13, ~23, ~43 min).
 
-**Direct TWAI recovery (future work, NOT enabled).** The cleaner fix is to recover in place
-instead of rebooting. In 2026.8.0 `ESP32Can` is `final`, uses the **v2** (handle-based) legacy
-driver — `twai_driver_install_v2(&g_config, &t_config, &f_config, &this->twai_handle_)`,
-`twai_start_v2`, `twai_transmit_v2`, `twai_receive_v2` (`components/esp32_can/esp32_can.cpp`) —
-and keeps the handle in a **protected** member (`esp32_can.h`: `twai_handle_t twai_handle_`),
-with no `loop()` override, no alert handling and no status accessor. The handle cannot be
-reached from outside, and (unverified, IDF headers are not available here) the non-`_v2`
-legacy calls use the driver's own default handle, which this component never installs. So it
-needs a local fork of the component, in the style of `libs/esphome_overrides/ethernet/`
-(shadowing the built-in via `external_components: type: local`, re-diffed on every ESPHome
-upgrade — add it to the upgrade checklist if adopted):
-
-```cpp
-// esp32_can.h — in class ESP32Can (public):
-void loop() override;                       // Canbus::loop() is the RX pump; keep calling it
-
-// esp32_can.cpp
-void ESP32Can::loop() {
-  canbus::Canbus::loop();
-  if (this->twai_handle_ == nullptr || this->mode_ == CAN_MODE_LISTEN_ONLY)
-    return;
-  twai_status_info_t st;
-  if (twai_get_status_info_v2(this->twai_handle_, &st) != ESP_OK)
-    return;
-  if (st.state == TWAI_STATE_BUS_OFF) {
-    ESP_LOGE(TAG, "bus-off (TEC=%u): starting recovery", (unsigned) st.tx_error_counter);
-    twai_initiate_recovery_v2(this->twai_handle_);   // 128 x 11 recessive bits, then STOPPED
-  } else if (st.state == TWAI_STATE_STOPPED) {
-    twai_start_v2(this->twai_handle_);               // recovery finished: rejoin the bus
-  }
-}
-```
-
-The same status read could also set `ERR_CAN_BUS_OFF` (reserved in `canbus_protocol.h`) through a
-small accessor. To adopt it: compile for ESP32-S3 (the snippet is from memory of the IDF API —
-check the `twai_status_info_t` field names and that `_v2` exists in the pinned IDF); on hardware
-provoke bus-off (short CANH/CANL ~1 s on a node transmitting every second), confirm the log
-shows the recovery and that the node transmits again without a reboot; and decide whether the
-watchdog stays as the backstop (recommended: it costs nothing when recovery works).
+**Direct TWAI recovery (future work, NOT enabled).** `esp32_can` never recovers a bus-off
+controller, and the TWAI handle is a protected member of a `final` class, so recovering in
+place would need a local fork in the style of `libs/esphome_overrides/ethernet/`. The TX
+watchdog above is the interim handling; the idea is parked in `TODO.md`.
 
 On the CANBed the forwarder starts an ESPHome `HighFrequencyLoopRequester` at boot.
 ESPHome's `mcp2515` polls RX from `loop()` and the component phase is normally gated to

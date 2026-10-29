@@ -24,6 +24,8 @@ delays are local persisted numbers; this pins:
   threshold was a `homeassistant` sensor reading NaN.
 """
 
+import asyncio
+
 import pytest
 
 NAN = float("nan")
@@ -114,9 +116,9 @@ async def test_minimum_fan_speed_is_the_local_number(run_harness, prefix, name):
     await h.wait_for_value(ids["final"], 20.0)
 
     # Retuning the number moves the floor ...
-    _set_number(h, ids["min"], 35.0)
-    await h.wait_for_value(ids["min"], 35.0)
-    await h.wait_for_value(ids["final"], 35.0)
+    _set_number(h, ids["min"], 30.0)
+    await h.wait_for_value(ids["min"], 30.0)
+    await h.wait_for_value(ids["final"], 30.0)
 
     # ... down to 0, where demand passes straight through ...
     _set_number(h, ids["min"], 0.0)
@@ -150,6 +152,9 @@ async def test_cascade_starts_without_home_assistant(run_harness):
     # Fan below the (default 80 %) threshold: no escalation timer.
     await h.call("set_casc_demand", value=70.0)
     await h.wait_for_value(ids["final"], 70.0)
+    # The state sensor only publishes on a transition, so give a wrongly
+    # started timer time to show before asserting it did not.
+    await asyncio.sleep(0.5)
     assert (ids["state"] not in h.states) or h.states[ids["state"]].state != "Escalating (Dehum)"
 
     # Fan at/above it: the escalation delay starts.
@@ -164,3 +169,22 @@ async def test_cascade_starts_without_home_assistant(run_harness):
     _set_number(h, threshold, 55.0)
     await h.wait_for_value(threshold, 55.0)
     await h.wait_for(ids["state"], lambda s: s.state == "Escalating (Dehum)")
+
+
+@pytest.mark.parametrize("prefix,name", UNITS)
+async def test_tuned_values_survive_a_restart(run_harness, prefix, name):
+    h, ids = await _start(run_harness, name)
+    tuned = {ids["min"]: 25.0}
+    if name == "MEV Cascade":
+        tuned[h.object_id(f"{name} Escalation Fan Threshold")] = 70.0
+        tuned[h.object_id(f"{name} Escalation Delay")] = 7.0
+
+    for object_id, value in tuned.items():
+        _set_number(h, object_id, value)
+    for object_id, value in tuned.items():
+        await h.wait_for_value(object_id, value)
+
+    await h.restart()
+
+    for object_id, value in tuned.items():
+        await h.wait_for_value(object_id, value)

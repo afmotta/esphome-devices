@@ -16,9 +16,14 @@
 # Boot (R-16): the PID's first-boot default is COOL (it has only a cool_output)
 # and its restore overwrites what the handler did before the PID's setup, so a
 # fancoil could come up cooling with no boost, behind the commissioning gate.
-# The same handler is therefore re-run once at boot: OFF unless a boost is
-# restored as running, in which case it leaves the PID alone and the
-# coordinator's boot replay (also priority -100, order irrelevant) owns it.
+# The same handler is therefore re-run once at boot (fancoil.yaml): OFF unless
+# a boost is restored as running while hp_mode is COOL, in which case it leaves
+# the PID alone and the coordinator's boot replay (also priority -100, merged
+# into the same trigger) owns it. The two hooks' order matters only when the
+# restored boost meets a hp_mode that is not COOL: the final PID mode (OFF or
+# COOL) then depends on which runs last, but it never actuates -- the cool
+# output is gated on hp_mode -- and the coordinator's season override ends the
+# boost. With hp_mode COOL the result is the same in either order.
 #
 # Window guard (R-14): window_guard.yaml resumes the fancoil through
 # ${room_slug}_fancoil_resume_mode, which (unlike the sync) may turn it on, but
@@ -64,29 +69,3 @@ script:
             call.set_mode(climate::CLIMATE_MODE_OFF);
           }
           call.perform();
-
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - script.execute: ${room_slug}_fancoil_sync_mode
-
-# Boot sync (R-16). The seasonal select's restore publishes (and so fires the
-# handler above) in its setup (priority HARDWARE), BEFORE the PID's own setup()
-# (DATA), whose restore_state_() then overwrites that mode -- and with no saved
-# state (first boot, or a new PID after a firmware change) a PID with only a
-# cool_output starts in COOL regardless of hp_mode. Re-running the handler once
-# everything is set up makes the boot mode deterministic.
-#
-# Written in LIST form with an explicit priority (review R-18): each entry is
-# its own trigger, so the -100 here is the priority this hook really runs at.
-# (A mapping-form on_boot would be merged with every other package's mapping
-# into one trigger with a single surviving priority, and mixed with a list it
-# would silently drop a hook; scripts/check_on_boot_form.py forbids it.)
-# fancoil_boost.yaml's boot replay is a separate, later trigger (-110), so the
-# sync never depends on registration order against the coordinator.
-esphome:
-  on_boot:
-    - priority: -100
-      then:
-        - script.execute: ${room_slug}_fancoil_sync_mode

@@ -545,6 +545,10 @@ binary_sensor:
     lambda: |-
       auto state = id(${zone_slug}_boost_state).current_option();
       if (state != "Fancoil Boost") return false;
+      // The season input has no state until its first evaluation: in the
+      // first loop after a boot a replayed boost must not be read against the
+      // sensor's initial "false".
+      if (!id(${cooling_mode_sensor}).has_state()) return false;
       return !id(${cooling_mode_sensor}).state ||
              !id(${zone_slug}_boost_enabled).state;
     on_press:

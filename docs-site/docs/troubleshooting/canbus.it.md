@@ -226,7 +226,7 @@ invece di scomparire silenziosamente. I frame che il bridge non riesce a
 trasmettere dopo vari tentativi impostano allo stesso modo, in modo
 permanente, `ERR_CAN_TX_FAIL`. Anche i nodi normali segnalano
 `ERR_CAN_TX_FAIL` quando un loro invio viene rifiutato; su un nodo si
-azzera da solo appena un heartbeat passa, quindi un `canbus_node_error` che
+azzera da solo appena il controller accetta un heartbeat, quindi un `canbus_node_error` che
 va e viene indica un tratto di bus instabile. 🔵 PROGETTATO
 
 Se il controller CAN di un nodo basato su ESP32 (il bridge T-2CAN e i
@@ -234,7 +234,7 @@ controller LED An-Penta e An-Quad) esce dal bus dopo un grave guasto
 elettrico, non riesce a rientrare da solo. Questi nodi lo controllano: se il
 loro heartbeat viene rifiutato per circa 5 minuti di fila si riavviano da
 soli. Se il bus resta morto rallentano (i riavvii si distanziano, fino a
-circa 45 minuti), così un nodo su un cavo rotto si riavvia ogni tanto e non
+circa 43 minuti), così un nodo su un cavo rotto si riavvia ogni tanto e non
 di continuo. Se l'uptime di un nodo così si azzera mentre il suo segmento è
 fermo, è questo meccanismo, non un problema di alimentazione. I nodi CANBed
 recuperano in hardware e non si riavviano mai per questo motivo. 🔵 PROGETTATO
