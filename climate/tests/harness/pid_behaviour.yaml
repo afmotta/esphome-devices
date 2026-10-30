@@ -55,6 +55,7 @@ esphome:
   includes:
     - ../../protocol/pid_direction.h
     - ../../protocol/radiant_override.h   # heat_only_radiant's final stage (R-05)
+    - ../../protocol/dew_point_interlock.h   # mixing_pump's dew-point interlock (N-01)
 
 host:
 
@@ -141,6 +142,25 @@ select:
     initial_option: ${initial_hp_mode}
     optimistic: true
     restore_value: true
+
+# Stubs for mixing_pump.yaml's dew-point interlock inputs (review N-01): the
+# floor's supply minimum (dew point + margin) and its safe margin. Minimum 10 / trip 9:
+# below every supply value the windup cases use, so the interlock never acts here.
+number:
+  - platform: template
+    id: mix_supply_minimum
+    optimistic: true
+    min_value: 0
+    max_value: 50
+    step: 0.1
+    initial_value: 10.0
+  - platform: template
+    id: mix_safe_margin
+    optimistic: true
+    min_value: 0
+    max_value: 5
+    step: 0.1
+    initial_value: 2.0
 
 switch:
   - platform: template
@@ -316,6 +336,8 @@ packages:
       output_id: valve_out
       sensor_id: mix_demand
       relay_id: mix_pump
+      supply_minimum_id: mix_supply_minimum
+      safe_margin_id: mix_safe_margin
       kp: 0.5
       ki: 1.0
       kd: 0.0

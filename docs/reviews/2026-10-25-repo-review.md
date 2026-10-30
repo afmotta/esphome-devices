@@ -36,11 +36,11 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-02](#r-02--i-controller-si-riavviano-ogni-15-minuti-senza-home-assistant) | 🔴 | I controller si riavviano ogni 15 min senza Home Assistant | ✅ | PR #67 |
 | [R-03](#r-03--lilluminazione-non-raggiunge-mai-home-assistant) | 🔴 | Nomi dei servizi HA errati: l'illuminazione non raggiunge mai HA | ✅ | `2aeb15e` |
 | [R-04](#r-04--il-tier-ha-del-failover-non-diventa-mai-nan) | 🔴 | Il tier HA del failover non diventa mai NaN (valori congelati) | ✅ | `ad79881` |
-| [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | 🔧 parziale | `085bb05`, `a2db85c` |
+| [R-05](#r-05--loverride-del-radiante-scavalca-la-sicurezza-nan) | 🟠 | L'override del radiante scavalca la sicurezza NaN | ✅ | `504300a`, `342cc1c` |
 | [R-06](#r-06--doppia-azione-con-binding-toggle) | 🟠 | Doppia azione con binding `toggle` e ACK a 500 ms | 🔧 parziale (timeout ⏸️ dati da banco) | `50103e2` |
 | [R-07](#r-07--errori-can-invisibili) | 🟠 | Errori CAN invisibili (bridge TX, `ERR_CAN_*` mai impostati) | ✅ | `085bb05`, `a2db85c` |
-| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 |
-| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | `710f088` |
+| [R-08](#r-08--nan-nei-timer-e-soglie-da-ha) | 🟠 | NaN nei timer e nelle soglie da HA (boost predittivo, MEV) | ✅ | R-08a `0583674`; R-08b `e1d8e68`, `bd32bc6` |
+| [R-09](#r-09--fail-safe-hardware-dei-relè) | 🟠 | Nessun fail-safe se il master Modbus si blocca | ⏸️ ADR-0024 *Proposed*: decisione del proprietario | ADR-0024 (`710f088`) |
 | [R-10](#r-10--lacune-di-testing) | 🟠 | Lacune di testing e CI | ✅ (resta `assert()` nei test C++) | `2aeb15e`, `ad79881`, `1472a90`, `bf1aa11`, `32b6ea2`, `e2cb259`, `3a0cc0a` |
 | [R-11](#r-11--drift-della-documentazione) | 🟡 | Drift della documentazione | ✅ | `1472a90`, `2f56444`, `633025f` |
 | [R-12](#r-12--temperatura-esterna-da-ha-congelata) | 🟠 | Temperatura esterna da HA: stesso pattern di R-04 | ✅ | `449be90`, `2763cdf` |
@@ -51,6 +51,10 @@ Legenda severità: 🔴 critica · 🟠 importante · 🟡 minore. Stato: ⬜ ap
 | [R-17](#r-17--nessun-recovery-da-bus-off-sui-nodi-esp32) | 🟠 | Nessun recovery da bus-off sui nodi ESP32 (TWAI) | ✅ (recovery diretto ⏸️ fork) | `bef6792` |
 | [R-18](#r-18--merge-silenzioso-degli-on_boot-dei-package) | 🟡 | Merge silenzioso degli `on_boot` dei package (priorità perse, hook scartati) | ✅ | `3553901`, `d53e285` |
 | [R-19](#r-19--le-pompe-di-circolazione-erano-sempre-accese) | 🔴 | Pompe di circolazione sempre accese (`id(binary_sensor)` è un puntatore) | ✅ | `504300a` |
+| [N-01](#n-01--il-minimo-di-rugiada-era-solo-un-setpoint) | 🟠 | Minimo di rugiada solo setpoint, margine 1 °C (doc: 2 °C) | ✅ | `cb70161` |
+| [N-02](#n-02--doppio-handler-hp_mode-sulle-zone-radianti) | 🟡 | Doppio handler `hp_mode`: ogni COOL passa da OFF (valvola a 0) | ✅ | `a87b3c3` |
+| [N-03](#n-03--setpoint-di-mandata-vecchio-fino-a-30-s) | 🟡 | Setpoint di mandata letto da un template vecchio fino a 30 s | ✅ | `0535bd0` |
+| [N-04](#n-04--drift-documentazione-e-dashboard) | 🟡 | Drift: tracker, esempio "nuova stanza", dashboard su entità inesistenti, helper HA obsoleti | ✅ | vedi sezione |
 
 ---
 
@@ -816,3 +820,63 @@ _Le voci vengono aggiunte man mano che i fix sono committati (un branch per issu
 | 2026-10-25 | R-14 | `173722e`, `bf1681e` | Il window guard riconsegna il fancoil al proprietario, senza snapshot | e2e host 23/23 |
 | 2026-10-25 | R-17 | `bef6792` | Watchdog TX con backoff per i trasmettitori ESP32 TWAI | test nativi, battery PASS, `esphome config` ×9 |
 | 2026-10-26 | R-18 | `3553901`, `d53e285` | `on_boot` a lista con priorità esplicite ovunque; controlli di forma e di trigger risolti | battery PASS, yamllint OK, baseline 15/63, e2e climate host 94/94 |
+| 2026-10-30 | N-01 | `cb70161` | Interblocco rugiada sull'uscita cool della miscelatrice; margine 2 °C | test nativo, e2e host 69/69 (mutazione: 2 fail) |
+| 2026-10-30 | N-02 | `a87b3c3` | Un solo handler `hp_mode` per zona radiante | e2e host (fallisce sul codice vecchio) |
+| 2026-10-30 | N-03 | `0535bd0` | Minimo di mandata ricalcolato prima del setpoint | `esphome config` |
+| 2026-10-30 | N-04 | vedi sezione | Tracker, esempio nuova stanza, dashboard, guide helper HA | review diff (docs), yamllint |
+
+---
+
+## Review di follow-up — 2026-10-30
+
+| Campo | Valore |
+|-------|--------|
+| **Baseline** | `main` @ `7c5accf` |
+| **Branch dei fix** | `claude/review-2026-10-30-fixes` (un commit per issue) |
+
+**Metodo.** Battery `--native-only` **20/20 PASS**; `esphome config` (2026.8.0, secrets dummy) sulle **17** configurazioni
+della CI: tutte valide. Il registry PlatformIO resta bloccato (HTTP error), ma gli harness host si compilano
+**senza PlatformIO**: `esphome compile --only-generate` più g++ diretto sui sorgenti generati, tramite uno shim `esphome` locale
+(fuori dal repo) che mette il binario dove `conftest.py` lo cerca. Così gli e2e host sono stati **eseguiti** qui. Il
+sorgente PID di ESPHome 2026.8.0 conferma le ipotesi di R-01 e R-13: il cambio di modo non azzera l'integrale e i setter dei limiti
+non toccano l'accumulatore.
+
+### N-01 — Il minimo di rugiada era solo un setpoint
+
+- **Problema.** `{floor}_supply_temp_minimum` (rugiada max + margine) era solo il *target* COOL del PID della valvola
+  miscelatrice: un overshoot portava la mandata sotto il minimo. Il margine di default era **1.0 °C**, regolabile fino a
+  0.5 °C, mentre la documentazione dichiarava +2 °C. Il primo piano raffresca con un **soffitto** radiante.
+- **Fix** (`cb70161`). Nuovo `climate/protocol/dew_point_interlock.h`, applicato all'uscita cool della valvola dopo il gate
+  `hp_mode`: sotto *minimo − margine/2* (rugiada + margine/2) l'acqua refrigerata viene chiusa e resta chiusa fino a
+  quando la mandata torna al minimo. Con supply, minimo o margine NaN l'interblocco blocca. `mixing_pump.yaml` richiede
+  `supply_minimum_id` e `safe_margin_id` ed espone `{valve}_dew_point_interlock` (solo in COOL). Margine di default
+  **2.0 °C**, minimo impostabile **1.0 °C**.
+- **Nota.** Un margine già persistito sul controller viene ripristinato così com'è, quindi va reinserito. Il sistema è pre-live.
+- **Verifica.** Test nativo; 3 nuovi e2e host. Con l'interblocco disattivato, i 2 casi COOL falliscono. e2e
+  `test_radiant_direction.py` + `test_pid_behaviour.py`: **69/69**.
+
+### N-02 — Doppio handler `hp_mode` sulle zone radianti
+
+- **Problema.** L'handler di `radiant.yaml` non sostituiva quello di `heat_only_radiant.yaml`: ESPHome concatena le liste
+  `on_value` estese, quindi venivano eseguiti entrambi, prima OFF e poi COOL. `control(OFF)` scrive 0 sulla valvola fino al
+  successivo aggiornamento del PID, e in HA compariva uno stato OFF spurio.
+- **Fix** (`a87b3c3`). Ora c'è un solo handler, in `heat_only_radiant.yaml`, con la sostituzione `radiant_cool_capable`, che
+  `radiant.yaml` inoltra come `"true"`.
+- **Verifica.** Nuovo e2e: ripubblica COOL e controlla che la valvola resti aperta. Fallisce sul codice vecchio.
+
+### N-03 — Setpoint di mandata vecchio fino a 30 s
+
+- **Problema.** L'`on_value` della rugiada massima leggeva `{floor}_supply_temp_minimum.state`, un template ricalcolato solo
+  ogni 30 s.
+- **Fix** (`0535bd0`). `component.update` del minimo prima di usarlo. Ne beneficia anche l'interblocco di N-01.
+- **Verifica.** `esphome config` OK. I floor file di produzione non hanno un harness e2e.
+
+### N-04 — Drift documentazione e dashboard
+
+- Il tracker aveva righe duplicate per R-07 e R-09 e mancavano le righe di R-05 e R-08: corretto.
+- In `climate/CLAUDE.md`, l'esempio "Adding a New Room" usava percorsi ormai sbagliati. Ora segue la forma di
+  `anticamera.yaml` ed elenca le somme da aggiornare.
+- Le dashboard puntavano a sensori `sensor.climate_control_effective_*` che il firmware non pubblica (margini e soglie
+  boost): ora puntano ai `number` del controller.
+- `QUICK_START.md` e `README.md` delle dashboard facevano creare helper `input_number` per margini e soglie boost, che
+  nessuno legge. Ora rimandano ai `number` del controller e a `mev_helpers.yaml`.

@@ -177,6 +177,22 @@ async def test_seasonal_handlers_set_pid_modes_per_role(run_harness, hp_mode, ex
         await h.wait_for(f"{room}{pid}", lambda s, mode=mode: s.mode == mode)
 
 
+
+async def test_republished_cool_does_not_pass_the_radiant_zone_through_off(run_harness):
+    """Review N-02: heat_only_radiant.yaml's handler (COOL -> OFF) and
+    radiant.yaml's (COOL -> COOL) both ran, in that order, and OFF's control()
+    wrote 0 to the valve. The stub temperature does not republish by itself,
+    so the old code left the cooling valve shut after an hp_mode publish."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "COOL")
+    await read_room(h, HOT)
+    await h.wait_for("bedroom_relay", lambda s: s.state is True)
+
+    await h.call("set_hp_mode", value="COOL")  # same option, published again
+    await asyncio.sleep(LEVEL_SETTLE)
+    assert relay_on(h, "bedroom"), "an hp_mode publish closed the cooling valve"
+    assert h.states["bedroom_radiant_pid"].mode == ClimateMode.COOL
+
 # --- boost-role fancoil -----------------------------------------------------
 
 async def test_boost_fancoil_is_not_started_by_the_season(run_harness):
@@ -268,6 +284,55 @@ async def test_mixing_valve_closes_when_supply_drops_below_dew_point_minimum(run
     await h.wait_for_value("valve_level", 0.0)
     await asyncio.sleep(LEVEL_SETTLE)
     assert level(h, "valve_level") == pytest.approx(0.0)
+
+
+# Dew-point interlock (review N-01). The harness valve PID keeps its default
+# 20 degC target, so a 30.5 degC supply always makes the PID ask for full
+# chilled water: any 0 below comes from the interlock, not from the PID.
+INTERLOCK = "mix_mixing_valve_dew_point_interlock"
+
+
+async def test_dew_point_interlock_shuts_the_chilled_water_the_pid_asks_for(run_harness):
+    """Room dew point rises: minimum 32 (trip 31) is above the 30.5 supply."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "COOL")
+    await h.call("set_supply_temperature", value=30.5)
+    await h.wait_for_value("valve_level", 1.0)
+
+    await h.call("set_supply_minimum", value=32.0)
+    await h.call("set_supply_temperature", value=30.5)  # next PID write
+    await h.wait_for_value("valve_level", 0.0)
+    await h.wait_for(INTERLOCK, lambda s: s.state is True)
+
+
+async def test_dew_point_interlock_releases_only_back_at_the_minimum(run_harness):
+    """Hysteresis: tripped below minimum - margin/2, released at the minimum."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "COOL")
+    await h.call("set_supply_minimum", value=32.0)
+    await h.call("set_supply_temperature", value=30.5)  # trips (< 31)
+    await h.wait_for(INTERLOCK, lambda s: s.state is True)
+
+    # Minimum 31 (trip 30): 30.5 is above the trip point but below the minimum.
+    await h.call("set_supply_minimum", value=31.0)
+    await h.call("set_supply_temperature", value=30.5)
+    await asyncio.sleep(LEVEL_SETTLE)
+    assert level(h, "valve_level") == pytest.approx(0.0)
+
+    await h.call("set_supply_temperature", value=31.0)  # back at the minimum
+    await h.wait_for_value("valve_level", 1.0)
+    await h.wait_for(INTERLOCK, lambda s: s.state is False)
+
+
+async def test_dew_point_interlock_does_not_touch_heating(run_harness):
+    """A supply below the cooling minimum in HEAT is the PID's business only."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "HEAT")
+    await h.call("set_supply_minimum", value=32.0)
+    await h.call("set_supply_temperature", value=10.0)
+    await assert_level(h, "valve_level", 1.0)
+    await asyncio.sleep(LEVEL_SETTLE)
+    assert not h.states[INTERLOCK].state, "the interlock reports a COOL-only problem in HEAT"
 
 
 # --- pump demand (the `_is_active` sensors) ----------------------------------

@@ -65,6 +65,8 @@ packages:
       ki: ${ki}
       kd: ${kd}
       integral_limit: ${integral_limit}
+      # heat_only_radiant.yaml owns the one hp_mode -> PID mode handler (N-02)
+      radiant_cool_capable: "true"
 
 # Cool-direction gate (R-01): heat and cool both end at the one radiant valve,
 # and the PID does not look at its HEAT/COOL mode when routing a value, so each
@@ -83,20 +85,3 @@ output:
 climate:
   - id: !extend ${room_slug}_radiant_pid
     cool_output: ${room_slug}_radiant_cool_output
-
-# Seasonal mode handler: override heat_only_radiant's handler to support
-# both HEAT and COOL modes (heat_only_radiant only supports HEAT)
-select:
-  - id: !extend ${seasonal_mode_id}
-    on_value:
-      then:
-        - lambda: |-
-            auto call = id(${room_slug}_radiant_pid).make_call();
-            if (x == "COOL") {
-              call.set_mode(climate::CLIMATE_MODE_COOL);
-            } else if (x == "HEAT") {
-              call.set_mode(climate::CLIMATE_MODE_HEAT);
-            } else {
-              call.set_mode(climate::CLIMATE_MODE_OFF);
-            }
-            call.perform();
