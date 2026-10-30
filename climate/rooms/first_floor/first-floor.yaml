@@ -221,6 +221,10 @@ sensor:
       - source: camera_sud_dew_point
     on_value:
       then:
+        # Recompute the minimum from this new dew point before using it: its own
+        # 30 s poll would hand the PID (and the mixing valve's dew-point
+        # interlock) a value up to one poll old (review N-03).
+        - component.update: first_floor_supply_temp_minimum
         - if:
             condition:
               # A NaN minimum (every member room's dew point lost) must not reach
