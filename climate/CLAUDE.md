@@ -275,18 +275,36 @@ installed). Verification runs pin `esphome==2026.8.0` (`climate/tests/pyproject.
 Example:
 ```yaml
 # climate/rooms/ground_floor/new_room.yaml
+# (shape of climate/rooms/ground_floor/anticamera.yaml)
 defaults:
-  room_slug: new_room
+  room_slug: "new_room"
   room_name: "New Room"
-  temperature_sensor: sensor.new_room_temp
-  radiant_relay: relay_22   # pick an unallocated channel — see Appendix B
-  # No fancoil_relay: fancoils have no dedicated relay (floor pump + 0-10V fan, Appendix B/C)
+  temperature_sensor: new_room_temp_abstracted   # published by room_sensors.yaml
 
 packages:
-  sensors: !include ../../room_sensors.yaml
-  radiant: !include ../../radiant.yaml
-  fancoil: !include ../../fancoil.yaml   # needs vars: output_id, fancoil_role (boost | cool_only | heat_cool)
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      ha_temperature_sensor_id: "sensor.room_new_room_temperature"
+      ha_humidity_sensor_id: "sensor.room_new_room_humidity"
+
+  pid_radiant: !include
+    file: ../../packages/components/radiant.yaml   # heat_only_radiant.yaml for heat-only zones
+    vars:
+      relay_id: relay_22   # pick an unallocated channel — see Appendix B
+
+  # Optional fancoil: no dedicated relay (floor pump + 0-10V fan, Appendix B/C)
+  # fancoil: !include
+  #   file: ../../packages/components/fancoil.yaml
+  #   vars:
+  #     output_id: analog_output_N
+  #     fancoil_role: boost   # boost | cool_only | heat_cool
 ```
+
+A new radiant zone must also join its floor's pump-demand sum (`*_any_zone_open`, both
+`_radiant_pid_is_active` and `_radiant_override_active`), the seasonal-mode aggregation in
+`devices/climate-control.yaml` (`scripts/verify_seasonal_mode_aggregation.py` checks both), and — if it
+cools — the floor's dew-point sources and supply-minimum room list, which must stay identical.
 
 ### Modifying PID Parameters
 

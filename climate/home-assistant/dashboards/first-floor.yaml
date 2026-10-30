@@ -65,7 +65,7 @@ sections:
         icon: mdi:water-percent
 
       - type: tile
-        entity: sensor.climate_control_effective_first_floor_safe_margin
+        entity: number.climate_control_first_floor_radiant_safe_margin
         name: Safe Margin
         icon: mdi:shield-half-full
 

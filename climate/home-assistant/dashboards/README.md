@@ -349,73 +349,25 @@ Each room has a detailed dashboard with:
 
 ## Required Input Numbers
 
-The dashboards reference Home Assistant `input_number` entities for runtime configuration. Create these in **Configuration → Helpers → Add Helper → Number**:
+The only Home Assistant `input_number` helpers the controller reads are the MEV demand bounds, shipped
+as a package in `climate/home-assistant/mev_helpers.yaml` (install it into your HA packages).
 
-### Ground Floor Configuration
+Dew-point margins and fancoil-boost tuning are persisted `number` entities **on the controller**
+(`entity_category: config`), so they survive an HA outage and need no helper:
 
-```yaml
-# In Home Assistant UI: Settings → Devices & Services → Helpers
-input_number:
-  ground_floor_safe_margin:
-    name: Ground Floor Safe Margin
-    min: 0.5
-    max: 3.0
-    step: 0.1
-    unit_of_measurement: "°C"
-    mode: box
-    icon: mdi:shield-half-full
+| Number entity (on the controller) | Range | Default |
+|------|-------|---------|
+| `number.climate_control_ground_floor_radiant_safe_margin` | 1.0–5.0 °C | 2.0 °C |
+| `number.climate_control_first_floor_radiant_safe_margin` | 1.0–5.0 °C | 2.0 °C |
+| `number.climate_control_ground_floor_fancoil_boost_threshold` | 0.5–10.0 °C | 4.0 °C |
+| `number.climate_control_ground_floor_fancoil_humidity_threshold` | 30–90 % | 60 % |
+| `number.climate_control_ground_floor_fancoil_predictive_boost_minutes` | 1–120 min | 20 min |
 
-  ground_floor_fancoil_boost_threshold:
-    name: Ground Floor Fancoil Boost Threshold
-    min: 1.0
-    max: 10.0
-    step: 0.5
-    unit_of_measurement: "°C"
-    mode: box
-    icon: mdi:thermometer-alert
+The safe margin sets the COOL supply target (max room dew point + margin); the mixing valve's
+dew-point interlock shuts the chilled water below dew point + margin/2 (review N-01).
 
-  ground_floor_fancoil_humidity_threshold:
-    name: Ground Floor Fancoil Humidity Threshold
-    min: 50
-    max: 80
-    step: 1
-    unit_of_measurement: "%"
-    mode: box
-    icon: mdi:water-percent-alert
-
-  ground_floor_predictive_boost_minutes:
-    name: Ground Floor Predictive Boost Minutes
-    min: 5
-    max: 60
-    step: 5
-    unit_of_measurement: "min"
-    mode: box
-    icon: mdi:timer-alert
-```
-
-### First Floor Configuration
-
-```yaml
-input_number:
-  first_floor_safe_margin:
-    name: First Floor Safe Margin
-    min: 0.5
-    max: 3.0
-    step: 0.1
-    unit_of_measurement: "°C"
-    mode: box
-    icon: mdi:shield-half-full
-```
-
-### MEV Configuration
-
-The MEV minimum fan speed (both units) and the first-floor cascade thresholds and delays
-are **not** HA helpers: they are persisted `number` entities on the controller
-(`number.climate_control_mev_primo_piano_minimum_fan_speed`,
-`..._escalation_fan_threshold`, `..._de_escalation_fan_threshold`, `..._escalation_delay`,
-`..._de_escalation_delay`, and `number.climate_control_mev_piano_terra_minimum_fan_speed`),
-tuned from the controller device and kept across HA outages. Only the demand bounds remain
-HA helpers (`climate/home-assistant/mev_helpers.yaml`).
+Helpers named `input_number.*_safe_margin` / `*_fancoil_*` from older versions of this guide are
+not read by anything and can be deleted.
 
 ---
 
@@ -658,9 +610,9 @@ icon: mdi:radiator
 **Problem**: Configuration sensors show unavailable or fallback values.
 
 **Solution**:
-1. Create input_number helpers in **Settings → Devices & Services → Helpers**
-2. Match entity IDs exactly as shown in [Required Input Numbers](#required-input-numbers)
-3. Restart Home Assistant if added via `configuration.yaml`
+1. Install `climate/home-assistant/mev_helpers.yaml` as an HA package (MEV demand bounds — see [Required Input Numbers](#required-input-numbers))
+2. Restart Home Assistant
+3. Margins and boost tuning are controller `number`s, not helpers: check the `climate-control` device page
 
 ### Navigation Not Working
 

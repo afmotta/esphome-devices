@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.22 |
-| **Last Updated** | October 26, 2026 |
+| **Version** | 1.23 |
+| **Last Updated** | October 30, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
