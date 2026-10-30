@@ -131,6 +131,15 @@ demand is `*_radiant_pid_is_active || *_radiant_override_active` for every radia
 **`.state`**: `id(binary_sensor)` in a lambda is the sensor *pointer* (always true), which is how the
 pump-demand sums were once stuck on; `scripts/verify_seasonal_mode_aggregation.py` enforces both.
 
+**The dew-point minimum is a target; the interlock is the limit** (review N-01). In COOL each floor's
+mixing-valve PID regulates the supply toward `{floor}_supply_temp_minimum` (max room dew point +
+`{floor}_radiant_safe_margin`, default 2.0 °C, range 1-5 °C), which on its own cannot stop an overshoot.
+`mixing_pump.yaml` therefore passes the valve's cool output through `climate/protocol/dew_point_interlock.h`:
+below minimum − margin/2 (dew point + margin/2) the chilled water is shut, and it stays shut until the supply
+is back at the minimum; a NaN supply, minimum or margin blocks too. It is evaluated on every PID write
+(each supply reading) and shown as `{floor}_radiant_mixing_valve_dew_point_interlock` (COOL only).
+`mixing_pump.yaml` requires `supply_minimum_id` and `safe_margin_id` for this.
+
 **PID integral confined to the active direction** (review R-13). `pid.yaml` re-bounds every PID's
 integral on each `hp_mode` change via `pid_direction::integral_bounds()`: HEAT → `[0, limit]`,
 COOL → `[-limit, 0]`, SANITARY_ONLY keeps the previous bounds (`integral_limit` var, default 1.0,
@@ -233,6 +242,9 @@ g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_pid_direction
 # Radiant final stage: override vs PID, NaN stop (R-05)
 g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_radiant_override.cpp -o /tmp/climate_radiant_override && /tmp/climate_radiant_override
 
+# Dew-point interlock on the mixing valves' cool output (N-01)
+g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_dew_point_interlock.cpp -o /tmp/climate_dew_point_interlock && /tmp/climate_dew_point_interlock
+
 # Isolated receiver composition fixture (generated routes + receiver package,
 # without the full climate controller)
 esphome config climate/tests/compile_can_sensor_receiver.yaml
@@ -263,18 +275,36 @@ installed). Verification runs pin `esphome==2026.8.0` (`climate/tests/pyproject.
 Example:
 ```yaml
 # climate/rooms/ground_floor/new_room.yaml
+# (shape of climate/rooms/ground_floor/anticamera.yaml)
 defaults:
-  room_slug: new_room
+  room_slug: "new_room"
   room_name: "New Room"
-  temperature_sensor: sensor.new_room_temp
-  radiant_relay: relay_22   # pick an unallocated channel — see Appendix B
-  # No fancoil_relay: fancoils have no dedicated relay (floor pump + 0-10V fan, Appendix B/C)
+  temperature_sensor: new_room_temp_abstracted   # published by room_sensors.yaml
 
 packages:
-  sensors: !include ../../room_sensors.yaml
-  radiant: !include ../../radiant.yaml
-  fancoil: !include ../../fancoil.yaml   # needs vars: output_id, fancoil_role (boost | cool_only | heat_cool)
+  sensors: !include
+    file: ../../room_sensors.yaml
+    vars:
+      ha_temperature_sensor_id: "sensor.room_new_room_temperature"
+      ha_humidity_sensor_id: "sensor.room_new_room_humidity"
+
+  pid_radiant: !include
+    file: ../../packages/components/radiant.yaml   # heat_only_radiant.yaml for heat-only zones
+    vars:
+      relay_id: relay_22   # pick an unallocated channel — see Appendix B
+
+  # Optional fancoil: no dedicated relay (floor pump + 0-10V fan, Appendix B/C)
+  # fancoil: !include
+  #   file: ../../packages/components/fancoil.yaml
+  #   vars:
+  #     output_id: analog_output_N
+  #     fancoil_role: boost   # boost | cool_only | heat_cool
 ```
+
+A new radiant zone must also join its floor's pump-demand sum (`*_any_zone_open`, both
+`_radiant_pid_is_active` and `_radiant_override_active`), the seasonal-mode aggregation in
+`devices/climate-control.yaml` (`scripts/verify_seasonal_mode_aggregation.py` checks both), and — if it
+cools — the floor's dew-point sources and supply-minimum room list, which must stay identical.
 
 ### Modifying PID Parameters
 

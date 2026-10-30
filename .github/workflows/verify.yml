@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to a PR supersedes its running checks (the ESP32 compile is the slow
+# one); pushes to main always run to completion.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   native:
     name: Native verification battery
@@ -101,11 +107,14 @@ jobs:
       - name: Climate e2e (host harnesses)
         run: python3 -m pytest climate/tests/e2e
 
-  # Full ESP32/RP2040 compiles are heavy (esp-idf build), so they gate pushes to
-  # main rather than every PR iteration. (The host e2e runs in `climate-e2e` above.)
+  # Full ESP32/RP2040 compiles. They gate every PR, not only pushes to main:
+  # `esphome config` never compiles the C++ lambdas, the `includes:` headers or the
+  # ESPHome-internal APIs, so this is the only check that keeps code that does not
+  # build out of main. The esp-idf build is heavy; the toolchain cache below and the
+  # workflow's cancel-in-progress keep the per-PR cost down. PRs read the cache that
+  # main's runs save. (The host e2e runs in `climate-e2e` above.)
   esphome-compile:
-    name: ESPHome compile gates (main)
-    if: github.event_name == 'push'
+    name: ESPHome compile gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -199,6 +199,8 @@ run_step "native: climate test_pid_direction.cpp" \
   cxx_run climate_pid_direction -Iclimate/protocol climate/tests/test_pid_direction.cpp
 run_step "native: climate test_radiant_override.cpp" \
   cxx_run climate_radiant_override -Iclimate/protocol climate/tests/test_radiant_override.cpp
+run_step "native: climate test_dew_point_interlock.cpp" \
+  cxx_run climate_dew_point_interlock -Iclimate/protocol climate/tests/test_dew_point_interlock.cpp
 
 # ── Generator idempotence (needs clean canbus/climate/registry paths) ──────────
 if [ "$FAST" -eq 1 ]; then

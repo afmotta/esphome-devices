@@ -66,81 +66,29 @@ lovelace:
 
 **Navigation Hierarchy**: Climate Control (sidebar) → Floor Dashboards → Room Dashboards
 
-### Step 3: Create Input Numbers (2 minutes)
+### Step 3: Install the MEV helpers (1 minute)
 
-**Via UI (Faster)**:
+Copy `climate/home-assistant/mev_helpers.yaml` into your HA packages: it holds the only `input_number`
+helpers the controller still reads (the MEV demand bounds). Without them the demand falls back to a
+flat 20 %.
 
-1. Go to **Settings → Devices & Services → Helpers**
-2. Click **+ Create Helper → Number**
-3. Create these helpers:
+Dew-point margins and fancoil-boost tuning are **not** HA helpers: they are persisted `number`
+entities on the controller (they keep working with HA down). Tune them from the `climate-control`
+device page:
 
-| Name | Entity ID | Min | Max | Step | Unit |
-|------|-----------|-----|-----|------|------|
-| Ground Floor Safe Margin | `input_number.ground_floor_safe_margin` | 0.5 | 3.0 | 0.1 | °C |
-| GF Fancoil Boost Threshold | `input_number.ground_floor_fancoil_boost_threshold` | 1.0 | 10.0 | 0.5 | °C |
-| GF Fancoil Humidity Threshold | `input_number.ground_floor_fancoil_humidity_threshold` | 50 | 80 | 1 | % |
-| GF Predictive Boost Minutes | `input_number.ground_floor_predictive_boost_minutes` | 5 | 60 | 5 | min |
-| First Floor Safe Margin | `input_number.first_floor_safe_margin` | 0.5 | 3.0 | 0.1 | °C |
+| Number entity (on the controller) | Range | Default |
+|------|-------|---------|
+| `number.climate_control_ground_floor_radiant_safe_margin` | 1.0–5.0 °C | 2.0 °C |
+| `number.climate_control_first_floor_radiant_safe_margin` | 1.0–5.0 °C | 2.0 °C |
+| `number.climate_control_ground_floor_fancoil_boost_threshold` | 0.5–10.0 °C | 4.0 °C |
+| `number.climate_control_ground_floor_fancoil_humidity_threshold` | 30–90 % | 60 % |
+| `number.climate_control_ground_floor_fancoil_predictive_boost_minutes` | 1–120 min | 20 min |
 
-**Recommended Starting Values**:
-- Ground Floor Safe Margin: **1.0°C**
-- GF Boost Threshold: **4.0°C**
-- GF Humidity Threshold: **60%**
-- GF Predictive Boost Minutes: **20 min**
-- First Floor Safe Margin: **1.0°C**
+The safe margin sets the COOL supply target (max room dew point + margin); the mixing valve's
+dew-point interlock shuts the chilled water below dew point + margin/2 (review N-01).
 
-**Via YAML (Alternative)**:
-
-Add to `/config/configuration.yaml`:
-
-```yaml
-input_number:
-  ground_floor_safe_margin:
-    name: Ground Floor Safe Margin
-    min: 0.5
-    max: 3.0
-    step: 0.1
-    initial: 1.0
-    unit_of_measurement: "°C"
-    mode: box
-    icon: mdi:shield-half-full
-
-  ground_floor_fancoil_boost_threshold:
-    name: GF Fancoil Boost Threshold
-    min: 1.0
-    max: 10.0
-    step: 0.5
-    initial: 4.0
-    unit_of_measurement: "°C"
-    mode: box
-
-  ground_floor_fancoil_humidity_threshold:
-    name: GF Fancoil Humidity Threshold
-    min: 50
-    max: 80
-    step: 1
-    initial: 60
-    unit_of_measurement: "%"
-    mode: box
-
-  ground_floor_predictive_boost_minutes:
-    name: GF Predictive Boost Minutes
-    min: 5
-    max: 60
-    step: 5
-    initial: 20
-    unit_of_measurement: "min"
-    mode: box
-
-  first_floor_safe_margin:
-    name: First Floor Safe Margin
-    min: 0.5
-    max: 3.0
-    step: 0.1
-    initial: 1.0
-    unit_of_measurement: "°C"
-    mode: box
-```
+If you created the old `input_number.*_safe_margin` / `*_fancoil_*` helpers from an earlier version
+of this guide, delete them — nothing reads them.
 
 ### Step 4: Restart Home Assistant
 
@@ -194,7 +142,7 @@ Settings → System → Restart
 
 **Cause**: Not created yet.
 
-**Fix**: Follow Step 3 above or skip - ESPHome will use fallback defaults.
+**Fix**: Install `mev_helpers.yaml` (Step 3). The only helpers left are the MEV demand bounds; everything else is a controller `number`.
 
 ---
 

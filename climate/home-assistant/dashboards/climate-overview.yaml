@@ -121,12 +121,12 @@ sections:
         icon: mdi:fan
 
       - type: tile
-        entity: sensor.climate_control_effective_fancoil_boost_threshold
+        entity: number.climate_control_ground_floor_fancoil_boost_threshold
         name: Boost Threshold
         icon: mdi:thermometer-alert
 
       - type: tile
-        entity: sensor.climate_control_effective_fancoil_humidity_threshold
+        entity: number.climate_control_ground_floor_fancoil_humidity_threshold
         name: Humidity Threshold
         icon: mdi:water-percent-alert
 

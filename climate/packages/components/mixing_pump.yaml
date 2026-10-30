@@ -13,6 +13,10 @@
 #   output_id                - Output entity for mixing valve control signal
 #   sensor_id                - Binary sensor ID that triggers pump on/off
 #   relay_id                 - Switch ID for the circulation pump relay
+#   supply_minimum_id        - Sensor ID of the floor's cooling supply minimum
+#                              (dew point + margin, e.g. ground_floor_supply_temp_minimum)
+#   safe_margin_id           - Number ID of the floor's dew-point safe margin
+#                              (e.g. ground_floor_radiant_safe_margin)
 #
 # Inherited substitution (not passed per call site; defined once by the entry
 # point, like the room packages' use of it):
@@ -31,6 +35,7 @@
 #   - pid.yaml (included automatically, must be in same directory)
 #     - pid_sensors.yaml (included by pid.yaml)
 #   - climate/protocol/pid_direction.h (esphome.includes in the entry point)
+#   - climate/protocol/dew_point_interlock.h (esphome.includes in the entry point)
 #
 # Direction gating (R-01): the valve PID's target is a supply-water temperature,
 # so its error sign says whether the supply must get hotter or colder. The PID
@@ -46,11 +51,19 @@
 # target, the floors' dew-point protection the COOL one) therefore fails closed
 # until the owning coordinator writes the new target.
 #
+# Dew-point interlock (review N-01): the COOL target is the floor's supply
+# minimum (dew point + margin), but a target is not a limit -- the PID regulates
+# around it and can overshoot below. After the hp_mode gate, the cool output is
+# forced to 0 while the supply is below minimum - margin/2 (dew point +
+# margin/2), until it is back at the minimum; a NaN supply/minimum/margin blocks
+# too. Rule and rationale: climate/protocol/dew_point_interlock.h.
+#
 # Exposes:
 #   sensor.dallas_{dallas_address}               - Supply water temperature
 #   climate.{valve_slug}_pid                     - PID climate for valve control
 #   output.{valve_slug}_heat_output              - Gated heat-direction output
-#   output.{valve_slug}_cool_output              - Gated cool-direction output
+#   output.{valve_slug}_cool_output              - Gated cool-direction output (+ dew-point interlock)
+#   binary_sensor.{valve_slug}_dew_point_interlock - Interlock holding chilled water off (COOL only)
 #   binary_sensor.{sensor_id}_wrapped            - Pump trigger wrapper
 #   (plus all pid_sensors entities via pid.yaml)
 #
@@ -66,6 +79,8 @@
 #         output_id: mixing_valve_output
 #         sensor_id: ground_floor_demand
 #         relay_id: relay_13
+#         supply_minimum_id: ground_floor_supply_temp_minimum
+#         safe_margin_id: ground_floor_radiant_safe_margin
 # =============================================================================
 
 defaults:
@@ -109,8 +124,18 @@ output:
     type: float
     write_action:
       - lambda: |-
-          id(${output_id}).set_level(pid_direction::gated_level(
-              pid_direction::Direction::COOL, id(${seasonal_mode_id}).current_option().c_str(), state));
+          float level = pid_direction::gated_level(
+              pid_direction::Direction::COOL, id(${seasonal_mode_id}).current_option().c_str(), state);
+          id(${output_id}).set_level(dew_point_interlock::cool_level(
+              id(${valve_slug}_dew_interlock_blocked), id(dallas_${dallas_address}).state,
+              id(${supply_minimum_id}).state, id(${safe_margin_id}).state, level));
+
+# Latch of the dew-point interlock (see header). Starts released: the first
+# PID write re-evaluates it before any chilled water can flow.
+globals:
+  - id: ${valve_slug}_dew_interlock_blocked
+    type: bool
+    initial_value: "false"
 
 climate:
   - id: !extend ${valve_slug}_pid
@@ -118,6 +143,15 @@ climate:
     cool_output: ${valve_slug}_cool_output
 
 binary_sensor:
+  - platform: template
+    id: ${valve_slug}_dew_point_interlock
+    name: "${valve_name} Dew Point Interlock"
+    device_class: problem
+    entity_category: diagnostic
+    lambda: |-
+      return id(${valve_slug}_dew_interlock_blocked) &&
+             id(${seasonal_mode_id}).current_option() == "COOL";
+
   - platform: template
     id: ${sensor_id}_wrapped
     lambda: |-
