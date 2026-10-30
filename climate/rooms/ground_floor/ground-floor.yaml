@@ -1,5 +1,7 @@
 defaults:
-  safe_margin: 1.0
+  # Dew point + margin is the COOL supply target; the interlock trips at
+  # dew point + margin/2 (review N-01). Floor 1.0 keeps that trip >= +0.5 °C.
+  safe_margin: 2.0
   fancoil_boost_threshold_default: 4.0
   fancoil_humidity_threshold_default: 60.0 # % RH - trigger boost to dehumidify
   predictive_boost_minutes_default: 20 # Minutes at saturation before predictive boost
@@ -15,6 +17,9 @@ packages:
       relay_id: relay_1
       output_id: analog_output_1
       one_wire_bus_id: one_wire_01
+      # Dew-point interlock on the valve's cool output (review N-01)
+      supply_minimum_id: ground_floor_supply_temp_minimum
+      safe_margin_id: ground_floor_radiant_safe_margin
   # Weather-compensated HEAT-mode supply target (CLIMATE C3). COOL-mode
   # target stays owned by the dew-point protection below.
   # Curve set for a radiant FLOOR emitter (the first floor's radiant CEILING
@@ -321,7 +326,7 @@ number:
     unit_of_measurement: "°C"
     device_class: "temperature"
     icon: "mdi:shield-half-full"
-    min_value: 0.5
+    min_value: 1.0
     max_value: 5.0
     step: 0.1
     initial_value: ${safe_margin}

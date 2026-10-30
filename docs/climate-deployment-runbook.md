@@ -140,7 +140,7 @@ matches the source; the other one becomes Phase B.
 
 | Step | Advance | Verify | Rollback |
 |---|---|---|---|
-| **A-C1 Dew-point protection** | `hp_mode` → COOL with all zone cooling still OFF | `{floor}_supply_temp_minimum` computes (dew point + safe margin); mixing valve is ready to mix **up** | `hp_mode` → SANITARY_ONLY |
+| **A-C1 Dew-point protection** | `hp_mode` → COOL with all zone cooling still OFF | `{floor}_supply_temp_minimum` computes (dew point + safe margin); mixing valve is ready to mix **up**; `{floor}_radiant_mixing_valve_dew_point_interlock` is off once the supply is at the minimum (it trips below dew point + margin/2, N-01) | `hp_mode` → SANITARY_ONLY |
 | **A-C2 Radiant cool** | Zone `climate` OFF→COOL one at a time; ground floor first, then first floor (safe because MEV from Phase 0 is dehumidifying) | No condensation on either floor; supply held above dew point + margin; **24–48 h** | Zone → OFF |
 | **A-C3 Fancoil cool** | Bring fancoil `climate` entities online | Modulation tracks | Fancoil zone → OFF |
 | **A-C4 Fancoil boost** | `{zone}_boost_enabled` → ON (Soggiorno, Cucina) | Boost entry/exit and anti-cycling delays; radiant locks to 100% and releases cleanly; no fighting with the radiant override | `{zone}_boost_enabled` → OFF (an active boost drops to "Radiant Only" immediately) |
