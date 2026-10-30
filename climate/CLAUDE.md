@@ -152,11 +152,12 @@ both are bounded by `integral_limit`. Rationale: `pid_direction::integral_bounds
 
 **Fancoil boot state is owned by the role** (review R-16). Each `fancoil_role_*.yaml` maps `hp_mode`
 to the PID mode in one script (`${room_slug}_fancoil_sync_mode`); `fancoil.yaml` runs it from the select's
-`on_value` *and* from an `esphome: on_boot` **mapping at priority -100** — keep it exactly that: package
-`on_boot` mappings merge into one trigger and a list-form one silently drops or is dropped (review R-18).
-The hook order against the boost coordinator's replay only matters for a restored boost under a non-COOL
-`hp_mode`: the final PID mode (OFF or COOL) then depends on which runs last, but it never actuates (the cool
-output is gated on `hp_mode`) and the coordinator's season override ends the boost.
+`on_value` *and* from an `esphome: on_boot` **list entry at priority -100**. `fancoil_boost.yaml`'s boot replay is
+a separate entry at -110, so it runs after the role sync and has the last word on a restored boost. `on_boot` is
+**always list-form with an explicit `priority:`** — package mappings merge into one trigger with a single surviving
+priority and mixing forms drops a hook (review R-18; enforced by `scripts/check_on_boot_form.py`). Against a restored
+boost under a non-COOL `hp_mode` the final PID mode (OFF or COOL) depends on that order, but it never actuates (the
+cool output is gated on `hp_mode`) and the coordinator's season override ends the boost.
 A reboot discards a manual or HA-set fancoil PID mode and returns to the role/`hp_mode` mapping (as an
 `hp_mode` change already does); the window guard re-asserts OFF if the window is still open. A restored boost
 surviving the boot-time NaN holds on the CAN tier only: on the HA tier the 300 s staleness grace exceeds

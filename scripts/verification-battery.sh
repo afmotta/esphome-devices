@@ -175,6 +175,7 @@ echo
 # ── Python tests (stdlib-only) ──────────────────────────────────────────────
 run_step "hygiene: no tracked secrets or build artifacts" python3 scripts/check_repo_hygiene.py
 run_step "hygiene: deployable logger levels are configurable" logger_level_check
+run_step "hygiene: every on_boot is list-form with a priority (R-18)" python3 scripts/check_on_boot_form.py
 run_step "canbus: every send_data() feeds tx_health" tx_health_wrap_check
 run_step "climate: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py
@@ -217,6 +218,7 @@ if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "esphome compile canbus/tests/compile_buttons_bridge.yaml"   "--native-only"
   skip_step "esphome compile canbus/tests/compile_bridge_t2can.yaml"    "--native-only"
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
+  skip_step "resolved on_boot triggers match scripts/on_boot_baseline.json" "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
   skip_step "pytest climate/tests/e2e (host harness builds)" "--native-only; needs esphome + pytest"
 else
@@ -232,6 +234,8 @@ else
     esphome compile canbus/tests/compile_bridge_t2can.yaml
   run_step "esphome config devices/locals/climate-control.yaml" \
     esphome config devices/locals/climate-control.yaml
+  run_step "resolved on_boot triggers match scripts/on_boot_baseline.json" \
+    python3 scripts/check_on_boot_resolved.py
   run_step "esphome compile devices/locals/climate-control.yaml" \
     esphome compile devices/locals/climate-control.yaml
   # Serial on purpose: every harness binds API port 6053 (no pytest -n).

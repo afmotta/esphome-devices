@@ -32,7 +32,8 @@ esphome:
   # compile-time constants (node_map.h), so the diagnostics never poll — the state is
   # set here and pushed to HA on connect.
   on_boot:
-    - then:
+    - priority: 600
+      then:
         - text_sensor.template.publish:
             id: node_map_version
             state: !lambda 'return std::string(NODE_MAP_VERSION);'

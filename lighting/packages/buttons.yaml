@@ -32,7 +32,8 @@ esphome:
   # Drift visibility (ADR-0009 §6): publish the compiled binding-manifest identity once
   # (compile-time constant from bindings.h; never polls).
   on_boot:
-    - then:
+    - priority: 600
+      then:
         - text_sensor.template.publish:
             id: binding_manifest_hash
             state: !lambda 'return std::string(BINDINGS_MANIFEST_HASH);'

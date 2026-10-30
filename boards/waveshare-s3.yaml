@@ -58,8 +58,9 @@ esphome:
   min_version: 2026.8.0
   comment: "WaveShare ESP32-S3-POE-ETH-8DI-8RO device"
   on_boot:
-    then:
-      - pcf85063.read_time
+    - priority: 600
+      then:
+        - pcf85063.read_time
 
 # Waveshare ESP32-S3-ETH-8DI-8RO uses ESP32-S3-WROOM-1U-N16R8
 # -> 16 MB flash

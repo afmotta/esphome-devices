@@ -79,6 +79,10 @@ jobs:
             esphome config "$f" >/dev/null
             echo "::endgroup::"
           done
+      # Review R-18: package on_boot hooks must stay one trigger each at their
+      # declared priority (the source-form check runs in the native battery).
+      - name: Resolved on_boot triggers match the baseline
+        run: python3 scripts/check_on_boot_resolved.py
 
   # Host-platform e2e: each harness compiles to a plain Linux binary (no ESP32
   # toolchain), so this is cheap enough to gate every PR as well as pushes to main.

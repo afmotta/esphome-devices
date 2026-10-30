@@ -25,8 +25,8 @@ R-16 — boot state of fancoil PIDs. A PID with a cool_output starts in COOL
 when it has no saved state, and the PID's restore (setup, priority DATA) runs
 AFTER the hp_mode select's restore has already fired the role handlers (HARDWARE),
 overwriting what they did. The roles now re-run their handler once everything is
-set up (esphome.on_boot, priority -100, in the same merged trigger as the boost
-coordinator's boot replay). Tests boot the harness on a fresh preference store
+set up (esphome.on_boot, priority -100, list form; the boost coordinator's boot
+replay is its own later trigger at -110, review R-18). Tests boot the harness on a fresh preference store
 and check the resulting modes per hp_mode:
   hp_mode COOL           boost OFF (only the coordinator starts it), cool_only
                          COOL, heat_cool COOL. In COOL the cool_only case holds

@@ -42,15 +42,22 @@ esphome:
   # MCP2515 hardware reset pulse before its component initializes (the
   # mcp2515 below carries setup_priority -100 so it sets up after this runs).
   # Sequence and timing from LilyGO's reference firmware.
+  #
+  # List form with its own trigger (review R-18): 800 is the priority this
+  # really runs at. Until R-18 it was merged with node_core's (200) and
+  # bridge's (190) mapping hooks into one trigger at 190 (still ahead of the
+  # MCP2515's -100). Caveat, not changed by R-18: `delay` is a scheduler timer,
+  # so only the first output.turn_on is guaranteed to run before the mcp2515
+  # setup(); the later pulse edges fire from loop() once setup has finished.
   on_boot:
-    priority: 800.0
-    then:
-      - output.turn_on: mcp_rst_pin
-      - delay: 100ms
-      - output.turn_off: mcp_rst_pin
-      - delay: 100ms
-      - output.turn_on: mcp_rst_pin
-      - delay: 100ms
+    - priority: 800.0
+      then:
+        - output.turn_on: mcp_rst_pin
+        - delay: 100ms
+        - output.turn_off: mcp_rst_pin
+        - delay: 100ms
+        - output.turn_on: mcp_rst_pin
+        - delay: 100ms
 
 esp32:
   board: esp32-s3-devkitm-1

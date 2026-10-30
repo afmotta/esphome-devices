@@ -48,13 +48,17 @@ esphome:
   includes:
     - ../protocol/canbus_protocol.h
     - ../protocol/tx_health.h
+  # List form with an explicit priority (review R-18): package on_boot MAPPINGS
+  # merge into one trigger with a single surviving priority, so the 200 here
+  # (banner logs before bridge.yaml's 190 hook) would not have held. Never
+  # write a mapping-form on_boot (scripts/check_on_boot_form.py).
   on_boot:
-    priority: 200
-    then:
-      - lambda: |-
-          ESP_LOGI("canbus", "Node ${node_id} online");
-          ESP_LOGI("canbus", "  Input  CAN ID: 0x%08X", can_id(CAT_INPUT,  ${node_id}));
-          ESP_LOGI("canbus", "  Status CAN ID: 0x%08X", can_id(CAT_STATUS, ${node_id}));
+    - priority: 200
+      then:
+        - lambda: |-
+            ESP_LOGI("canbus", "Node ${node_id} online");
+            ESP_LOGI("canbus", "  Input  CAN ID: 0x%08X", can_id(CAT_INPUT,  ${node_id}));
+            ESP_LOGI("canbus", "  Status CAN ID: 0x%08X", can_id(CAT_STATUS, ${node_id}));
 
 globals:
   - id: error_flags
