@@ -177,6 +177,22 @@ async def test_seasonal_handlers_set_pid_modes_per_role(run_harness, hp_mode, ex
         await h.wait_for(f"{room}{pid}", lambda s, mode=mode: s.mode == mode)
 
 
+
+async def test_republished_cool_does_not_pass_the_radiant_zone_through_off(run_harness):
+    """Review N-02: heat_only_radiant.yaml's handler (COOL -> OFF) and
+    radiant.yaml's (COOL -> COOL) both ran, in that order, and OFF's control()
+    wrote 0 to the valve. The stub temperature does not republish by itself,
+    so the old code left the cooling valve shut after an hp_mode publish."""
+    h = await run_harness("radiant_direction")
+    await set_season(h, "COOL")
+    await read_room(h, HOT)
+    await h.wait_for("bedroom_relay", lambda s: s.state is True)
+
+    await h.call("set_hp_mode", value="COOL")  # same option, published again
+    await asyncio.sleep(LEVEL_SETTLE)
+    assert relay_on(h, "bedroom"), "an hp_mode publish closed the cooling valve"
+    assert h.states["bedroom_radiant_pid"].mode == ClimateMode.COOL
+
 # --- boost-role fancoil -----------------------------------------------------
 
 async def test_boost_fancoil_is_not_started_by_the_season(run_harness):

@@ -79,6 +79,9 @@ defaults:
   ki: 0.005
   kd: 0.05
   integral_limit: 1.0
+  # Set to "true" only by radiant.yaml (which adds the cool output): lets the
+  # one seasonal handler below map COOL to COOL instead of OFF (review N-02).
+  radiant_cool_capable: "false"
 
 packages:
   pid: !include
@@ -175,8 +178,12 @@ binary_sensor:
           id(${room_slug}_radiant_override_value).state,
           id(${temperature_sensor}).state);
 
-# Seasonal mode handler: automatically switch PID mode based on seasonal mode
-# Heat-only zones are disabled during COOL mode
+# Seasonal mode handler: automatically switch PID mode based on seasonal mode.
+# Heat-only zones are disabled during COOL mode; dual-mode zones (radiant.yaml,
+# radiant_cool_capable: "true") follow it. This is the ONLY handler for the
+# zone: ESPHome concatenates `!extend`ed on_value lists, so a second handler in
+# radiant.yaml ran after this one and every switch to COOL passed through OFF,
+# whose control() writes 0 to the valve until the next PID update (N-02).
 select:
   - id: !extend ${seasonal_mode_id}
     on_value:
@@ -185,6 +192,8 @@ select:
             auto call = id(${room_slug}_radiant_pid).make_call();
             if (x == "HEAT") {
               call.set_mode(climate::CLIMATE_MODE_HEAT);
+            } else if (${radiant_cool_capable} && x == "COOL") {
+              call.set_mode(climate::CLIMATE_MODE_COOL);
             } else {
               call.set_mode(climate::CLIMATE_MODE_OFF);
             }
