@@ -83,7 +83,8 @@ esphome:
     # Register can0 as the OUTPUT-command sender for the ADR-0020 fallback path (mirrors
     # relay_store()'s per-switch registration). fire_binding_fallback() reads it when a bound
     # single-click targets a CAN actuator (e.g. an An-Penta strip) while HA is down.
-    - then:
+    - priority: 600
+      then:
         - lambda: "can_output_sender() = id(can0);"
 
 # --------------- CAN Bus (native ESP32 TWAI) ---------------

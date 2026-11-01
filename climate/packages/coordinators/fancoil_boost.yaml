@@ -156,25 +156,32 @@ defaults:
 # Re-setting the restored option replays set_action end-to-end; the
 # "Radiant Only" case only needs the reported-state resync (replaying it
 # would force the fancoil OFF and stomp a legitimate manual HA override).
+#
+# Priority -110: its own trigger (list form, review R-18), one step AFTER the
+# fancoil role's mode sync (fancoil_role_*.yaml, -100) so the replay has the
+# last word on the fancoil in the one case where they meet: a restored boost.
+# Either order is safe by design (the boost role's sync leaves a running boost
+# alone and turns the PID OFF otherwise); the distinct priority just stops the
+# result depending on package/registration order.
 # =============================================================================
 esphome:
   on_boot:
-    priority: -100  # Run after all components are initialized
-    then:
-      - if:
-          condition:
-            lambda: 'return id(${zone_slug}_boost_state).current_option() == "Fancoil Boost";'
-          then:
-            - logger.log:
-                format: "${zone_slug}: reboot during boost - replaying boost outputs"
-                level: INFO
-                tag: boost
-            - select.set:
-                id: ${zone_slug}_boost_state
-                option: "Fancoil Boost"
-            - script.execute: ${zone_slug}_boost_update_idle
-          else:
-            - script.execute: ${zone_slug}_boost_update_idle
+    - priority: -110  # After all components are set up and after the role sync
+      then:
+        - if:
+            condition:
+              lambda: 'return id(${zone_slug}_boost_state).current_option() == "Fancoil Boost";'
+            then:
+              - logger.log:
+                  format: "${zone_slug}: reboot during boost - replaying boost outputs"
+                  level: INFO
+                  tag: boost
+              - select.set:
+                  id: ${zone_slug}_boost_state
+                  option: "Fancoil Boost"
+              - script.execute: ${zone_slug}_boost_update_idle
+            else:
+              - script.execute: ${zone_slug}_boost_update_idle
 
 # =============================================================================
 # Raw globals: for external lambdas/scripts to read or assign directly via
@@ -402,7 +409,7 @@ script:
           tag: boost
 
   # Update idle display state when conditions clear. Also runs on_boot
-  # (priority -100, see esphome.on_boot above) to resync boost_active_global
+  # (priority -110, see esphome.on_boot above) to resync boost_active_global
   # and the HA-visible binary_sensor with whatever option the select restored
   # from flash - set_action only fires on an actual select.set call, which
   # restore_value's boot-time publish_state does not trigger. The boot hook

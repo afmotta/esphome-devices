@@ -42,15 +42,25 @@ esphome:
   # MCP2515 hardware reset pulse before its component initializes (the
   # mcp2515 below carries setup_priority -100 so it sets up after this runs).
   # Sequence and timing from LilyGO's reference firmware.
+  #
+  # Blocking delay() on purpose, NOT the `delay:` action: that is a scheduler
+  # timer, and Application::setup() only runs the scheduler while a component's
+  # can_proceed() is false. Nothing on this board blocks setup (no wifi/api), so
+  # the pulse's falling edge would fire from loop(), AFTER the mcp2515 setup, and
+  # wipe its bitrate, filters and NORMAL mode with nothing to reconfigure them.
+  #
+  # Priority 700, below 800 (HARDWARE): the GPIO output sets its pin up at 800,
+  # and hooks sharing a priority run in registration order.
   on_boot:
-    priority: 800.0
-    then:
-      - output.turn_on: mcp_rst_pin
-      - delay: 100ms
-      - output.turn_off: mcp_rst_pin
-      - delay: 100ms
-      - output.turn_on: mcp_rst_pin
-      - delay: 100ms
+    - priority: 700
+      then:
+        - lambda: |-
+            id(mcp_rst_pin).turn_on();
+            delay(100);
+            id(mcp_rst_pin).turn_off();
+            delay(100);
+            id(mcp_rst_pin).turn_on();
+            delay(100);
 
 esp32:
   board: esp32-s3-devkitm-1
