@@ -106,3 +106,8 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 ## 2026-10-27 — Spina Kefa nel BOM
 
 - Alberto ha comprato le spine KF2EDGK-3.5-4P (C440849) e il servizio clienti JLCPCB chiede che siano nel BOM per spedirle insieme ai PCB. Aggiunta in `design.py` la tabella `BOM_ONLY` (riga **P1**, quantità 1): compare solo in `out/BOM.csv`, non nel PCB, nello schema, nel CPL né in `BOM_SMD.csv`. In JLCPCB la riga andrà segnata come "non montata" (assente dal CPL). La classe Basic/Extended di C440849 non è verificata (rete del sandbox bloccata): da controllare nell'anteprima del BOM.
+
+## 2026-11-03 — Primo firmware ESPHome
+
+- Arrivate le schede demo; prima programmazione via USB nativo su J5 (un bridge UART con DCD/DTR/DSR non è utilizzabile, J5 non espone TX/RX).
+- Aggiunto `firmware/nodo503.yaml`: Wi-Fi, API cifrata, OTA e 6 pulsanti con `delayed_on_off: 20ms`. Per ora solo collegamento a Home Assistant: il bus CAN non è ancora testato e resta commentato nel file, come l'I²C.

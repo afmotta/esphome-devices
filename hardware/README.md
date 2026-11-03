@@ -91,6 +91,16 @@ Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi de
 - **Montaggio completo:** carica `BOM.csv` e `CPL_JLCPCB.csv`. JLCPCB monta anche i THT (K7805-500R3, J1, J3 e J4) a onda o a mano. Non resta nulla da saldare, J5 resta senza componente. La spina KF2EDGK-3.5-4P (J1) e i cavi PH per J3/J4 si ordinano a parte.
 - **Solo SMD:** carica `BOM_SMD.csv` e `CPL_SMD.csv`. Il K7805, J1, J3 e J4 restano da saldare a mano.
 
+## Firmware ESPHome
+
+Il file `firmware/nodo503.yaml` è una prima versione per collegare il nodo a Home Assistant: Wi-Fi, API cifrata, OTA, 6 pulsanti (GPIO7/0/1 e 20/19/18) e segnale Wi-Fi. CAN e I²C sono lasciati commentati in fondo al file.
+
+1. Copia `firmware/secrets.yaml.example` in `firmware/secrets.yaml` (ignorato da git) e compila SSID, password e chiavi.
+2. Dalla cartella `firmware/` esegui `esphome run nodo503.yaml` (o carica il file nella dashboard ESPHome). Il primo flash è via USB su J5, dopo si può usare l'OTA.
+3. Home Assistant scopre il dispositivo da solo (Impostazioni → Dispositivi → ESPHome).
+
+Se J4 non è collegato, i pulsanti 4–6 restano semplicemente spenti.
+
 ## Esempio ESPHome (indicativo)
 
 ```yaml
