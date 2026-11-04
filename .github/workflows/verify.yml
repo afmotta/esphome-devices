@@ -67,6 +67,8 @@ jobs:
             canbus/tests/compile_bridge.yaml \
             canbus/tests/compile_buttons_bridge.yaml \
             canbus/tests/compile_bridge_t2can.yaml \
+            canbus/tests/compile_bridge_c6.yaml \
+            canbus/tests/compile_buttons_c6.yaml \
             climate/tests/compile_can_sensor_receiver.yaml \
             climate/tests/harness/room_sensors.yaml \
             climate/tests/harness/radiant_direction.yaml \
@@ -152,5 +154,11 @@ jobs:
         run: esphome compile canbus/tests/compile_buttons_bridge.yaml
       - name: Compile T-2CAN bridge fixture
         run: esphome compile canbus/tests/compile_bridge_t2can.yaml
+      # The two ESP32-C6 fixtures (ADR-0025) cover boards/bridge-c6-twai.yaml (two TWAI
+      # controllers on one chip) and boards/esp32-c6-nodo503.yaml + buttons_6_c6.yaml.
+      - name: Compile C6 bridge fixture
+        run: esphome compile canbus/tests/compile_bridge_c6.yaml
+      - name: Compile C6 wall node fixture
+        run: esphome compile canbus/tests/compile_buttons_c6.yaml
       - name: Compile climate controller
         run: esphome compile devices/locals/climate-control.yaml

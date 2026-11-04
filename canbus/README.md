@@ -291,9 +291,12 @@ profile's board, and `packages/bridge.yaml`. Where a segment splits at a button 
 package allowed to share a board with the forwarder (they add no blocking I/O); the sensor
 kit is not, and the single-valued column makes that combination unwritable.
 
-**Two boards are supported** (ADR-0017 §1), chosen by the profile:
+**Several boards are supported** (ADR-0017 §1, ADR-0025), chosen by the profile:
 
-- **`bridge-t2can` — LilyGO T-2CAN (preferred).** One integrated board with two CAN ports:
+- **`bridge-c6` — ESP32-C6 dual-TWAI board (preferred).** `hardware/bridge/`: `can0` (backbone, GPIO23/22) and `can1`
+  (zone, GPIO20/19) are the chip's two TWAI controllers, both interrupt-driven with driver queues;
+  `tx_watchdog.yaml` is composed as on the T-2CAN. Board file: `boards/bridge-c6-twai.yaml`.
+- **`bridge-t2can` — LilyGO T-2CAN (second source).** One integrated board with two CAN ports:
   `can0` on the ESP32-S3's built-in TWAI controller, `can1` on an onboard MCP2515. The TWAI
   side is interrupt-driven with a deep driver queue, which is why it takes the backbone.
 - **`bridge` / `buttons+bridge` — CANBed RP2040 + an add-on MCP2515** on the broken-out SPI

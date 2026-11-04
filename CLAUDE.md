@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.25 |
+| **Version** | 1.26 |
 | **Last Updated** | November 4, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
@@ -179,7 +179,9 @@ esphome-devices/
 │   ├── t-connect-pro.yaml / t-connect-pro-display.yaml # LilyGO T-Connect Pro (both controllers, ADR-0014; Ethernet+WiFi merged inline via network: priority:, ADR-0022)
 │   ├── canbed-rp2040.yaml   # Longan Labs CANBed RP2040 node board (CAN bus button/sensor nodes)
 │   ├── canbed-rp2040-can1.yaml # Second MCP2515 add-on for the CANBed (segment bridges, ADR-0017)
-│   ├── lilygo-t-2can.yaml   # LilyGO T-2CAN dual-CAN board (preferred segment bridge, ADR-0017)
+│   ├── lilygo-t-2can.yaml   # LilyGO T-2CAN dual-CAN board (second-source segment bridge, ADR-0017)
+│   ├── bridge-c6-twai.yaml  # ESP32-C6 dual-TWAI bridge, hardware/bridge (preferred segment bridge, ADR-0025)
+│   ├── esp32-c6-nodo503.yaml # ESP32-C6 wall node, hardware/nodo503 (ADR-0025)
 │   ├── s1-pro-multi-sense.yaml # Sensor board
 │   └── base.yaml               # Legacy common settings (Gen-1 a6/a16 era; a6/a16 modernized to inline network, still no device consumer)
 │

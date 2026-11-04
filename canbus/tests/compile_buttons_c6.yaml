@@ -1,0 +1,25 @@
+# =============================================================================
+# compile_buttons_c6.yaml — compile-check for the ESP32-C6 wall node (nodo 503)
+# =============================================================================
+# Hand-maintained (NOT generated). Mirrors a `buttons-c6` profile row (ADR-0025) and is the
+# ONLY compile coverage for boards/esp32-c6-nodo503.yaml and packages/buttons_6_c6.yaml (six inputs on GPIO7/0/1/20/19/18) composed on an ESP32-C6.
+#
+# node_id 999 is a scratch value — nothing reserves it, so NEVER flash this to hardware.
+#
+#   esphome config  canbus/tests/compile_buttons_c6.yaml
+#   esphome compile canbus/tests/compile_buttons_c6.yaml
+# =============================================================================
+
+substitutions:
+  node_id: "999"
+  debounce_ms: "50"
+
+esphome:
+  name: node_999
+  friendly_name: "Node 999"
+
+packages:
+  core: !include ../packages/node_core.yaml
+  board: !include ../../boards/esp32-c6-nodo503.yaml
+  buttons: !include ../packages/buttons_6_c6.yaml
+  tx_watchdog: !include ../packages/tx_watchdog.yaml

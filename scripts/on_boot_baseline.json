@@ -28,6 +28,13 @@
     "200.0": 1,
     "190.0": 1
   },
+  "canbus/tests/compile_bridge_c6.yaml": {
+    "200.0": 1,
+    "190.0": 1
+  },
+  "canbus/tests/compile_buttons_c6.yaml": {
+    "200.0": 1
+  },
   "canbus/tests/compile_sensor_node.yaml": {
     "200.0": 1
   },

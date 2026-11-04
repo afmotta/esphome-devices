@@ -1,27 +1,26 @@
 # =============================================================================
-# bridge-c6-twai.yaml — Bridge CAN (rev A) board hardware: ESP32-C6, two TWAI ports
+# bridge-c6-twai.yaml — CAN bridge board hardware: ESP32-C6, two TWAI ports
 # =============================================================================
-# DRAFT for afmotta/esphome-devices: copy to boards/bridge-c6-twai.yaml and add a
-# `bridge-c6` row to generate_nodes.py PROFILES plus a compile fixture
-# (canbus/tests/compile_bridge_c6.yaml), mirroring boards/lilygo-t-2can.yaml.
+# Hardware: hardware/bridge/ (ESP32-C6-WROOM-1-N8, two TJA1051T/3 with VIO at 3.3 V,
+# 120 ohm terminations on DIP switch SW1). Replaces the LilyGO T-2CAN as the segment
+# bridge (ADR-0025, amending ADR-0017).
 #
-# Hardware: bridge/hardware in afmotta/can-bus-node — ESP32-C6-WROOM-1-N8,
-# two TJA1051T/3 (VIO 3.3 V), 120 ohm terminations on DIP switch SW1.
-# The ESP32-C6 has two TWAI controllers; ESPHome's esp32_can (>= 2026.8.0) gives
-# each esp32_can entry the next controller in declaration order
+# The ESP32-C6 has two TWAI controllers; ESPHome's esp32_can (>= 2026.8.0) gives each
+# esp32_can entry the next controller in declaration order
 # (g_config.controller_id = next_twai_ctrl_num++), so can0 = TWAI0, can1 = TWAI1.
+# The order below is therefore load-bearing: do not swap the two entries.
 #
 # --- Port assignment (node_core.yaml invariant: can0 faces the controller) ---
 # can0 = BACKBONE, J1 (right edge, also the board's 24 V supply): TX GPIO23, RX GPIO22.
 # can1 = ZONE,     J2 (left edge, its 24 V position not connected): TX GPIO20, RX GPIO19.
-# Both sides are interrupt-driven TWAI with driver queues, so the zone side no longer
-# has the T-2CAN's 2-buffer polled MCP2515 and its invisible pre-enqueue drops.
+# Both sides are interrupt-driven TWAI with driver queues, so the zone side no longer has
+# the T-2CAN's two-buffer polled MCP2515 and its invisible pre-enqueue drops.
 #
 # --- ADR-0005 reliability posture ---
-# Same as the T-2CAN board: esp-idf watchdogs and brownout pinned, task watchdog
-# panics (a wedged loop reboots). NO wifi:/api:/ota:/bluetooth: — radios off is a
-# discipline on the C6, as on the S3. Logs and (re)flash over native USB on J5
-# (5V, D-, D+, GND; jumper BOOT-GND for download mode).
+# Same as the T-2CAN board: esp-idf watchdogs and brownout pinned, task watchdog panics
+# (a wedged loop reboots). NO wifi:/api:/ota:/bluetooth: — radios off is a discipline on
+# the C6, as on the S3. Logs and (re)flash over native USB on J5 (5V, D-, D+, GND;
+# jumper BOOT-GND for download mode); the bridge has no OTA.
 # =============================================================================
 
 substitutions:
@@ -31,12 +30,18 @@ substitutions:
   # CONFIG_ESP_TASK_WDT_PANIC (see canbus/packages/bridge.yaml).
   bridge_hf_loop: "false"
 
+esphome:
+  min_version: 2026.8.0
+
 esp32:
   board: esp32-c6-devkitc-1
   variant: esp32c6
   flash_size: 8MB
   framework:
     type: esp-idf
+    # Defaults already enable the interrupt watchdog, task watchdog and brownout
+    # detector; these pin the ADR-0005 fail-safe posture explicitly and make a
+    # watchdog trip reboot (clean restart) rather than just log.
     sdkconfig_options:
       CONFIG_ESP_TASK_WDT_PANIC: y
       CONFIG_ESP_INT_WDT: y
