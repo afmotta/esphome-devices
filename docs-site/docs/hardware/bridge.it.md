@@ -6,13 +6,14 @@ si propaga necessariamente all'altra. È volutamente semplice: niente WiFi, ness
 connessione a Home Assistant, nessun aggiornamento via rete. Lo si flasha e se ne
 leggono i log solo collegando un cavo USB direttamente ad esso.
 
-Esistono **due tipi di scheda bridge**, e quale hai è registrato nella colonna `profile`
+Esistono **tre tipi di scheda bridge**, e quale hai è registrato nella colonna `profile`
 del registro:
 
 | Profilo | Scheda | Dove si usa |
 | --- | --- | --- |
-| `bridge-t2can` | **LilyGO T-2CAN** — una scheda, due porte CAN | il caso normale |
-| `bridge` | CANBed RP2040 + un piccolo modulo CAN aggiuntivo | seconda fonte |
+| `bridge-c6` | **Bridge ESP32-C6** (scheda su misura, `hardware/bridge/`) — una scheda, due porte CAN, dip switch per le terminazioni | il caso normale (preferito, ADR-0025) |
+| `bridge-t2can` | **LilyGO T-2CAN** — una scheda, due porte CAN | seconda fonte |
+| `bridge` | CANBed RP2040 + un piccolo modulo CAN aggiuntivo | ultima risorsa |
 | `buttons+bridge` | CANBed RP2040 + modulo, **più i pulsanti a muro** | dove il cablaggio si divide in una scatola dei pulsanti |
 
 🔵 Nessun bridge è ancora stato costruito né flashato su hardware reale.
@@ -81,7 +82,7 @@ La configurazione del bridge è **generata dal registro**, come quella di qualsi
    e l'heartbeat.
 
 !!! note "Solo per i bridge su CANBed: il modulo aggiuntivo è delicato"
-    Un T-2CAN non richiede alcun modulo aggiuntivo — entrambe le porte CAN sono sulla
+    Un bridge ESP32-C6 o un T-2CAN non richiede alcun modulo aggiuntivo — entrambe le porte CAN sono sulla
     scheda, quindi una scorta è semplicemente una scorta. I bridge su CANBed sono quelli
     complicati. Il loro modulo MCP2515 aggiuntivo deve essere un modello a **3,3 V**
     (abbinato a un transceiver SN65HVD230, MCP2562FD o TJA1042T,3): il diffusissimo
@@ -89,7 +90,7 @@ La configurazione del bridge è **generata dal registro**, come quella di qualsi
     non tollera i 5 V. Anche il suo quarzo deve essere da 8, 12, 16 o 20 MHz, e
     l'impostazione `clock:` del firmware deve corrispondere — se non corrisponde ottieni
     una scheda che sembra a posto e non fa passare nulla. È proprio questa scomodità il
-    motivo per cui si preferisce il T-2CAN.
+    motivo per cui si preferiscono i bridge su scheda singola.
 
 ## Correlati
 

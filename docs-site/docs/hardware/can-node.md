@@ -9,6 +9,8 @@ CAN bus, and each has a unique `node_id` recorded in `registry/nodes.csv`.
     run `python3 canbus/tools/check_registry_pushed.py` and confirm it succeeds
     **before** flashing anything. See [Hardware Died: overview](index.md) for why.
 
+Two board families exist: the **CANBed RP2040** (profiles `buttons`, `buttons+sensors`, `sensors`) and the **ESP32-C6 wall node** (profile `buttons-c6`, PCB sources in `hardware/nodo503/`, six button inputs on two JST PH connectors). The node firmware is generated from the registry for both, with the radios off; on the C6 node, USB flashing goes through the unpopulated **J5** pin header (5V, D−, D+, GND, BOOT, GND), and a BOOT–GND jumper forces download mode (remove it afterwards). The Wi-Fi/Home Assistant firmware in `hardware/nodo503/firmware/` is for bench boards only.
+
 There are two paths, depending on whether the board itself is still good.
 
 ## Path A — In-place USB reflash (use this first)
