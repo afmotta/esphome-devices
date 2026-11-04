@@ -15,18 +15,18 @@ L'utente è **Alberto**, scrive in **italiano**: rispondi in italiano. Documenta
 
 ## Regola fondamentale: il progetto è generato da script
 
-`hardware/nodo503.kicad_sch` e `hardware/nodo503.kicad_pcb` sono **file generati**. Non modificarli a mano e non modificarli in KiCad GUI: la prossima esecuzione degli script li sovrascrive. Ogni modifica va fatta in:
+`hardware/nodo503/nodo503.kicad_sch` e `hardware/nodo503/nodo503.kicad_pcb` sono **file generati**. Non modificarli a mano e non modificarli in KiCad GUI: la prossima esecuzione degli script li sovrascrive. Ogni modifica va fatta in:
 
-- `hardware/design.py` — **unica fonte di verità**: componenti, net di ogni pin, posizioni su schema e PCB, codici LCSC, netclass, piste pre-sbrogliate, fori.
-- `hardware/gen_sch.py`, `gen_pcb.py`, `route_import.py`, `gen_bom.py` — logica di generazione (serigrafie e posizioni dei riferimenti sono in `gen_pcb.py`).
+- `hardware/nodo503/design.py` — **unica fonte di verità**: componenti, net di ogni pin, posizioni su schema e PCB, codici LCSC, netclass, piste pre-sbrogliate, fori.
+- `hardware/nodo503/gen_sch.py`, `gen_pcb.py`, `route_import.py`, `gen_bom.py` — logica di generazione (serigrafie e posizioni dei riferimenti sono in `gen_pcb.py`).
 
 Se l'utente modifica il PCB in KiCad e vuole conservare le modifiche, vanno riportate in `design.py`/`gen_pcb.py` (oppure si smette di rigenerare: chiedi prima).
 
 ## Comandi
 
-Prerequisiti (una volta, Ubuntu 24.04): `sudo tools/setup.sh` — KiCad 7.0.x con modulo Python `pcbnew`, `kicad-cli`, Freerouting **1.9.0** in `tools/`, xvfb, Java, cairosvg.
+Prerequisiti (una volta, Ubuntu 24.04): `sudo hardware/tools/setup.sh` — KiCad 7.0.x con modulo Python `pcbnew`, `kicad-cli`, Freerouting **1.9.0** in `tools/`, xvfb, Java, cairosvg.
 
-Da `hardware/`:
+Da `hardware/nodo503/` (per il bridge `hardware/bridge/`):
 
 | Quando | Comando | Cosa fa |
 |---|---|---|
@@ -47,7 +47,7 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 - DRC pulito, parità 0, pronto per l'ordine dopo le verifiche nell'anteprima JLCPCB (vedi README, "Da verificare prima dell'ordine").
 - Connettori: J1 bus (presa estraibile ad angolo KF2EDGR-3.5-4P, spina laterale dal bordo destro, dall'alto 24V-GND-H-L; spina KF2EDGK-3.5-4P C440849 a parte), J3 pulsanti 1–3 + GND e J4 pulsanti 4–6 + GND (JST PH 4 poli verticale B4B-PH-K-S C131334, bordo inferiore sotto il modulo; i cavi PH crimpati si ordinano a parte, non sono in BOM; J4 serve solo con più di 3 pulsanti), J2 Qwiic (JST SH, bordo superiore), J5 pettine di programmazione 1×6 orizzontale in basso a destra (DNP; ponticello 5–6 = download).
 - Pinout GPIO: vedi tabella nel README. Pulsanti 1–3 su GPIO7/0/1 (lato sinistro del modulo), 4–6 su GPIO20/19/18 (lato destro); CAN TX GPIO23, RX GPIO22; I²C SDA GPIO3, SCL GPIO2.
-- Studio di compattazione del 2026-10-19 (`docs/decisioni.md`): applicato il concetto A, poi J3 diviso in due JST PH (55 × 33,5 mm); scartati il buck a 3,3 V con transceiver a 3,3 V (non convinceva Alberto) e il MINI-1 (esaurito). I pogo pin per la programmazione sono stati provati e tolti: J5 è di nuovo un pettine.
+- Studio di compattazione del 2026-10-19 (`hardware/docs/decisioni.md`): applicato il concetto A, poi J3 diviso in due JST PH (55 × 33,5 mm); scartati il buck a 3,3 V con transceiver a 3,3 V (non convinceva Alberto) e il MINI-1 (esaurito). I pogo pin per la programmazione sono stati provati e tolti: J5 è di nuovo un pettine.
 - Aperti / da fare: verifiche nell'anteprima JLCPCB; scarsa disponibilità di J2 (C160404); firmware ESPHome non ancora scritto (c'è solo l'esempio nel README).
 
 ## Mappa del PCB (mm, origine in alto a sinistra, y verso il basso)
@@ -80,12 +80,12 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 - Lo sbroglio salvato (`nodo503.ses`) corrisponde allo stato attuale (rifatto con `route.sh` il 2026-10-19 per la scheda 55 × 33,5 con J3/J4 JST PH e il pettine J5): `build_pcb.sh` lo reimporta fedelmente.
 - **Footprint sul retro** (`BOTTOM` in `design.py`, oggi vuoto: J5 è tornato un pettine sul lato superiore): `gen_pcb.py` li capovolge con `Flip` **dopo** `board.Add`; chiamare `Flip` su un footprint non ancora aggiunto alla scheda fa andare in crash pcbnew (segmentation fault). Dopo ogni modifica che richiede `route.sh` controlla DRC e anteprime come al solito.
 - Rete del sandbox cloud: datasheet LCSC e API EasyEDA sono bloccati; le pagine prodotto di lcsc.com e jlcpcb.com/partdetail funzionano con WebFetch. Le pagine JLCPCB mostrano "Extended" anche per i Preferred. Alcuni codici esistono solo nel catalogo JLCPCB e non su LCSC (es. C42400616): verifica sempre entrambi.
-- Elenco ufficiale Basic/Preferred: `scraped/assembly-details.csv` del repo GitHub CDFER/jlcpcb-parts-database (`base` = Basic, `expand` = Preferred). La classificazione usata è in `hardware/jlc_library.json` (aggiungi lì ogni nuovo codice).
+- Elenco ufficiale Basic/Preferred: `scraped/assembly-details.csv` del repo GitHub CDFER/jlcpcb-parts-database (`base` = Basic, `expand` = Preferred). La classificazione usata è in `hardware/nodo503/jlc_library.json` (aggiungi lì ogni nuovo codice).
 
 ## Bridge CAN (`bridge/`, dal 2026-10-31)
 
 Seconda scheda, indipendente dal nodo: bridge tra backbone e segmento di zona con i due controller TWAI dell'ESP32-C6. Dettagli in [bridge/README.md](bridge/README.md).
-- Stessa pipeline e stesse regole del nodo, ma in `bridge/hardware/`; il progetto si chiama `bridgecan`. Fonte di verità: `bridge/hardware/design.py`. Freerouting è in `../../tools/`.
+- Stessa pipeline e stesse regole del nodo, ma in `hardware/bridge/`; il progetto si chiama `bridgecan`. Fonte di verità: `hardware/bridge/design.py`. Freerouting è in `../tools/`.
 - 56 × 36 mm. J1 backbone sul bordo destro, identico alla rev C; è l'unica alimentazione. J2 zona sul bordo sinistro, con la posizione dei 24 V non collegata. Terminazioni da 120 Ω attivate dal dip switch SW1: posizione 1 = backbone, 2 = zona. Pettine J5 non montato sul bordo inferiore.
 - `EDGE_OVERHANG` e il ritaglio della serigrafia valgono qui per il bordo destro, il sinistro e l'inferiore.
 - `gen_pcb.py` del bridge aggiunge una fascia di 0,6 mm lungo il contorno, vietata a piste e via (`EDGE_BAND`). Senza, Freerouting fa passare piste lungo il bordo e il DRC dà `copper_edge_clearance`.
@@ -94,7 +94,8 @@ Seconda scheda, indipendente dal nodo: bridge tra backbone e segmento di zona co
 
 ## Git
 
-- Repository GitHub `afmotta/can-bus-node` (privato), branch principale `main`. Contiene solo l'ultima iterazione; la storia precedente è riassunta in `docs/decisioni.md`.
-- Branch **`variante/kefa`**: la stessa scheda con il morsetto estraibile Kefa a 7 poli per i pulsanti (55 × 37 mm), conservata come variante il 2026-10-19. Non viene aggiornata con le modifiche di `main`: se serve, riportale a mano e rifai `route.sh`.
-- Committa script, file KiCad generati e `hardware/out/` insieme, dopo aver soddisfatto i criteri di accettazione. Messaggi di commit in italiano, brevi, che dicano cosa cambia sulla scheda.
-- Aggiorna `docs/decisioni.md` (nuova voce datata) e, se cambia qualcosa per l'utente, il README.
+- Dal 2026-11-04 questo progetto vive in `afmotta/esphome-devices`, sotto `hardware/` (nodo 503 in `hardware/nodo503/`, bridge in `hardware/bridge/`), con la storia importata da `afmotta/can-bus-node` (ora archiviato; i riferimenti `#N` nei commit importati rimandano a quel repo). Prefisso dei commit: `hardware:`.
+- Branch **`variante/kefa`**: la stessa scheda con il morsetto estraibile Kefa a 7 poli per i pulsanti (55 × 37 mm), conservata come variante il 2026-10-19 nel repo archiviato `can-bus-node`. Non viene aggiornata con le modifiche del nodo: se serve, riportale a mano e rifai `route.sh`.
+- Committa script, file KiCad generati e `hardware/<progetto>/out/` insieme, dopo aver soddisfatto i criteri di accettazione. Messaggi di commit brevi che dicano cosa cambia sulla scheda.
+- Aggiorna `hardware/docs/decisioni.md` (nuova voce datata) e, se cambia qualcosa per l'utente, il README. Le decisioni che toccano il bus o i profili vanno anche in `docs/adr/`.
+- I file di `hardware/` non sono coperti dalla CI del monorepo né dal `verification-battery`: i criteri di accettazione sopra si verificano a mano.

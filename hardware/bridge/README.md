@@ -98,7 +98,7 @@ Lungo tutto il contorno c'è una fascia di 0,6 mm senza piste né via (`EDGE_BAN
 
 ## File e comandi
 
-La pipeline è la stessa del nodo (vedi [docs/pipeline.md](../docs/pipeline.md)), ma lavora in `bridge/hardware/` con il progetto `bridgecan`:
+La pipeline è la stessa del nodo (vedi [docs/pipeline.md](../docs/pipeline.md)), ma lavora in `hardware/bridge/` con il progetto `bridgecan`:
 
 | Percorso | Cosa contiene |
 |---|---|
@@ -109,7 +109,7 @@ La pipeline è la stessa del nodo (vedi [docs/pipeline.md](../docs/pipeline.md))
 | `esphome/bridge-c6-twai.yaml` | Bozza del file scheda per esphome-devices |
 
 ```bash
-cd bridge/hardware && python3 gen_sch.py && ./route.sh && ./export.sh
+cd hardware/bridge && python3 gen_sch.py && ./route.sh && ./export.sh
 ```
 
 Stato al 2026-10-31: DRC 0 violazioni e 0 collegamenti mancanti, parità schema/PCB 0, `check_placement.py` 0 problemi.

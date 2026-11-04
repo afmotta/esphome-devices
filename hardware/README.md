@@ -13,20 +13,20 @@ Nodo per la domotica CAN del fienile, da montare in scatola 503: un morsetto per
 
 | Percorso | Cosa contiene |
 |---|---|
-| `hardware/nodo503.kicad_pro / .kicad_sch / .kicad_pcb` | Progetto KiCad 7 completo (si apre con KiCad 7, 8 o 9) |
-| `hardware/nodo503.kicad_sym`, `hardware/nodo503.pretty/` | Simbolo e footprint del modulo ESP32-C6-WROOM-1 (libreria di progetto) |
-| `hardware/out/gerber_JLCPCB.zip` | Gerber + foratura, da caricare così com'è su JLCPCB |
-| `hardware/out/BOM.csv`, `CPL_JLCPCB.csv` | Distinta e piazzamento per il montaggio completo (SMD + THT) |
-| `hardware/out/BOM_SMD.csv`, `CPL_SMD.csv` | Distinta e piazzamento solo SMD |
-| `hardware/out/nodo503_schema.pdf`, `anteprima_lato_*.png` | Schema elettrico e anteprime rame + serigrafia |
-| `hardware/jlc_library.json` | Libreria JLCPCB (Basic / Preferred / Extended) di ogni codice LCSC |
-| `hardware/*.py`, `hardware/*.sh` | Script che generano schema, PCB, sbroglio e file di produzione (vedi [docs/pipeline.md](docs/pipeline.md)) |
+| `nodo503/nodo503.kicad_pro / .kicad_sch / .kicad_pcb` | Progetto KiCad 7 completo (si apre con KiCad 7, 8 o 9) |
+| `nodo503/nodo503.kicad_sym`, `nodo503/nodo503.pretty/` | Simbolo e footprint del modulo ESP32-C6-WROOM-1 (libreria di progetto) |
+| `nodo503/out/gerber_JLCPCB.zip` | Gerber + foratura, da caricare così com'è su JLCPCB |
+| `nodo503/out/BOM.csv`, `CPL_JLCPCB.csv` | Distinta e piazzamento per il montaggio completo (SMD + THT) |
+| `nodo503/out/BOM_SMD.csv`, `CPL_SMD.csv` | Distinta e piazzamento solo SMD |
+| `nodo503/out/nodo503_schema.pdf`, `anteprima_lato_*.png` | Schema elettrico e anteprime rame + serigrafia |
+| `nodo503/jlc_library.json` | Libreria JLCPCB (Basic / Preferred / Extended) di ogni codice LCSC |
+| `nodo503/*.py`, `nodo503/*.sh` | Script che generano schema, PCB, sbroglio e file di produzione (vedi [docs/pipeline.md](docs/pipeline.md)) |
 | `docs/decisioni.md` | Storia del progetto e motivazioni delle scelte |
 | `docs/pipeline.md` | Come rigenerare tutto, struttura degli script, problemi noti |
 | `CLAUDE.md` | Contesto per le sessioni di Claude Code che lavoreranno sul progetto |
 | `tools/setup.sh` | Installa KiCad 7, Freerouting 1.9.0 e le dipendenze Python |
 
-Per rigenerare i file di produzione dopo una modifica: `sudo tools/setup.sh` (una volta), poi `hardware/route.sh` se cambiano piazzamento o collegamenti, `hardware/build_pcb.sh` se basta lo sbroglio salvato, e infine `hardware/export.sh`.
+Per rigenerare i file di produzione dopo una modifica: `sudo hardware/tools/setup.sh` (una volta), poi `nodo503/route.sh` se cambiano piazzamento o collegamenti, `nodo503/build_pcb.sh` se basta lo sbroglio salvato, e infine `nodo503/export.sh`.
 
 ## Circuito
 
@@ -97,7 +97,7 @@ Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi de
 
 Il file `firmware/nodo503.yaml` è una prima versione per collegare il nodo a Home Assistant: Wi-Fi, API cifrata, OTA, 6 pulsanti (GPIO7/0/1 e 20/19/18) e segnale Wi-Fi. CAN e I²C sono lasciati commentati in fondo al file.
 
-1. Copia `firmware/secrets.yaml.example` in `firmware/secrets.yaml` (ignorato da git) e compila SSID, password e chiavi.
+1. Copia `nodo503/firmware/secrets.yaml.example` in `nodo503/firmware/secrets.yaml` (ignorato da git) e compila SSID, password e chiavi.
 2. Dalla cartella `firmware/` esegui `esphome run nodo503.yaml` (o carica il file nella dashboard ESPHome). Il primo flash è via USB su J5, dopo si può usare l'OTA.
 3. Home Assistant scopre il dispositivo da solo (Impostazioni → Dispositivi → ESPHome).
 
@@ -138,7 +138,7 @@ binary_sensor:
 
 ## BOM e librerie JLCPCB (aggiornata il 2026-10-14)
 
-Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo da JLCPCB, compresi i THT (J1, J3, J4 e K7805 U1, saldati da JLCPCB a onda o a mano). La colonna **Libreria JLCPCB** della BOM indica Basic / Preferred / Extended; l'elenco usato è in `hardware/jlc_library.json`.
+Tutti i componenti hanno un codice LCSC e sono pensati per il montaggio completo da JLCPCB, compresi i THT (J1, J3, J4 e K7805 U1, saldati da JLCPCB a onda o a mano). La colonna **Libreria JLCPCB** della BOM indica Basic / Preferred / Extended; l'elenco usato è in `nodo503/jlc_library.json`.
 
 - **Non montati:** solo **J5** (pettine di programmazione, DNP). Per programmare si usa un pettine inserito al momento o saldato.
 - **C2** è passato da 2,2 µF a **10 µF 50 V 1206** (C13585, Basic): più capacità in ingresso al K7805 e un componente Extended in meno.
