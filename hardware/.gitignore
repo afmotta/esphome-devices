@@ -1,0 +1,17 @@
+# Pipeline outputs not needed in the repo (paths relative to hardware/)
+*/*.dsn
+*/*.net
+*/drc.rpt
+*/logs/
+*/out/gerber/
+*/__pycache__/
+__pycache__/
+# KiCad local state and backups
+*.kicad_prl
+fp-info-cache
+*-backups/
+_autosave-*
+*.bak
+# Freerouting downloaded by tools/setup.sh
+tools/*.jar
+nodo503/firmware/secrets.yaml
