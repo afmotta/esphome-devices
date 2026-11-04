@@ -39,6 +39,8 @@ jobs:
         run: yamllint --strict -c .yamllint .
       - name: Repo hygiene
         run: python3 scripts/check_repo_hygiene.py
+      - name: Markdown relative links
+        run: python3 scripts/check_md_links.py
 
   esphome-config:
     name: ESPHome config gates

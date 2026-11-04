@@ -182,8 +182,7 @@ esphome-devices/
 │   ├── lilygo-t-2can.yaml   # LilyGO T-2CAN dual-CAN board (second-source segment bridge, ADR-0017)
 │   ├── bridge-c6-twai.yaml  # ESP32-C6 dual-TWAI bridge, hardware/bridge (preferred segment bridge, ADR-0025)
 │   ├── esp32-c6-nodo503.yaml # ESP32-C6 wall node, hardware/nodo503 (ADR-0025)
-│   ├── s1-pro-multi-sense.yaml # Sensor board
-│   └── base.yaml               # Legacy common settings (Gen-1 a6/a16 era; a6/a16 modernized to inline network, still no device consumer)
+│   └── s1-pro-multi-sense.yaml # Sensor board
 │
 ├── devices/                   # Main device configurations (entry points and their deployment variants, gathered together)
 │   ├── climate-control.yaml   # Main Climate system
@@ -209,7 +208,7 @@ esphome-devices/
 │
 ├── docs-site/                 # Maintenance & support site (MkDocs, EN + IT; GitHub Pages)
 │
-├── scripts/                   # Repo-level helper scripts (currently empty)
+├── scripts/                   # Repo checks: verification-battery.sh, check_repo_hygiene.py, check_on_boot_*.py, check_md_links.py, CI dummy secrets
 ├── secrets.yaml               # (gitignored) Credentials and secrets
 └── TODO.md                    # Feature backlog (Italian)
 ```
@@ -497,7 +496,7 @@ rebuild a throwaway harness from the board file.
 `pip install pre-commit && pre-commit install`, run it on demand with `pre-commit run --all-files`. It runs
 yamllint (`.yamllint`), `scripts/check_repo_hygiene.py` and `scripts/verification-battery.sh --fast`
 (`--native-only` minus the generator-idempotence step, so it works on a dirty tree, ~5 s). CI mirrors the
-first two as the `lint` job; the climate host e2e (`pytest climate/tests/e2e`) runs on every PR as the
+first two (plus `scripts/check_md_links.py`, relative Markdown links) as the `lint` job; the climate host e2e (`pytest climate/tests/e2e`) runs on every PR as the
 `climate-e2e` job — serially, since every harness binds API port 6053 (never add `-n`). The slow gates
 (idempotence, `esphome config`/`compile`) run in CI or via the full battery.
 

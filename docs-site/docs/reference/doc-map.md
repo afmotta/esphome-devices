@@ -66,11 +66,11 @@ window-sensor mapping, and so on) are current and not part of this list.
 
 The repository's `boards/` folder holds hardware definitions for every board the
 project has ever used. A handful of them are leftovers from the retired hardware
-generation above and are no longer referenced by any device: `a6.yaml`, `a16.yaml`,
-`base.yaml`, and the unused `waveshare-s3.yaml` relay board (as opposed to
+generation above and are no longer referenced by any device: the unused
+`waveshare-s3.yaml` relay board (as opposed to
 `waveshare-s3-rs485-can.yaml`, which **is** the one actually used, by the CAN bus
 health monitor). The 2026.8.0 network consolidation (ADR-0022) merged Ethernet+WiFi
-inline into these boards and deleted their separate `-ethernet`/`-wifi` fragment files
+inline into these boards (the Gen-1 `a6.yaml`, `a16.yaml` and `base.yaml` were later deleted) and deleted their separate `-ethernet`/`-wifi` fragment files
 plus the shared `wifi.yaml`. If you're browsing that folder and wonder why a file exists
 that nothing seems to use, this is why — it's not a mistake you need to fix, just old
 code that was never deleted.

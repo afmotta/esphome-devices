@@ -13,7 +13,7 @@
 #   comments             33 hits - `#comment` / one-space-before-comment style nits
 #                        (e.g. lighting/packages/led_can_actuator.yaml:30).
 #   comments-indentation 2 hits - commented-out blocks indented off the next key
-#                        (boards/a6.yaml:30, climate/room_sensors.yaml:118).
+#                        (climate/room_sensors.yaml:118).
 #   braces               32 hits - aligned flow maps with padding spaces, e.g.
 #                        canbus/packages/buttons_8.yaml:21.
 #   commas               10 hits - column-aligned flow lists in
