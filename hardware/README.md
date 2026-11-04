@@ -7,6 +7,8 @@ Nodo per la domotica CAN del fienile, da montare in scatola 503: un morsetto per
 - **Progetto:** KiCad 7 (si apre anche in KiCad 8/9)
 - **Simbolo e footprint del modulo:** dalla libreria ufficiale [espressif/kicad-libraries](https://github.com/espressif/kicad-libraries), licenza CC-BY-SA 4.0. Il footprint comprende anche l'area dell'antenna senza rame.
 
+> Nella cartella [`bridge/`](bridge/README.md) c'è una seconda scheda: un **bridge CAN** a due canali con ESP32-C6, che sostituisce la LilyGO T-2CAN tra il backbone e un segmento di zona.
+
 ## Contenuto del repository
 
 | Percorso | Cosa contiene |

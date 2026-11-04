@@ -107,6 +107,33 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 
 - Alberto ha comprato le spine KF2EDGK-3.5-4P (C440849) e il servizio clienti JLCPCB chiede che siano nel BOM per spedirle insieme ai PCB. Aggiunta in `design.py` la tabella `BOM_ONLY` (riga **P1**, quantità 1): compare solo in `out/BOM.csv`, non nel PCB, nello schema, nel CPL né in `BOM_SMD.csv`. In JLCPCB la riga andrà segnata come "non montata" (assente dal CPL). La classe Basic/Extended di C440849 non è verificata (rete del sandbox bloccata): da controllare nell'anteprima del BOM.
 
+## 2026-10-31 — Nuova scheda: bridge CAN con ESP32-C6 (cartella `bridge/`)
+
+- **Perché:** il bridge tra backbone e segmenti di zona (ADR-0005/0017 in `esphome-devices`) usava la LilyGO T-2CAN, che ha un lato su MCP2515 interrogato dal loop, con 2 buffer di ricezione e perdite di frame invisibili. L'ESP32-C6 ha **due controller TWAI**, ed ESPHome 2026.8.0 li supporta entrambi: a ogni voce `esp32_can` assegna il controller successivo, verificato nel sorgente `esp32_can.cpp`.
+- **Scelte di Alberto:** variante **A**, solo bridge, per scatola di derivazione o quadro. **Alimentazione solo dal backbone**. Progetto in una **cartella nuova** di questo repo; l'unione con il nodo si valuterà poi. I **morsetti stanno sui lati corti opposti**: J1 backbone a destra, identico alla rev C; J2 zona a sinistra, con la posizione dei 24 V non collegata.
+- **Terminazioni:** 120 Ω per canale (C22787 Basic), attivate da un dip switch SMD a 2 vie KINGTEK DSHP02TSGET (C40735). Il dip switch è stato preferito al ponticello a pettine, che JLCPCB non inserisce, e al ponticello a saldare, che richiede il saldatore. La terminazione "split" (2 × 60 Ω + condensatore) è stata scartata perché richiede uno switch a 2 poli per canale.
+- **Piazzamento:** 56 × 40 mm.
+  - Il modulo è spostato di 3,9 mm a destra per far posto a J2.
+  - C1 è sceso in basso a destra e il gruppo LDO ha preso il suo posto in alto.
+  - U5 (zona) e SW1 stanno sotto il modulo.
+  - J5 è sul bordo inferiore.
+  - Una prima versione con J2 sul bordo inferiore è stata abbandonata per la richiesta dei lati opposti.
+  - Sbroglio con `route.sh`: DRC 0, parità 0.
+- **GPIO:** CAN A (backbone) TX GPIO23 / RX GPIO22, come sul nodo; CAN B (zona) TX GPIO20 / RX GPIO19.
+- **Firmware:** la bozza `bridge/esphome/bridge-c6-twai.yaml` passa `esphome config` (2026.8.0) composta con `node_core.yaml`, `bridge.yaml` e `tx_watchdog.yaml` di `esphome-devices`.
+
+## 2026-10-31 — Bridge compattato a 56 × 36 mm
+
+- Su richiesta di Alberto, che vedeva molto spazio libero, l'altezza passa da 40 a 36 mm (−10 % di superficie).
+  - Sotto il modulo resta solo J5.
+  - U5 (zona) con C7/C8, SW1 e le resistenze da 120 Ω vanno nella fascia in basso a destra; R1/R2 stanno sotto J1.
+  - D6 va accanto a J2; C1 torna in alto a destra, ruotato di 90°.
+  - J1 e J2 restano dove erano.
+- **Limite:** sotto i 36 mm non si scende. J2 arriva fino a y = 30 e il foro in basso a sinistra deve starle sotto con la testa della vite libera; J1 impedisce comunque di andare sotto circa 32 mm. Spostare il foro nell'angolo dell'antenna è stato scartato.
+- **Piste fisse in `PREROUTE`:** EN, BOOT e CAN_TX_B (le ultime due sul retro), più una via di massa per C17.
+- **Fascia vietata lungo il contorno:** 0,6 mm senza piste né via (`EDGE_BAND`), perché Freerouting faceva passare le linee CAN_B lungo il bordo inferiore.
+- **Risultato:** DRC 0, parità 0.
+
 ## 2026-11-03 — Primo firmware ESPHome
 
 - Arrivate le schede demo; prima programmazione via USB nativo su J5 (un bridge UART con DCD/DTR/DSR non è utilizzabile, J5 non espone TX/RX).

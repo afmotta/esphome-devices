@@ -82,6 +82,16 @@ Criteri di accettazione prima di consegnare o fare commit — tutti obbligatori:
 - Rete del sandbox cloud: datasheet LCSC e API EasyEDA sono bloccati; le pagine prodotto di lcsc.com e jlcpcb.com/partdetail funzionano con WebFetch. Le pagine JLCPCB mostrano "Extended" anche per i Preferred. Alcuni codici esistono solo nel catalogo JLCPCB e non su LCSC (es. C42400616): verifica sempre entrambi.
 - Elenco ufficiale Basic/Preferred: `scraped/assembly-details.csv` del repo GitHub CDFER/jlcpcb-parts-database (`base` = Basic, `expand` = Preferred). La classificazione usata è in `hardware/jlc_library.json` (aggiungi lì ogni nuovo codice).
 
+## Bridge CAN (`bridge/`, dal 2026-10-31)
+
+Seconda scheda, indipendente dal nodo: bridge tra backbone e segmento di zona con i due controller TWAI dell'ESP32-C6. Dettagli in [bridge/README.md](bridge/README.md).
+- Stessa pipeline e stesse regole del nodo, ma in `bridge/hardware/`; il progetto si chiama `bridgecan`. Fonte di verità: `bridge/hardware/design.py`. Freerouting è in `../../tools/`.
+- 56 × 36 mm. J1 backbone sul bordo destro, identico alla rev C; è l'unica alimentazione. J2 zona sul bordo sinistro, con la posizione dei 24 V non collegata. Terminazioni da 120 Ω attivate dal dip switch SW1: posizione 1 = backbone, 2 = zona. Pettine J5 non montato sul bordo inferiore.
+- `EDGE_OVERHANG` e il ritaglio della serigrafia valgono qui per il bordo destro, il sinistro e l'inferiore.
+- `gen_pcb.py` del bridge aggiunge una fascia di 0,6 mm lungo il contorno, vietata a piste e via (`EDGE_BAND`). Senza, Freerouting fa passare piste lungo il bordo e il DRC dà `copper_edge_clearance`.
+- Firmware: profilo bridge di `afmotta/esphome-devices`. La bozza del file scheda è in `bridge/esphome/`.
+- Le modifiche al nodo **non** si riportano automaticamente sul bridge, e viceversa.
+
 ## Git
 
 - Repository GitHub `afmotta/can-bus-node` (privato), branch principale `main`. Contiene solo l'ultima iterazione; la storia precedente è riassunta in `docs/decisioni.md`.

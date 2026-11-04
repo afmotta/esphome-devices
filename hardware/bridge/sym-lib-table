@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "bridgecan")(type "KiCad")(uri "${KIPRJMOD}/bridgecan.kicad_sym")(options "")(descr "Simboli progetto"))
+)

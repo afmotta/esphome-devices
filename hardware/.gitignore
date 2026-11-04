@@ -14,4 +14,10 @@ _autosave-*
 *.bak
 # toolchain downloaded by tools/setup.sh
 tools/*.jar
+bridge/hardware/bridgecan.dsn
+bridge/hardware/bridgecan.net
+bridge/hardware/drc.rpt
+bridge/hardware/logs/
+bridge/hardware/out/gerber/
+bridge/hardware/__pycache__/
 firmware/secrets.yaml
