@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.24 |
-| **Last Updated** | October 30, 2026 |
+| **Version** | 1.25 |
+| **Last Updated** | November 4, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -45,11 +45,17 @@ This repo hosts the ESPHome systems for Alberto's three-floor residence, organiz
    implemented (ADR-0014: LilyGO T-Connect Pro + Modbus RTU I/O boards) but not yet
    physically deployed. Consumes `registry/map.json` and sensor CAN frames directly
    (contract lives in-repo). See `climate/CLAUDE.md`.
-4. **Top-level `packages/`** — shared ESPHome packages that do not belong to a
+4. **`hardware/`** (PCB sources) — the KiCad projects of the CAN node boards, generated
+   by scripts: `hardware/nodo503/` (ESP32-C6 wall-button node, rev C) and `hardware/bridge/`
+   (dual-TWAI CAN bridge). Merged from `afmotta/can-bus-node` (archived) with full history;
+   old PR `#N` references in `hardware/` commit messages resolve in the archived repo. The
+   projects carry their own toolchain (KiCad 7, Freerouting) and rules in `hardware/CLAUDE.md`
+   (Italian); the generated `.kicad_*` files are never hand-edited.
+5. **Top-level `packages/`** — shared ESPHome packages that do not belong to a
   single application system, currently the Modbus I/O hardware drivers used by
   both Climate and lighting.
 
-Commits are prefixed with the system they touch (`canbus:`, `lighting:`, `climate:`). The
+Commits are prefixed with the system they touch (`canbus:`, `lighting:`, `climate:`, `hardware:`). The
 durable design knowledge — architecture, ADRs, contracts, design notes — lives under `docs/`
 (see [Important Files Reference](#important-files-reference)).
 
@@ -158,6 +164,12 @@ esphome-devices/
 │   │   ├── first_floor/       # First floor rooms
 │   │   └── second_floor/      # Second floor rooms
 │   └── home-assistant/        # Dashboards (Lovelace)
+│
+├── hardware/                  # PCB sources for the CAN node boards (see hardware/CLAUDE.md)
+│   ├── nodo503/                # ESP32-C6 wall-button node, rev C (generated KiCad project + out/)
+│   ├── bridge/                 # ESP32-C6 dual-TWAI CAN bridge (generated KiCad project + out/)
+│   ├── tools/                  # setup.sh: KiCad 7, Freerouting 1.9.0 (not part of the CI)
+│   └── docs/                   # pipeline.md, decisioni.md (Italian)
 │
 ├── packages/                  # Cross-system ESPHome packages (shared, no owning app system)
 │   ├── devices/modbus-io/     # Relay/analog Modbus I/O board drivers used by climate + lighting
