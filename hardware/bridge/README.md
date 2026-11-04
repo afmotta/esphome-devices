@@ -52,7 +52,7 @@ Se per un errore di cablaggio CANH finisce sui 24 V, la resistenza da 120 Ω dis
 
 ## Firmware
 
-`esphome/bridge-c6-twai.yaml` è la bozza del file scheda da copiare in `esphome-devices/boards/`, sul modello di `boards/lilygo-t-2can.yaml`:
+Il file scheda è `boards/bridge-c6-twai.yaml` (profilo `bridge-c6` del registry, ADR-0025); la fixture di compilazione è `canbus/tests/compile_bridge_c6.yaml`. In breve:
 
 - due voci `esp32_can`, `can0` per il backbone e `can1` per la zona;
 - `bridge_hf_loop: "false"`, perché entrambi i lati sono a interrupt;
@@ -106,7 +106,6 @@ La pipeline è la stessa del nodo (vedi [docs/pipeline.md](../docs/pipeline.md))
 | `hardware/bridgecan.kicad_*` | Progetto KiCad generato (non modificarlo a mano) |
 | `hardware/bridgecan.ses` | Sbroglio salvato (Freerouting 1.9.0) |
 | `hardware/out/` | Gerber, BOM/CPL (completo e solo SMD), PDF dello schema, anteprime |
-| `esphome/bridge-c6-twai.yaml` | Bozza del file scheda per esphome-devices |
 
 ```bash
 cd hardware/bridge && python3 gen_sch.py && ./route.sh && ./export.sh

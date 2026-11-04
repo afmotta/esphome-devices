@@ -1,0 +1,52 @@
+# =============================================================================
+# esp32-c6-nodo503.yaml — wall-button node board hardware: ESP32-C6, one TWAI port
+# =============================================================================
+# Hardware: hardware/nodo503/ (rev C: ESP32-C6-WROOM-1-N8, TJA1051T/3 with VIO at 3.3 V,
+# 24 V from the bus -> 5 V -> 3.3 V, six button inputs with 3.3k pull-ups on two JST PH
+# connectors, Qwiic port without pull-ups). Used by the `buttons-c6` profile (ADR-0025).
+#
+# can0 = the bus (J1): TX GPIO23, RX GPIO22. This is the only CAN port, so it is the
+# controller-facing one (node_core.yaml invariant 1).
+#
+# Same ADR-0005 posture as the other nodes: esp-idf watchdogs and brownout pinned, task
+# watchdog panics, NO wifi:/api:/ota:/bluetooth:. Flash and logs over native USB on J5
+# (not fitted; 5V, D-, D+, GND, BOOT; jumper pins 5-6 = download mode). The standalone
+# Wi-Fi/Home Assistant bring-up firmware (hardware/nodo503/firmware/nodo503.yaml) stays
+# valid for bench boards until the bus has been proven on this hardware.
+#
+# I2C (Qwiic: SDA GPIO3, SCL GPIO2) is deliberately NOT declared here: no profile
+# for this board carries the sensor kit, and an unused bus is one less thing to hang.
+# =============================================================================
+
+substitutions:
+  logger_level: INFO
+
+esphome:
+  min_version: 2026.8.0
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_TASK_WDT_PANIC: y
+      CONFIG_ESP_INT_WDT: y
+      CONFIG_ESP_BROWNOUT_DET: y
+      CONFIG_BOOTLOADER_WDT_ENABLE: y
+
+logger:
+  level: ${logger_level}
+  hardware_uart: USB_SERIAL_JTAG
+
+canbus:
+  - platform: esp32_can
+    id: can0
+    use_extended_id: true
+    # Component default TX id (CAT_STATUS base). Every send specifies an
+    # explicit can_id + use_extended_id, so this is never relied on.
+    can_id: 0x06000000
+    tx_pin: GPIO23
+    rx_pin: GPIO22
+    bit_rate: 125KBPS

@@ -10,6 +10,7 @@
 #
 # WHO COMPOSES IT — exactly the ESP32/TWAI nodes that TRANSMIT, and nobody else:
 #   - bridge-t2can profile (PROFILES in generate_nodes.py; backbone can0 is TWAI)
+#   - bridge-c6 and buttons-c6 profiles (ESP32-C6, ADR-0025; every CAN port is TWAI)
 #   - lighting/packages/led_can_actuator.yaml (An-Penta / An-Quad; its can0 is TWAI)
 # NOT the MCP2515 nodes (CANBed RP2040 profiles): the MCP2515 leaves bus-off by itself in
 # hardware (128 x 11 recessive bits), and its "TX refused" is a dead/unterminated bus that a

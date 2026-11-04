@@ -1,0 +1,24 @@
+# =============================================================================
+# compile_bridge_c6.yaml — compile-check for the ESP32-C6 dual-TWAI segment bridge
+# =============================================================================
+# Hand-maintained (NOT generated). Mirrors a `bridge-c6` profile row (ADR-0025) and is the
+# ONLY compile coverage for boards/bridge-c6-twai.yaml: two esp32_can entries on one chip (can0 = TWAI0, can1 = TWAI1) and bridge.yaml's can0/can1 !extend targets resolving against two TWAI controllers.
+#
+# node_id 999 is a scratch value — nothing reserves it, so NEVER flash this to hardware.
+#
+#   esphome config  canbus/tests/compile_bridge_c6.yaml
+#   esphome compile canbus/tests/compile_bridge_c6.yaml
+# =============================================================================
+
+substitutions:
+  node_id: "999"
+
+esphome:
+  name: bridge_999
+  friendly_name: "Bridge 999"
+
+packages:
+  core: !include ../packages/node_core.yaml
+  board: !include ../../boards/bridge-c6-twai.yaml
+  bridge: !include ../packages/bridge.yaml
+  tx_watchdog: !include ../packages/tx_watchdog.yaml

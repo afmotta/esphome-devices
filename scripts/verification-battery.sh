@@ -217,6 +217,8 @@ if [ "$NATIVE_ONLY" -eq 1 ]; then
   skip_step "esphome compile canbus/tests/compile_bridge.yaml"           "--native-only"
   skip_step "esphome compile canbus/tests/compile_buttons_bridge.yaml"   "--native-only"
   skip_step "esphome compile canbus/tests/compile_bridge_t2can.yaml"    "--native-only"
+  skip_step "esphome compile canbus/tests/compile_bridge_c6.yaml"        "--native-only"
+  skip_step "esphome compile canbus/tests/compile_buttons_c6.yaml"       "--native-only"
   skip_step "esphome config devices/locals/climate-control.yaml"         "--native-only"
   skip_step "resolved on_boot triggers match scripts/on_boot_baseline.json" "--native-only"
   skip_step "esphome compile devices/locals/climate-control.yaml"        "--native-only"
@@ -232,6 +234,10 @@ else
     esphome compile canbus/tests/compile_buttons_bridge.yaml
   run_step "esphome compile canbus/tests/compile_bridge_t2can.yaml" \
     esphome compile canbus/tests/compile_bridge_t2can.yaml
+  run_step "esphome compile canbus/tests/compile_bridge_c6.yaml" \
+    esphome compile canbus/tests/compile_bridge_c6.yaml
+  run_step "esphome compile canbus/tests/compile_buttons_c6.yaml" \
+    esphome compile canbus/tests/compile_buttons_c6.yaml
   run_step "esphome config devices/locals/climate-control.yaml" \
     esphome config devices/locals/climate-control.yaml
   run_step "resolved on_boot triggers match scripts/on_boot_baseline.json" \

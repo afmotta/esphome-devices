@@ -17,7 +17,9 @@ selects which packages the generated config composes on top of node_core.yaml:
     buttons          wall plate, no sensing
     buttons+sensors  wall plate + the ADR-0006 SHT45/SEN66 kit
     sensors          sensor puck, no switch plate
-    bridge-t2can     ADR-0005 segment forwarder on the LilyGO T-2CAN (preferred)
+    bridge-c6        ADR-0005 segment forwarder on the ESP32-C6 dual-TWAI board (preferred, ADR-0025)
+    buttons-c6       six-button wall node on the ESP32-C6 (hardware/nodo503, ADR-0025)
+    bridge-t2can     ADR-0005 segment forwarder on the LilyGO T-2CAN (second source)
     bridge           segment forwarder on the CANBed + an add-on MCP2515
     buttons+bridge   wall plate that is ALSO a segment forwarder — for the boxes where
                      the CAN segments physically split at a button box (CANBed only)
@@ -149,6 +151,8 @@ Profile.__new__.__defaults__ = (False,)  # `external` defaults False; existing p
 CANBED = (("board", "canbed-rp2040.yaml"),)
 CANBED_DUAL_CAN = CANBED + (("can1_board", "canbed-rp2040-can1.yaml"),)
 T2CAN = (("board", "lilygo-t-2can.yaml"),)
+BRIDGE_C6 = (("board", "bridge-c6-twai.yaml"),)
+NODO503 = (("board", "esp32-c6-nodo503.yaml"),)
 
 PROFILES = {
     "buttons": Profile(
@@ -169,6 +173,19 @@ PROFILES = {
     "bridge-t2can": Profile(
         # tx_watchdog: can0 is TWAI here, which never recovers from bus-off by itself (R-17).
         boards=T2CAN, packages=(("bridge", "bridge.yaml"), ("tx_watchdog", "tx_watchdog.yaml")),
+        buttons=False, sensors=False, prefix="bridge", kind="Bridge",
+    ),
+    # ESP32-C6 boards from hardware/ (ADR-0025). Both ports are TWAI, and a TWAI transmitter
+    # never leaves bus-off by itself, so both compose tx_watchdog (R-17).
+    #   buttons-c6  hardware/nodo503: six inputs, one CAN port, no sensor kit (no I2C declared)
+    #   bridge-c6   hardware/bridge: two TWAI ports; preferred over bridge-t2can
+    "buttons-c6": Profile(
+        boards=NODO503,
+        packages=(("buttons", "buttons_6_c6.yaml"), ("tx_watchdog", "tx_watchdog.yaml")),
+        buttons=True, sensors=False, prefix="node", kind="Node",
+    ),
+    "bridge-c6": Profile(
+        boards=BRIDGE_C6, packages=(("bridge", "bridge.yaml"), ("tx_watchdog", "tx_watchdog.yaml")),
         buttons=False, sensors=False, prefix="bridge", kind="Bridge",
     ),
     # Fleet node board + a 3.3 V add-on MCP2515. Kept viable as the second source
@@ -210,6 +227,10 @@ BOARD_COMMENTS = {
     "canbed-rp2040.yaml": "# Hardware: CANBed RP2040 (boards/canbed-rp2040.yaml)\n",
     "canbed-rp2040-can1.yaml": ("#           + add-on 3.3 V MCP2515 on the SPI header, CS GPIO8\n"
                                 "#           (boards/canbed-rp2040-can1.yaml)\n"),
+    "bridge-c6-twai.yaml": ("# Hardware: bridge board, ESP32-C6 (boards/bridge-c6-twai.yaml) — two TWAI\n"
+                            "#           ports: backbone (can0) + zone (can1)\n"),
+    "esp32-c6-nodo503.yaml": ("# Hardware: nodo 503 wall node, ESP32-C6 (boards/esp32-c6-nodo503.yaml)\n"
+                              "#           — one TWAI port (can0)\n"),
     "lilygo-t-2can.yaml": ("# Hardware: LilyGO T-2CAN (boards/lilygo-t-2can.yaml) — one board, two\n"
                            "#           CAN ports: TWAI backbone (can0) + MCP2515 zone (can1)\n"),
 }
@@ -217,6 +238,7 @@ BOARD_COMMENTS = {
 # Header comment contributed by each package, so a generated file explains itself.
 PACKAGE_COMMENTS = {
     "buttons_8.yaml": "# Buttons:  standard 8-button set (btn0–btn7) from packages/buttons_8.yaml\n",
+    "buttons_6_c6.yaml": "# Buttons:  6-button set (btn0–btn5) from packages/buttons_6_c6.yaml\n",
     "sensor_kit.yaml": ("# Sensors:  SHT45 + SEN66 kit from packages/sensor_kit.yaml "
                         "(CAT_SENSOR, host room = sensor room)\n"),
     # Board-neutral: the board comment above already names the hardware supplying

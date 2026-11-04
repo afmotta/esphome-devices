@@ -600,7 +600,7 @@ def test_bridge_profiles_supply_a_second_can_port():
         if not any(f == "bridge.yaml" for _k, f in profile.packages):
             continue
         boards = [f for _k, f in profile.boards]
-        assert "canbed-rp2040-can1.yaml" in boards or "lilygo-t-2can.yaml" in boards, \
+        assert {"canbed-rp2040-can1.yaml", "lilygo-t-2can.yaml", "bridge-c6-twai.yaml"} & set(boards), \
             f"bridge profile {name!r} has no board providing can1: {boards}"
 
 
@@ -694,6 +694,52 @@ def test_generator_renders_bridge_t2can_profile():
         # Still an ordinary registry row: reaches the central map like any node.
         assert '{200, 7, 0, "First floor junction box"},' in (
             root / "protocol" / "node_map.h").read_text()
+
+
+def test_generator_renders_bridge_c6_profile():
+    # ADR-0025: the ESP32-C6 bridge. One board file supplies both TWAI ports, and the
+    # TWAI backbone needs the bus-off watchdog (R-17) exactly like the T-2CAN.
+    nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
+                 "200,0,7,0,Junction box,bridge-c6,\n")
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        yaml = (root / "nodes" / "bridge200.yaml").read_text()
+        assert "board: !include ../../boards/bridge-c6-twai.yaml" in yaml
+        assert "bridge: !include ../packages/bridge.yaml" in yaml
+        assert "tx_watchdog: !include ../packages/tx_watchdog.yaml" in yaml
+        assert "canbed" not in yaml and "lilygo" not in yaml
+        assert "buttons_" not in yaml and "sensor_kit.yaml" not in yaml
+        assert "debounce_ms" not in yaml
+
+
+def test_generator_renders_buttons_c6_profile():
+    # ADR-0025: the nodo 503 wall node. Six inputs, one TWAI port, no sensor kit.
+    nodes_csv = ("node_id,floor,room,board,location,profile,room_slug\n"
+                 "100,0,7,0,Hall,buttons-c6,\n")
+    with tempfile.TemporaryDirectory() as d:
+        repo_root = Path(d)
+        root = _prepare_temp_generator_repo(repo_root, nodes_csv)
+        code, _stdout, stderr = _run_temp_generator(repo_root, root)
+        assert code == 0, stderr
+        yaml = (root / "nodes" / "node100.yaml").read_text()
+        assert "board: !include ../../boards/esp32-c6-nodo503.yaml" in yaml
+        assert "buttons: !include ../packages/buttons_6_c6.yaml" in yaml
+        assert "tx_watchdog: !include ../packages/tx_watchdog.yaml" in yaml
+        assert 'debounce_ms: "50"' in yaml
+        assert "CAT_INPUT" in yaml
+        assert "buttons_8.yaml" not in yaml and "bridge.yaml" not in yaml
+        assert "sensor_kit.yaml" not in yaml
+
+
+def test_c6_button_set_pins_match_the_pcb():
+    # hardware/nodo503/design.py is the source of truth for the wiring; the firmware set
+    # must list the same six GPIOs in the same order (J3: 1-3, J4: 4-6).
+    text = (Path(__file__).resolve().parents[1] / "packages" / "buttons_6_c6.yaml").read_text()
+    pins = re.findall(r'button_index: "(\d)", button_gpio: "(\d+)"', text)
+    assert pins == [("0", "7"), ("1", "0"), ("2", "1"), ("3", "20"), ("4", "19"), ("5", "18")]
 
 
 def test_generator_renders_buttons_bridge_profile():

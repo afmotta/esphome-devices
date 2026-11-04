@@ -40,6 +40,8 @@ TARGETS = [
     "canbus/tests/compile_bridge.yaml",
     "canbus/tests/compile_buttons_bridge.yaml",
     "canbus/tests/compile_bridge_t2can.yaml",
+    "canbus/tests/compile_bridge_c6.yaml",
+    "canbus/tests/compile_buttons_c6.yaml",
     "canbus/tests/compile_sensor_node.yaml",
     "canbus/nodes/node100.yaml",
     "canbus/nodes/node101.yaml",

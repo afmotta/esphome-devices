@@ -26,7 +26,9 @@ the ESPHome packages the generated config composes:
 | `buttons` | wall plate, no sensing |
 | `buttons+sensors` | wall plate + the ADR-0006 SHT45/SEN66 kit |
 | `sensors` | sensor puck, no switch plate |
-| `bridge-t2can` | ADR-0005 segment forwarder on the LilyGO T-2CAN — **preferred** |
+| `bridge-c6` | ADR-0005 segment forwarder on the ESP32-C6 dual-TWAI board (`hardware/bridge`) — **preferred** (ADR-0025) |
+| `buttons-c6` | six-button wall node on the ESP32-C6 (`hardware/nodo503`, ADR-0025) |
+| `bridge-t2can` | ADR-0005 segment forwarder on the LilyGO T-2CAN — second source |
 | `bridge` | segment forwarder on the CANBed + a 3.3 V add-on MCP2515 (second source) |
 | `buttons+bridge` | wall plate that is also a forwarder — where a segment splits at a button box (CANBed only) |
 

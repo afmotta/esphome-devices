@@ -47,7 +47,7 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
 - **CAN node composition is driven by the registry `profile` column** (ADR-0017).
   Generated configs in `canbus/nodes/` compose `node_core.yaml` plus exactly the
   packages **and its board** — `buttons` / `buttons+sensors` / `sensors` /
-  `bridge-t2can` / `bridge` / `buttons+bridge`, defined in one place, `PROFILES`
+  `bridge-c6` / `buttons-c6` / `bridge-t2can` / `bridge` / `buttons+bridge`, defined in one place, `PROFILES`
   in `canbus/tools/generate_nodes.py`.
   `node_core.yaml` is **board-agnostic**: it owns protocol include, boot logging,
   globals and heartbeat, and asks only that the board declare `can0`. That is what
@@ -95,8 +95,10 @@ Record new decisions as ADRs under `docs/adr/`; prefix commits touching this sys
   RECEIVES `CAT_OUTPUT` commands (an actuator) rather than sending button/sensor frames; it still
   heartbeats. This is the one profile family with empty `boards`/`packages` — gated by the `external`
   attribute, not an `if profile ==` branch.
-- **Two bridge boards** (ADR-0017 §1). `bridge-t2can` on the LilyGO T-2CAN is
-  **preferred** — one integrated board, backbone on the interrupt-driven TWAI
+- **Bridge boards** (ADR-0017 §1, amended by ADR-0025). `bridge-c6` on the ESP32-C6 dual-TWAI
+  board (`hardware/bridge`, `boards/bridge-c6-twai.yaml`) is **preferred**: both ports are
+  interrupt-driven TWAI, and the order of the two `esp32_can` entries decides which is `can0`.
+  `bridge-t2can` on the LilyGO T-2CAN is the second source — one integrated board, backbone on the interrupt-driven TWAI
   controller. `bridge` / `buttons+bridge` on the CANBed + a 3.3 V add-on MCP2515
   are the second source, and CANBed is the only board that can carry
   `buttons+bridge`. If you touch the add-on board file, `clock:` must match the
@@ -144,6 +146,8 @@ esphome compile canbus/tests/compile_sensor_node.yaml   # buttons+sensors profil
 esphome compile canbus/tests/compile_bridge.yaml        # bridge profile (CANBed, 2x MCP2515)
 esphome compile canbus/tests/compile_buttons_bridge.yaml  # buttons+bridge (the pin-budget gate)
 esphome compile canbus/tests/compile_bridge_t2can.yaml    # bridge-t2can (ESP32-S3, TWAI+MCP2515)
+esphome compile canbus/tests/compile_bridge_c6.yaml       # bridge-c6 (ESP32-C6, two TWAI)
+esphome compile canbus/tests/compile_buttons_c6.yaml      # buttons-c6 (ESP32-C6 wall node)
 ```
 
 Generator idempotence: an unchanged registry regenerates byte-for-byte
