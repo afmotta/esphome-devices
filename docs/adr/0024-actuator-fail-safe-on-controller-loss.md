@@ -369,7 +369,7 @@ These are not edited in this PR because the ADR is only Proposed.
 - **Software-timer "pulses" (turn on, schedule turn-off in the master):** fails exactly when the master does;
   it is the thing this ADR exists to replace.
 - **Home Assistant as supervisor:** HA cannot reach the boards if the controller or bus is down, and HA
-  availability is explicitly not a dependency of actuation (root `CLAUDE.md`, Home Assistant Integration).
+  availability is explicitly not a dependency of actuation (`climate/CLAUDE.md`, Operating principles — Home Assistant Integration).
 - **`flash_off` instead of `flash_on`:** reverts to *closed*; it is the wrong polarity for a fail-open
   design.
 - **Cut power to both boards via the watchdog (C variant):** also zeroes the MEV fans, and the analog
