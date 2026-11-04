@@ -497,9 +497,9 @@ These diagrams are written in Mermaid syntax and can be:
 ## References
 
 - **Architecture Documentation:** `docs/architecture.md`
-- **Modbus Register Map:** `docs/modbus-register-map.md`
-- **RS485 Wiring Guide:** `docs/rs485-wiring-guide.md`
-- **Deployment Guide:** `docs/deployment-guide.md`
+- **Modbus Register Map:** `docs/archive/modbus-register-map.md`
+- **RS485 Wiring Guide:** `docs/climate/rs485-wiring-guide.md`
+- **Deployment Guide:** `docs/archive/deployment-guide.md`
 
 ---
 

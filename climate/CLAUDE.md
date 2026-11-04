@@ -191,7 +191,7 @@ Room temperature/humidity control data does **not** travel over this bus — it 
 ## Commissioning gates (progressive deployment)
 
 Deployment is a **season-phased progressive rollout** on a single firmware image —
-see `docs/climate-deployment-runbook.md`. Features are gated at runtime, not at build
+see `docs/climate/climate-deployment-runbook.md`. Features are gated at runtime, not at build
 time, because the `any_pid_requesting_heat/cool` aggregation in
 `devices/climate-control.yaml` hard-references every zone's PID (compiling zones out
 would break the build). Three gates default to the safe state, so a freshly flashed

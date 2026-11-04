@@ -44,7 +44,7 @@ way and may describe an earlier or since-amended version of the decision.
 ## Historical documents — ignore these for current procedures
 
 The repository's `docs/` folder (not this site's `docs-site/`) contains some
-documents that describe an earlier, retired generation of hardware (Kincony KC868-A6 /
+documents (all under `docs/archive/`) that describe an earlier, retired generation of hardware (Kincony KC868-A6 /
 A16 boards, a master/slave controller topology, and Modbus-based room sensors). That
 generation was fully replaced by the current LilyGO T-Connect Pro hardware and
 single-master design. These files are kept only as historical record — **do not follow
@@ -52,14 +52,14 @@ them for current work**:
 
 | File | What it covers | Superseded by |
 |---|---|---|
-| `docs/deployment-guide.md` | Deploying the old A6/A16 master/slave topology | `docs/climate-deployment-runbook.md` |
-| `docs/sensor-technology-selection.md` | The original (later reversed) decision to use Modbus room sensors | Room sensing over CAN bus / Home Assistant, `climate/room_sensors.yaml` |
-| `docs/0-10v-adapter-setup-guide.md` | Setting up a generic AliExpress 0–10V Modbus adapter | The Waveshare Modbus RTU Analog Output 8CH (B) board — see [Hardware & Address Table](hardware-table.md) |
-| `docs/modbus-register-map.md` | The full register map for the old KC868-A6-based master/slave system | The current, much smaller Modbus footprint described in [Hardware & Address Table](hardware-table.md) |
+| `docs/archive/deployment-guide.md` | Deploying the old A6/A16 master/slave topology | `docs/climate/climate-deployment-runbook.md` |
+| `docs/archive/sensor-technology-selection.md` | The original (later reversed) decision to use Modbus room sensors | Room sensing over CAN bus / Home Assistant, `climate/room_sensors.yaml` |
+| `docs/archive/0-10v-adapter-setup-guide.md` | Setting up a generic AliExpress 0–10V Modbus adapter | The Waveshare Modbus RTU Analog Output 8CH (B) board — see [Hardware & Address Table](hardware-table.md) |
+| `docs/archive/modbus-register-map.md` | The full register map for the old KC868-A6-based master/slave system | The current, much smaller Modbus footprint described in [Hardware & Address Table](hardware-table.md) |
 
 Most of these files carry their own "historical document" notice at the top if you do
 open them directly — that notice is accurate and you should believe it. The other
-files under `docs/` (deployment runbook, weather-compensation notes, wiring guides,
+files under `docs/` (`docs/climate/`: deployment runbook, weather-compensation notes, wiring guides,
 window-sensor mapping, and so on) are current and not part of this list.
 
 ## A minor footnote: orphaned board files

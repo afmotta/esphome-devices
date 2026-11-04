@@ -118,7 +118,7 @@ fan-only because the hardware is passive:
 ### Register-map dependency
 
 The Innova HRP DOMO 60 HX Modbus register map was not available at authoring time (not in the
-repo — `docs/VMC MODBUS.pdf` is the *Cappellotto* manual — and `innova.it` is unreachable from
+repo — `docs/climate/VMC-MODBUS.pdf` is the *Cappellotto* manual — and `innova.it` is unreachable from
 the build environment). The bus member, the 0-10V fan path, the demand aggregation and the
 coordinator are complete and functional; the Innova register reads/writes in
 `mev_innova_modbus.yaml` are marked `TODO(innova-register)` and must be filled from the manual

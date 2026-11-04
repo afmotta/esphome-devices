@@ -698,8 +698,8 @@ mbpoll -a 1 -r 300 -t 3 /dev/ttyUSB0 -b 9600 -P none -1
 ## References
 
 - Architecture Document: `docs/architecture.md`
-- RS485 Wiring Guide: `docs/rs485-wiring-guide.md`
-- Deployment Guide: `docs/deployment-guide.md`
+- RS485 Wiring Guide: `docs/climate/rs485-wiring-guide.md`
+- Deployment Guide: `docs/archive/deployment-guide.md`
 - Story 1.1: Modbus Infrastructure Foundation
 - Story 1.2: Master Data Exposure (this implementation)
 - Story 1.3: Slave Data Reading

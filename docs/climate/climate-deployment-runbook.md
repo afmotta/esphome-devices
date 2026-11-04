@@ -5,8 +5,8 @@
 | **Status** | Active — the deployment procedure for the pre-live climate system |
 | **Date** | 2026-07-23 |
 | **Applies to** | `devices/climate-control.yaml` on ADR-0014 hardware (T-Connect Pro, single Modbus master) |
-| **Supersedes** | `docs/deployment-guide.md` (historical, Gen-1 A6/A16 topology) |
-| **Related** | ADR-0014 §4 bring-up checks; `docs/heat-pump-integration.md` (curve envelope); `climate/CLAUDE.md` App. B/C/D |
+| **Supersedes** | `docs/archive/deployment-guide.md` (historical, Gen-1 A6/A16 topology) |
+| **Related** | ADR-0014 §4 bring-up checks; `docs/climate/heat-pump-integration.md` (curve envelope); `climate/CLAUDE.md` App. B/C/D |
 
 Bring the house online at a bare-minimum, safe feature set, prove it, then unlock
 advanced features gradually — with a verification window and an instant rollback at
@@ -130,7 +130,7 @@ matches the source; the other one becomes Phase B.
 |---|---|---|---|
 | **A-H1 Radiant heat** *(bare minimum)* | `hp_mode` → HEAT; `slope = 0` and `{floor}_heat_curve_base` set conservative (floor warmer than ceiling); zone `climate` OFF→HEAT one at a time | ±0.5 °C tracking; no PID oscillation; mixing valve + pumps behave; tune with the `pid_autotune*` buttons using App. D radiant gains; **24–48 h** | Zone → OFF, or `hp_mode` → SANITARY_ONLY |
 | **A-H2 Fancoil heat** | Bring fancoil `climate` entities online (verify 0-10V output and fan first) | Modulation tracks setpoint | Fancoil zone → OFF |
-| **A-H3 Weather compensation** | Dial `{floor}_heat_curve_slope` to real values using the commissioning envelope in `docs/heat-pump-integration.md` | Supply follows outdoor temp; valve not saturating; per-emitter curves respected (radiant ceiling runs cooler than radiant floor) | `slope` → 0 (back to flat/fixed) |
+| **A-H3 Weather compensation** | Dial `{floor}_heat_curve_slope` to real values using the commissioning envelope in `docs/climate/heat-pump-integration.md` | Supply follows outdoor temp; valve not saturating; per-emitter curves respected (radiant ceiling runs cooler than radiant floor) | `slope` → 0 (back to flat/fixed) |
 
 > The curve params (`slope`/`base`/`supply_min`/`supply_max`) have **no package
 > defaults** on purpose — each floor states its own, because a radiant floor and a
@@ -163,7 +163,7 @@ with the same per-step verification and rollback.
 
 Only after **both** campaigns are proven.
 
-1. **Window guard** — map the HA window sensors per `docs/window-sensors-map.md`. It
+1. **Window guard** — map the HA window sensors per `docs/climate/window-sensors-map.md`. It
    self-activates (fancoil off on open, radiant untouched) and stays a no-op where
    unmapped or where HA is down.
 2. **Release automatic seasonal transitions** — flip `hp_mode_manual_hold` → **OFF**
@@ -176,7 +176,7 @@ Only after **both** campaigns are proven.
    (`relay_18`/`relay_19`, pending the parked topology ADR); the deferred runtime
    setpoint-optimization overlay (only after a season on the static envelope, and it
    must fail safe to the static curve when HA is down). See
-   `docs/heat-pump-integration.md` and `TODO.md`.
+   `docs/climate/heat-pump-integration.md` and `TODO.md`.
 
 ---
 

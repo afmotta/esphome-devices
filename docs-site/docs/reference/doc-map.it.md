@@ -46,7 +46,7 @@ della decisione.
 ## Documenti storici — ignorali per le procedure attuali
 
 La cartella `docs/` del repository (non la `docs-site/` di questo sito) contiene
-alcuni documenti che descrivono una generazione precedente e ritirata dell'hardware
+alcuni documenti (tutti in `docs/archive/`) che descrivono una generazione precedente e ritirata dell'hardware
 (schede Kincony KC868-A6 / A16, una topologia di controller master/slave, e sensori
 ambiente basati su Modbus). Quella generazione è stata completamente sostituita
 dall'attuale hardware LilyGO T-Connect Pro e dal design a master unico. Questi file
@@ -55,14 +55,14 @@ attuale**:
 
 | File | Cosa copre | Sostituito da |
 |---|---|---|
-| `docs/deployment-guide.md` | Distribuzione della vecchia topologia master/slave A6/A16 | `docs/climate-deployment-runbook.md` |
-| `docs/sensor-technology-selection.md` | La decisione originale (poi ribaltata) di usare sensori ambiente Modbus | Rilevamento ambiente via bus CAN / Home Assistant, `climate/room_sensors.yaml` |
-| `docs/0-10v-adapter-setup-guide.md` | Configurazione di un generico adattatore Modbus 0–10V da AliExpress | La scheda Waveshare Modbus RTU Analog Output 8CH (B) — vedi [Tabella hardware e indirizzi](hardware-table.md) |
-| `docs/modbus-register-map.md` | La mappa completa dei registri del vecchio sistema master/slave basato su KC868-A6 | L'attuale impronta Modbus, molto più piccola, descritta in [Tabella hardware e indirizzi](hardware-table.md) |
+| `docs/archive/deployment-guide.md` | Distribuzione della vecchia topologia master/slave A6/A16 | `docs/climate/climate-deployment-runbook.md` |
+| `docs/archive/sensor-technology-selection.md` | La decisione originale (poi ribaltata) di usare sensori ambiente Modbus | Rilevamento ambiente via bus CAN / Home Assistant, `climate/room_sensors.yaml` |
+| `docs/archive/0-10v-adapter-setup-guide.md` | Configurazione di un generico adattatore Modbus 0–10V da AliExpress | La scheda Waveshare Modbus RTU Analog Output 8CH (B) — vedi [Tabella hardware e indirizzi](hardware-table.md) |
+| `docs/archive/modbus-register-map.md` | La mappa completa dei registri del vecchio sistema master/slave basato su KC868-A6 | L'attuale impronta Modbus, molto più piccola, descritta in [Tabella hardware e indirizzi](hardware-table.md) |
 
 La maggior parte di questi file riporta un proprio avviso "documento storico" in cima
 se li apri direttamente — quell'avviso è accurato e va creduto. Gli altri file sotto
-`docs/` (runbook di distribuzione, note sulla compensazione climatica, guide di
+`docs/` (in `docs/climate/`: runbook di distribuzione, note sulla compensazione climatica, guide di
 cablaggio, mappatura dei sensori finestra, e così via) sono attuali e non fanno parte
 di questo elenco.
 

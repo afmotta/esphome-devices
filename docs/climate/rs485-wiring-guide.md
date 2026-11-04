@@ -792,8 +792,8 @@ Use this checklist for every RS485 installation:
 - **ESPHome Modbus Documentation:** https://esphome.io/components/modbus.html
 - **Related Documents:**
   - `climate/CLAUDE.md` - Live bus members, addresses, and register appendices
-  - `docs/modbus-register-map.md` - Register definitions (historical, Gen-1 hardware)
-  - `docs/deployment-guide.md` - Deployment procedures (historical, Gen-1 hardware)
+  - `docs/archive/modbus-register-map.md` - Register definitions (historical, Gen-1 hardware)
+  - `docs/archive/deployment-guide.md` - Deployment procedures (historical, Gen-1 hardware)
 
 ---
 

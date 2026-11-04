@@ -163,7 +163,7 @@ esphome-devices/
 │   │   ├── ground_floor/      # Ground floor rooms
 │   │   ├── first_floor/       # First floor rooms
 │   │   └── second_floor/      # Second floor rooms
-│   └── home-assistant/        # Dashboards (Lovelace)
+│   └── home-assistant/        # Dashboards (Lovelace) and the ha-*-config.yaml HA-side configs
 │
 ├── hardware/                  # PCB sources for the CAN node boards (see hardware/CLAUDE.md)
 │   ├── nodo503/                # ESP32-C6 wall-button node, rev C (generated KiCad project + out/)
@@ -204,7 +204,9 @@ esphome-devices/
 │   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
 │   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
 │   ├── design-notes/          # Entity-naming convention, canbus implementation rules
-│   └── (runbooks, wiring guides, HA config assets)
+│   ├── climate/               # Live climate docs: deployment runbook, RS485 wiring, heat-pump integration, window-sensor map, MEV manual
+│   ├── archive/               # Historical (Gen-1 hardware, implemented proposals) — do not follow for current work
+│   └── change_waveshare_relay_address.yaml # Relay-bank address commissioning tool (cited by the maintenance site)
 │
 ├── docs-site/                 # Maintenance & support site (MkDocs, EN + IT; GitHub Pages)
 │
