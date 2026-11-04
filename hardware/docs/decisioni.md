@@ -109,7 +109,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 
 ## 2026-10-31 — Nuova scheda: bridge CAN con ESP32-C6 (cartella `bridge/`)
 
-- **Perché:** il bridge tra backbone e segmenti di zona (ADR-0005/0017 in `esphome-devices`) usava la LilyGO T-2CAN, che ha un lato su MCP2515 interrogato dal loop, con 2 buffer di ricezione e perdite di frame invisibili. L'ESP32-C6 ha **due controller TWAI**, ed ESPHome 2026.8.0 li supporta entrambi: a ogni voce `esp32_can` assegna il controller successivo, verificato nel sorgente `esp32_can.cpp`.
+- **Perché:** il bridge tra backbone e segmenti di zona (ADR-0005/0017 in `docs/adr/`) usava la LilyGO T-2CAN, che ha un lato su MCP2515 interrogato dal loop, con 2 buffer di ricezione e perdite di frame invisibili. L'ESP32-C6 ha **due controller TWAI**, ed ESPHome 2026.8.0 li supporta entrambi: a ogni voce `esp32_can` assegna il controller successivo, verificato nel sorgente `esp32_can.cpp`.
 - **Scelte di Alberto:** variante **A**, solo bridge, per scatola di derivazione o quadro. **Alimentazione solo dal backbone**. Progetto in una **cartella nuova** di questo repo; l'unione con il nodo si valuterà poi. I **morsetti stanno sui lati corti opposti**: J1 backbone a destra, identico alla rev C; J2 zona a sinistra, con la posizione dei 24 V non collegata.
 - **Terminazioni:** 120 Ω per canale (C22787 Basic), attivate da un dip switch SMD a 2 vie KINGTEK DSHP02TSGET (C40735). Il dip switch è stato preferito al ponticello a pettine, che JLCPCB non inserisce, e al ponticello a saldare, che richiede il saldatore. La terminazione "split" (2 × 60 Ω + condensatore) è stata scartata perché richiede uno switch a 2 poli per canale.
 - **Piazzamento:** 56 × 40 mm.
@@ -120,7 +120,7 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
   - Una prima versione con J2 sul bordo inferiore è stata abbandonata per la richiesta dei lati opposti.
   - Sbroglio con `route.sh`: DRC 0, parità 0.
 - **GPIO:** CAN A (backbone) TX GPIO23 / RX GPIO22, come sul nodo; CAN B (zona) TX GPIO20 / RX GPIO19.
-- **Firmware:** la bozza `bridge/esphome/bridge-c6-twai.yaml` passa `esphome config` (2026.8.0) composta con `node_core.yaml`, `bridge.yaml` e `tx_watchdog.yaml` di `esphome-devices`.
+- **Firmware:** la bozza del file scheda (oggi `boards/bridge-c6-twai.yaml`, ADR-0025) passa `esphome config` (2026.8.0) composta con `node_core.yaml`, `bridge.yaml` e `tx_watchdog.yaml` del monorepo.
 
 ## 2026-10-31 — Bridge compattato a 56 × 36 mm
 

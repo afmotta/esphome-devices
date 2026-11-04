@@ -1,4 +1,4 @@
-"""Placement sanity check: courtyard overlaps, parts outside the board or under the screws, silk legends too close to pads. Run from hardware/ after gen_pcb.py."""
+"""Placement sanity check: courtyard overlaps, parts outside the board or under the screws, silk legends too close to pads. Run from the project folder (hardware/nodo503/ or hardware/bridge/) after gen_pcb.py."""
 import itertools, pcbnew
 from design import W, H, OX, OY, EDGE_OVERHANG, HOLES, HOLE_KEEPOUT_R
 

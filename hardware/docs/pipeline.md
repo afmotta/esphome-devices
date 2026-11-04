@@ -1,6 +1,6 @@
 # Pipeline di generazione
 
-Tutto il progetto KiCad è prodotto da script Python che usano il modulo `pcbnew` di KiCad 7. Gli script stanno in `hardware/` e vanno eseguiti da lì (gli shell script fanno `cd` nella propria cartella).
+Tutto il progetto KiCad è prodotto da script Python che usano il modulo `pcbnew` di KiCad 7. Ogni scheda ha la propria copia degli script (`hardware/nodo503/`, `hardware/bridge/`, stessa struttura) da eseguire dalla cartella della scheda (gli shell script fanno `cd` nella propria cartella). Negli esempi sotto i nomi sono quelli del nodo (`nodo503.*`); nel bridge il progetto si chiama `bridgecan`. Le modifiche agli script non si propagano da una scheda all'altra.
 
 ```
 design.py ──► gen_sch.py ──► nodo503.kicad_sch, .kicad_pro, .kicad_sym, *-lib-table, .comp_uuid.json
