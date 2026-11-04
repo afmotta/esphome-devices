@@ -1,0 +1,121 @@
+# ESPHome configuration for the CAN 503 node (rev C), ESP32-C6-WROOM-1-N8.
+# First version: Wi-Fi + Home Assistant API + OTA + 6 push buttons.
+# CAN bus and I2C (Qwiic) are intentionally left out for now (see the
+# commented blocks at the bottom).
+
+substitutions:
+  name: nodo503-1
+  friendly_name: "Nodo 503 1"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Fallback hotspot if the Wi-Fi is not reachable
+  ap:
+    ssid: "${name}"
+    password: !secret ap_password
+
+captive_portal:
+
+# Pull-up (3.3k), series 1k and 100 nF filter are on the board, so no
+# internal pull-up; the line is pulled to GND when the button is pressed.
+binary_sensor:
+  - platform: status
+    name: "Stato"
+
+  - platform: gpio
+    name: "Pulsante 1"
+    id: btn1
+    pin:
+      number: GPIO7
+      inverted: true
+      mode: { input: true, pullup: false }
+    filters: &btn_filters
+      - delayed_on_off: 20ms
+
+  - platform: gpio
+    name: "Pulsante 2"
+    id: btn2
+    pin:
+      number: GPIO0
+      inverted: true
+      mode: { input: true, pullup: false }
+    filters: *btn_filters
+
+  - platform: gpio
+    name: "Pulsante 3"
+    id: btn3
+    pin:
+      number: GPIO1
+      inverted: true
+      mode: { input: true, pullup: false }
+    filters: *btn_filters
+
+  # Buttons 4-6 are on J4; leave them if J4 is not connected (they just
+  # stay off).
+  - platform: gpio
+    name: "Pulsante 4"
+    id: btn4
+    pin:
+      number: GPIO20
+      inverted: true
+      mode: { input: true, pullup: false }
+    filters: *btn_filters
+
+  - platform: gpio
+    name: "Pulsante 5"
+    id: btn5
+    pin:
+      number: GPIO19
+      inverted: true
+      mode: { input: true, pullup: false }
+    filters: *btn_filters
+
+  - platform: gpio
+    name: "Pulsante 6"
+    id: btn6
+    pin:
+      number: GPIO18
+      inverted: true
+      mode: { input: true, pullup: false }
+    filters: *btn_filters
+
+sensor:
+  - platform: wifi_signal
+    name: "Segnale Wi-Fi"
+    update_interval: 60s
+    entity_category: diagnostic
+
+# --- Later: CAN bus (TJA1051T/3, 125 kbit/s) ---------------------------------
+# canbus:
+#   - platform: esp32_can
+#     tx_pin: GPIO23
+#     rx_pin: GPIO22
+#     can_id: 0x101
+#     bit_rate: 125kbps
+#
+# --- Later: Qwiic I2C (no pull-ups on the board, QwiicBus provides them) -----
+# i2c:
+#   sda: GPIO3
+#   scl: GPIO2
+#   scan: true

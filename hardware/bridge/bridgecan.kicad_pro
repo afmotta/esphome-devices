@@ -1,0 +1,214 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1,
+        "copper_line_width": 0.2,
+        "copper_text_size_h": 1.5,
+        "copper_text_size_v": 1.5,
+        "copper_text_thickness": 0.3,
+        "silk_line_width": 0.12,
+        "silk_text_size_h": 0.8,
+        "silk_text_size_v": 0.8,
+        "silk_text_thickness": 0.12
+      },
+      "rules": {
+        "min_clearance": 0.15,
+        "min_track_width": 0.15,
+        "min_via_diameter": 0.5,
+        "min_through_hole_diameter": 0.3,
+        "min_hole_clearance": 0.25,
+        "min_hole_to_hole": 0.25,
+        "min_copper_edge_clearance": 0.3,
+        "min_silk_clearance": 0.0,
+        "min_text_height": 0.6,
+        "min_text_thickness": 0.1,
+        "min_annular_ring": 0.13,
+        "min_via_annular_width": 0.1,
+        "solder_mask_to_copper_clearance": 0.0
+      },
+      "track_widths": [
+        0.0,
+        0.25,
+        0.4,
+        0.6,
+        1.0
+      ],
+      "via_dimensions": [
+        {
+          "diameter": 0.0,
+          "drill": 0.0
+        },
+        {
+          "diameter": 0.6,
+          "drill": 0.3
+        }
+      ],
+      "rule_severities": {
+        "silk_overlap": "ignore",
+        "silk_over_copper": "ignore",
+        "silk_edge_clearance": "error",
+        "lib_footprint_issues": "ignore",
+        "lib_footprint_mismatch": "ignore",
+        "text_height": "ignore",
+        "text_thickness": "ignore"
+      }
+    }
+  },
+  "meta": {
+    "filename": "bridgecan.kicad_pro",
+    "version": 1
+  },
+  "net_settings": {
+    "classes": [
+      {
+        "name": "Default",
+        "clearance": 0.2,
+        "track_width": 0.25,
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "diff_pair_width": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "wire_width": 6,
+        "bus_width": 12,
+        "line_style": 0,
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)"
+      },
+      {
+        "name": "Bus",
+        "clearance": 0.25,
+        "track_width": 0.6,
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "diff_pair_width": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "wire_width": 6,
+        "bus_width": 12,
+        "line_style": 0,
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)"
+      },
+      {
+        "name": "CAN",
+        "clearance": 0.2,
+        "track_width": 0.4,
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "diff_pair_width": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "wire_width": 6,
+        "bus_width": 12,
+        "line_style": 0,
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)"
+      },
+      {
+        "name": "Power",
+        "clearance": 0.2,
+        "track_width": 0.6,
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "diff_pair_width": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "wire_width": 6,
+        "bus_width": 12,
+        "line_style": 0,
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)"
+      }
+    ],
+    "meta": {
+      "version": 3
+    },
+    "net_colors": null,
+    "netclass_assignments": null,
+    "netclass_patterns": [
+      {
+        "netclass": "Bus",
+        "pattern": "VBUS24"
+      },
+      {
+        "netclass": "Bus",
+        "pattern": "GND"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "CANH_A"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "CANL_A"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "CANH_B"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "CANL_B"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "TERM_A"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "TERM_B"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "V24F"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "V24P"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "+5V"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "5V_LDO"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "VBUS_PROG"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "+3V3"
+      }
+    ]
+  },
+  "erc": {
+    "rule_severities": {
+      "lib_symbol_issues": "ignore",
+      "footprint_link_issues": "ignore"
+    }
+  },
+  "schematic": {
+    "legacy_lib_dir": "",
+    "legacy_lib_list": []
+  },
+  "sheets": [
+    [
+      "6a1f3c2e-5b7d-4e8a-9c10-504504504504",
+      "Root"
+    ]
+  ],
+  "text_variables": {}
+}
