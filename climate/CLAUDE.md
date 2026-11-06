@@ -230,7 +230,7 @@ the component packages it includes (sensors, radiant, fancoil). For the real sha
 2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness (R-04): the HA tier
    reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
    connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
-   rides out an HA restart). For room sensors a frozen last value is never served indefinitely (other HA inputs such as outdoor temperature are not yet gated: R-12, R-08).
+   rides out an HA restart). A frozen last value is never served indefinitely; the outdoor temperature (`climate/outdoor.yaml`) uses the same gate (R-12).
    While only `soggiorno` has a CAN sensor node (`registry/map.json`), the other 13 of the 14 zones depend only on this tier, so an HA outage longer than the
    grace puts those zones in Emergency — relay/analog/MEV actuation stays autonomous, but without
    room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs`
