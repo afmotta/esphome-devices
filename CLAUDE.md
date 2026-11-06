@@ -460,14 +460,8 @@ external_components:
 - Ensure all substitution variables are defined
 - Check ESPHome version (min 2026.8.0 — the one repo baseline; the T-Connect Pro / An-Penta boards require it for multi-interface `network:`)
 
-**Sensor Failover**:
-- Check failover logs in Home Assistant
-- Ensure the CAN sensor-kit path (Tier 1) is available and updating
-- Verify Home Assistant sensors (Tier 2) are arriving when CAN drops out
-- Monitor for zones sitting in Emergency (all sensor tiers NaN)
-
-Climate-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
-sensor-address appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
+Climate-specific troubleshooting (sensor failover, Modbus issues, PID tuning) and the Modbus
+register/relay/bus-member appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
 
 ---
 
