@@ -3,7 +3,7 @@
 Nodo per la domotica CAN del fienile, da montare in scatola 503: un morsetto per 24 V e bus CAN, transceiver TJA1051T/3, 6 ingressi pulsante, porta Qwiic (I²C) e modulo **ESP32-C6-WROOM-1-N8** (LCSC C5366877) con Wi-Fi per ESPHome e aggiornamenti OTA. È pensato per il montaggio completo da JLCPCB, con tutti i componenti su un solo lato.
 
 - **Dimensioni:** 55 × 33,5 mm (entro i 56 × 41 mm della CANBed RP2040), 2 strati, spessore 1,6 mm, rame 1 oz
-- **Fissaggio:** 2 fori M2,5 non metallizzati (Ø 2,7 mm) in diagonale, in alto a destra e in basso a sinistra, con il centro a 3 mm dai bordi: interasse **49 × 27,5 mm**. Entro 2,8 mm dal centro di ogni foro non ci sono componenti, piste né via, così la testa della vite (fino a Ø 5 mm) appoggia solo su piano di massa coperto da solder mask. L'angolo dell'antenna (in alto a sinistra) resta senza vite: nel case conviene un appoggio o un incastro sugli altri due angoli.
+- **Fissaggio:** 2 fori M2,5 non metallizzati (Ø 2,7 mm) in diagonale, in alto a destra e in basso a sinistra, con il centro a 3 mm dai bordi: interasse **49 × 27,5 mm**. Entro 2,8 mm dal centro di ogni foro non ci sono componenti, piste né via, così la testa della vite (fino a Ø 5 mm) appoggia solo su piano di massa coperto da solder mask. L'angolo dell'antenna (in alto a sinistra) resta senza vite: nel case ci sono due appoggi sotto gli angoli senza vite (vedi [case/README.md](case/README.md)).
 - **Progetto:** KiCad 7 (si apre anche in KiCad 8/9)
 - **Simbolo e footprint del modulo:** dalla libreria ufficiale [espressif/kicad-libraries](https://github.com/espressif/kicad-libraries), licenza CC-BY-SA 4.0. Il footprint comprende anche l'area dell'antenna senza rame.
 
@@ -24,6 +24,7 @@ Percorsi relativi a `hardware/nodo503/`.
 | `jlc_library.json` | Libreria JLCPCB (Basic / Preferred / Extended) di ogni codice LCSC |
 | `*.py`, `*.sh` | Script che generano schema, PCB, sbroglio e file di produzione (vedi [../docs/pipeline.md](../docs/pipeline.md)) |
 | `firmware/nodo503.yaml` | Firmware ESPHome di bring-up (Wi-Fi, API, OTA, 6 pulsanti) |
+| [`case/`](case/README.md) | Involucro stampato in 3D (fondo + coperchio a scatto): generatore `gen_case.py`, STL e anteprima |
 | [`../docs/decisioni.md`](../docs/decisioni.md) | Storia del progetto e motivazioni delle scelte |
 | [`../docs/pipeline.md`](../docs/pipeline.md) | Come rigenerare tutto, struttura degli script, problemi noti |
 | [`../CLAUDE.md`](../CLAUDE.md) | Regole per le sessioni di Claude Code su `hardware/` |
