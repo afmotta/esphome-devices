@@ -556,16 +556,15 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
 
 ### Safety Considerations
 
-- **No Hardcoded Secrets**: Always use `!secret` references
 - **Sensor Failover**: Always implement failover for critical sensors
 - **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
 - **Testing**: Never skip testing on critical climate control code
-- **Version Control**: Commit working states frequently
-- **OTA Safety**: Test OTA updates on non-production boards first
+
+Secrets, OTA and git rules are house-wide: see the root `CLAUDE.md`.
 
 ### Performance Optimization
 
-- **Polling Intervals**: Don't poll Modbus I/O boards more frequently than necessary (relay/analog 2s, MEV 30s — see `climate/CLAUDE.md`)
+- **Polling Intervals**: Don't poll Modbus I/O boards more frequently than necessary (see "Polling Intervals" above)
 - **Update Intervals**: Balance responsiveness vs. network traffic
 - **Logger Level**: Use INFO in production, DEBUG only for troubleshooting
 - **Conditional Compilation**: Disable unused features
