@@ -463,6 +463,7 @@ logger:
 Common issues:
 - Wrong baud rate/parity (target 38400 8E1 — see Appendix C)
 - Incorrect address
+- Wrong register addresses or data types
 - Missing termination resistors
 - Swapped A/B wires
 - Too many devices on bus (> 30)
@@ -553,15 +554,7 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
 - For zones with a fancoil or boost coordinator use `pid_autotune_with_fancoil.yaml` (ends boost and
   turns the fancoil PID off first) and run it in HEAT.
 
-### Debugging Modbus and PID issues
-
-**Modbus Issues**:
-- Enable DEBUG logging for `modbus_controller`
-- Check register addresses and data types
-- Verify baud rate/parity (target 38400 8E1 — see Appendix C)
-- Inspect RS485 wiring and termination
-
-**PID Tuning**:
+**PID tuning tips** (Modbus debugging: see "Debugging Modbus Issues" under Common Tasks):
 - Use auto-tune feature first (`pid_autotune.yaml`)
 - Start with conservative gains (low Kp, very low Ki/Kd)
 - Increase gradually while monitoring stability
