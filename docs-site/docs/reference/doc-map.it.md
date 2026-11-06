@@ -49,7 +49,8 @@ La cartella `docs/` del repository (non la `docs-site/` di questo sito) contiene
 alcuni documenti (tutti in `docs/archive/`) che descrivono una generazione precedente e ritirata dell'hardware
 (schede Kincony KC868-A6 / A16, una topologia di controller master/slave, e sensori
 ambiente basati su Modbus). Quella generazione è stata completamente sostituita
-dall'attuale hardware LilyGO T-Connect Pro e dal design a master unico. Questi file
+dall'attuale hardware LilyGO T-Connect Pro e dal design a master unico. Nella stessa cartella ci
+sono anche il brief originale del progetto e proposte già realizzate. Questi file
 sono conservati solo come documentazione storica — **non seguirli per il lavoro
 attuale**:
 

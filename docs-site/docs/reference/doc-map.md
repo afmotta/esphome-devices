@@ -47,7 +47,8 @@ The repository's `docs/` folder (not this site's `docs-site/`) contains some
 documents (all under `docs/archive/`) that describe an earlier, retired generation of hardware (Kincony KC868-A6 /
 A16 boards, a master/slave controller topology, and Modbus-based room sensors). That
 generation was fully replaced by the current LilyGO T-Connect Pro hardware and
-single-master design. These files are kept only as historical record — **do not follow
+single-master design. The same folder also keeps the original project brief and proposals already
+carried out. These files are kept only as historical record — **do not follow
 them for current work**:
 
 | File | What it covers | Superseded by |
