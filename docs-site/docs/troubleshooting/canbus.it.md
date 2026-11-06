@@ -229,8 +229,8 @@ permanente, `ERR_CAN_TX_FAIL`. Anche i nodi normali segnalano
 azzera da solo appena il controller accetta un heartbeat, quindi un `canbus_node_error` che
 va e viene indica un tratto di bus instabile. 🔵 PROGETTATO
 
-Se il controller CAN di un nodo basato su ESP32 (il bridge T-2CAN e i
-controller LED An-Penta e An-Quad) esce dal bus dopo un grave guasto
+Se il controller CAN di un nodo basato su ESP32 (i bridge T-2CAN ed ESP32-C6,
+i nodi pulsanti a parete ESP32-C6 e i controller LED An-Penta e An-Quad) esce dal bus dopo un grave guasto
 elettrico, non riesce a rientrare da solo. Questi nodi lo controllano: se il
 loro heartbeat viene rifiutato per circa 5 minuti di fila si riavviano da
 soli. Se il bus resta morto rallentano (i riavvii si distanziano, fino a
