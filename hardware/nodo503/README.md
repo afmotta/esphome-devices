@@ -100,7 +100,7 @@ Nessuna terminazione da 120 Ω sulla scheda: il bus va terminato agli estremi de
 
 Il file `firmware/nodo503.yaml` è una prima versione per collegare il nodo a Home Assistant: Wi-Fi, API cifrata, OTA, 6 pulsanti (GPIO7/0/1 e 20/19/18) e segnale Wi-Fi. CAN e I²C sono lasciati commentati in fondo al file.
 
-1. Copia `nodo503/firmware/secrets.yaml.example` in `nodo503/firmware/secrets.yaml` (ignorato da git) e compila SSID, password e chiavi.
+1. Copia `firmware/secrets.yaml.example` in `firmware/secrets.yaml` (ignorato da git) e compila SSID, password e chiavi.
 2. Dalla cartella `firmware/` esegui `esphome run nodo503.yaml` (o carica il file nella dashboard ESPHome). Il primo flash è via USB su J5, dopo si può usare l'OTA.
 3. Home Assistant scopre il dispositivo da solo (Impostazioni → Dispositivi → ESPHome).
 
