@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Check that relative links in tracked Markdown files point at existing files.
 
-Covers inline `[text](path)` links outside code. Not checked: images, reference-style
-definitions (`[x]: path`), `<...>` targets, single-quoted titles and `#anchor` fragments.
+Covers inline `[text](path)` links outside code. Not checked (never matched): images,
+reference-style definitions (`[x]: path`), targets with a single-quoted title or a space, and
+`#anchor` fragments. Not supported (mis-parsed and reported broken): `<...>` targets and targets
+containing `)`.
 """
 
 from __future__ import annotations
