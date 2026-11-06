@@ -241,14 +241,14 @@ packages:
 
 The codebase uses ESPHome's `packages` feature extensively for modularity and reusability.
 
-### Hierarchy
+#### Hierarchy
 
 ```
 Device Config (devices/climate-control.yaml)
 ├── Board Package (boards/t-connect-pro.yaml)
 │   └── Network: ethernet + wifi declared inline (network: priority:, ADR-0022)
 ├── Hardware Packages (packages/devices/modbus-io/modbus_relay_board.yaml)
-└── Floor Packages (climate/rooms/*/floor.yaml)
+└── Floor Packages (climate/rooms/*/*-floor.yaml)
     └── Room Packages (climate/rooms/*/*.yaml)
         ├── Sensors (climate/room_sensors.yaml)
         ├── Radiant (climate/packages/components/radiant.yaml)
@@ -256,7 +256,7 @@ Device Config (devices/climate-control.yaml)
         └── Boost Coordinator (climate/packages/coordinators/fancoil_boost.yaml)
 ```
 
-### Variable Passing Pattern
+#### Variable Passing Pattern
 
 ```yaml
 # Parent includes child with parameters
