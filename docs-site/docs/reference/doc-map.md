@@ -56,17 +56,19 @@ them for current work**:
 | `docs/archive/sensor-technology-selection.md` | The original (later reversed) decision to use Modbus room sensors | Room sensing over CAN bus / Home Assistant, `climate/room_sensors.yaml` |
 | `docs/archive/0-10v-adapter-setup-guide.md` | Setting up a generic AliExpress 0–10V Modbus adapter | The Waveshare Modbus RTU Analog Output 8CH (B) board — see [Hardware & Address Table](hardware-table.md) |
 | `docs/archive/modbus-register-map.md` | The full register map for the old KC868-A6-based master/slave system | The current, much smaller Modbus footprint described in [Hardware & Address Table](hardware-table.md) |
+| `docs/archive/product-brief.md` | The original brownfield project brief | `docs/architecture/ARCHITECTURE-SPINE.md` |
+| `docs/archive/merge-into-esphome-devices-proposal.md` | The proposal to merge the CAN bus repository into this one (done 2026-07-05) | `docs/architecture/ARCHITECTURE-SPINE.md` |
 
 Most of these files carry their own "historical document" notice at the top if you do
 open them directly — that notice is accurate and you should believe it. The other
-files under `docs/` (`docs/climate/`: deployment runbook, weather-compensation notes, wiring guides,
+files under `docs/` (`docs/climate/`: deployment runbook, heat-pump integration, RS485 wiring guide,
 window-sensor mapping, and so on) are current and not part of this list.
 
 ## A minor footnote: orphaned board files
 
 The repository's `boards/` folder holds hardware definitions for every board the
-project has ever used. A handful of them are leftovers from the retired hardware
-generation above and are no longer referenced by any device: the unused
+project has ever used. One of them is a leftover from the retired hardware
+generation above and is no longer referenced by any device: the unused
 `waveshare-s3.yaml` relay board (as opposed to
 `waveshare-s3-rs485-can.yaml`, which **is** the one actually used, by the CAN bus
 health monitor). The 2026.8.0 network consolidation (ADR-0022) merged Ethernet+WiFi

@@ -59,18 +59,20 @@ attuale**:
 | `docs/archive/sensor-technology-selection.md` | La decisione originale (poi ribaltata) di usare sensori ambiente Modbus | Rilevamento ambiente via bus CAN / Home Assistant, `climate/room_sensors.yaml` |
 | `docs/archive/0-10v-adapter-setup-guide.md` | Configurazione di un generico adattatore Modbus 0–10V da AliExpress | La scheda Waveshare Modbus RTU Analog Output 8CH (B) — vedi [Tabella hardware e indirizzi](hardware-table.md) |
 | `docs/archive/modbus-register-map.md` | La mappa completa dei registri del vecchio sistema master/slave basato su KC868-A6 | L'attuale impronta Modbus, molto più piccola, descritta in [Tabella hardware e indirizzi](hardware-table.md) |
+| `docs/archive/product-brief.md` | Il brief originale del progetto brownfield | `docs/architecture/ARCHITECTURE-SPINE.md` |
+| `docs/archive/merge-into-esphome-devices-proposal.md` | La proposta di unire il repository del bus CAN a questo (fatto il 2026-07-05) | `docs/architecture/ARCHITECTURE-SPINE.md` |
 
 La maggior parte di questi file riporta un proprio avviso "documento storico" in cima
 se li apri direttamente — quell'avviso è accurato e va creduto. Gli altri file sotto
-`docs/` (in `docs/climate/`: runbook di distribuzione, note sulla compensazione climatica, guide di
-cablaggio, mappatura dei sensori finestra, e così via) sono attuali e non fanno parte
+`docs/` (in `docs/climate/`: runbook di distribuzione, integrazione della pompa di calore, guida di
+cablaggio RS485, mappatura dei sensori finestra, e così via) sono attuali e non fanno parte
 di questo elenco.
 
 ## Una nota a margine: file scheda orfani
 
 La cartella `boards/` del repository contiene le definizioni hardware per ogni scheda
-mai usata dal progetto. Alcune di esse sono residui della generazione hardware
-ritirata sopra descritta e non sono più referenziate da alcun dispositivo: la scheda
+mai usata dal progetto. Una di esse è un residuo della generazione hardware
+ritirata sopra descritta e non è più referenziata da alcun dispositivo: la scheda
 relè inutilizzata `waveshare-s3.yaml` (a differenza
 di `waveshare-s3-rs485-can.yaml`, che **è** quella effettivamente usata, dal monitor di
 salute del bus CAN). Il consolidamento di rete della 2026.8.0 (ADR-0022) ha unito
