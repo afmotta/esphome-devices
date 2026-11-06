@@ -138,3 +138,10 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 
 - Arrivate le schede demo; prima programmazione via USB nativo su J5 (un bridge UART con DCD/DTR/DSR non è utilizzabile, J5 non espone TX/RX).
 - Aggiunto `firmware/nodo503.yaml`: Wi-Fi, API cifrata, OTA e 6 pulsanti con `delayed_on_off: 20ms`. Per ora solo collegamento a Home Assistant: il bus CAN non è ancora testato e resta commentato nel file, come l'I²C.
+
+## 2026-11-06 — Involucro stampato in 3D per il nodo
+
+- Aggiunta `nodo503/case/`: fondo + coperchio a scatto, generati da `gen_case.py` (Python con `manifold3d`, gira anche su macOS senza KiCad). Dimensioni e fori vengono da `design.py`, le aperture dai courtyard del `.kicad_pcb`: l'involucro segue la scheda se la si rigenera. Lo script controlla le interferenze con componenti, spine e cavi modellati.
+- Scheda fissata con le due viti M2,5 corte (autofilettanti × 6) su colonnine del fondo, più due appoggi sotto gli angoli senza vite. Il coperchio è indipendente (scatto), così si apre senza svitare la scheda. Scartata la vite lunga che chiude coperchio e scheda insieme: con 11 mm sopra la scheda servirebbe una M2,5 × 20 con troppo poco materiale sotto la colonnina.
+- Spina J1 fuori dalla scatoletta (finestra sul lato destro), Qwiic da una tacca nella parete superiore, cavi PH da una fessura nel coperchio aperta verso il bordo (il coperchio si chiude a cavi innestati). Nessuna apertura per J5: prima programmazione a coperchio aperto, poi OTA.
+- Altezze dei componenti stimate da datasheet (K7805 10 mm, J1 8,6 mm): da misurare sulle schede demo, vedi `case/README.md`.
