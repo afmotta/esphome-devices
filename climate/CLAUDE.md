@@ -365,16 +365,15 @@ cools — the floor's dew-point sources and supply-minimum room list, which must
 
 ### Modifying PID Parameters
 
-PID parameters are set at component inclusion:
+Per-room gains are `vars:` on the room's radiant include (`radiant.yaml` forwards them through
+`heat_only_radiant.yaml` to `pid.yaml`, which no room includes directly); defaults and ranges are in
+[Appendix D](#d-pid-tuning-guidelines):
 
 ```yaml
-packages:
-  pid: !include
-    file: pid.yaml
+  radiant: !include
+    file: ../../packages/components/radiant.yaml
     vars:
-      circuit_slug: "radiant_soggiorno"
-      circuit_name: "Radiant Soggiorno"
-      sensor: sensor.soggiorno_temp
+      relay_id: relay_9
       kp: 0.8      # Proportional gain
       ki: 0.005    # Integral gain
       kd: 0.05     # Derivative gain
