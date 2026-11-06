@@ -12,7 +12,7 @@ points that compose Climate packages (`devices/climate-control.yaml` and its
 
 ## What's here
 
-- `rooms/` — room and floor-aggregator configs (13 rooms across 3 floors),
+- `rooms/` — room and floor-aggregator configs (14 rooms across 3 floors),
   each including PID/radiant/fancoil packages from `climate/packages/components/`
 - `packages/components/`, `packages/coordinators/` — Climate-owned reusable ESPHome
   packages for PID/radiant/fancoil/failover/demand logic and orchestration
@@ -25,7 +25,7 @@ points that compose Climate packages (`devices/climate-control.yaml` and its
 
 ### System Capabilities
 
-- **Multi-zone climate control**: 13 independently controlled temperature zones across 3 floors
+- **Multi-zone climate control**: 14 independently controlled temperature zones across 3 floors
 - **Dual-mode operation**: Radiant floor heating/cooling + fancoil units. Each actuator has one PID whose heat and cool outputs are *separate* template outputs gated on the heat pump's mode (`hp_mode`: HEAT → heat only, COOL → cool only, SANITARY_ONLY → neither; `climate/protocol/pid_direction.h`, review R-01), so a PID can only actuate in the direction the water actually flows. Fancoils declare a `fancoil_role` (`boost`, `cool_only`, `heat_cool`)
 - **Hybrid radiant + fancoil cooling ("base + boost")**: radiant floor/ceiling provides efficient baseline comfort; fancoils activate as a responsive boost layer when radiant cannot meet demand — evaluated independently per room (`climate/packages/coordinators/fancoil_boost.yaml`)
 - **Advanced PID control**: Precise temperature management with auto-tuning
@@ -33,14 +33,14 @@ points that compose Climate packages (`devices/climate-control.yaml` and its
 - **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
 - **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
 - **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
-- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain (`climate/room_sensors.yaml`), and until CAN nodes exist an HA outage (no state-subscribed API client) over 300 s puts 12 of 13 zones in Emergency (PID outputs 0)
+- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain (`climate/room_sensors.yaml`), and while only `soggiorno` has a CAN sensor node (`registry/map.json`) an HA outage (no state-subscribed API client) over 300 s puts the other 13 of 14 zones in Emergency (PID outputs 0)
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
 - **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency: NaN, PID outputs 0)
 
 ### Building Layout
 
 - **Ground Floor (Piano Terra)**: 5 zones (soggiorno/living room, cucina/kitchen, bagno/bathroom, anticamera/entry hall, locale tecnico/technical room)
-- **First Floor (Primo Piano)**: 8 zones (4 bedrooms, 4 bathrooms, laundry room)
+- **First Floor (Primo Piano)**: 8 zones (4 bedrooms, 3 bathrooms, laundry room)
 - **Second Floor (Secondo Piano)**: 1 zone (sottotetto/attic)
 
 
@@ -281,7 +281,7 @@ packages:
    reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
    connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
    rides out an HA restart). For room sensors a frozen last value is never served indefinitely (other HA inputs such as outdoor temperature are not yet gated: R-12, R-08).
-   Until CAN nodes exist, 12 of the 13 zones depend only on this tier, so an HA outage longer than the
+   While only `soggiorno` has a CAN sensor node (`registry/map.json`), the other 13 of the 14 zones depend only on this tier, so an HA outage longer than the
    grace puts those zones in Emergency — relay/analog/MEV actuation stays autonomous, but without
    room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs`
    sessions on `--no-states` during outage tests: a plain session counts as an HA connection.

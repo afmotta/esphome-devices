@@ -8,7 +8,7 @@ Otherwise — welcome. This is the maintenance and support guide for the house's
 
 - **`canbus`** — a wiring bus (CAN bus) that lets wall buttons and room sensors talk to the rest of the house over a pair of shared wires, plus a "health monitor" device that watches for anything that's gone quiet.
 - **`lighting`** — listens for button presses coming over the CAN bus and turns them into light switching, through a relay board.
-- **`climate`** — runs heating, cooling, and ventilation for 13 rooms across 3 floors: it reads room temperature/humidity (arriving over the CAN bus), decides what each room needs, and drives pumps, valves, and fans through Modbus-controlled relay and analog-output boards.
+- **`climate`** — runs heating, cooling, and ventilation for 14 rooms across 3 floors: it reads room temperature/humidity (arriving over the CAN bus), decides what each room needs, and drives pumps, valves, and fans through Modbus-controlled relay and analog-output boards.
 
 Each system has its own, more detailed guide pages under **Troubleshooting** and **Hardware Died**. This page is only the map.
 

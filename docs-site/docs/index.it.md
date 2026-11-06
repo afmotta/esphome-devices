@@ -8,7 +8,7 @@ Altrimenti — benvenuto. Questa è la guida di manutenzione e supporto per l'im
 
 - **`canbus`** — un bus di cablaggio (CAN bus) che permette a interruttori a muro e sensori ambiente di comunicare con il resto della casa attraverso una coppia di fili condivisi, più un dispositivo "monitor di salute" che verifica se qualcosa è rimasto silenzioso.
 - **`lighting`** — ascolta le pressioni dei pulsanti che arrivano dal bus CAN e le trasforma in comandi di accensione/spegnimento luci, tramite una scheda relè.
-- **`climate`** — gestisce riscaldamento, raffrescamento e ventilazione per 13 stanze su 3 piani: legge temperatura/umidità di ogni stanza (in arrivo dal bus CAN), decide di cosa ha bisogno ciascuna stanza, e comanda pompe, valvole e ventole tramite schede relè e uscite analogiche pilotate via Modbus.
+- **`climate`** — gestisce riscaldamento, raffrescamento e ventilazione per 14 stanze su 3 piani: legge temperatura/umidità di ogni stanza (in arrivo dal bus CAN), decide di cosa ha bisogno ciascuna stanza, e comanda pompe, valvole e ventole tramite schede relè e uscite analogiche pilotate via Modbus.
 
 Ogni sistema ha le proprie pagine di guida più dettagliate sotto **Risoluzione problemi** e **Guasto hardware**. Questa pagina è solo la mappa.
 

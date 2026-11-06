@@ -32,7 +32,7 @@
 # HA tier staleness (R-04): the raw `homeassistant` sensor has no staleness of its
 # own -- when the API link to HA drops it keeps its last value forever, which would
 # freeze the PIDs, the dew-point protection and the fancoil boost on a stale
-# reading. 12 of 13 zones have no CAN node yet and rely on this tier alone. Two
+# reading. 13 of 14 zones have no CAN node yet (only soggiorno does) and rely on this tier alone. Two
 # rules, both resolving to NaN (= Emergency, PID outputs drop to 0 immediately):
 #   1. HA reports `unavailable`/`unknown` -> the raw sensor publishes NaN. There is
 #      deliberately no `filter_out: nan` on it: that filter used to swallow exactly
