@@ -501,21 +501,14 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
 
 ## Operating principles
 
-### Safety Considerations
-
-- **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
-
 Secrets, OTA and git rules are house-wide: see the root `CLAUDE.md`.
 
-### Performance Optimization
-
-- **Polling Intervals**: Don't poll Modbus I/O boards more frequently than necessary (see "Polling Intervals" above)
 - **Logger Level**: Use INFO in production, DEBUG only for troubleshooting
 
 ### Home Assistant Integration
 
 - **Dual Operation**: Design actuation to run autonomously; HA enhances monitoring/overrides
-- **Sensor Failover**: Room sensors are CAN-primary with a Home Assistant fallback tier (`climate/room_sensors.yaml`) — always keep a non-HA tier for critical sensors
+- **Sensor Failover**: Room sensors are CAN-primary with a Home Assistant fallback tier (`climate/room_sensors.yaml`). The target is a non-HA tier for every critical sensor; today only `soggiorno` has one, so the other zones fall to Emergency on an HA outage (see [Sensor failover architecture](#sensor-failover-architecture))
 - **Entity Exposure**: Expose diagnostic sensors for monitoring
 - **Friendly Names**: Use clear, descriptive names for HA entities
 

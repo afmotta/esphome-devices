@@ -440,7 +440,7 @@ external_components:
 - **Comments**: Explain WHY, not WHAT (code shows what)
 - **YAML Formatting**: Consistent 2-space indentation, no tabs
 - **Modular Design**: Keep components small and single-purpose
-- **Never hardcode secrets** — always `!secret`; safety, failover and Home Assistant principles for the climate system are in `climate/CLAUDE.md` (Operating principles)
+- **Never hardcode secrets** — always `!secret`; the climate system's Home Assistant principles are in `climate/CLAUDE.md` (Operating principles), its failover and Emergency rules in its Sensor failover architecture section
 
 ---
 
