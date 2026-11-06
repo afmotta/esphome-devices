@@ -104,18 +104,7 @@ first_floor_mev_alarm_active         # Master alarm indicator
 
 **Key Insight**: PID is a *mode of operation* ("radiant under PID control"), not a separate component. This keeps the model flat with a maximum of 4 segments.
 
-**Italian Terms** (used throughout):
-- `soggiorno` = living room
-- `cucina` = kitchen
-- `bagno` = bathroom
-- `camera` = bedroom
-- `anticamera` = entry hall
-- `lavanderia` = laundry room
-- `sottotetto` = attic
-- `locale_tecnico` = technical room
-- `piano_terra` = ground floor
-- `primo_piano` = first floor
-- `secondo_piano` = second floor
+Italian room and floor names are listed in [Italian terminology](#italian-terminology).
 
 ## PID Control Architecture
 
@@ -578,7 +567,6 @@ Secrets, OTA and git rules are house-wide: see the root `CLAUDE.md`.
 
 ## Italian terminology
 
-
 The system was developed for an Italian residence, so many entity names use Italian terminology:
 
 | Italian | English | Context |
@@ -590,15 +578,11 @@ The system was developed for an Italian residence, so many entity names use Ital
 | anticamera | entry hall / foyer | Ground floor zone |
 | lavanderia | laundry room | First floor utility |
 | sottotetto | attic | Second floor only zone |
-| locale tecnico | technical room | Houses HVAC equipment |
-| piano terra | ground floor | Building level 0 |
-| primo piano | first floor | Building level 1 |
-| secondo piano | second floor | Building level 2 |
-| gruppo miscelazione | mixing valve group | Historical Gen-1 master controller name (retired) |
-| distribuzione | distribution | Historical Gen-1 slave-board naming pattern (retired) |
+| locale_tecnico | technical room | Houses HVAC equipment |
+| piano_terra | ground floor | Building level 0 |
+| primo_piano | first floor | Building level 1 |
+| secondo_piano | second floor | Building level 2 |
 | radiante | radiant | Radiant floor heating/cooling |
-
-**Note**: Comments and documentation are in English, but entity IDs often use Italian room names.
 
 ## The room_slug contract with canbus
 
