@@ -504,18 +504,14 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
 
 ### Safety Considerations
 
-- **Sensor Failover**: Always implement failover for critical sensors
 - **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
-- **Testing**: Never skip testing on critical climate control code
 
 Secrets, OTA and git rules are house-wide: see the root `CLAUDE.md`.
 
 ### Performance Optimization
 
 - **Polling Intervals**: Don't poll Modbus I/O boards more frequently than necessary (see "Polling Intervals" above)
-- **Update Intervals**: Balance responsiveness vs. network traffic
 - **Logger Level**: Use INFO in production, DEBUG only for troubleshooting
-- **Conditional Compilation**: Disable unused features
 
 ### Home Assistant Integration
 
