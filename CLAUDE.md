@@ -191,7 +191,6 @@ esphome-devices/
 #### Board Configs (`boards/`)
 - Pattern: `[board_model]-[optional_variant].yaml`
 - Examples: `t-connect-pro.yaml`, `s1-pro-multi-sense.yaml`
-- Network configs: `[board]-ethernet.yaml`, `[board]-wifi.yaml`
 
 #### Component Configs (`climate/`)
 - Pattern: `[component_type]_[variant].yaml` or `[feature].yaml`

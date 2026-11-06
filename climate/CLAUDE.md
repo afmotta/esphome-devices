@@ -256,14 +256,6 @@ Device Config (devices/climate-control.yaml)
         └── Boost Coordinator (climate/packages/coordinators/fancoil_boost.yaml)
 ```
 
-### Conditional Package Inclusion
-
-```yaml
-# Enable/disable features with substitutions
-packages:
-  network: ${ethernet_package if enable_ethernet else wifi_package}
-```
-
 ### Variable Passing Pattern
 
 ```yaml
