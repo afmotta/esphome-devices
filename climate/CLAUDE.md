@@ -195,11 +195,9 @@ Room temperature/humidity control data does **not** travel over this bus — it 
 
 ## Package composition patterns
 
-### Package Composition Pattern
-
 The codebase uses ESPHome's `packages` feature extensively for modularity and reusability.
 
-#### Hierarchy
+### Hierarchy
 
 ```
 Device Config (devices/climate-control.yaml)
@@ -215,7 +213,7 @@ Device Config (devices/climate-control.yaml)
         └── Boost Coordinator (climate/packages/coordinators/fancoil_boost.yaml)
 ```
 
-#### Room files
+### Room files
 
 Floor aggregators include each room file bare (`soggiorno: !include soggiorno.yaml`). The room file
 sets its own `defaults:` (`room_slug`, `room_name`, `temperature_sensor`) and passes `vars:` only to
