@@ -202,30 +202,6 @@ Room temperature/humidity control data does **not** travel over this bus — it 
 
 ## Package composition patterns
 
-### Variable Substitution
-```yaml
-# Substitution syntax
-${variable_name}
-
-# Default values
-${variable_name:default_value}
-
-# Example
-sensor: ${temperature_sensor:sensor.default_temp}
-```
-
-### Component Parameterization Pattern
-```yaml
-packages:
-  component: !include
-    file: component.yaml
-    vars:
-      slug: "entity_id"
-      name: "Display Name"
-      sensor: sensor.temperature
-      param: value
-```
-
 ### Package Composition Pattern
 
 The codebase uses ESPHome's `packages` feature extensively for modularity and reusability.
@@ -236,7 +212,8 @@ The codebase uses ESPHome's `packages` feature extensively for modularity and re
 Device Config (devices/climate-control.yaml)
 ├── Board Package (boards/t-connect-pro.yaml)
 │   └── Network: ethernet + wifi declared inline (network: priority:, ADR-0022)
-├── Hardware Packages (packages/devices/modbus-io/modbus_relay_board.yaml)
+├── Hardware Packages (packages/devices/modbus-io/modbus_relay_board_32ch.yaml,
+│                      modbus_analog_outputs_board.yaml)
 └── Floor Packages (climate/rooms/*/*-floor.yaml)
     └── Room Packages (climate/rooms/*/*.yaml)
         ├── Sensors (climate/room_sensors.yaml)
@@ -245,21 +222,12 @@ Device Config (devices/climate-control.yaml)
         └── Boost Coordinator (climate/packages/coordinators/fancoil_boost.yaml)
 ```
 
-#### Variable Passing Pattern
+#### Room files
 
-```yaml
-# Parent includes child with parameters
-packages:
-  room: !include
-    file: rooms/ground_floor/soggiorno.yaml
-    vars:
-      room_slug: "soggiorno"
-      room_name: "Soggiorno"
-      temperature_sensor: sensor.soggiorno_temp
-      humidity_sensor: sensor.soggiorno_humidity
-      radiant_relay: relay_1
-      fancoil_relay: relay_5
-```
+Floor aggregators include each room file bare (`soggiorno: !include soggiorno.yaml`). The room file
+sets its own `defaults:` (`room_slug`, `room_name`, `temperature_sensor`) and passes `vars:` only to
+the component packages it includes (sensors, radiant, fancoil). For the real shape see
+[Adding a New Room](#adding-a-new-room).
 
 ## Sensor failover architecture
 
