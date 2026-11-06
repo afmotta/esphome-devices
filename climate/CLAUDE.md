@@ -183,14 +183,7 @@ only if the boost is still running and `hp_mode` is COOL) instead of restoring a
 
 ## Modbus Communication Architecture
 
-**Single-master pattern** (ADR-0014): one T-Connect Pro controller is the sole Modbus RTU master on `rs485_bus` (RS485, target 38400 8E1, pending the bring-up parity check noted in ADR-0014 §4). There are no slave boards — every Modbus device is a commodity I/O board the master polls/writes directly:
-
-| Device | Address | Role |
-|---|---|---|
-| Analog Outputs Board (Waveshare Modbus RTU Analog Output 8CH (B)) | `0x1` | 0-10V fancoil/valve modulation, channels → `analog_output_1..8` |
-| Relay Board (Waveshare Modbus RTU Relay 32CH) | `0x2` | Radiant/fancoil/pump switching, channels → `relay_1..32` |
-| MEV first floor (Cappellotto Air Fresh I) | `0x10` | Ventilation + humidity cascade, see `climate/mev_modbus.yaml` for its register set |
-| MEV ground floor (Innova HRP DOMO 60 HX) | `0x11` | Passive enthalpic HRV; CO2/air-quality + humidity ventilation demand, fan-only (no cascade), see `climate/mev_innova_modbus.yaml` (ADR-0018) |
+**Single-master pattern** (ADR-0014): one T-Connect Pro controller is the sole Modbus RTU master on `rs485_bus` (RS485, target 38400 8E1, pending the bring-up parity check noted in ADR-0014 §4). There are no slave boards — every Modbus device is a commodity I/O board the master polls/writes directly (bus members and addresses: [Appendix C](#c-modbus-bus-members)).
 
 Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per room in the floor files (`climate/rooms/first_floor/first-floor.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`) and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5). Ground-floor rooms have no air-quality CAN kit registered yet, so their MEV's air-quality channel floors at minimum fan until the kits arrive; its humidity channel is live already (room humidity is sensed) (ADR-0018).
 
@@ -467,7 +460,7 @@ Fancoil units have no dedicated relay of their own — each floor's fancoil circ
 | MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor; `climate/mev_modbus.yaml` |
 | MEV (Innova HRP DOMO 60 HX) | `0x11` | `rs485_bus` | Ground floor; enthalpic HRV; CO2/air-quality + humidity, fan-only; `climate/mev_innova_modbus.yaml` (ADR-0018) |
 
-Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `climate/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and the two MEVs (`0x10`, `0x11`) are climate-only addresses with no gateway-side counterpart to mirror against.
+Room data is not on this bus (see Modbus Communication Architecture). ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and the two MEVs (`0x10`, `0x11`) are climate-only addresses with no gateway-side counterpart to mirror against.
 
 **Analog output channel assignments** (from `climate/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — ground floor MEV fan speed (Innova HRP DOMO 60 HX, ADR-0018).
 
