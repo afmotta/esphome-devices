@@ -19,7 +19,7 @@ points that compose Climate packages (`devices/climate-control.yaml` and its
 - `mev_modbus.yaml`, `mev_demand.yaml` — MEV (Mechanical Extract Ventilation)
   Modbus driver and demand aggregation
 - `room_sensors.yaml` — room sensor failover wiring
-- `home-assistant/dashboards/` — hand-authored Lovelace dashboards (Phase 3)
+- `home-assistant/` — hand-authored Lovelace dashboards (`dashboards/`) and the HA-side configs (`ha-*-config.yaml`, `mev_helpers.yaml`)
 
 ## System overview
 
