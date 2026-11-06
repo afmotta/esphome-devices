@@ -1,12 +1,12 @@
-# Archivio
+# Archive
 
-Documenti conservati solo come record storico. **Non seguirli per il lavoro corrente**: descrivono l'hardware Gen-1 (Kincony KC868-A6/A16, topologia master/slave, sensori ambiente Modbus), sostituito dall'ADR-0014, oppure proposte già realizzate.
+Documents kept only as historical record. **Do not follow them for current work**: they describe the Gen-1 hardware (Kincony KC868-A6/A16, master/slave topology, Modbus room sensors) replaced by ADR-0014, or proposals already carried out.
 
-| File | Perché è qui | Riferimento attuale |
+| File | Why it is here | Current reference |
 |---|---|---|
-| `deployment-guide.md` | Distribuzione della topologia A6/A16 | [`../climate/climate-deployment-runbook.md`](../climate/climate-deployment-runbook.md) |
-| `modbus-register-map.md` | Mappa registri del sistema A6/A16 | `climate/CLAUDE.md`, appendici A–C |
-| `product-brief.md` | Brief del progetto brownfield originale | [`../architecture/ARCHITECTURE-SPINE.md`](../architecture/ARCHITECTURE-SPINE.md) |
-| `sensor-technology-selection.md` | Scelta (poi ribaltata) dei sensori ambiente Modbus | `climate/room_sensors.yaml` |
-| `0-10v-adapter-setup-guide.md` | Adattatore 0-10V generico, sostituito dal Waveshare 8CH (B) | [`../adr/0014-standardized-controller-modbus-io-hardware.md`](../adr/0014-standardized-controller-modbus-io-hardware.md) |
-| `merge-into-esphome-devices-proposal.md` | Proposta di unire `canbus` nel repo, implementata il 2026-07-05 | [`../architecture/ARCHITECTURE-SPINE.md`](../architecture/ARCHITECTURE-SPINE.md) |
+| `deployment-guide.md` | Deployment of the A6/A16 topology | [`../climate/climate-deployment-runbook.md`](../climate/climate-deployment-runbook.md) |
+| `modbus-register-map.md` | Register map of the A6/A16 system | `climate/CLAUDE.md`, appendices A–C |
+| `product-brief.md` | Brief of the original brownfield project | [`../architecture/ARCHITECTURE-SPINE.md`](../architecture/ARCHITECTURE-SPINE.md) |
+| `sensor-technology-selection.md` | Choice (later reversed) of Modbus room sensors | `climate/room_sensors.yaml` |
+| `0-10v-adapter-setup-guide.md` | Generic 0-10V adapter, replaced by the Waveshare 8CH (B) | [`../adr/0014-standardized-controller-modbus-io-hardware.md`](../adr/0014-standardized-controller-modbus-io-hardware.md) |
+| `merge-into-esphome-devices-proposal.md` | Proposal to merge `canbus` into the repo, implemented 2026-07-05 | [`../architecture/ARCHITECTURE-SPINE.md`](../architecture/ARCHITECTURE-SPINE.md) |
