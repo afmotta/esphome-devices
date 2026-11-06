@@ -5,19 +5,19 @@ TODO:
 - - Considerazione delle condizioni interne (umidità, occupazione) per ottimizzare il comfort
 
 - Gestione della temperatura della pompa di calore
-  
+
 - Integrazione con sistemi di accumulo di energia elettrica (batterie domestiche)
 - - Gestione intelligente dell'energia accumulata per riscaldamento e raffreddamento
 - - Ottimizzazione dei tempi di carica/scarica in base alle previsioni di consumo e produzione energetica
-⚠️ No learning algorithms (yet)
-🚀 Weather forecast integration would match Nest/Tado killer feature
-🚀 Energy awareness could differentiate in growing green-energy market
-🚀 Community sharing could create network effects
-🚀 ESP32 sensor boards could enable occupancy detection
 
-IN PROGRESS:
+- Recupero bus-off TWAI sul posto (invece del riavvio del watchdog TX): fork locale di esp32_can con twai_get_status_info_v2 + twai_initiate_recovery_v2, da verificare sull'IDF pinnato
 
-DONE:
+Idee:
+- Algoritmi di apprendimento per la regolazione (oggi assenti)
+- Previsioni meteo come nei termostati commerciali
+- Consapevolezza dell'energia (fotovoltaico, tariffe)
+- Sensori ESP32 per rilevare la presenza
+
 DONE:
 - dividire il fancoil boost tra soggiorno e cucina
 - gestire fancoil per umidità
@@ -25,8 +25,7 @@ DONE:
 - attualmente la temperatura di mandata basata su dew point è calcolata due volte: una per il sensore di minima temperatura di mandata, una per il controllo della valvola miscelatrice. Unificare la logica in un unico punto.
 - aggiungere una logica per evitare che durante l'autotune dei radianti il sistema entri in boost mode
 - Gestione VMC (MEV)
-- - Integrazione con sensori di qualità dell'aria (CO2, VOC, PM2.5) [DONE]
-- - Logica di controllo della VMC basata sulla qualità dell'aria interna [DONE]
-- - Coordinamento tra riscaldamento/raffreddamento e VMC per ottimizzare il comfort e l'efficienza energetica [DONE]
-- - Calcolo rateo umidità e state machine 3-stati su ESPHome [DONE]
-- Recupero bus-off TWAI sul posto (invece del riavvio del watchdog TX): fork locale di esp32_can con twai_get_status_info_v2 + twai_initiate_recovery_v2, da verificare sull'IDF pinnato
+- - Integrazione con sensori di qualità dell'aria (CO2, VOC, PM2.5)
+- - Logica di controllo della VMC basata sulla qualità dell'aria interna
+- - Coordinamento tra riscaldamento/raffreddamento e VMC per ottimizzare il comfort e l'efficienza energetica
+- - Calcolo rateo umidità e state machine 3-stati su ESPHome

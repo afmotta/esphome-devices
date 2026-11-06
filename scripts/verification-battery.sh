@@ -176,6 +176,7 @@ echo
 run_step "hygiene: no tracked secrets or build artifacts" python3 scripts/check_repo_hygiene.py
 run_step "hygiene: deployable logger levels are configurable" logger_level_check
 run_step "hygiene: every on_boot is list-form with a priority (R-18)" python3 scripts/check_on_boot_form.py
+run_step "hygiene: relative Markdown links resolve" python3 scripts/check_md_links.py
 run_step "canbus: every send_data() feeds tx_health" tx_health_wrap_check
 run_step "climate: seasonal mode PID aggregation is complete" python3 scripts/verify_seasonal_mode_aggregation.py
 run_step "python: canbus/tests/test_bindings.py"          python3 canbus/tests/test_bindings.py

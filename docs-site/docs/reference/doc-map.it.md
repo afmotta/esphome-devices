@@ -46,35 +46,38 @@ della decisione.
 ## Documenti storici — ignorali per le procedure attuali
 
 La cartella `docs/` del repository (non la `docs-site/` di questo sito) contiene
-alcuni documenti che descrivono una generazione precedente e ritirata dell'hardware
+alcuni documenti (tutti in `docs/archive/`) che descrivono una generazione precedente e ritirata dell'hardware
 (schede Kincony KC868-A6 / A16, una topologia di controller master/slave, e sensori
 ambiente basati su Modbus). Quella generazione è stata completamente sostituita
-dall'attuale hardware LilyGO T-Connect Pro e dal design a master unico. Questi file
+dall'attuale hardware LilyGO T-Connect Pro e dal design a master unico. Nella stessa cartella ci
+sono anche il brief originale del progetto e proposte già realizzate. Questi file
 sono conservati solo come documentazione storica — **non seguirli per il lavoro
 attuale**:
 
 | File | Cosa copre | Sostituito da |
 |---|---|---|
-| `docs/deployment-guide.md` | Distribuzione della vecchia topologia master/slave A6/A16 | `docs/climate-deployment-runbook.md` |
-| `docs/sensor-technology-selection.md` | La decisione originale (poi ribaltata) di usare sensori ambiente Modbus | Rilevamento ambiente via bus CAN / Home Assistant, `climate/room_sensors.yaml` |
-| `docs/0-10v-adapter-setup-guide.md` | Configurazione di un generico adattatore Modbus 0–10V da AliExpress | La scheda Waveshare Modbus RTU Analog Output 8CH (B) — vedi [Tabella hardware e indirizzi](hardware-table.md) |
-| `docs/modbus-register-map.md` | La mappa completa dei registri del vecchio sistema master/slave basato su KC868-A6 | L'attuale impronta Modbus, molto più piccola, descritta in [Tabella hardware e indirizzi](hardware-table.md) |
+| `docs/archive/deployment-guide.md` | Distribuzione della vecchia topologia master/slave A6/A16 | `docs/climate/climate-deployment-runbook.md` |
+| `docs/archive/sensor-technology-selection.md` | La decisione originale (poi ribaltata) di usare sensori ambiente Modbus | Rilevamento ambiente via bus CAN / Home Assistant, `climate/room_sensors.yaml` |
+| `docs/archive/0-10v-adapter-setup-guide.md` | Configurazione di un generico adattatore Modbus 0–10V da AliExpress | La scheda Waveshare Modbus RTU Analog Output 8CH (B) — vedi [Tabella hardware e indirizzi](hardware-table.md) |
+| `docs/archive/modbus-register-map.md` | La mappa completa dei registri del vecchio sistema master/slave basato su KC868-A6 | L'attuale impronta Modbus, molto più piccola, descritta in [Tabella hardware e indirizzi](hardware-table.md) |
+| `docs/archive/product-brief.md` | Il brief originale del progetto brownfield | `docs/architecture/ARCHITECTURE-SPINE.md` |
+| `docs/archive/merge-into-esphome-devices-proposal.md` | La proposta di unire il repository del bus CAN a questo (fatto il 2026-07-05) | `docs/architecture/ARCHITECTURE-SPINE.md` |
 
 La maggior parte di questi file riporta un proprio avviso "documento storico" in cima
 se li apri direttamente — quell'avviso è accurato e va creduto. Gli altri file sotto
-`docs/` (runbook di distribuzione, note sulla compensazione climatica, guide di
-cablaggio, mappatura dei sensori finestra, e così via) sono attuali e non fanno parte
+`docs/` (in `docs/climate/`: runbook di distribuzione, integrazione della pompa di calore, guida di
+cablaggio RS485, mappatura dei sensori finestra, e così via) sono attuali e non fanno parte
 di questo elenco.
 
 ## Una nota a margine: file scheda orfani
 
 La cartella `boards/` del repository contiene le definizioni hardware per ogni scheda
-mai usata dal progetto. Alcune di esse sono residui della generazione hardware
-ritirata sopra descritta e non sono più referenziate da alcun dispositivo: `a6.yaml`,
-`a16.yaml`, `base.yaml` e la scheda relè inutilizzata `waveshare-s3.yaml` (a differenza
+mai usata dal progetto. Una di esse è un residuo della generazione hardware
+ritirata sopra descritta e non è più referenziata da alcun dispositivo: la scheda
+relè inutilizzata `waveshare-s3.yaml` (a differenza
 di `waveshare-s3-rs485-can.yaml`, che **è** quella effettivamente usata, dal monitor di
 salute del bus CAN). Il consolidamento di rete della 2026.8.0 (ADR-0022) ha unito
-Ethernet+WiFi inline in queste schede ed eliminato i loro file frammento
+Ethernet+WiFi inline in queste schede (le Gen-1 `a6.yaml`, `a16.yaml` e `base.yaml` sono state poi eliminate) ed eliminato i loro file frammento
 `-ethernet`/`-wifi` separati e la `wifi.yaml` condivisa. Se stai sfogliando
 quella cartella e ti chiedi perché esista un file che nulla sembra usare, è per
 questo — non è un errore da correggere, solo vecchio codice mai eliminato.

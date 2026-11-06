@@ -10,7 +10,7 @@
 #     routes can target it when the node lands in the registry.
 #   Tier 2 (HA): an outdoor temperature entity from Home Assistant — the heat
 #     pump's own outdoor sensor via the ISG web (`stiebel_eltron` integration,
-#     decision 2026-07-15: docs/heat-pump-integration.md) or an OpenWeather /
+#     decision 2026-07-15: docs/climate/heat-pump-integration.md) or an OpenWeather /
 #     weather-integration temperature. Override
 #     `ha_outdoor_temperature_sensor_id` from the composing entry point.
 #   Emergency: NaN — consumers (weather_compensation.yaml) hold their last

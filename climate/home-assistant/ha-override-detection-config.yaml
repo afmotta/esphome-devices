@@ -172,6 +172,6 @@ template:
 # - Use for forecast threshold tuning
 #
 # Related Documentation:
-# - docs/ha-weather-config.yaml: Weather forecast configuration
-# - docs/ha-dashboard-config.yaml: Dashboard configuration
-# - components/seasonal_mode.yaml: ESPHome implementation
+# - climate/home-assistant/ha-weather-config.yaml: Weather forecast configuration
+# - climate/home-assistant/ha-dashboard-config.yaml: Dashboard configuration
+# - climate/packages/coordinators/seasonal_mode.yaml: ESPHome implementation

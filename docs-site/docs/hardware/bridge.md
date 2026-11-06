@@ -6,13 +6,14 @@ doesn't necessarily spread to the other. It's deliberately simple: no WiFi, no H
 Assistant connection, no over-the-air updates. You flash it and read its logs only by
 plugging a USB cable directly into it.
 
-There are **two kinds of bridge board**, and which one you have is recorded in the
+There are **three kinds of bridge board**, and which one you have is recorded in the
 registry's `profile` column:
 
 | Profile | Board | Where it's used |
 | --- | --- | --- |
-| `bridge-t2can` | **LilyGO T-2CAN** — one board, two CAN ports | the normal case |
-| `bridge` | CANBed RP2040 + a small add-on CAN module | second source |
+| `bridge-c6` | **ESP32-C6 bridge** (custom board, `hardware/bridge/`) — one board, two CAN ports, termination DIP switch | the normal case (preferred, ADR-0025) |
+| `bridge-t2can` | **LilyGO T-2CAN** — one board, two CAN ports | second source |
+| `bridge` | CANBed RP2040 + a small add-on CAN module | last-resort source |
 | `buttons+bridge` | CANBed RP2040 + add-on, **plus wall buttons** | where the cabling splits at a button box |
 
 🔵 No bridge has been built or flashed on real hardware yet.
@@ -53,8 +54,10 @@ one is also a wall switch).
 2. Compile its generated config: `esphome compile canbus/nodes/bridge<id>.yaml`
    (note the `bridge` prefix — that's how you spot bridges in `canbus/nodes/`). The
    profile in the registry decides which board it builds for; you don't choose here.
-3. Flash it over USB-serial (the bridge has no OTA/WiFi by design — the board has no
-   radio at all).
+3. Flash it over USB-serial (the bridge has no OTA/WiFi by design). On the ESP32-C6
+   bridge the USB comes out on the unpopulated **J5** pin header (5V, D−, D+, GND,
+   BOOT, GND): see `hardware/bridge/README.md`; a jumper on BOOT–GND puts it in
+   download mode, and must be removed afterwards.
 4. Confirm it resumes forwarding and heartbeating (check the health monitor sees its
    heartbeat again).
 
@@ -75,14 +78,14 @@ one is also a wall switch).
    and heartbeating.
 
 !!! note "Only for the CANBed bridges: the add-on module is fussy"
-    A T-2CAN needs no add-on — both CAN ports are on the board, so a spare is just a
+    An ESP32-C6 bridge or a T-2CAN needs no add-on — both CAN ports are on the board, so a spare is just a
     spare. The CANBed bridges are the fiddly ones. Their add-on MCP2515 module must be
     a **3.3 V** model (paired with an SN65HVD230, MCP2562FD or TJA1042T,3 transceiver):
     the very common red "MCP2515 + TJA1050" module is 5 V and will **destroy** the
     board, because the RP2040 is not 5 V tolerant. Its crystal must also be 8, 12, 16
     or 20 MHz, and the firmware's `clock:` setting must match it — a mismatch gives you
     a board that looks fine and moves no traffic. This awkwardness is exactly why the
-    T-2CAN is preferred.
+    single-board bridges are preferred.
 
 ## Related
 

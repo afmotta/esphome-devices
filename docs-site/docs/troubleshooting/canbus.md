@@ -203,8 +203,8 @@ Ordinary nodes report `ERR_CAN_TX_FAIL` too when one of their own sends is
 refused; on a node it clears by itself once the controller accepts a heartbeat, so a
 `canbus_node_error` that comes and goes points at a flaky bus segment. 🔵 DESIGNED
 
-If the CAN controller of an ESP32-based node (the T-2CAN bridge, the An-Penta
-and An-Quad LED controllers) falls off the bus after a serious electrical
+If the CAN controller of an ESP32-based node (the T-2CAN and ESP32-C6 bridges,
+the ESP32-C6 wall-button nodes, the An-Penta and An-Quad LED controllers) falls off the bus after a serious electrical
 fault, it cannot rejoin by itself. These nodes watch for that: if their
 heartbeat is refused for about 5 minutes in a row they restart themselves.
 If the bus stays dead they back off (restarts get further apart, up to about
@@ -213,9 +213,19 @@ constantly. Seeing such a node's uptime reset while its segment is down is
 this, not a power problem. The CANBed nodes recover in hardware and never
 restart for this. 🔵 DESIGNED
 
+On a bridge this watchdog only covers the backbone side, the port its heartbeat
+goes out on. On the T-2CAN the zone side is an MCP2515 chip, which recovers in
+hardware. On the ESP32-C6 bridge the zone side is a second built-in CAN
+controller, which neither rejoins by itself nor triggers a restart: after a
+serious fault on the zone wiring that segment stays silent while the bridge
+keeps heartbeating normally, with `ERR_CAN_TX_FAIL` latched. Once the wiring is
+repaired, power-cycle the bridge. ⚠️ KNOWN GAP
+
 **Likely causes:**
 
 - The bridge lost power.
+- (ESP32-C6 bridge) Its zone-side CAN controller fell off the bus after a
+  wiring fault and is waiting for a power cycle.
 - The bridge itself needs a reboot (the watchdog should already handle
   hangs, but a full power cycle is the simplest manual reset).
 - A wiring fault between the bridge and that segment.

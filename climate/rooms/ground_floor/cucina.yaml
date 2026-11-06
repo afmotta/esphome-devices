@@ -17,7 +17,7 @@ packages:
       ha_temperature_sensor_id: "sensor.room_cucina_temperature"
       ha_humidity_sensor_id: "sensor.room_cucina_humidity"
 
-  # Window open => fancoil off (CLIMATE C4; sensor map: docs/window-sensors-map.md)
+  # Window open => fancoil off (CLIMATE C4; sensor map: docs/climate/window-sensors-map.md)
   window_guard: !include
     file: ../../packages/components/window_guard.yaml
     vars:

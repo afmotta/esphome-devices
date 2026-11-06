@@ -8,7 +8,7 @@ Otherwise — welcome. This is the maintenance and support guide for the house's
 
 - **`canbus`** — a wiring bus (CAN bus) that lets wall buttons and room sensors talk to the rest of the house over a pair of shared wires, plus a "health monitor" device that watches for anything that's gone quiet.
 - **`lighting`** — listens for button presses coming over the CAN bus and turns them into light switching, through a relay board.
-- **`climate`** — runs heating, cooling, and ventilation for 13 rooms across 3 floors: it reads room temperature/humidity (arriving over the CAN bus), decides what each room needs, and drives pumps, valves, and fans through Modbus-controlled relay and analog-output boards.
+- **`climate`** — runs heating, cooling, and ventilation for 14 rooms across 3 floors: it reads room temperature/humidity (arriving over the CAN bus), decides what each room needs, and drives pumps, valves, and fans through Modbus-controlled relay and analog-output boards.
 
 Each system has its own, more detailed guide pages under **Troubleshooting** and **Hardware Died**. This page is only the map.
 
@@ -53,7 +53,7 @@ This house deliberately reuses the same handful of hardware models across both t
 | Relay board | Waveshare Modbus RTU Relay 32CH (address `0x2`) | Switching zone pumps/valves (climate) and light circuits (lighting) | 🔵 The address is deliberately mirrored on both systems' RS485 wiring, so a spare relay board works in either system, unmodified. |
 | Analog output board | Waveshare Modbus RTU Analog Output 8CH (B) (address `0x1`) | Fancoil fan speed and mixing-valve modulation (0–10V outputs) | 🔵 Climate system only — no lighting counterpart. |
 | CAN bus health monitor | Waveshare ESP32-S3-RS485-CAN (WiFi-only) | Watches the CAN bus and reports which devices have gone quiet | ⚠️ **Known gap**: this is currently the one device in the house with no "identical spare on the shelf" plan by default — see the [Confidence Ledger](reference/confidence-ledger.md). Its logic can, if needed, be moved onto a spare T-Connect Pro instead, since the two boards share compatible wiring. |
-| CAN bus segment bridge | LilyGO T-2CAN (or CANBed RP2040 + add-on MCP2515) | Joins separate sections of the CAN bus wiring together | 🔵 Deliberately has no WiFi and no over-the-air update capability — it can only be reprogrammed over a USB cable, by design, for reliability. |
+| CAN bus segment bridge | ESP32-C6 dual-CAN bridge (custom board, `hardware/bridge/`; preferred); LilyGO T-2CAN as second source, CANBed RP2040 + add-on MCP2515 as last resort | Joins separate sections of the CAN bus wiring together | 🔵 Deliberately has no WiFi and no over-the-air update capability — it can only be reprogrammed over a USB cable, by design, for reliability. |
 | Room sensor (advanced) | S1-Pro Multi-Sense | Room temperature/humidity/air-quality plus radar-based presence sensing | 🔵 |
 | Room sensor (simple) | Wall-mounted sensor board | Room temperature/humidity/air-quality only, no radar | 🔵 |
 

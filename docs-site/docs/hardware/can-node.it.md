@@ -11,6 +11,8 @@ della casa tramite il bus CAN, e ognuna ha un `node_id` univoco registrato in
     a buon fine **prima** di flashare qualsiasi cosa. Vedi
     [Guasto Hardware: panoramica](index.md) per il perché.
 
+Esistono due famiglie di schede: la **CANBed RP2040** (profili `buttons`, `buttons+sensors`, `sensors`) e il **nodo a muro ESP32-C6** (profilo `buttons-c6`, sorgenti del PCB in `hardware/nodo503/`, sei ingressi pulsante su due connettori JST PH). Il firmware dei nodi si genera dal registro per entrambe, con le radio spente; sul nodo C6 il flash via USB passa dal pettine **J5** non montato (5V, D−, D+, GND, BOOT, GND), e un ponticello BOOT–GND forza la modalità download (da togliere dopo). Il firmware Wi-Fi/Home Assistant in `hardware/nodo503/firmware/` serve solo per le schede da banco.
+
 Ci sono due percorsi, a seconda che la scheda stessa sia ancora funzionante.
 
 ## Percorso A — Riflash USB sul posto (usalo per primo)

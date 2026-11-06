@@ -8,7 +8,7 @@ Altrimenti — benvenuto. Questa è la guida di manutenzione e supporto per l'im
 
 - **`canbus`** — un bus di cablaggio (CAN bus) che permette a interruttori a muro e sensori ambiente di comunicare con il resto della casa attraverso una coppia di fili condivisi, più un dispositivo "monitor di salute" che verifica se qualcosa è rimasto silenzioso.
 - **`lighting`** — ascolta le pressioni dei pulsanti che arrivano dal bus CAN e le trasforma in comandi di accensione/spegnimento luci, tramite una scheda relè.
-- **`climate`** — gestisce riscaldamento, raffrescamento e ventilazione per 13 stanze su 3 piani: legge temperatura/umidità di ogni stanza (in arrivo dal bus CAN), decide di cosa ha bisogno ciascuna stanza, e comanda pompe, valvole e ventole tramite schede relè e uscite analogiche pilotate via Modbus.
+- **`climate`** — gestisce riscaldamento, raffrescamento e ventilazione per 14 stanze su 3 piani: legge temperatura/umidità di ogni stanza (in arrivo dal bus CAN), decide di cosa ha bisogno ciascuna stanza, e comanda pompe, valvole e ventole tramite schede relè e uscite analogiche pilotate via Modbus.
 
 Ogni sistema ha le proprie pagine di guida più dettagliate sotto **Risoluzione problemi** e **Guasto hardware**. Questa pagina è solo la mappa.
 
@@ -53,7 +53,7 @@ Questa casa riutilizza deliberatamente lo stesso ristretto insieme di modelli ha
 | Scheda relè | Waveshare Modbus RTU Relay 32CH (indirizzo `0x2`) | Comando di pompe/valvole di zona (climatizzazione) e circuiti luce (illuminazione) | 🔵 L'indirizzo è deliberatamente specchiato su entrambi i cablaggi RS485 dei due sistemi, quindi una scheda relè di ricambio funziona in entrambi i sistemi, senza modifiche. |
 | Scheda uscite analogiche | Waveshare Modbus RTU Analog Output 8CH (B) (indirizzo `0x1`) | Velocità ventola fancoil e modulazione valvola di miscelazione (uscite 0–10V) | 🔵 Solo sistema climatico — nessuna controparte nell'illuminazione. |
 | Monitor di salute bus CAN | Waveshare ESP32-S3-RS485-CAN (solo WiFi) | Sorveglia il bus CAN e segnala quali dispositivi sono rimasti silenziosi | ⚠️ **Lacuna nota**: questo è attualmente l'unico dispositivo in casa senza un piano predefinito di "ricambio identico sullo scaffale" — vedi il [Registro di affidabilità](reference/confidence-ledger.md). La sua logica può, se necessario, essere spostata su una T-Connect Pro di ricambio, poiché le due schede condividono un cablaggio compatibile. |
-| Bridge di segmento CAN | LilyGO T-2CAN (o CANBed RP2040 + MCP2515 aggiuntivo) | Unisce sezioni separate del cablaggio del bus CAN | 🔵 Deliberatamente privo di WiFi e di capacità di aggiornamento over-the-air — può essere riprogrammato solo via cavo USB, per progettazione, per motivi di affidabilità. |
+| Bridge di segmento CAN | Bridge ESP32-C6 a doppio CAN (scheda su misura, `hardware/bridge/`; preferito); LilyGO T-2CAN come seconda fonte, CANBed RP2040 + MCP2515 aggiuntivo come ultima risorsa | Unisce sezioni separate del cablaggio del bus CAN | 🔵 Deliberatamente privo di WiFi e di capacità di aggiornamento over-the-air — può essere riprogrammato solo via cavo USB, per progettazione, per motivi di affidabilità. |
 | Sensore ambiente (avanzato) | S1-Pro Multi-Sense | Temperatura/umidità/qualità dell'aria ambiente più rilevamento presenza basato su radar | 🔵 |
 | Sensore ambiente (semplice) | Scheda sensore da parete | Solo temperatura/umidità/qualità dell'aria ambiente, senza radar | 🔵 |
 

@@ -10,7 +10,7 @@ dependsOn:
 relatedDocuments:
   - docs/reviews/2026-10-25-repo-review.md
   - docs/adr/0014-standardized-controller-modbus-io-hardware.md
-  - docs/heat-pump-integration.md
+  - docs/climate/heat-pump-integration.md
   - packages/devices/modbus-io/modbus_relay_board_32ch.yaml
   - packages/devices/modbus-io/modbus_relay_switch.yaml
   - packages/devices/modbus-io/modbus_analog_output.yaml
@@ -39,7 +39,7 @@ and nothing asks them to prove the master is still alive.
 
 | Board | Address | Carries | Stuck-state consequence |
 |---|---|---|---|
-| Relay 32CH | `0x2` | `relay_1..4` circulation pumps; `relay_6..17` radiant zone valves; `relay_18/19` planned for the heat pump's SG-Ready contacts (`docs/heat-pump-integration.md`) | Pumps on: running against closed/open valves, wear, and in cooling season circulating cold water through a mixing valve that is no longer being dew-point-protected (condensation). SG-Ready stuck at "forced-on": heat pump held at max boost |
+| Relay 32CH | `0x2` | `relay_1..4` circulation pumps; `relay_6..17` radiant zone valves; `relay_18/19` planned for the heat pump's SG-Ready contacts (`docs/climate/heat-pump-integration.md`) | Pumps on: running against closed/open valves, wear, and in cooling season circulating cold water through a mixing valve that is no longer being dew-point-protected (condensation). SG-Ready stuck at "forced-on": heat pump held at max boost |
 | Analog Out 8CH (B) | `0x1` | `analog_output_1,2` mixing valves; `3..6` fancoil fans; `7,8` MEV fan speed | Valve frozen at its last opening; fans frozen at last speed |
 
 ### What already happens when the controller misbehaves (read from the code, ESPHome 2026.7.x; re-verify against 2026.8.0)
@@ -141,7 +141,7 @@ Only the **relay board** has a hardware-timed, self-reverting primitive, and tha
   worse than leaving it.
 - Radiant zone valves (`relay_6..17`, thermal actuators on 60 s slow PWM) are inert without a pump.
 - The heat-pump SG-Ready contacts, when added, are the other thing that must not stay stuck: both open means
-  SG state 2, normal operation (`docs/heat-pump-integration.md`). They are potential-free extra-low-voltage
+  SG state 2, normal operation (`docs/climate/heat-pump-integration.md`). They are potential-free extra-low-voltage
   inputs, so they cannot share a contact with the pump mains feed (see A2).
 
 So the circuits that need a dead-man are **the four pump relays**. SG-Ready is out of scope of A2; if it must
@@ -369,7 +369,7 @@ These are not edited in this PR because the ADR is only Proposed.
 - **Software-timer "pulses" (turn on, schedule turn-off in the master):** fails exactly when the master does;
   it is the thing this ADR exists to replace.
 - **Home Assistant as supervisor:** HA cannot reach the boards if the controller or bus is down, and HA
-  availability is explicitly not a dependency of actuation (root `CLAUDE.md`, Home Assistant Integration).
+  availability is explicitly not a dependency of actuation (`climate/CLAUDE.md`, Operating principles — Home Assistant Integration).
 - **`flash_off` instead of `flash_on`:** reverts to *closed*; it is the wrong polarity for a fail-open
   design.
 - **Cut power to both boards via the watchdog (C variant):** also zeroes the MEV fans, and the analog

@@ -5,24 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.26 |
+| **Version** | 1.27 |
 | **Last Updated** | November 4, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
-
----
-
-## Table of Contents
-
-1. [Project Overview](#project-overview)
-2. [Tech Stack](#tech-stack)
-3. [Repository Structure](#repository-structure)
-4. [Key Conventions](#key-conventions)
-5. [Component Architecture](#component-architecture)
-6. [Development Workflow](#development-workflow)
-7. [Testing & Deployment](#testing--deployment)
-8. [Common Tasks](#common-tasks)
-9. [Important Files Reference](#important-files-reference)
-10. [Best Practices](#best-practices)
 
 ---
 
@@ -59,25 +44,7 @@ Commits are prefixed with the system they touch (`canbus:`, `lighting:`, `climat
 durable design knowledge — architecture, ADRs, contracts, design notes — lives under `docs/`
 (see [Important Files Reference](#important-files-reference)).
 
-### System Capabilities
-
-- **Multi-zone climate control**: 13 independently controlled temperature zones across 3 floors
-- **Dual-mode operation**: Radiant floor heating/cooling + fancoil units. Each actuator has one PID whose heat and cool outputs are *separate* template outputs gated on the heat pump's mode (`hp_mode`: HEAT → heat only, COOL → cool only, SANITARY_ONLY → neither; `climate/protocol/pid_direction.h`, review R-01), so a PID can only actuate in the direction the water actually flows. Fancoils declare a `fancoil_role` (`boost`, `cool_only`, `heat_cool`)
-- **Hybrid radiant + fancoil cooling ("base + boost")**: radiant floor/ceiling provides efficient baseline comfort; fancoils activate as a responsive boost layer when radiant cannot meet demand — evaluated independently per room (`climate/packages/coordinators/fancoil_boost.yaml`)
-- **Advanced PID control**: Precise temperature management with auto-tuning
-- **Autonomous dew-point protection**: ESPHome-native dew-point calculation sets the radiant-cooling supply-water target to dew point + `safe_margin` (default 2 °C, settable 1-5 °C) on the controller itself, and a hard interlock on each mixing valve shuts the chilled water whenever the supply falls below dew point + margin/2, independent of the PID (`climate/protocol/dew_point_interlock.h`, review N-01); it needs valid room readings, so a room whose dew point is NaN (CAN and HA tiers both gone) leaves the floor's supply minimum holding its previous value (`climate/room_sensors.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`)
-- **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
-- **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
-- **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
-- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain (`climate/room_sensors.yaml`), and until CAN nodes exist an HA outage (no state-subscribed API client) over 300 s puts 12 of 13 zones in Emergency (PID outputs 0)
-- **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
-- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency: NaN, PID outputs 0)
-
-### Building Layout
-
-- **Ground Floor (Piano Terra)**: 5 zones (soggiorno/living room, cucina/kitchen, bagno/bathroom, anticamera/entry hall, locale tecnico/technical room)
-- **First Floor (Primo Piano)**: 8 zones (4 bedrooms, 4 bathrooms, laundry room)
-- **Second Floor (Secondo Piano)**: 1 zone (sottotetto/attic)
+Climate-specific material — system capabilities, building layout, package-composition patterns, the sensor failover chain, operating principles and the Italian room-name glossary — lives in [`climate/CLAUDE.md`](climate/CLAUDE.md) (AD-10: this file is the map, not the rulebook).
 
 ### Hardware
 
@@ -163,7 +130,7 @@ esphome-devices/
 │   │   ├── ground_floor/      # Ground floor rooms
 │   │   ├── first_floor/       # First floor rooms
 │   │   └── second_floor/      # Second floor rooms
-│   └── home-assistant/        # Dashboards (Lovelace)
+│   └── home-assistant/        # Dashboards (Lovelace) and the ha-*-config.yaml HA-side configs
 │
 ├── hardware/                  # PCB sources for the CAN node boards (see hardware/CLAUDE.md)
 │   ├── nodo503/                # ESP32-C6 wall-button node, rev C (generated KiCad project + out/)
@@ -182,8 +149,7 @@ esphome-devices/
 │   ├── lilygo-t-2can.yaml   # LilyGO T-2CAN dual-CAN board (second-source segment bridge, ADR-0017)
 │   ├── bridge-c6-twai.yaml  # ESP32-C6 dual-TWAI bridge, hardware/bridge (preferred segment bridge, ADR-0025)
 │   ├── esp32-c6-nodo503.yaml # ESP32-C6 wall node, hardware/nodo503 (ADR-0025)
-│   ├── s1-pro-multi-sense.yaml # Sensor board
-│   └── base.yaml               # Legacy common settings (Gen-1 a6/a16 era; a6/a16 modernized to inline network, still no device consumer)
+│   └── s1-pro-multi-sense.yaml # Sensor board
 │
 ├── devices/                   # Main device configurations (entry points and their deployment variants, gathered together)
 │   ├── climate-control.yaml   # Main Climate system
@@ -205,11 +171,13 @@ esphome-devices/
 │   ├── architecture/          # ARCHITECTURE-SPINE.md (invariants) + architecture-diagram.md
 │   ├── contracts/             # Frozen cross-system contracts (map.json, bindings arbitration)
 │   ├── design-notes/          # Entity-naming convention, canbus implementation rules
-│   └── (runbooks, wiring guides, HA config assets)
+│   ├── climate/               # Live climate docs: deployment runbook, RS485 wiring, heat-pump integration, window-sensor map, MEV manual
+│   ├── archive/               # Historical (Gen-1 hardware, implemented proposals) — do not follow for current work
+│   └── change_waveshare_relay_address.yaml # Relay-bank address commissioning tool (cited by the maintenance site)
 │
 ├── docs-site/                 # Maintenance & support site (MkDocs, EN + IT; GitHub Pages)
 │
-├── scripts/                   # Repo-level helper scripts (currently empty)
+├── scripts/                   # Repo checks: verification-battery.sh, check_repo_hygiene.py, check_on_boot_*.py, check_md_links.py, CI dummy secrets
 ├── secrets.yaml               # (gitignored) Credentials and secrets
 └── TODO.md                    # Feature backlog (Italian)
 ```
@@ -223,7 +191,6 @@ esphome-devices/
 #### Board Configs (`boards/`)
 - Pattern: `[board_model]-[optional_variant].yaml`
 - Examples: `t-connect-pro.yaml`, `s1-pro-multi-sense.yaml`
-- Network configs: `[board]-ethernet.yaml`, `[board]-wifi.yaml`
 
 #### Component Configs (`climate/`)
 - Pattern: `[component_type]_[variant].yaml` or `[feature].yaml`
@@ -271,106 +238,9 @@ hooks that must be ordered distinct priorities.
 - **Comments**: Use `#` for inline comments
 - **Long values**: Use YAML multi-line strings (`>` or `|`)
 
-#### Variable Substitution
-```yaml
-# Substitution syntax
-${variable_name}
+#### Naming and language
 
-# Default values
-${variable_name:default_value}
-
-# Example
-sensor: ${temperature_sensor:sensor.default_temp}
-```
-
-#### Component Parameterization Pattern
-```yaml
-packages:
-  component: !include
-    file: component.yaml
-    vars:
-      slug: "entity_id"
-      name: "Display Name"
-      sensor: sensor.temperature
-      param: value
-```
-
----
-
-## Component Architecture
-
-### Package Composition Pattern
-
-The codebase uses ESPHome's `packages` feature extensively for modularity and reusability.
-
-#### Hierarchy
-
-```
-Device Config (devices/climate-control.yaml)
-├── Board Package (boards/t-connect-pro.yaml)
-│   └── Network: ethernet + wifi declared inline (network: priority:, ADR-0022)
-├── Hardware Packages (packages/devices/modbus-io/modbus_relay_board.yaml)
-└── Floor Packages (climate/rooms/*/floor.yaml)
-    └── Room Packages (climate/rooms/*/*.yaml)
-        ├── Sensors (climate/room_sensors.yaml)
-        ├── Radiant (climate/packages/components/radiant.yaml)
-        ├── Fancoil (climate/packages/components/fancoil.yaml)
-        └── Boost Coordinator (climate/packages/coordinators/fancoil_boost.yaml)
-```
-
-#### Conditional Package Inclusion
-
-```yaml
-# Enable/disable features with substitutions
-packages:
-  network: ${ethernet_package if enable_ethernet else wifi_package}
-```
-
-#### Variable Passing Pattern
-
-```yaml
-# Parent includes child with parameters
-packages:
-  room: !include
-    file: rooms/ground_floor/soggiorno.yaml
-    vars:
-      room_slug: "soggiorno"
-      room_name: "Soggiorno"
-      temperature_sensor: sensor.soggiorno_temp
-      humidity_sensor: sensor.soggiorno_humidity
-      radiant_relay: relay_1
-      fancoil_relay: relay_5
-```
-
-### Modbus Communication Architecture
-
-**Single-master pattern** (ADR-0014; see `climate/CLAUDE.md` for bus members, register
-details, and polling intervals):
-- One T-Connect Pro controller is the sole Modbus RTU master per system (the Climate controller's
-  `rs485_bus`; the lighting controller has its own, mirroring the relay bank address `0x2`)
-- Commodity I/O boards (Relay 32CH, Analog Output 8CH (B), MEV) are polled/written
-  directly — there are no slave controller boards and no board-to-board Modbus
-- Room-sensor data does **not** travel over Modbus — it arrives via CAN/HA failover
-  (see below)
-
-### Failover Architecture
-
-**3-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `climate/room_sensors.yaml`):
-
-1. **Primary**: CAN sensor-kit measurement (received directly on the controller's own CAN interface)
-2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness (R-04): the HA tier
-   reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
-   connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
-   rides out an HA restart). For room sensors a frozen last value is never served indefinitely (other HA inputs such as outdoor temperature are not yet gated: R-12, R-08).
-3. **Emergency**: the failover returns NaN **immediately** once both tiers are NaN — it has no timer of its
-   own. ESPHome's PID answers a NaN input by driving its outputs to 0 at once (`pid_climate.cpp`); there is
-   no separate "safe shutdown after 5 minutes". The only 5-minute figure is the HA-tier grace above.
-   The radiant override cannot bypass it: a NaN zone forces the valve closed at once, and a NaN that persists
-   for `sensor_lost_grace` (default 120 s) ends a boost; the grace lets a boost restored from flash survive the
-   boot-time NaN (reviews R-05, R-16).
-
-**Automatic Recovery**: the failover switches back to the highest tier that has a valid reading again
-(CAN preferred, then HA).
+Comments and documentation are in English, but entity IDs often use Italian room names (`soggiorno`, `cucina`, `bagno`, …); the glossary is in `climate/CLAUDE.md`. `hardware/` documentation is in Italian (see `hardware/CLAUDE.md`).
 
 ---
 
@@ -448,40 +318,9 @@ substitutions:
 
 ### Upgrading ESPHome — required fork check
 
-`libs/esphome_overrides/ethernet/` is a **local fork of a core ESPHome component**, rebased onto the
-repo's pinned ESPHome (currently 2026.8.0) and carrying two changes that let the W5500 share an SPI
-controller with the onboard display (ADR-0016). Upstream owes it no compatibility, so **every
-ESPHome version bump must**:
+`libs/esphome_overrides/ethernet/` is a **local fork of a core ESPHome component** (W5500 sharing one SPI controller with the onboard display, ADR-0016). Upstream owes it no compatibility, so **every ESPHome version bump must** re-diff the upstream `ethernet/` component, re-apply the two `LOCAL FORK (esphome-devices)` changes, and re-run the bring-up check on `devices/locals/climate-control.yaml` (boot log `SPI host 2 already initialized (shared with 'spi:')`, liveness dot pulsing and green under tab-switch load). Skipping this does not fail the build — it fails the *panel*, silently, at runtime.
 
-1. Diff the new upstream `esphome/components/ethernet/` against `libs/esphome_overrides/ethernet/`
-   and re-apply the two changes (tolerate `ESP_ERR_INVALID_STATE` in
-   `ethernet_component_esp32.cpp`; downgrade `_final_validate_spi`'s same-interface error in
-   `__init__.py`). Both are marked `LOCAL FORK (esphome-devices)` in the source. Take everything
-   else from the new upstream — the 2026.8.0 rebase, for instance, adopted upstream's multi-interface
-   support (dropped ethernet↔wifi `CONFLICTS_WITH`, added the `network: priority:` coexistence
-   validation), which ADR-0022's inline Ethernet+WiFi merge depends on.
-2. Re-run the bring-up check by flashing `devices/locals/climate-control.yaml` — the Ethernet +
-   panel build (the panel is standard on every build now, ADR-0023) is itself the regression
-   harness, since it exercises the shared bus in exactly the arrangement the fork enables. Confirm
-   all three:
-   - the boot log shows `SPI host 2 already initialized (shared with 'spi:')` — proof the shared
-     path was taken rather than the old two-controller failure;
-   - the status strip's liveness dot keeps pulsing, i.e. the display is still being flushed (a
-     frozen dot is the "panel died" signal the old debug build's tick counter provided);
-   - the dot stays green, i.e. the API — and therefore Ethernet — survived alongside it.
-
-   Under load: switch tabs repeatedly (each is a full-screen repaint) while pinging the device.
-   The fork's risk is the display holding the SPI bus long enough to stall the W5500, so packet
-   loss or API drops during redraws is the failure to watch for.
-
-Skipping this does not fail the build — it fails the *panel*, silently, at runtime.
-
-The dedicated `t-connect-pro-debug*.yaml` bring-up harness that originally proved this was removed
-on 2026-07-26 (its diagnosis is preserved in ADR-0016 and in the comments in
-`boards/t-connect-pro-display.yaml`). If a future upgrade breaks the shared bus and you need to
-bisect it away from the full climate config, ADR-0016 §Verification describes the three-way
-experiment — spi3+Ethernet (fails), spi3+WiFi (control), spi2+Ethernet (fix) — well enough to
-rebuild a throwaway harness from the board file.
+Full procedure: [`docs/design-notes/esphome-upgrade-fork-check.md`](docs/design-notes/esphome-upgrade-fork-check.md).
 
 ### Testing Levels
 
@@ -497,7 +336,7 @@ rebuild a throwaway harness from the board file.
 `pip install pre-commit && pre-commit install`, run it on demand with `pre-commit run --all-files`. It runs
 yamllint (`.yamllint`), `scripts/check_repo_hygiene.py` and `scripts/verification-battery.sh --fast`
 (`--native-only` minus the generator-idempotence step, so it works on a dirty tree, ~5 s). CI mirrors the
-first two as the `lint` job; the climate host e2e (`pytest climate/tests/e2e`) runs on every PR as the
+first two (plus `scripts/check_md_links.py`, relative Markdown links) as the `lint` job; the climate host e2e (`pytest climate/tests/e2e`) runs on every PR as the
 `climate-e2e` job — serially, since every harness binds API port 6053 (never add `-n`). The slow gates
 (idempotence, `esphome config`/`compile`) run in CI or via the full battery.
 
@@ -571,6 +410,7 @@ external_components:
 | `docs/contracts/` | Frozen cross-system contracts (`map.json`, bindings arbitration) |
 | `docs/design-notes/entity-naming.md` | Entity ID naming convention |
 | `docs/design-notes/canbus-implementation-rules.md` | CAN firmware implementation rules (lambda safety, protocol header, codegen) |
+| `docs/design-notes/esphome-upgrade-fork-check.md` | Mandatory checklist for every ESPHome version bump (local `ethernet` fork) |
 | `TODO.md` | Feature backlog (in Italian) |
 
 ### Configuration Entry Points
@@ -600,56 +440,7 @@ external_components:
 - **Comments**: Explain WHY, not WHAT (code shows what)
 - **YAML Formatting**: Consistent 2-space indentation, no tabs
 - **Modular Design**: Keep components small and single-purpose
-
-### Safety Considerations
-
-- **No Hardcoded Secrets**: Always use `!secret` references
-- **Sensor Failover**: Always implement failover for critical sensors
-- **Emergency Behavior**: When all sensor tiers are NaN, PID outputs drop to 0 immediately (no shutdown timer)
-- **Testing**: Never skip testing on critical climate control code
-- **Version Control**: Commit working states frequently
-- **OTA Safety**: Test OTA updates on non-production boards first
-
-### Performance Optimization
-
-- **Polling Intervals**: Don't poll Modbus I/O boards more frequently than necessary (relay/analog 2s, MEV 30s — see `climate/CLAUDE.md`)
-- **Update Intervals**: Balance responsiveness vs. network traffic
-- **Logger Level**: Use INFO in production, DEBUG only for troubleshooting
-- **Conditional Compilation**: Disable unused features
-
-### Home Assistant Integration
-
-- **Dual Operation**: Design actuation to run autonomously; HA enhances monitoring/overrides
-- **Sensor Failover**: Room sensors are CAN-primary with a Home Assistant fallback tier (`climate/room_sensors.yaml`) — always keep a non-HA tier for critical sensors
-- **Entity Exposure**: Expose diagnostic sensors for monitoring
-- **Friendly Names**: Use clear, descriptive names for HA entities
-
----
-
-## Language Notes
-
-### Italian Terms Throughout Codebase
-
-The system was developed for an Italian residence, so many entity names use Italian terminology:
-
-| Italian | English | Context |
-|---------|---------|---------|
-| soggiorno | living room | Most common zone name |
-| cucina | kitchen | Room type |
-| bagno | bathroom | Multiple bathrooms use qualifiers |
-| camera | bedroom | Often with direction (nord/sud) or type |
-| anticamera | entry hall / foyer | Ground floor zone |
-| lavanderia | laundry room | First floor utility |
-| sottotetto | attic | Second floor only zone |
-| locale tecnico | technical room | Houses HVAC equipment |
-| piano terra | ground floor | Building level 0 |
-| primo piano | first floor | Building level 1 |
-| secondo piano | second floor | Building level 2 |
-| gruppo miscelazione | mixing valve group | Historical Gen-1 master controller name (retired) |
-| distribuzione | distribution | Historical Gen-1 slave-board naming pattern (retired) |
-| radiante | radiant | Radiant floor heating/cooling |
-
-**Note**: Comments and documentation are in English, but entity IDs often use Italian room names.
+- **Never hardcode secrets** — always `!secret`; the climate system's Home Assistant principles are in `climate/CLAUDE.md` (Operating principles), its failover and Emergency rules in its Sensor failover architecture section
 
 ---
 
@@ -669,29 +460,11 @@ The system was developed for an Italian residence, so many entity names use Ital
 - Ensure all substitution variables are defined
 - Check ESPHome version (min 2026.8.0 — the one repo baseline; the T-Connect Pro / An-Penta boards require it for multi-interface `network:`)
 
-**Sensor Failover**:
-- Check failover logs in Home Assistant
-- Ensure the CAN sensor-kit path (Tier 1) is available and updating
-- Verify Home Assistant sensors (Tier 2) are arriving when CAN drops out
-- Monitor for zones sitting in Emergency (all sensor tiers NaN)
-
-Climate-specific troubleshooting (Modbus issues, PID tuning) and the Modbus register/relay/
-sensor-address appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
-
-### Community and Support
-
-- **ESPHome Discord**: https://discord.gg/KhAMKrd
-- **Home Assistant Community**: https://community.home-assistant.io/
-- **ESPHome GitHub**: https://github.com/esphome/esphome
+Climate-specific troubleshooting (sensor failover, Modbus issues, PID tuning) and the Modbus
+register/relay/bus-member appendices and PID tuning guidelines are documented in `climate/CLAUDE.md`.
 
 ---
 
 ## Changelog
 
 Version history lives in [`CHANGELOG.md`](CHANGELOG.md) (newest first). Add a row there, and bump the version in the table at the top, whenever this guide or the architecture it describes changes materially.
-
----
-
-**End of Document**
-
-For questions or clarifications, refer to the documentation in `docs/` and each system's `CLAUDE.md`.

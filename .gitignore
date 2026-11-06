@@ -4,6 +4,7 @@
 .esphome/
 secrets.yaml
 .DS_Store
+.vscode/
 *.log
 *.backup
 *.bin

@@ -1,4 +1,4 @@
-"""Routing metrics: track length per layer, vias, GND pour coverage, length of the main nets. Run from hardware/."""
+"""Routing metrics: track length per layer, vias, GND pour coverage, length of the main nets. Run from the project folder (hardware/nodo503/ or hardware/bridge/)."""
 import collections, pcbnew
 from design import W, H
 

@@ -10,7 +10,7 @@ created: '2026-07-05'
 updated: '2026-07-12'
 binds: []
 sources:
-  - canbus/docs/merge-into-esphome-devices-proposal.md
+  - docs/archive/merge-into-esphome-devices-proposal.md
   - docs/adr/0009-central-map-binding-manifest-system-of-record.md
   - docs/adr/0013-gateway-local-relays-single-click-fallback.md
   - docs/contracts/spec-map-json-contract/SPEC.md

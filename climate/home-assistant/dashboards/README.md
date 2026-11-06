@@ -18,7 +18,7 @@ Comprehensive dashboard system for monitoring and controlling the ESPHome-based 
 
 ## Overview
 
-This dashboard system provides complete visibility and control over the 3-floor, 13-zone climate control system. The dashboards are organized hierarchically:
+This dashboard system provides complete visibility and control over the 3-floor, 14-zone climate control system. The dashboards are organized hierarchically:
 
 - **Main Overview**: System status and floor navigation
 - **Floor Dashboards**: Per-floor system status and room navigation (3 floors)

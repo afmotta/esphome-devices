@@ -1,8 +1,8 @@
 # Bridge CAN – ESP32-C6-WROOM-1 (rev A)
 
-Scheda per unire due segmenti del bus CAN (backbone e zona) con un bridge store-and-forward, in sostituzione della LilyGO T-2CAN. Usa i **due controller TWAI** dell'ESP32-C6, quindi non serve l'MCP2515: entrambi i lati sono gestiti a interrupt con code del driver. Il firmware è il profilo bridge di [afmotta/esphome-devices](https://github.com/afmotta/esphome-devices) (`canbus/packages/bridge.yaml`); qui c'è solo l'hardware e la bozza del file scheda per ESPHome.
+Scheda per unire due segmenti del bus CAN (backbone e zona) con un bridge store-and-forward, in sostituzione della LilyGO T-2CAN. Usa i **due controller TWAI** dell'ESP32-C6, quindi non serve l'MCP2515: entrambi i lati sono gestiti a interrupt con code del driver. Il firmware è il profilo bridge del monorepo ([`canbus/packages/bridge.yaml`](../../canbus/packages/bridge.yaml), scheda [`boards/bridge-c6-twai.yaml`](../../boards/bridge-c6-twai.yaml)); qui c'è solo l'hardware.
 
-È nata dal nodo 503 rev C (cartella `hardware/` di questo repository): stesso modulo, stessa catena di alimentazione, stesso transceiver e stessa pipeline a script. Per ora è un progetto separato; l'eventuale unione con il nodo si valuterà più avanti.
+È nata dal nodo 503 rev C ([`../nodo503/`](../nodo503/README.md)): stesso modulo, stessa catena di alimentazione, stesso transceiver e stessa pipeline a script. Per ora è un progetto separato; l'eventuale unione con il nodo si valuterà più avanti.
 
 - **Dimensioni:** 56 × 36 mm (entro i 56 × 41 mm della CANBed RP2040), 2 strati, componenti solo sul lato superiore
 - **Fissaggio:** 2 fori M2,5 in diagonale (in alto a destra e in basso a sinistra), centro a 3 mm dai bordi: interasse **50 × 30 mm**; keepout di 2,8 mm come sul nodo
@@ -52,7 +52,7 @@ Se per un errore di cablaggio CANH finisce sui 24 V, la resistenza da 120 Ω dis
 
 ## Firmware
 
-Il file scheda è `boards/bridge-c6-twai.yaml` (profilo `bridge-c6` del registry, ADR-0025); la fixture di compilazione è `canbus/tests/compile_bridge_c6.yaml`. In breve:
+Il file scheda è `boards/bridge-c6-twai.yaml` (profilo `bridge-c6` del registry, ADR-0025); la fixture di compilazione è [`canbus/tests/compile_bridge_c6.yaml`](../../canbus/tests/compile_bridge_c6.yaml). In breve:
 
 - due voci `esp32_can`, `can0` per il backbone e `can1` per la zona;
 - `bridge_hf_loop: "false"`, perché entrambi i lati sono a interrupt;
@@ -61,7 +61,7 @@ Il file scheda è `boards/bridge-c6-twai.yaml` (profilo `bridge-c6` del registry
 
 Dalla versione 2026.8.0, ESPHome assegna a ogni voce `esp32_can` il controller TWAI successivo, nell'ordine in cui sono dichiarate (`controller_id = next_twai_ctrl_num++` in `esp32_can.cpp`).
 
-In `esphome-devices` restano da aggiungere a mano la riga del profilo in `generate_nodes.py` e un test di compilazione (`canbus/tests/compile_bridge_c6.yaml`). `bridge.yaml`, `bridge_forwarding.h` e `node_core.yaml` non cambiano.
+Il profilo `bridge-c6` è già in `canbus/tools/generate_nodes.py` e la fixture di compilazione esiste; `bridge.yaml`, `bridge_forwarding.h` e `node_core.yaml` non sono cambiati.
 
 ## Da verificare prima dell'ordine
 
@@ -75,7 +75,7 @@ In `esphome-devices` restano da aggiungere a mano la riga del profilo in `genera
    - J2 è ruotato di 270° (imbocco verso sinistra): controlla che il modello 3D JLCPCB abbia l'imbocco sul bordo sinistro.
    - U5 è ruotato di 180°; D6 di 90°; C1 di 90°.
    - Il resto come sul nodo (J1 a 90°, U4 a 180°).
-4. **Via nel pad di massa del modulo** e **fori dei morsetti** (1,2 mm): come sul nodo, vedi il README principale.
+4. **Via nel pad di massa del modulo** e **fori dei morsetti** (1,2 mm): come sul nodo, vedi il [README del nodo](../nodo503/README.md).
 
 ## Disposizione
 
@@ -98,14 +98,14 @@ Lungo tutto il contorno c'è una fascia di 0,6 mm senza piste né via (`EDGE_BAN
 
 ## File e comandi
 
-La pipeline è la stessa del nodo (vedi [docs/pipeline.md](../docs/pipeline.md)), ma lavora in `hardware/bridge/` con il progetto `bridgecan`:
+La pipeline è la stessa del nodo (vedi [../docs/pipeline.md](../docs/pipeline.md)), ma lavora in `hardware/bridge/` con il progetto `bridgecan`. Percorsi relativi a questa cartella:
 
 | Percorso | Cosa contiene |
 |---|---|
-| `hardware/design.py` | Fonte di verità: componenti, net, posizioni |
-| `hardware/bridgecan.kicad_*` | Progetto KiCad generato (non modificarlo a mano) |
-| `hardware/bridgecan.ses` | Sbroglio salvato (Freerouting 1.9.0) |
-| `hardware/out/` | Gerber, BOM/CPL (completo e solo SMD), PDF dello schema, anteprime |
+| `design.py` | Fonte di verità: componenti, net, posizioni |
+| `bridgecan.kicad_*` | Progetto KiCad generato (non modificarlo a mano) |
+| `bridgecan.ses` | Sbroglio salvato (Freerouting 1.9.0) |
+| `out/` | Gerber, BOM/CPL (completo e solo SMD), PDF dello schema, anteprime |
 
 ```bash
 cd hardware/bridge && python3 gen_sch.py && ./route.sh && ./export.sh

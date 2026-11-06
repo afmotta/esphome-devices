@@ -12,14 +12,37 @@ points that compose Climate packages (`devices/climate-control.yaml` and its
 
 ## What's here
 
-- `rooms/` — room and floor-aggregator configs (13 rooms across 3 floors),
+- `rooms/` — room and floor-aggregator configs (14 rooms across 3 floors),
   each including PID/radiant/fancoil packages from `climate/packages/components/`
 - `packages/components/`, `packages/coordinators/` — Climate-owned reusable ESPHome
   packages for PID/radiant/fancoil/failover/demand logic and orchestration
 - `mev_modbus.yaml`, `mev_demand.yaml` — MEV (Mechanical Extract Ventilation)
   Modbus driver and demand aggregation
 - `room_sensors.yaml` — room sensor failover wiring
-- `home-assistant/dashboards/` — hand-authored Lovelace dashboards (Phase 3)
+- `home-assistant/` — hand-authored Lovelace dashboards (`dashboards/`) and the HA-side configs (`ha-*-config.yaml`, `mev_helpers.yaml`)
+
+## System overview
+
+### System Capabilities
+
+- **Multi-zone climate control**: 14 independently controlled temperature zones across 3 floors
+- **Dual-mode operation**: Radiant floor heating/cooling + fancoil units. Each actuator has one PID whose heat and cool outputs are *separate* template outputs gated on the heat pump's mode (`hp_mode`: HEAT → heat only, COOL → cool only, SANITARY_ONLY → neither; `climate/protocol/pid_direction.h`, review R-01), so a PID can only actuate in the direction the water actually flows. Fancoils declare a `fancoil_role` (`boost`, `cool_only`, `heat_cool`)
+- **Hybrid radiant + fancoil cooling ("base + boost")**: radiant floor/ceiling provides efficient baseline comfort; fancoils activate as a responsive boost layer when radiant cannot meet demand — evaluated independently per room (`climate/packages/coordinators/fancoil_boost.yaml`)
+- **Advanced PID control**: Precise temperature management with auto-tuning
+- **Autonomous dew-point protection**: ESPHome-native dew-point calculation sets the radiant-cooling supply-water target to dew point + `safe_margin` (default 2 °C, settable 1-5 °C) on the controller itself, and a hard interlock on each mixing valve shuts the chilled water whenever the supply falls below dew point + margin/2, independent of the PID (`climate/protocol/dew_point_interlock.h`, review N-01); it needs valid room readings, so a room whose dew point is NaN (CAN and HA tiers both gone) leaves the floor's supply minimum holding its previous value (`climate/room_sensors.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`)
+- **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
+- **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
+- **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
+- **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain, so an HA outage puts the zones without a CAN sensor node in Emergency (see [Sensor failover architecture](#sensor-failover-architecture))
+- **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
+- **Multi-tier failover**: Graceful degradation (CAN → HA → Emergency: NaN, PID outputs 0)
+
+### Building Layout
+
+- **Ground Floor (Piano Terra)**: 5 zones (soggiorno/living room, cucina/kitchen, bagno/bathroom, anticamera/entry hall, locale tecnico/technical room)
+- **First Floor (Primo Piano)**: 8 zones (4 bedrooms, 3 bathrooms, laundry room)
+- **Second Floor (Secondo Piano)**: 1 zone (sottotetto/attic)
+
 
 ## Entity ID Naming Convention
 
@@ -81,18 +104,7 @@ first_floor_mev_alarm_active         # Master alarm indicator
 
 **Key Insight**: PID is a *mode of operation* ("radiant under PID control"), not a separate component. This keeps the model flat with a maximum of 4 segments.
 
-**Italian Terms** (used throughout):
-- `soggiorno` = living room
-- `cucina` = kitchen
-- `bagno` = bathroom
-- `camera` = bedroom
-- `anticamera` = entry hall
-- `lavanderia` = laundry room
-- `sottotetto` = attic
-- `locale_tecnico` = technical room
-- `piano_terra` = ground floor
-- `primo_piano` = first floor
-- `secondo_piano` = second floor
+Italian room and floor names are listed in [Italian terminology](#italian-terminology).
 
 ## PID Control Architecture
 
@@ -171,27 +183,76 @@ only if the boost is still running and `hp_mode` is COOL) instead of restoring a
 
 ## Modbus Communication Architecture
 
-**Single-master pattern** (ADR-0014): one T-Connect Pro controller is the sole Modbus RTU master on `rs485_bus` (RS485, target 38400 8E1, pending the bring-up parity check noted in ADR-0014 §4). There are no slave boards — every Modbus device is a commodity I/O board the master polls/writes directly:
-
-| Device | Address | Role |
-|---|---|---|
-| Analog Outputs Board (Waveshare Modbus RTU Analog Output 8CH (B)) | `0x1` | 0-10V fancoil/valve modulation, channels → `analog_output_1..8` |
-| Relay Board (Waveshare Modbus RTU Relay 32CH) | `0x2` | Radiant/fancoil/pump switching, channels → `relay_1..32` |
-| MEV first floor (Cappellotto Air Fresh I) | `0x10` | Ventilation + humidity cascade, see `climate/mev_modbus.yaml` for its register set |
-| MEV ground floor (Innova HRP DOMO 60 HX) | `0x11` | Passive enthalpic HRV; CO2/air-quality + humidity ventilation demand, fan-only (no cascade), see `climate/mev_innova_modbus.yaml` (ADR-0018) |
+**Single-master pattern** (ADR-0014): one T-Connect Pro controller is the sole Modbus RTU master on `rs485_bus` (RS485, target 38400 8E1, pending the bring-up parity check noted in ADR-0014 §4). There are no slave boards — every Modbus device is a commodity I/O board the master polls/writes directly (bus members and addresses: [Appendix C](#c-modbus-bus-members)).
 
 Room temperature/humidity control data does **not** travel over this bus — it is CAN-primary (received directly on the controller's own CAN interface) with a Home Assistant fallback (see `room_sensors.yaml`); room air-quality/pollutant data (CO2, VOC index, NOx index, PM1.0/2.5/4.0/10) is likewise CAN-sourced, statically declared per room in the floor files (`climate/rooms/first_floor/first-floor.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`) and dispatched by `climate/packages/can_sensor_receiver.yaml`, independent of Modbus (HVAC-1.5). Ground-floor rooms have no air-quality CAN kit registered yet, so their MEV's air-quality channel floors at minimum fan until the kits arrive; its humidity channel is live already (room humidity is sensed) (ADR-0018).
 
-**HA-tier staleness (R-04)**: the Home Assistant fallback tier of `room_sensors.yaml` reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been connected for `ha_staleness_grace_s` (default 300 s; rule in `climate/protocol/ha_tier.h`). Until CAN nodes exist, 12 of the 13 zones depend only on this tier, so an HA outage longer than the grace puts those zones in Emergency (PID outputs 0) — relay/analog/MEV actuation stays autonomous, but without room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs` sessions on `--no-states` during outage tests: a plain session counts as an HA connection.
+**HA-tier staleness (R-04)**: see [Sensor failover architecture](#sensor-failover-architecture).
 
 **Polling Intervals**:
 - Relay/analog board polling: 2 seconds (`update_interval` in each board's package include)
 - MEV polling: 30 seconds (`climate/mev_modbus.yaml` / `climate/mev_innova_modbus.yaml` default)
 
+## Package composition patterns
+
+The codebase uses ESPHome's `packages` feature extensively for modularity and reusability.
+
+### Hierarchy
+
+```
+Device Config (devices/climate-control.yaml)
+├── Board Package (boards/t-connect-pro.yaml)
+│   └── Network: ethernet + wifi declared inline (network: priority:, ADR-0022)
+├── Hardware Packages (packages/devices/modbus-io/modbus_relay_board_32ch.yaml,
+│                      modbus_analog_outputs_board.yaml)
+└── Floor Packages (climate/rooms/*/*-floor.yaml)
+    └── Room Packages (climate/rooms/*/*.yaml)
+        ├── Sensors (climate/room_sensors.yaml)
+        ├── Radiant (climate/packages/components/radiant.yaml)
+        ├── Fancoil (climate/packages/components/fancoil.yaml)
+        └── Boost Coordinator (climate/packages/coordinators/fancoil_boost.yaml)
+```
+
+### Room files
+
+Floor aggregators include each room file bare (`soggiorno: !include soggiorno.yaml`). The room file
+sets its own `defaults:` (`room_slug`, `room_name`, `temperature_sensor`) and passes `vars:` only to
+the component packages it includes (sensors, radiant, fancoil). For the real shape see
+[Adding a New Room](#adding-a-new-room).
+
+## Sensor failover architecture
+
+**3-Tier Sensor Failover** (implemented in `failover_sensor.yaml`, wired by `climate/room_sensors.yaml`):
+
+1. **Primary**: CAN sensor-kit measurement (received directly on the controller's own CAN interface)
+2. **Fallback**: Home Assistant sensor (`homeassistant` platform), gated for staleness (R-04): the HA tier
+   reads NaN when HA reports `unavailable`/`unknown`, or when no state-subscribed API client has been
+   connected for 5 minutes (`climate/protocol/ha_tier.h`, 300 s grace via `ha_staleness_grace_s`; the grace
+   rides out an HA restart). A frozen last value is never served indefinitely; the outdoor temperature (`climate/outdoor.yaml`) uses the same gate (R-12).
+   While only `soggiorno` has a CAN sensor node (`registry/map.json`), the other 13 of the 14 zones depend only on this tier, so an HA outage longer than the
+   grace puts those zones in Emergency — relay/analog/MEV actuation stays autonomous, but without
+   room-sensor data there is nothing to regulate on. The grace is the lever to tune. Keep `esphome logs`
+   sessions on `--no-states` during outage tests: a plain session counts as an HA connection.
+3. **Emergency**: the failover returns NaN **immediately** once both tiers are NaN — it has no timer of its
+   own. ESPHome's PID answers a NaN input by driving its outputs to 0 at once (`pid_climate.cpp`); there is
+   no separate "safe shutdown after 5 minutes". The only 5-minute figure is the HA-tier grace above.
+   The radiant override cannot bypass it: a NaN zone forces the valve closed at once, and a NaN that persists
+   for `sensor_lost_grace` (default 120 s) ends a boost; the grace lets a boost restored from flash survive the
+   boot-time NaN (reviews R-05, R-16).
+
+**Automatic Recovery**: the failover switches back to the highest tier that has a valid reading again
+(CAN preferred, then HA).
+
+**Troubleshooting**:
+- Check the active tier (`text_sensor.<room_slug>_temp_abstracted_sensor_tier`) and the failover logs
+- Tier 1: is the room's CAN sensor kit updating (`registry/map.json` lists the rooms that have one)?
+- Tier 2: are the HA sensors arriving (not `unavailable`), and is a state-subscribed API client connected?
+- Watch for zones sitting in Emergency (all tiers NaN, PID outputs 0)
+
 ## Commissioning gates (progressive deployment)
 
 Deployment is a **season-phased progressive rollout** on a single firmware image —
-see `docs/climate-deployment-runbook.md`. Features are gated at runtime, not at build
+see `docs/climate/climate-deployment-runbook.md`. Features are gated at runtime, not at build
 time, because the `any_pid_requesting_heat/cool` aggregation in
 `devices/climate-control.yaml` hard-references every zone's PID (compiling zones out
 would break the build). Three gates default to the safe state, so a freshly flashed
@@ -269,9 +330,8 @@ installed). Verification runs pin `esphome==2026.8.0` (`climate/tests/pyproject.
 2. Include sensor, radiant, fancoil packages with room-specific vars
 3. Add room package to floor aggregator (`[floor]-floor.yaml`)
 4. Assign relay numbers (ensure no conflicts)
-5. Add Modbus register mappings if using remote sensors
-6. Test compilation
-7. Deploy and verify
+5. Test compilation
+6. Deploy and verify
 
 Example:
 ```yaml
@@ -309,16 +369,15 @@ cools — the floor's dew-point sources and supply-minimum room list, which must
 
 ### Modifying PID Parameters
 
-PID parameters are set at component inclusion:
+Per-room gains are `vars:` on the room's radiant include (`radiant.yaml` forwards them through
+`heat_only_radiant.yaml` to `pid.yaml`, which no room includes directly); defaults and ranges are in
+[Appendix D](#d-pid-tuning-guidelines):
 
 ```yaml
-packages:
-  pid: !include
-    file: pid.yaml
+  radiant: !include
+    file: ../../packages/components/radiant.yaml
     vars:
-      circuit_slug: "radiant_soggiorno"
-      circuit_name: "Radiant Soggiorno"
-      sensor: sensor.soggiorno_temp
+      relay_id: relay_9
       kp: 0.8      # Proportional gain
       ki: 0.005    # Integral gain
       kd: 0.05     # Derivative gain
@@ -329,10 +388,9 @@ packages:
 ### Adding Modbus Devices
 
 1. Determine Modbus address (must be unique on bus)
-2. Add to appropriate board's `modbus_controller` list
-3. Create component package with register mappings
-4. Include component in device config with parameters
-5. Verify RS485 wiring (A to A, B to B, proper termination)
+2. Create its driver package with a `modbus_controller:` entry (address) and the register mappings — shared I/O boards under `packages/devices/modbus-io/`, climate-only devices alongside `climate/mev_modbus.yaml`
+3. Include the package in the device config with parameters
+4. Verify RS485 wiring (A to A, B to B, proper termination)
 
 ### Debugging Modbus Issues
 
@@ -348,6 +406,7 @@ logger:
 Common issues:
 - Wrong baud rate/parity (target 38400 8E1 — see Appendix C)
 - Incorrect address
+- Wrong register addresses or data types
 - Missing termination resistors
 - Swapped A/B wires
 - Too many devices on bus (> 30)
@@ -402,7 +461,7 @@ Fancoil units have no dedicated relay of their own — each floor's fancoil circ
 | MEV (Cappellotto Air Fresh I) | `0x10` | `rs485_bus` | First floor; `climate/mev_modbus.yaml` |
 | MEV (Innova HRP DOMO 60 HX) | `0x11` | `rs485_bus` | Ground floor; enthalpic HRV; CO2/air-quality + humidity, fan-only; `climate/mev_innova_modbus.yaml` (ADR-0018) |
 
-Room temperature/humidity control data is **not** on this bus — it is CAN-primary/HA-fallback (see `room_sensors.yaml`); room CO2/VOC/NOx/PM air-quality data is likewise CAN-sourced (see `climate/rooms/first_floor/first-floor.yaml`), not Modbus. ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and the two MEVs (`0x10`, `0x11`) are climate-only addresses with no gateway-side counterpart to mirror against.
+Room data is not on this bus (see Modbus Communication Architecture). ADR-0014 §4 mirrors only the relay bank address (`0x2`) across the gateway's and this device's RS485 buses, so a spare Relay 32CH board swaps into either system without re-addressing; the analog board (`0x1`) and the two MEVs (`0x10`, `0x11`) are climate-only addresses with no gateway-side counterpart to mirror against.
 
 **Analog output channel assignments** (from `climate/rooms/**`): `analog_output_1` — ground floor radiant mixing valve; `analog_output_2` — first floor radiant mixing valve; `analog_output_3` — Soggiorno fancoil; `analog_output_4` — Cucina fancoil; `analog_output_5` — Locale Tecnico fancoil; `analog_output_6` — Sottotetto fancoil; `analog_output_7` — first floor MEV fan speed; `analog_output_8` — ground floor MEV fan speed (Innova HRP DOMO 60 HX, ADR-0018).
 
@@ -438,19 +497,43 @@ There are no separate per-mode gains to tune: tune once, in the season the loop 
 - For zones with a fancoil or boost coordinator use `pid_autotune_with_fancoil.yaml` (ends boost and
   turns the fancoil PID off first) and run it in HEAT.
 
-### Debugging Modbus and PID issues
-
-**Modbus Issues**:
-- Enable DEBUG logging for `modbus_controller`
-- Check register addresses and data types
-- Verify baud rate/parity (target 38400 8E1 — see Appendix C)
-- Inspect RS485 wiring and termination
-
-**PID Tuning**:
+**PID tuning tips** (Modbus debugging: see "Debugging Modbus Issues" under Common Tasks):
 - Use auto-tune feature first (`pid_autotune.yaml`)
 - Start with conservative gains (low Kp, very low Ki/Kd)
 - Increase gradually while monitoring stability
 - One gain set serves both directions (heat/cool outputs are gated, not separate PIDs); tune in the season the loop works in
+
+## Operating principles
+
+Secrets, OTA and git rules are house-wide: see the root `CLAUDE.md`.
+
+- **Logger Level**: Use INFO in production, DEBUG only for troubleshooting
+
+### Home Assistant Integration
+
+- **Dual Operation**: Design actuation to run autonomously; HA enhances monitoring/overrides
+- **Sensor Failover**: Room sensors are CAN-primary with a Home Assistant fallback tier (`climate/room_sensors.yaml`). The target is a non-HA tier for every critical sensor; today only `soggiorno` has one, so the other zones fall to Emergency on an HA outage (see [Sensor failover architecture](#sensor-failover-architecture))
+- **Entity Exposure**: Expose diagnostic sensors for monitoring
+- **Friendly Names**: Use clear, descriptive names for HA entities
+
+## Italian terminology
+
+The system was developed for an Italian residence, so many entity names use Italian terminology:
+
+| Italian | English | Context |
+|---------|---------|---------|
+| soggiorno | living room | Most common zone name |
+| cucina | kitchen | Room type |
+| bagno | bathroom | Multiple bathrooms use qualifiers |
+| camera | bedroom | Often with direction (nord/sud) or type |
+| anticamera | entry hall / foyer | Ground floor zone |
+| lavanderia | laundry room | First floor utility |
+| sottotetto | attic | Second floor only zone |
+| locale_tecnico | technical room | Houses HVAC equipment |
+| piano_terra | ground floor | Building level 0 |
+| primo_piano | first floor | Building level 1 |
+| secondo_piano | second floor | Building level 2 |
+| radiante | radiant | Radiant floor heating/cooling |
 
 ## The room_slug contract with canbus
 
