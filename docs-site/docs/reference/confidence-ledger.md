@@ -51,6 +51,7 @@ old claim isn't reintroduced.
 | No hardware-replacement procedure for the MEV unit | No documented procedure exists anywhere in the repository for physically replacing the ventilation (MEV) unit itself — only for the Modbus wiring/communication side of it. | [MEV Unit](../hardware/mev.md) |
 | No hardware-replacement procedure for room-sensor boards | No documented procedure exists for physically replacing an S1 Pro Multi-Sense board or a wall-mounted sensor board (the ones behind [Room Sensor Board](../hardware/room-sensor.md)) — only for the sensor data's software failover path. | [Room Sensor Board](../hardware/room-sensor.md) |
 | Real RS485 cable lengths for this house | Cable-length guidance on the [RS485/Modbus troubleshooting page](../troubleshooting/rs485-modbus.md) is based on the RS485 standard's general limits, not on any measurement of this house's actual wiring runs, because the physical installation hasn't happened yet. | RS485/Modbus troubleshooting |
+| ESP32-C6 bridge zone side has no bus-off recovery | ESPHome's `esp32_can` never calls `twai_initiate_recovery()`, and the TX watchdog only counts refused heartbeats, which go out on the backbone (`canbus/protocol/tx_health.h`, `canbus/packages/tx_watchdog.yaml`). A bus-off on the C6 bridge's zone port (TWAI) therefore leaves that segment silent until a power cycle. The T-2CAN's zone side is an MCP2515 and recovers in hardware. | [CAN Bus troubleshooting](../troubleshooting/canbus.md) |
 
 ## Related
 

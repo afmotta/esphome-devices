@@ -213,9 +213,19 @@ constantly. Seeing such a node's uptime reset while its segment is down is
 this, not a power problem. The CANBed nodes recover in hardware and never
 restart for this. 🔵 DESIGNED
 
+On a bridge this watchdog only covers the backbone side, the port its heartbeat
+goes out on. On the T-2CAN the zone side is an MCP2515 chip, which recovers in
+hardware. On the ESP32-C6 bridge the zone side is a second built-in CAN
+controller, which neither rejoins by itself nor triggers a restart: after a
+serious fault on the zone wiring that segment stays silent while the bridge
+keeps heartbeating normally, with `ERR_CAN_TX_FAIL` latched. Once the wiring is
+repaired, power-cycle the bridge. ⚠️ KNOWN GAP
+
 **Likely causes:**
 
 - The bridge lost power.
+- (ESP32-C6 bridge) Its zone-side CAN controller fell off the bus after a
+  wiring fault and is waiting for a power cycle.
 - The bridge itself needs a reboot (the watchdog should already handle
   hangs, but a full power cycle is the simplest manual reset).
 - A wiring fault between the bridge and that segment.

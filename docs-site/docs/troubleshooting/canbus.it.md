@@ -239,9 +239,20 @@ di continuo. Se l'uptime di un nodo così si azzera mentre il suo segmento è
 fermo, è questo meccanismo, non un problema di alimentazione. I nodi CANBed
 recuperano in hardware e non si riavviano mai per questo motivo. 🔵 PROGETTATO
 
+Su un bridge questo watchdog copre solo il lato backbone, la porta da cui esce
+il suo heartbeat. Sul T-2CAN il lato zona è un chip MCP2515, che recupera in
+hardware. Sul bridge ESP32-C6 il lato zona è un secondo controller CAN
+integrato, che non rientra da solo e non provoca un riavvio: dopo un grave
+guasto sul cablaggio di zona quel segmento resta silenzioso mentre il bridge
+continua a mandare heartbeat normalmente, con `ERR_CAN_TX_FAIL` impostato in
+modo permanente. Una volta riparato il cablaggio, spegni e riaccendi il
+bridge. ⚠️ LACUNA NOTA
+
 **Cause probabili:**
 
 - Il bridge ha perso alimentazione.
+- (bridge ESP32-C6) Il suo controller CAN lato zona è uscito dal bus dopo un
+  guasto al cablaggio e attende uno spegnimento/riaccensione.
 - Il bridge stesso ha bisogno di un riavvio (il watchdog dovrebbe già
   gestire i blocchi, ma un ciclo di spegnimento/accensione completo è il
   reset manuale più semplice).
