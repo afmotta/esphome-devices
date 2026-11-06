@@ -59,7 +59,7 @@ OX0, OY0, OX1, OY1 = IX0 - WALL, IY0 - WALL, IX1 + WALL, IY1 + WALL
 
 # Modelled parts for the collision check: ref -> height above PCB top. Footprint = courtyard.
 PARTS = {
-    "U1": 10.0,   # MORNSUN K7805-500R3, SIP-3 body 11.5 x 7.5 x 10 mm
+    "U1": 10.0,   # MORNSUN K7805-500R3, measured 10 mm on the demo board (2026-11-06)
     "U3": 3.2,    # ESP32-C6-WROOM-1
     "C1": 5.6,    # electrolytic 5 x 5.4
     "J1": 8.6,    # Kefa KF2EDGR-3.5-4P (verify)

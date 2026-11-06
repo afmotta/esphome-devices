@@ -43,7 +43,7 @@ Lo script stampa le dimensioni esterne e controlla che fondo e coperchio non toc
 
 Le altezze dei componenti sono nella tabella `PARTS` di `gen_case.py` e vengono dai datasheet o da stime. Misurale con il calibro su una scheda assemblata e, se servono, correggi i parametri e rigenera:
 
-1. **Altezza del K7805-500R3** (stimata 10 mm, datasheet 11,5 × 7,5 × 10 mm): decide `TOP_CLEAR` (11 mm) e quindi l'altezza totale.
+1. ~~Altezza del K7805-500R3~~: **misurata 10 mm** sulla scheda demo (2026-11-06), come stimato. `TOP_CLEAR` resta 11 mm (1 mm di margine sotto il coperchio).
 2. **Altezza della presa J1 e della spina innestata** (stimate 8,6 e 9,5 mm) e quanto sporge la spina oltre il bordo (~11 mm).
 3. **Profondità libera nella 503** dietro i frutti Vimar Linea: la scatoletta è alta 20,2 mm, più la curva dei cavetti PH sopra il coperchio. Se non c'è spazio, i cavi possono uscire di lato dalla tacca della parete inferiore.
 4. **Lunghezza delle viti:** con le colonnine da 4 mm + 2 mm di fondo, una M2,5 × 6 entra 4,4 mm. Non usare viti più lunghe di 6 mm: bucherebbero il fondo.
