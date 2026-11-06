@@ -243,6 +243,12 @@ the component packages it includes (sensors, radiant, fancoil). For the real sha
 **Automatic Recovery**: the failover switches back to the highest tier that has a valid reading again
 (CAN preferred, then HA).
 
+**Troubleshooting**:
+- Check the active tier (`text_sensor.<room_slug>_temp_abstracted_sensor_tier`) and the failover logs
+- Tier 1: is the room's CAN sensor kit updating (`registry/map.json` lists the rooms that have one)?
+- Tier 2: are the HA sensors arriving (not `unavailable`), and is a state-subscribed API client connected?
+- Watch for zones sitting in Emergency (all tiers NaN, PID outputs 0)
+
 ## Commissioning gates (progressive deployment)
 
 Deployment is a **season-phased progressive rollout** on a single firmware image —
