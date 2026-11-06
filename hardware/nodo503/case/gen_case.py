@@ -62,14 +62,14 @@ PARTS = {
     "U1": 10.0,   # MORNSUN K7805-500R3, measured 10 mm on the demo board (2026-11-06)
     "U3": 3.2,    # ESP32-C6-WROOM-1
     "C1": 5.6,    # electrolytic 5 x 5.4
-    "J1": 8.6,    # Kefa KF2EDGR-3.5-4P (verify)
+    "J1": 8.6,    # Kefa KF2EDGR-3.5-4P, confirmed on the demo board (2026-11-06)
     "J2": 2.9,    # JST SM04B-SRSS-TB
     "J3": 6.0,    # JST B4B-PH-K-S
     "J4": 6.0,
     "U2": 1.8,
 }
 PLUG_J1_OUT = 11.0   # how far the KF2EDGK plug sticks out past the right edge
-PLUG_J1_H = 9.5      # plug height above PCB top
+PLUG_J1_H = 9.5      # plug height above PCB top (J1 measures confirmed 2026-11-06)
 QWIIC_H = 3.0        # SHR-04V housing thickness
 
 
