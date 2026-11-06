@@ -326,9 +326,8 @@ installed). Verification runs pin `esphome==2026.8.0` (`climate/tests/pyproject.
 2. Include sensor, radiant, fancoil packages with room-specific vars
 3. Add room package to floor aggregator (`[floor]-floor.yaml`)
 4. Assign relay numbers (ensure no conflicts)
-5. Add Modbus register mappings if using remote sensors
-6. Test compilation
-7. Deploy and verify
+5. Test compilation
+6. Deploy and verify
 
 Example:
 ```yaml
@@ -386,10 +385,9 @@ packages:
 ### Adding Modbus Devices
 
 1. Determine Modbus address (must be unique on bus)
-2. Add to appropriate board's `modbus_controller` list
-3. Create component package with register mappings
-4. Include component in device config with parameters
-5. Verify RS485 wiring (A to A, B to B, proper termination)
+2. Create its driver package with a `modbus_controller:` entry (address) and the register mappings — shared I/O boards under `packages/devices/modbus-io/`, climate-only devices alongside `climate/mev_modbus.yaml`
+3. Include the package in the device config with parameters
+4. Verify RS485 wiring (A to A, B to B, proper termination)
 
 ### Debugging Modbus Issues
 
