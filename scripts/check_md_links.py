@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Check that relative links in tracked Markdown files point at existing files."""
+"""Check that relative links in tracked Markdown files point at existing files.
+
+Covers inline `[text](path)` links outside code. Not checked: images, reference-style
+definitions (`[x]: path`), `<...>` targets, single-quoted titles and `#anchor` fragments.
+"""
 
 from __future__ import annotations
 
@@ -19,17 +23,19 @@ def tracked_markdown() -> list[Path]:
     out = subprocess.run(
         ["git", "ls-files", "*.md"], check=True, capture_output=True, text=True
     ).stdout
-    return [Path(line) for line in out.splitlines() if line]
+    # A tracked file deleted from the working tree (plain `rm`) has nothing to read.
+    return [Path(line) for line in out.splitlines() if line and Path(line).is_file()]
 
 
 def broken_links(md: Path) -> list[str]:
     broken = []
-    in_fence = False
+    fence = None  # marker of the open code fence; a ~~~ line does not close a ``` block
     for number, line in enumerate(md.read_text(encoding="utf-8").splitlines(), 1):
-        if FENCE.match(line):
-            in_fence = not in_fence
+        match = FENCE.match(line)
+        if match and fence in (None, match.group(1)):
+            fence = None if fence else match.group(1)
             continue
-        if in_fence:
+        if fence:
             continue
         for target in LINK.findall(INLINE_CODE.sub("", line)):
             if target.startswith(EXTERNAL):
