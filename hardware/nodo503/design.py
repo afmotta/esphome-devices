@@ -131,12 +131,14 @@ for i in range(1, 7):
         (sx + 20.32, sy), (x, y, 90), mpn="MLCC 100 nF 0402", lcsc="C1525")
 
 # two 4-way JST PH headers under the module: buttons 1-3 (the usual case) and 4-6, each with its GND
+# Rotated 180 deg with the body (courtyard) where it was at 0 deg: the pin row sits 1.1 mm lower and
+# pin 1 is on the right. Nets reversed so the board still reads 1-2-3-G from the left (pin 1 = GND).
 _ph = "JST B4B-PH-K-S(LF)(SN), PH 2 mm 4 poli verticale (THT); cavo con terminali SPH-002T-P0.5S da crimpare o precrimpato"
 add("J3", "Connector_Generic:Conn_01x04", "PULSANTI 1-3", PH4V,
-    {"1": "BTN1_EXT", "2": "BTN2_EXT", "3": "BTN3_EXT", "4": "GND"}, (157.48, 127.0), (8.5, 30.15, 0),
+    {"1": "GND", "2": "BTN3_EXT", "3": "BTN2_EXT", "4": "BTN1_EXT"}, (157.48, 127.0), (14.5, 31.25, 180),
     mpn=_ph, lcsc="C131334")
 add("J4", "Connector_Generic:Conn_01x04", "PULSANTI 4-6", PH4V,
-    {"1": "BTN4_EXT", "2": "BTN5_EXT", "3": "BTN6_EXT", "4": "GND"}, (157.48, 154.94), (19.55, 30.15, 0),
+    {"1": "GND", "2": "BTN6_EXT", "3": "BTN5_EXT", "4": "BTN4_EXT"}, (157.48, 154.94), (25.55, 31.25, 180),
     mpn=_ph, lcsc="C131334")
 
 # --- Qwiic / I2C (SDA = GPIO3, SCL = GPIO2) ---------------------------
@@ -240,3 +242,17 @@ _jx, _jy = COMP["J5"]["pcb"][0] + 4 * 2.54, COMP["J5"]["pcb"][1]
 PREROUTE += [("trkn", _PAD_X["R"], _by, _bx, _by, "BOOT"), ("via", _bx, _by, "BOOT"),
              ("trkb", _bx, _by, _bx, 28.9, "BOOT"), ("trkb", _bx, 28.9, _jx, 28.9, "BOOT"),
              ("trkb", _jx, 28.9, _jx, _jy, "BOOT")]
+
+# BTN4_EXT to J4: with J4 rotated 180 deg its pin row is too close to the edge to pass under it, and the
+# outermost column (button 4) has to reach the leftmost pin across BTN5/BTN6. Down the front beside the
+# column, via below the BOOT track, then along the back to the pin.
+_x, _y = btn_xy[4]
+_j4x, _j4y = COMP["J4"]["pcb"][0] - 6.0, COMP["J4"]["pcb"][1]   # pin 4 (BTN4_EXT), the leftmost
+_n = _y + BTN_DY + 0.51 + 0.69                                  # middle of the R10-R4 node
+PREROUTE += [("trkn", _x, _n, _x + 1.0, _n, "BTN4_EXT"), ("trkn", _x + 1.0, _n, _x + 1.0, 29.6, "BTN4_EXT"),
+             ("via", _x + 1.0, 29.6, "BTN4_EXT"), ("trkb", _x + 1.0, 29.6, _j4x, 29.6, "BTN4_EXT"),
+             ("trkb", _j4x, 29.6, _j4x, _j4y, "BTN4_EXT")]
+
+# C15/C16 +3V3 pads: via to the back beside C16 (the router left this pair open after the J4 change)
+PREROUTE += [("trk", 3.6, 10.38, 3.14, 10.84, "+3V3"), ("trk", 3.14, 10.84, 2.62, 10.84, "+3V3"),
+             ("via", 2.62, 10.84, "+3V3")]

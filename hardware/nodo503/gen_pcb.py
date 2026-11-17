@@ -109,9 +109,9 @@ for k, t in enumerate(["24V", "GND", "H", "L"]):      # J1 on the right edge, to
     # narrow glyphs so "24V" fits between F1 and J1
     text(t, x0 - 2.0 - (0.85 if t == "L" else 0), y0 - 10.5 + 3.5 * k, 0.6, width=0.45, right=True)
 for ref, names in (("J3", ["1", "2", "3", "G"]), ("J4", ["4", "5", "6", "G"])):   # above the PH headers
-    x0, y0, _ = COMP[ref]["pcb"]
+    x0, y0, _ = COMP[ref]["pcb"]   # rotated 180: pin 1 (G) is the rightmost, the body reaches 2.8 mm above the pins
     for k, t in enumerate(names):
-        text(t, x0 + 2.0 * k, y0 - 2.6, 0.6)
+        text(t, x0 - 6.0 + 2.0 * k, y0 - 3.7, 0.6)
 text("QWIIC", 43.7, 7.0, 0.6)
 x0, y0, _ = COMP["J5"]["pcb"]      # horizontal header on the bottom edge: legends above the pins
 for k, t in enumerate(["5V", "D-", "D+", "G", "BT", "G"]):

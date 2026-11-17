@@ -146,3 +146,10 @@ Registro delle scelte fatte con Alberto, con il motivo. Le voci più recenti son
 - Spina J1 fuori dalla scatoletta (finestra sul lato destro), Qwiic da una tacca nella parete superiore, cavi PH da una fessura nel coperchio aperta verso il bordo (il coperchio si chiude a cavi innestati). Nessuna apertura per J5: prima programmazione a coperchio aperto, poi OTA.
 - Altezze dei componenti stimate da datasheet: K7805 (10 mm) e J1 con la spina innestata (8,6 e 9,5 mm, sporgenza ~11 mm) confermati sulla scheda demo. Restano da provare la profondità libera nella 503 e lo scatto del coperchio, vedi `case/README.md`.
 - 2026-11-07: materiale **autoestinguente UL94 V-0** (PC-FR, ABS-FR o PETG-V0) su richiesta di Alberto, perché l'involucro sta in una scatola elettrica. PLA e PETG normali esclusi. La geometria non cambia; lo scatto del coperchio e il foro delle viti vanno ricontrollati sulla prima stampa (PC e ABS ritirano di più).
+
+## 2026-11-17 — J3 e J4 ruotati di 180°
+
+- Su richiesta di Alberto i due JST PH dei pulsanti sono ruotati di 180°. Il corpo del connettore (e quindi il courtyard, le aperture del case e le etichette) resta dov'era: la fila dei pin scende di 1,1 mm (y = 31,25) e il pin 1 passa a destra.
+- Net invertite sui pin, così da sinistra la scheda si legge ancora 1-2-3-G (e 4-5-6-G): **pin 1 = GND**, pin 4 = pulsante 1 (o 4). Il cavo PHR-4 va crimpato con questo ordine; le posizioni dei segnali sulla scheda non cambiano, il firmware nemmeno.
+- Sotto i pin non resta spazio per le piste (prima ci passavano BTN4_EXT e le linee USB). Due piste fisse nuove in `PREROUTE`: BTN4_EXT dalla colonna RC scende sul davanti, passa sul retro con una via sotto la pista BOOT e arriva al pin sinistro di J4; +3V3 di C15/C16 con una via accanto a C16 (Freerouting lo lasciava aperto). Le linee USB ora passano tra il modulo e i connettori.
+- Risbrogliato con `route.sh` (DRC 0, parità 0). Nel CPL J3/J4 risultano a 0° (180° del footprint + 180° di correzione del modello JLCPCB): controlla la tacca nell'anteprima di assemblaggio. Case invariato (stesso courtyard, interferenze 0).
