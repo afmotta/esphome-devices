@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Project** | ESPHome Multi-Floor Climate Control System |
-| **Version** | 1.27 |
-| **Last Updated** | November 4, 2026 |
+| **Version** | 1.28 |
+| **Last Updated** | November 17, 2026 |
 | **Purpose** | Guide AI assistants in understanding and working with this codebase |
 
 ---
@@ -448,7 +448,7 @@ external_components:
 
 1. **Architecture**: `docs/architecture/ARCHITECTURE-SPINE.md` (invariants) and
    `docs/architecture/architecture-diagram.md` (topology and data flows)
-2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (see the directory listing for the full set)
+2. **Decisions**: `docs/adr/` - the reasoning behind significant decisions (see the directory listing for the full set; number 0019 was skipped and never existed)
 3. **Maintenance & support**: https://afmotta.github.io/esphome-devices/ (`docs-site/`)
 4. **ESPHome Docs**: https://esphome.io/ - Platform documentation
 

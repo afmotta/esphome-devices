@@ -35,6 +35,7 @@ Prima di fare qualsiasi cosa, capisci quale ruolo è guasto:
    | Controllo | Atteso dopo un flash pulito | Perché conta |
    |---|---|---|
    | `hp_mode_manual_hold` | ON | `hp_mode` non si muove da solo |
+   | `hp_mode_demand_enabled` | OFF | La richiesta delle stanze non cambia mai `hp_mode` |
    | `hp_mode` | SANITARY_ONLY | Nessun riscaldamento/raffrescamento ambienti da nessuna parte |
    | Ogni entità `climate` di zona | OFF | Nessuna attuazione radiante/fancoil |
    | Pendenza curva termica di ogni piano | 0 | Curva piatta, mandata fissa, nessuna sorpresa da compensazione climatica |

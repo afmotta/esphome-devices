@@ -415,6 +415,37 @@ namespace
     assert(close(lo, 7.0f) && close(hi, 8.0f));
   }
 
+  // Seasonal demand input: temperature vs setpoint with a deadband, independent
+  // of the PID's mode/action (the PID is OFF in SANITARY_ONLY).
+  void test_wants_compares_temperature_with_setpoint()
+  {
+    const float nan = std::nanf("");
+    // Target 20, deadband 1: heat below 19, cool above 21, neither in between.
+    assert(pid_direction::wants(Direction::HEAT, 20.0f, 18.9f, 1.0f));
+    assert(!pid_direction::wants(Direction::COOL, 20.0f, 18.9f, 1.0f));
+    assert(pid_direction::wants(Direction::COOL, 20.0f, 21.1f, 1.0f));
+    assert(!pid_direction::wants(Direction::HEAT, 20.0f, 21.1f, 1.0f));
+    for (float current : {19.0f, 19.5f, 20.0f, 20.5f, 21.0f})
+    {
+      assert(!pid_direction::wants(Direction::HEAT, 20.0f, current, 1.0f));
+      assert(!pid_direction::wants(Direction::COOL, 20.0f, current, 1.0f));
+    }
+    // Zero deadband: any error counts, an exact match does not.
+    assert(pid_direction::wants(Direction::HEAT, 20.0f, 19.9f, 0.0f));
+    assert(!pid_direction::wants(Direction::HEAT, 20.0f, 20.0f, 0.0f));
+    assert(!pid_direction::wants(Direction::COOL, 20.0f, 20.0f, 0.0f));
+    // NaN anywhere, or a negative deadband, wants nothing.
+    for (Direction direction : {Direction::HEAT, Direction::COOL})
+    {
+      assert(!pid_direction::wants(direction, nan, 10.0f, 1.0f));
+      assert(!pid_direction::wants(direction, 20.0f, nan, 1.0f));
+      assert(!pid_direction::wants(direction, 20.0f, 10.0f, nan));
+      assert(!pid_direction::wants(direction, 20.0f, 30.0f, nan));
+      assert(!pid_direction::wants(direction, 20.0f, 10.0f, -1.0f));
+      assert(!pid_direction::wants(direction, 20.0f, 30.0f, -1.0f));
+    }
+  }
+
 } // namespace
 
 int main()
@@ -432,5 +463,6 @@ int main()
   test_actuating_follows_the_gate();
   test_actuating_agrees_with_the_sink();
   test_integral_bounds_follow_the_water();
+  test_wants_compares_temperature_with_setpoint();
   return 0;
 }

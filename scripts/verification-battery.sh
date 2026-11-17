@@ -199,6 +199,8 @@ run_step "native: climate test_ha_tier.cpp" \
   cxx_run climate_ha_tier -Iclimate/protocol climate/tests/test_ha_tier.cpp
 run_step "native: climate test_pid_direction.cpp" \
   cxx_run climate_pid_direction -Iclimate/protocol climate/tests/test_pid_direction.cpp
+run_step "native: climate test_seasonal_demand.cpp" \
+  cxx_run climate_seasonal_demand -Iclimate/protocol climate/tests/test_seasonal_demand.cpp
 run_step "native: climate test_radiant_override.cpp" \
   cxx_run climate_radiant_override -Iclimate/protocol climate/tests/test_radiant_override.cpp
 run_step "native: climate test_dew_point_interlock.cpp" \

@@ -33,8 +33,8 @@
 // The zeroing writes can never leave a stale nonzero level behind because they
 // always precede the last write and a zero is forwarded as a zero by BOTH
 // directions. The PID's own `action`/is_heating/is_cooling diagnostics are not
-// gated on purpose: they report the controller's intent, which the seasonal
-// demand-driven mode selection relies on.
+// gated on purpose: they report the controller's intent (dashboards, the
+// onboard panel). The seasonal demand tier reads wants() below instead.
 //
 // Pump demand must follow what the valves actually do, not the intent: the
 // circulation pumps are demanded by each PID's `_is_active` binary sensor
@@ -85,6 +85,27 @@ namespace pid_direction
            (action_is_cooling && is_active(Direction::COOL, hp_mode));
   }
 
+  // True when a zone WANTS this direction: its temperature is beyond the
+  // setpoint by more than `deadband` on that side (HEAT: colder than target,
+  // COOL: warmer). A NaN temperature, setpoint or deadband, or a negative
+  // deadband, wants nothing.
+  //
+  // This is the demand the seasonal coordinator's shoulder-season tier reads
+  // (pid_sensors.yaml `_wants_heat`/`_wants_cool`, seasonal_demand.h). It looks
+  // at the temperatures, not at the PID's action, on purpose: every zone PID is
+  // OFF while hp_mode is SANITARY_ONLY, so its action is OFF and an
+  // action-based demand could never leave that mode; and the deadband keeps an
+  // ordinary overshoot around the setpoint from reading as demand for the
+  // opposite season.
+  inline bool wants(Direction direction, float target, float current, float deadband)
+  {
+    // Written so that any NaN compares false.
+    if (!(deadband >= 0.0f))
+      return false;
+    const float error = target - current; // > 0: too cold
+    return direction == Direction::HEAT ? error > deadband : -error > deadband;
+  }
+
   // ---------------------------------------------------------------------------
   // Integral windup bounds (review R-13)
   // ---------------------------------------------------------------------------
@@ -115,7 +136,7 @@ namespace pid_direction
   // steady-state offset a loop has learned, so it returns false and the caller
   // keeps the previous bounds. Trade-off: the shoulder seasons can hold
   // SANITARY_ONLY for a long time, and the bounds (and integral) of the last
-  // season carry through it, so the first demand-tier intent in the new
+  // season carry through it, so the first PID intent in the new
   // direction waits for kp * error to exceed |integral| (at most `limit`). A
   // SANITARY_ONLY restored at boot runs on the static symmetric
   // [-limit, limit] bounds, i.e. the pre-fix behaviour, until the first
