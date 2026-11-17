@@ -36,7 +36,10 @@ Lo script stampa le dimensioni esterne e controlla che fondo e coperchio non toc
 
 ## Stampa
 
-- PETG (consigliato: dietro i frutti può scaldarsi) o PLA, ugello 0,4, strato 0,2 mm, 3 perimetri, nessun supporto.
+- **Filamento autoestinguente (flame retardant), classe UL94 V-0**: la scatoletta sta in una scatola elettrica, accanto ai cavi del bus a 24 V. Vanno bene PC-FR, ABS-FR o PETG-V0 (per esempio Bambu Lab PC FR o Polymaker PolyMax PC-FR). Controlla sulla scheda tecnica del filamento che il V-0 valga per lo spessore stampato (pareti 1,8 mm, coperchio 1,6 mm): spesso è certificato a 1,5 o 3 mm. **Non usare PLA o PETG normali.**
+- Gli additivi FR (di solito senza alogeni) non conducono e non disturbano l'antenna; restano da evitare i filamenti caricati con carbonio o metallo.
+- PC e ABS ritirano più del PETG: stampali in camera chiusa, con piano a 90–110 °C. Dopo la prima stampa ricontrolla lo scatto del coperchio (`BUMP_PROUD`, `LIP_GAP`) e il foro delle viti (`PILOT_D`): nel PC un'autofilettante M2,5 può richiedere 2,3–2,4 mm.
+- Ugello 0,4, strato 0,2 mm, 3 perimetri, nessun supporto.
 - Fondo con l'apertura verso l'alto, coperchio con la faccia esterna sul piano: gli STL sono già orientati così.
 
 ## Da verificare sulla prima scheda (misure non nel progetto KiCad)
