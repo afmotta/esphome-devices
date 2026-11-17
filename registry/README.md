@@ -31,6 +31,8 @@ the ESPHome packages the generated config composes:
 | `bridge-t2can` | ADR-0005 segment forwarder on the LilyGO T-2CAN — second source |
 | `bridge` | segment forwarder on the CANBed + a 3.3 V add-on MCP2515 (second source) |
 | `buttons+bridge` | wall plate that is also a forwarder — where a segment splits at a button box (CANBed only) |
+| `led-penta` | external CAN actuator: QuinLED An-Penta-Plus LED controller, 5 channels (`devices/an-penta-1.yaml`, ADR-0020) |
+| `led-quad` | external CAN actuator: QuinLED An-Quad LED controller, 4 channels, WiFi-only (`devices/an-quad-1.yaml`, ADR-0021) |
 
 Single-valued on purpose: ADR-0005 requires single-purpose bridge firmware, so a
 one-of-N column makes "bridge AND sensors" impossible to write rather than something

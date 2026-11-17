@@ -33,6 +33,7 @@ Figure out which role died before doing anything else:
    | Control | Expected after a fresh flash | Why it matters |
    |---|---|---|
    | `hp_mode_manual_hold` | ON | `hp_mode` won't move on its own |
+   | `hp_mode_demand_enabled` | OFF | Room demand never changes `hp_mode` |
    | `hp_mode` | SANITARY_ONLY | No space heating/cooling anywhere |
    | Every zone's `climate` entity | OFF | No radiant/fancoil actuation |
    | Each floor's heat-curve slope | 0 | Flat curve, fixed supply, no weather compensation surprise |

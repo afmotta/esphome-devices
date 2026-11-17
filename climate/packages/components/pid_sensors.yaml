@@ -26,14 +26,25 @@
 #                                       cooling while hp_mode is COOL (pump demand, see below)
 #   binary_sensor.{pid_id}_is_heating - PID intends to heat (action, ungated)
 #   binary_sensor.{pid_id}_is_cooling - PID intends to cool (action, ungated)
+#   binary_sensor.{pid_id}_wants_heat - (internal) room colder than setpoint - demand_deadband
+#   binary_sensor.{pid_id}_wants_cool - (internal) room warmer than setpoint + demand_deadband
+#
+# Optional vars:
+#   demand_deadband          - °C beyond the setpoint before _wants_heat/_wants_cool
+#                              turn on (default: 1.0)
 #
 # is_active vs is_heating/is_cooling (R-01): the PID's `action` is its INTENT and
-# is deliberately not gated (the seasonal demand tier reads is_heating/is_cooling
-# as intent). The actuators ARE gated on hp_mode (pid_direction.h), so a room above
+# is deliberately not gated. The actuators ARE gated on hp_mode (pid_direction.h), so a room above
 # target in HEAT season has action COOLING but a shut valve. is_active feeds the
 # circulation-pump demand (floor *_any_zone_open sensors, second-floor direct
 # pump), so it must mean "water is really being asked for": it applies the same
 # gate, otherwise the pump would run against closed valves.
+#
+# wants_heat/wants_cool feed the seasonal coordinator's shoulder-season demand
+# tier (any_zone_wants_heat/_cool in the entry point). They compare the room
+# temperature with the setpoint instead of reading the action, because the PID
+# is OFF (action OFF) while hp_mode is SANITARY_ONLY and the tier must still be
+# able to leave that mode; see pid_direction::wants.
 #
 # Example:
 #   packages:
@@ -43,6 +54,9 @@
 #         pid_id: "living_room_radiant_pid"
 #         pid_name: "Living Room Radiant PID"
 # =============================================================================
+
+defaults:
+  demand_deadband: "1.0"
 
 sensor:
   - platform: pid
@@ -115,3 +129,17 @@ binary_sensor:
     id: ${pid_id}_is_cooling
     lambda: |-
       return id(${pid_id}).action == CLIMATE_ACTION_COOLING;
+  - platform: template
+    id: ${pid_id}_wants_heat
+    internal: true
+    lambda: |-
+      return pid_direction::wants(pid_direction::Direction::HEAT,
+                                  id(${pid_id}).target_temperature,
+                                  id(${pid_id}).current_temperature, ${demand_deadband});
+  - platform: template
+    id: ${pid_id}_wants_cool
+    internal: true
+    lambda: |-
+      return pid_direction::wants(pid_direction::Direction::COOL,
+                                  id(${pid_id}).target_temperature,
+                                  id(${pid_id}).current_temperature, ${demand_deadband});

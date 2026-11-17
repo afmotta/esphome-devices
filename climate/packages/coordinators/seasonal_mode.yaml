@@ -26,16 +26,30 @@
 #                              (default: "any_pid_requesting_heat")
 #   cool_demand_id           - ID of the "any PID requesting cool" binary sensor
 #                              (default: "any_pid_requesting_cool")
+#   heat_wanted_id           - ID of the "some zone wants heat" binary sensor the
+#                              demand tier reads (default: "any_zone_wants_heat")
+#   cool_wanted_id           - ID of the "some zone wants cool" binary sensor the
+#                              demand tier reads (default: "any_zone_wants_cool")
 #   check_interval           - How often to evaluate calendar and demand (default: 1min)
+#   demand_confirm_checks    - Consecutive checks a one-sided demand must persist
+#                              before the demand tier acts (default: 15)
+#   demand_min_dwell_checks  - Checks after ANY hp_mode change during which the
+#                              demand tier may not change it again (default: 120)
+#
+# Dependencies:
+#   - climate/protocol/seasonal_demand.h (esphome.includes in the entry point)
 #
 # Exposes:
 #   select.${seasonal_mode_id}                   - Mode selector (HEAT/COOL/SANITARY_ONLY)
 #   switch.${seasonal_mode_id}_manual_hold       - Commissioning hold; suspends tiers 1+3
+#   switch.${seasonal_mode_id}_demand_enabled    - Opt-in for tier 3 (default OFF)
 #   text_sensor.${seasonal_mode_id}_reason       - Why current mode was set
 #   text_sensor.${seasonal_mode_id}_season       - Current season classification
 #   binary_sensor.${seasonal_mode_id}_summer     - Compatibility: true when COOL
-#   binary_sensor.${heat_demand_id}              - Safe no-demand stub; extend with demand aggregation
-#   binary_sensor.${cool_demand_id}              - Safe no-demand stub; extend with demand aggregation
+#   binary_sensor.${heat_demand_id}              - Display aggregate (PID actions); stub, extend it
+#   binary_sensor.${cool_demand_id}              - Display aggregate (PID actions); stub, extend it
+#   binary_sensor.${heat_wanted_id}              - Demand-tier input; safe no-demand stub, extend it
+#   binary_sensor.${cool_wanted_id}              - Demand-tier input; safe no-demand stub, extend it
 #
 # Manual hold (commissioning):
 #   The heat pump produces either hot OR chilled water house-wide, and that
@@ -48,15 +62,32 @@
 #   source-changeover schedule — otherwise the calendar can drive the select to
 #   a mode the source is not producing.
 #
+# Demand tier (tier 3, shoulder seasons only; review 2026-11-10 finding 1):
+#   OFF by default, behind its own switch (${seasonal_mode_id}_demand_enabled),
+#   because it MOVES the select on room demand while the select is meant to
+#   mirror the source: turn it on only where the heat pump really follows
+#   hp_mode (or the operator changes the source over when the select moves).
+#   Releasing the manual hold alone runs the calendar tier only.
+#   It reads heat_wanted_id / cool_wanted_id - zone temperature vs setpoint with
+#   a deadband (pid_sensors.yaml _wants_heat/_wants_cool), not the PID actions:
+#   every zone PID is OFF in SANITARY_ONLY, so the actions could never leave it.
+#   A one-sided demand must persist for demand_confirm_checks, no change happens
+#   within demand_min_dwell_checks of the last one, and a house wanting heat AND
+#   cool at once is left alone (it used to flip HEAT <-> COOL every check).
+#   Rules and rationale: climate/protocol/seasonal_demand.h.
+#
 # Usage note:
-#   The demand binary sensors (heat_demand_id, cool_demand_id) default to false
-#   so omission is safe, but production devices MUST !extend them with actual
-#   demand logic:
+#   All four aggregate binary sensors default to false so omission is safe, but
+#   production devices MUST !extend them with the real aggregation
+#   (scripts/verify_seasonal_mode_aggregation.py checks the entry point's lists):
 #
 #     binary_sensor:
-#       - id: !extend any_pid_requesting_heat
+#       - id: !extend any_pid_requesting_heat      # display
 #         lambda: |-
 #           return id(pid_zone1_is_heating).state || id(pid_zone2_is_heating).state;
+#       - id: !extend any_zone_wants_heat          # demand tier
+#         lambda: |-
+#           return id(pid_zone1_wants_heat).state || id(pid_zone2_wants_heat).state;
 #
 # Example:
 #   packages:
@@ -79,6 +110,10 @@ defaults:
   summer_end_day: "31"
   heat_demand_id: "any_pid_requesting_heat"
   cool_demand_id: "any_pid_requesting_cool"
+  heat_wanted_id: "any_zone_wants_heat"
+  cool_wanted_id: "any_zone_wants_cool"
+  demand_confirm_checks: "15"
+  demand_min_dwell_checks: "120"
   check_interval: 1min
 
 select:
@@ -92,6 +127,11 @@ select:
     icon: mdi:heat-pump
     optimistic: true
     restore_value: true
+    # Any hp_mode change (operator, calendar, demand tier; also the restore at
+    # boot) restarts the demand tier's dwell and confirmation.
+    on_value:
+      then:
+        - lambda: "seasonal_demand::on_mode_changed(seasonal_demand::state());"
 
 text_sensor:
   - platform: template
@@ -153,6 +193,21 @@ binary_sensor:
     lambda: |-
       return false;
 
+  # Demand-tier inputs (see header). Stubs: the entry point !extends them.
+  - platform: template
+    id: ${heat_wanted_id}
+    name: "Any Zone Wants Heat"
+    entity_category: diagnostic
+    lambda: |-
+      return false;
+
+  - platform: template
+    id: ${cool_wanted_id}
+    name: "Any Zone Wants Cool"
+    entity_category: diagnostic
+    lambda: |-
+      return false;
+
 switch:
   # Commissioning hold. Defaults ON so a freshly flashed controller never moves
   # the season select on its own: during bring-up the operator pins it to the
@@ -164,6 +219,15 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
+
+  # Opt-in for the demand tier. Defaults OFF: see "Demand tier" in the header.
+  - platform: template
+    id: ${seasonal_mode_id}_demand_enabled
+    name: "${seasonal_mode_name} Demand Tier"
+    icon: mdi:thermometer-auto
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
 
 script:
   - id: ${seasonal_mode_id}_check_calendar
@@ -224,30 +288,42 @@ script:
                              (m == ${summer_end_month} + 1) ||
                              (m == ${winter_start_month} && d < ${winter_start_day});
 
-          if (is_shoulder) {
-            if (id(${heat_demand_id}).state && id(${seasonal_mode_id}).current_option() != "HEAT") {
-              auto call = id(${seasonal_mode_id}).make_call();
-              call.set_option("HEAT");
-              call.perform();
-              id(${seasonal_mode_id}_reason).publish_state("DEMAND");
-              ESP_LOGI("seasonal_mode", "Demand Transition: HEAT");
-            } else if (id(${cool_demand_id}).state && id(${seasonal_mode_id}).current_option() != "COOL") {
-              auto call = id(${seasonal_mode_id}).make_call();
-              call.set_option("COOL");
-              call.perform();
-              id(${seasonal_mode_id}_reason).publish_state("DEMAND");
-              ESP_LOGI("seasonal_mode", "Demand Transition: COOL");
-            }
+          auto &state = seasonal_demand::state();
+          if (!is_shoulder) {
+            seasonal_demand::idle(state);
+            return;
           }
+          const auto target = seasonal_demand::step(
+              state, id(${heat_wanted_id}).state, id(${cool_wanted_id}).state,
+              id(${seasonal_mode_id}).current_option().c_str(),
+              ${demand_confirm_checks}, ${demand_min_dwell_checks});
+          if (target == seasonal_demand::Target::NONE) return;
+          const char *option = target == seasonal_demand::Target::HEAT ? "HEAT" : "COOL";
+          auto call = id(${seasonal_mode_id}).make_call();
+          call.set_option(option);
+          call.perform();
+          id(${seasonal_mode_id}_reason).publish_state("DEMAND");
+          ESP_LOGI("seasonal_mode", "Demand Transition: %s", option);
 
 interval:
   - interval: ${check_interval}
     then:
+      # The dwell clock runs on every check, also while the tiers are held off.
+      - lambda: "seasonal_demand::tick(seasonal_demand::state());"
       # Tiers 1 (calendar) and 3 (demand) are suspended while the hold is on —
-      # see "Manual hold (commissioning)" in the header.
+      # see "Manual hold (commissioning)" in the header. Tier 3 additionally
+      # needs its own opt-in switch ("Demand tier" in the header).
       - if:
           condition:
             switch.is_off: ${seasonal_mode_id}_manual_hold
           then:
             - script.execute: ${seasonal_mode_id}_check_calendar
+      - if:
+          condition:
+            and:
+              - switch.is_off: ${seasonal_mode_id}_manual_hold
+              - switch.is_on: ${seasonal_mode_id}_demand_enabled
+          then:
             - script.execute: ${seasonal_mode_id}_check_demand
+          else:
+            - lambda: "seasonal_demand::idle(seasonal_demand::state());"

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Verify seasonal-mode heat/cool demand aggregates cover all Climate PID diagnostics.
 
+Two pairs of aggregates share the same zone lists: the display pair
+(`any_pid_requesting_heat/cool`, PID actions `_pid_is_heating/_is_cooling`) and the
+demand-tier pair (`any_zone_wants_heat/cool`, `_pid_wants_heat/_wants_cool`).
+
 Also verifies that each floor's radiant pump-demand sum covers every radiant zone
 twice over: through the PID's `_radiant_pid_is_active` and through the radiant
 override's `_radiant_override_active` (a valve held open by boost or by hand has
@@ -18,7 +22,7 @@ ROOMS_DIR = ROOT / "climate" / "rooms"
 CLIMATE_CONTROL = ROOT / "devices" / "climate-control.yaml"
 
 ROOM_SLUG_RE = re.compile(r'room_slug:\s*["\']?([A-Za-z0-9_]+)["\']?')
-ID_REF_RE = re.compile(r'id\(([A-Za-z0-9_]+_pid_is_(?:heating|cooling))\)')
+ID_REF_RE = re.compile(r'id\(([A-Za-z0-9_]+_pid_(?:is_heating|is_cooling|wants_heat|wants_cool))\)')
 
 HEAT_ONLY_MARKERS = (
     "climate/packages/components/heat_only_radiant.yaml",
@@ -54,7 +58,7 @@ def contains_any(text: str, markers: tuple[str, ...]) -> bool:
     return any(marker in text for marker in markers)
 
 
-def expected_pid_ids() -> tuple[set[str], set[str]]:
+def expected_pid_ids(heat_suffix: str, cool_suffix: str) -> tuple[set[str], set[str]]:
     expected_heat: set[str] = set()
     expected_cool: set[str] = set()
 
@@ -64,12 +68,12 @@ def expected_pid_ids() -> tuple[set[str], set[str]]:
         has_fancoil = contains_any(text, FANCOIL_MARKERS)
 
         if has_heat_only_radiant or has_radiant:
-            expected_heat.add(f"{slug}_radiant_pid_is_heating")
+            expected_heat.add(f"{slug}_radiant_pid_{heat_suffix}")
         if has_radiant:
-            expected_cool.add(f"{slug}_radiant_pid_is_cooling")
+            expected_cool.add(f"{slug}_radiant_pid_{cool_suffix}")
         if has_fancoil:
-            expected_heat.add(f"{slug}_fancoil_pid_is_heating")
-            expected_cool.add(f"{slug}_fancoil_pid_is_cooling")
+            expected_heat.add(f"{slug}_fancoil_pid_{heat_suffix}")
+            expected_cool.add(f"{slug}_fancoil_pid_{cool_suffix}")
 
     return expected_heat, expected_cool
 
@@ -161,22 +165,23 @@ def report_delta(title: str, values: set[str]) -> None:
 
 
 def main() -> int:
-    expected_heat, expected_cool = expected_pid_ids()
-    actual_heat = referenced_ids("any_pid_requesting_heat")
-    actual_cool = referenced_ids("any_pid_requesting_cool")
-
     errors = False
-    for label, expected, actual in (
-        ("heat", expected_heat, actual_heat),
-        ("cool", expected_cool, actual_cool),
+    expected_heat: set[str] = set()
+    expected_cool: set[str] = set()
+    for heat_id, cool_id, heat_suffix, cool_suffix in (
+        ("any_pid_requesting_heat", "any_pid_requesting_cool", "is_heating", "is_cooling"),
+        ("any_zone_wants_heat", "any_zone_wants_cool", "wants_heat", "wants_cool"),
     ):
-        missing = expected - actual
-        extra = actual - expected
-        if missing or extra:
-            errors = True
-            print(f"Seasonal {label} aggregate mismatch:", file=sys.stderr)
-            report_delta("Missing expected PID diagnostics:", missing)
-            report_delta("References without a matching room package:", extra)
+        expected_heat, expected_cool = expected_pid_ids(heat_suffix, cool_suffix)
+        for aggregate_id, expected in ((heat_id, expected_heat), (cool_id, expected_cool)):
+            actual = referenced_ids(aggregate_id)
+            missing = expected - actual
+            extra = actual - expected
+            if missing or extra:
+                errors = True
+                print(f"Seasonal aggregate {aggregate_id} mismatch:", file=sys.stderr)
+                report_delta("Missing expected PID diagnostics:", missing)
+                report_delta("References without a matching room package:", extra)
 
     pump_errors = radiant_pump_demand_errors()
     for error in pump_errors:
@@ -186,7 +191,7 @@ def main() -> int:
     if errors:
         return 1
     print(
-        "seasonal mode aggregation: heat/cool PID diagnostics match room packages "
+        "seasonal mode aggregation: display and demand-tier aggregates match room packages "
         f"({len(expected_heat)} heat, {len(expected_cool)} cool)"
     )
     print("radiant pump demand: every radiant zone feeds its floor sum via PID and override")

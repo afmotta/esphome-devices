@@ -34,11 +34,12 @@ hard-references every zone's PID (enforced by
 `scripts/verify_seasonal_mode_aggregation.py`), so compiling zones out would break
 the build. Rollback at every step is a switch flip.
 
-Most gates reuse controls that already existed. Three commissioning gates were added:
+Most gates reuse controls that already existed. These commissioning gates were added:
 
 | Gate | Default | Effect when off/held |
 |---|---|---|
 | `hp_mode_manual_hold` | **ON** | Calendar + demand tiers suspended; operator owns `hp_mode` |
+| `hp_mode_demand_enabled` | **OFF** | No demand-driven shoulder-season changes (calendar only once the hold is released) |
 | `{zone}_boost_enabled` (Soggiorno, Cucina) | **OFF** | No hybrid radiant+fancoil boost; an active boost is dropped to "Radiant Only" |
 | `first_floor_mev_enabled` | **OFF** | Fan forced to 0; cascade released to "Fan Only" |
 
@@ -49,6 +50,7 @@ A freshly flashed controller comes up idle. Confirm before energising anything:
 | Control | Expected | Effect |
 |---|---|---|
 | `hp_mode_manual_hold` | ON | `hp_mode` will not move on its own |
+| `hp_mode_demand_enabled` | OFF | Room demand never moves `hp_mode` |
 | `hp_mode` | SANITARY_ONLY | No space conditioning; all zone PIDs idle |
 | every zone `climate` entity | OFF | No radiant/fancoil actuation |
 | `{floor}_heat_curve_slope` | set to **0** | Flat curve → mixing valve holds a fixed `{floor}_heat_curve_base` supply |
@@ -167,10 +169,18 @@ Only after **both** campaigns are proven.
    self-activates (fancoil off on open, radiant untouched) and stays a no-op where
    unmapped or where HA is down.
 2. **Release automatic seasonal transitions** — flip `hp_mode_manual_hold` → **OFF**
-   so the calendar and demand-driven shoulder logic run on their own.
+   so the calendar tier runs on its own.
    > **First align the `seasonal_mode` calendar date ranges to the installer's real
    > source-changeover schedule.** Otherwise the calendar can drive `hp_mode` to a
    > mode the source is not producing.
+
+   The demand-driven shoulder tier stays off until `hp_mode_demand_enabled` is turned
+   **ON** as a separate step. It changes `hp_mode` on room temperatures, so it is only
+   correct where the source follows `hp_mode` — today nothing tells the heat pump to
+   change over (SG-Ready/ISG are backlog below), so **leave it OFF** unless someone
+   changes the source over whenever `hp_mode` moves. When on: a one-sided demand
+   (some zone ≥ 1 °C off its setpoint, no zone wanting the opposite) must last
+   15 min, and no change happens within 2 h of the previous one.
 3. **Weather-comp refinement** after a full heating season of data.
 4. **Backlog** — ISG-web HA telemetry (`stiebel_eltron`); SG-Ready relays
    (`relay_18`/`relay_19`, pending the parked topology ADR); the deferred runtime

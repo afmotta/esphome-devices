@@ -400,7 +400,7 @@ async def test_pump_demand_follows_the_water_direction(run_harness, hp_mode, tem
 async def test_pump_demand_keeps_the_intent_sensors_ungated(run_harness):
     """Winter, room too warm: is_active is false but is_cooling still says COOLING.
 
-    The seasonal demand tier reads is_heating/is_cooling as the PID's intent
+    is_heating/is_cooling report the PID's intent to dashboards and the panel
     (a room wanting cooling in HEAT season is a signal, not a command).
     """
     h = await run_harness("radiant_direction")

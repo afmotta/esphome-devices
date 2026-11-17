@@ -20,6 +20,7 @@ esphome:
     - ../../climate/protocol/pid_direction.h   # heat/cool direction gating of PID actuators (R-01)
     - ../../climate/protocol/radiant_override.h   # radiant final stage: override vs PID, NaN stop (R-05)
     - ../../climate/protocol/dew_point_interlock.h   # hard low limit on cooling supply water (N-01)
+    - ../../climate/protocol/seasonal_demand.h   # shoulder-season demand tier of seasonal_mode.yaml
 
 packages:
   base: !include ../boards/t-connect-pro.yaml
@@ -68,28 +69,6 @@ packages:
   # esphome_overrides_path is provided by the devices/locals/ wrapper.
   display: !include ../boards/t-connect-pro-display.yaml
   touch_ui: !include ../climate/packages/ui/climate_touch_ui.yaml
-
-udp:
-  id: udp_packet_transport
-
-packet_transport:
-  - platform: udp
-    udp_id: udp_packet_transport
-    providers:
-      - name: room-sensor-soggiorno
-      - name: room-sensor-cucina
-      - name: room-sensor-bagno
-      - name: room-sensor-anticamera
-      - name: room-sensor-locale-tecnico
-      - name: room-sensor-bagno-grande
-      - name: room-sensor-bagno-ospiti
-      - name: room-sensor-bagno-padronale
-      - name: room-sensor-camera-nord
-      - name: room-sensor-camera-sud
-      - name: room-sensor-camera-ospiti
-      - name: room-sensor-camera-padronale
-      - name: room-sensor-lavanderia
-      - name: room-sensor-sottotetto
 
 modbus:
   id: rs485_bus
@@ -145,3 +124,39 @@ binary_sensor:
              id(cucina_fancoil_pid_is_cooling).state ||
              id(locale_tecnico_fancoil_pid_is_cooling).state ||
              id(sottotetto_fancoil_pid_is_cooling).state;
+
+  # Demand-tier inputs of seasonal_mode.yaml: same zone lists as the two display
+  # aggregates above, read from each PID's _wants_heat/_wants_cool (temperature
+  # vs setpoint, valid while the PIDs are OFF in SANITARY_ONLY).
+  - id: !extend any_zone_wants_heat
+    lambda: |-
+      return id(soggiorno_radiant_pid_wants_heat).state ||
+             id(cucina_radiant_pid_wants_heat).state ||
+             id(bagno_terra_radiant_pid_wants_heat).state ||
+             id(anticamera_radiant_pid_wants_heat).state ||
+             id(bagno_grande_radiant_pid_wants_heat).state ||
+             id(bagno_ospiti_radiant_pid_wants_heat).state ||
+             id(bagno_padronale_radiant_pid_wants_heat).state ||
+             id(camera_nord_radiant_pid_wants_heat).state ||
+             id(camera_sud_radiant_pid_wants_heat).state ||
+             id(camera_ospiti_radiant_pid_wants_heat).state ||
+             id(camera_padronale_radiant_pid_wants_heat).state ||
+             id(lavanderia_radiant_pid_wants_heat).state ||
+             id(soggiorno_fancoil_pid_wants_heat).state ||
+             id(cucina_fancoil_pid_wants_heat).state ||
+             id(locale_tecnico_fancoil_pid_wants_heat).state ||
+             id(sottotetto_fancoil_pid_wants_heat).state;
+
+  - id: !extend any_zone_wants_cool
+    lambda: |-
+      return id(soggiorno_radiant_pid_wants_cool).state ||
+             id(cucina_radiant_pid_wants_cool).state ||
+             id(anticamera_radiant_pid_wants_cool).state ||
+             id(camera_nord_radiant_pid_wants_cool).state ||
+             id(camera_sud_radiant_pid_wants_cool).state ||
+             id(camera_ospiti_radiant_pid_wants_cool).state ||
+             id(camera_padronale_radiant_pid_wants_cool).state ||
+             id(soggiorno_fancoil_pid_wants_cool).state ||
+             id(cucina_fancoil_pid_wants_cool).state ||
+             id(locale_tecnico_fancoil_pid_wants_cool).state ||
+             id(sottotetto_fancoil_pid_wants_cool).state;

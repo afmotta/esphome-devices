@@ -1,0 +1,162 @@
+# =============================================================================
+# Test harness: seasonal_mode (demand tier, review 2026-11-10 finding 1)
+#
+# Compiles for the `host` platform so the full ESPHome runtime runs as a local
+# Linux binary (see harness/outdoor.yaml).
+#
+# The real coordinator (packages/coordinators/seasonal_mode.yaml) runs against
+# two real zones, each with its own stub temperature so the house can want
+# heat and cool at the same time:
+#   bath     heat_only_radiant.yaml   (heat demand only)
+#   bedroom  radiant.yaml             (heat and cool demand)
+# The two demand aggregates are extended exactly as devices/climate-control.yaml
+# does, from the PIDs' _wants_heat/_wants_cool.
+#
+# Compressed for test speed (all optional vars of seasonal_mode.yaml):
+#   check_interval 100 ms, confirmation 5 checks (0.5 s), dwell 20 checks (2 s).
+# The calendar is pinned to "always shoulder season" with out-of-range months
+# (no winter lock, no summer lock, no midnight reset), so the test does not
+# depend on the date it runs on; the host clock only has to be valid.
+#
+# `Mode Change Count` counts every hp_mode publish (the restore at boot
+# included), so a test can prove the mode did NOT move during a wait.
+#
+# Used by all three test layers:
+#   esphome config  tests/harness/seasonal_mode.yaml   (validate)
+#   esphome compile tests/harness/seasonal_mode.yaml   (compile check)
+#   pytest tests/e2e/test_seasonal_mode.py             (behavior)
+# =============================================================================
+
+substitutions:
+  seasonal_mode_id: hp_mode
+
+esphome:
+  name: t-seasonal-mode
+  # Same headers the climate controller compiles in (devices/climate-control.yaml);
+  # resolved relative to this file's directory, the top-level config.
+  includes:
+    - ../../protocol/pid_direction.h
+    - ../../protocol/radiant_override.h
+    - ../../protocol/seasonal_demand.h
+
+host:
+
+logger:
+  level: DEBUG
+
+time:
+  - platform: host
+    id: test_time
+
+api:
+  actions:
+    - action: set_temperatures
+      variables:
+        bath: float
+        bedroom: float
+      then:
+        - sensor.template.publish:
+            id: bath_temperature
+            state: !lambda "return bath;"
+        - sensor.template.publish:
+            id: bedroom_temperature
+            state: !lambda "return bedroom;"
+    - action: set_hp_mode
+      variables:
+        value: string
+      then:
+        - select.set:
+            id: hp_mode
+            option: !lambda "return value;"
+    - action: set_gates
+      variables:
+        manual_hold: bool
+        demand_tier: bool
+      then:
+        - if:
+            condition:
+              lambda: "return manual_hold;"
+            then:
+              - switch.turn_on: hp_mode_manual_hold
+            else:
+              - switch.turn_off: hp_mode_manual_hold
+        - if:
+            condition:
+              lambda: "return demand_tier;"
+            then:
+              - switch.turn_on: hp_mode_demand_enabled
+            else:
+              - switch.turn_off: hp_mode_demand_enabled
+
+globals:
+  - id: mode_changes
+    type: int
+    initial_value: "0"
+
+select:
+  - id: !extend hp_mode
+    on_value:
+      then:
+        - lambda: "id(mode_changes) += 1;"
+
+switch:
+  - platform: template
+    id: bath_relay
+    optimistic: true
+  - platform: template
+    id: bedroom_relay
+    optimistic: true
+
+sensor:
+  - platform: template
+    id: bath_temperature
+    internal: true
+  - platform: template
+    id: bedroom_temperature
+    internal: true
+  - platform: template
+    id: mode_change_count
+    name: "Mode Change Count"
+    lambda: "return id(mode_changes);"
+    update_interval: 50ms
+    filters:
+      - delta: 0.5
+
+binary_sensor:
+  - id: !extend any_zone_wants_heat
+    lambda: |-
+      return id(bath_radiant_pid_wants_heat).state ||
+             id(bedroom_radiant_pid_wants_heat).state;
+  - id: !extend any_zone_wants_cool
+    lambda: |-
+      return id(bedroom_radiant_pid_wants_cool).state;
+
+packages:
+  dut: !include
+    file: ../../packages/coordinators/seasonal_mode.yaml
+    vars:
+      seasonal_mode_id: hp_mode
+      seasonal_mode_name: "Heat Pump Mode"
+      time_id: test_time
+      check_interval: 100ms
+      demand_confirm_checks: "5"
+      demand_min_dwell_checks: "20"
+      # Always shoulder season, whatever today's date is.
+      winter_start_month: "13"
+      winter_end_month: "0"
+      summer_start_month: "13"
+      summer_end_month: "-1"
+  bath: !include
+    file: ../../packages/components/heat_only_radiant.yaml
+    vars:
+      room_slug: bath
+      room_name: "Bath"
+      temperature_sensor: bath_temperature
+      relay_id: bath_relay
+  bedroom: !include
+    file: ../../packages/components/radiant.yaml
+    vars:
+      room_slug: bedroom
+      room_name: "Bedroom"
+      temperature_sensor: bedroom_temperature
+      relay_id: bedroom_relay

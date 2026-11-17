@@ -53,8 +53,9 @@
 # For an all-on/all-off group prefer explicit op: on / op: off over toggle, which desyncs if
 # the relays start in mixed states.
 #
-# Empty for now: no bindings are authored until the gateway relay outputs exist (fallback is
-# still log-only — ADR-0003 open item 7). An empty manifest still has a stable, real hash.
+# Empty for now: the fallback actuates for real (lighting controller relay bank, ADR-0013/0014),
+# but no bindings are authored until the lighting circuit inventory exists (ADR-0013 open
+# item 4). An empty manifest still has a stable, real hash.
 # =============================================================================
 
 schema_version: 1

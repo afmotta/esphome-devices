@@ -31,7 +31,7 @@ points that compose Climate packages (`devices/climate-control.yaml` and its
 - **Advanced PID control**: Precise temperature management with auto-tuning
 - **Autonomous dew-point protection**: ESPHome-native dew-point calculation sets the radiant-cooling supply-water target to dew point + `safe_margin` (default 2 °C, settable 1-5 °C) on the controller itself, and a hard interlock on each mixing valve shuts the chilled water whenever the supply falls below dew point + margin/2, independent of the PID (`climate/protocol/dew_point_interlock.h`, review N-01); it needs valid room readings, so a room whose dew point is NaN (CAN and HA tiers both gone) leaves the floor's supply minimum holding its previous value (`climate/room_sensors.yaml`, `climate/rooms/ground_floor/ground-floor.yaml`)
 - **Window-aware climate response**: an open window pauses fancoil control after a grace period while radiant keeps running (thermal-mass characteristics make it safe)
-- **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus demand-driven shoulder-season transitions (`climate/packages/coordinators/seasonal_mode.yaml`)
+- **Three-tier seasonal mode selection**: automated heat/cool mode via calendar hard-locks plus an opt-in demand-driven shoulder-season tier — confirmed, dwell-limited, and inert while zones want heat and cool at once (`climate/packages/coordinators/seasonal_mode.yaml`, `climate/protocol/seasonal_demand.h`)
 - **Mechanical Extract Ventilation (MEV)**: two Modbus-controlled units of different models — the first-floor Cappellotto Air Fresh I with air-quality- and humidity-driven demand plus a dehumidification/integration cascade, alarm decoding, and filter-hour tracking (`climate/mev_modbus.yaml`, `climate/packages/coordinators/mev_ventilation.yaml`); and the ground-floor Innova HRP DOMO 60 HX, a passive **enthalpic** HRV driven by CO2/air-quality **and** humidity demand — high humidity raises ventilation and the enthalpic core passively manages moisture, so there is no active dehumidification cascade (its only actuator is fan speed) — on the shared 3-channel demand with a fan-only coordinator (`climate/mev_innova_modbus.yaml`, `climate/packages/coordinators/mev_ventilation_fan_only.yaml`; ADR-0018)
 - **Autonomous operation**: all relay/analog/MEV actuation runs on the one controller (the sole Modbus master) regardless of Home Assistant (`api: reboot_timeout: 0s` on the controllers, and `wifi:` too on the dual-interface boards, so an HA or access-point outage never reboots them, R-02). Room-sensor *data* does not: it depends on the CAN→HA failover chain, so an HA outage puts the zones without a CAN sensor node in Emergency (see [Sensor failover architecture](#sensor-failover-architecture))
 - **Home Assistant integration**: Full monitoring, dashboards, and overrides when available
@@ -156,9 +156,10 @@ is back at the minimum; a NaN supply, minimum or margin blocks too. It is evalua
 integral on each `hp_mode` change via `pid_direction::integral_bounds()`: HEAT → `[0, limit]`,
 COOL → `[-limit, 0]`, SANITARY_ONLY keeps the previous bounds (`integral_limit` var, default 1.0,
 output units). Without it the gated direction wound up a full actuator span. Side effects: the
-first demand-tier intent in the new direction is delayed — in HEAT `is_cooling` only appears once
+first intent in the new direction is delayed — in HEAT `is_cooling` only appears once
 the integral has decayed to 0 (~200 s per unit of error at ki 0.005, mirror in COOL), which the
-seasonal-mode coordinators reading `*_pid_is_active` see — and after a long SANITARY_ONLY the
+dashboards and the pump demand (`*_pid_is_active`) see; the seasonal demand tier is unaffected, it
+reads temperature vs setpoint (`*_pid_wants_heat/_wants_cool`) — and after a long SANITARY_ONLY the
 previous season's bounds still apply (a SANITARY_ONLY restored at boot runs symmetric bounds);
 both are bounded by `integral_limit`. Rationale: `pid_direction::integral_bounds`.
 
@@ -255,12 +256,13 @@ Deployment is a **season-phased progressive rollout** on a single firmware image
 see `docs/climate/climate-deployment-runbook.md`. Features are gated at runtime, not at build
 time, because the `any_pid_requesting_heat/cool` aggregation in
 `devices/climate-control.yaml` hard-references every zone's PID (compiling zones out
-would break the build). Three gates default to the safe state, so a freshly flashed
+would break the build). These gates default to the safe state, so a freshly flashed
 controller comes up idle:
 
 | Gate | Default | Effect when off/held |
 |---|---|---|
 | `hp_mode_manual_hold` | **ON** | Calendar + demand tiers suspended; the operator owns `hp_mode` |
+| `hp_mode_demand_enabled` | **OFF** | No demand-driven shoulder-season changes; with the hold released only the calendar moves `hp_mode` |
 | `{zone}_boost_enabled` | **OFF** | No hybrid radiant+fancoil boost; an active boost drops to "Radiant Only" |
 | `first_floor_mev_enabled` | **OFF** | Fan forced to 0; humidity cascade released to "Fan Only" |
 | `ground_floor_mev_enabled` | **OFF** | Fan forced to 0 (passive enthalpic unit; CO2/air-quality + humidity demand, no cascade) |
@@ -282,6 +284,13 @@ Two constraints drive the phase order and are easy to get wrong:
   either hot or chilled water house-wide and the changeover happens at the source
   (no changeover relay exists). You can only commission the emitters for the season
   currently being produced, so full coverage spans both seasons.
+  The demand tier is the one thing that *moves* `hp_mode` on room temperatures, which
+  is why it is opt-in (`hp_mode_demand_enabled`): enable it only where the source
+  really follows `hp_mode`. It reads `any_zone_wants_heat/cool` (zone temperature vs
+  setpoint, 1 °C deadband — valid while the PIDs are OFF in SANITARY_ONLY), needs the
+  demand to persist 15 checks, waits 120 checks after any `hp_mode` change, and does
+  nothing while zones want heat and cool at once (`climate/protocol/seasonal_demand.h`,
+  review 2026-11-10).
 - **First-floor cooling requires MEV.** The first floor cools via a radiant *ceiling*;
   its dew-point-limited supply only cools safely once MEV dehumidification has lowered
   the room dew point. MEV is commissioned in Phase 0, ahead of any cooling.
@@ -303,6 +312,9 @@ g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_pid_direction
 
 # Radiant final stage: override vs PID, NaN stop (R-05)
 g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_radiant_override.cpp -o /tmp/climate_radiant_override && /tmp/climate_radiant_override
+
+# Seasonal demand tier: confirmation, dwell, mixed demand (review 2026-11-10)
+g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_seasonal_demand.cpp -o /tmp/climate_seasonal_demand && /tmp/climate_seasonal_demand
 
 # Dew-point interlock on the mixing valves' cool output (N-01)
 g++ -std=c++17 -Wall -Wextra -Iclimate/protocol climate/tests/test_dew_point_interlock.cpp -o /tmp/climate_dew_point_interlock && /tmp/climate_dew_point_interlock
@@ -363,8 +375,9 @@ packages:
 ```
 
 A new radiant zone must also join its floor's pump-demand sum (`*_any_zone_open`, both
-`_radiant_pid_is_active` and `_radiant_override_active`), the seasonal-mode aggregation in
-`devices/climate-control.yaml` (`scripts/verify_seasonal_mode_aggregation.py` checks both), and — if it
+`_radiant_pid_is_active` and `_radiant_override_active`), the seasonal-mode aggregations in
+`devices/climate-control.yaml` (`any_pid_requesting_*` and `any_zone_wants_*`;
+`scripts/verify_seasonal_mode_aggregation.py` checks all of them), and — if it
 cools — the floor's dew-point sources and supply-minimum room list, which must stay identical.
 
 ### Modifying PID Parameters
